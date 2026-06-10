@@ -1,0 +1,20 @@
+# BMTC Smart Planner — Python dependencies
+
+# Core data
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Web UI
+streamlit>=1.32.0
+
+# Google Maps (replaces folium/streamlit-folium)
+requests>=2.28
+
+# Environment variable loading
+python-dotenv>=1.0
+fastapi>=0.100.0
+uvicorn>=0.22.0
+
+# Testing
+pytest>=8.0.0
+pytest-cov>=4.1.0

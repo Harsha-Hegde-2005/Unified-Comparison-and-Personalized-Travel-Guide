@@ -1,0 +1,62 @@
+{
+  "_note": "Calibrated using 2 real data points: 4.9km and 9.4km from Namma Yatri app. Formula: fare = effective_base + distance_km * per_km",
+  "vehicles": {
+    "auto": {
+      "name": "Auto",
+      "description": "Easy Commute",
+      "capacity": 3,
+      "effective_base": 31.51,
+      "per_km": 16.22,
+      "night_surcharge_pct": 0.05,
+      "min_fare": 36,
+      "waiting_charge_per_hr": 40,
+      "fare_range_buffer": 10
+    },
+    "non_ac_cab": {
+      "name": "Non-AC Cab",
+      "description": "Budget Friendly",
+      "capacity": 4,
+      "effective_base": 100.02,
+      "per_km": 12.44,
+      "night_surcharge_pct": 0.10,
+      "min_fare": 100,
+      "waiting_charge_per_hr": 60,
+      "fare_range_buffer": 10
+    },
+    "ac_cab": {
+      "name": "AC Cab",
+      "description": "Budget + Cool",
+      "capacity": 4,
+      "effective_base": 50.13,
+      "per_km": 24.67,
+      "night_surcharge_pct": 0.10,
+      "min_fare": 115,
+      "waiting_charge_per_hr": 60,
+      "fare_range_buffer": 10
+    },
+    "xl_cab": {
+      "name": "XL Cab",
+      "description": "AC, Extra Spacious",
+      "capacity": 6,
+      "effective_base": 73.76,
+      "per_km": 33.11,
+      "night_surcharge_pct": 0.10,
+      "min_fare": 130,
+      "waiting_charge_per_hr": 60,
+      "fare_range_buffer": 10
+    },
+    "xl_premium": {
+      "name": "XL Premium",
+      "description": "AC, Comfortable",
+      "capacity": 6,
+      "effective_base": 69.09,
+      "per_km": 39.78,
+      "night_surcharge_pct": 0.10,
+      "min_fare": 150,
+      "waiting_charge_per_hr": 80,
+      "fare_range_buffer": 10
+    }
+  },
+  "night_hours": { "start": 22, "end": 5 },
+  "source": "Calibrated using 2 real app data points (4.9km + 9.4km) — Apr 2026"
+}
