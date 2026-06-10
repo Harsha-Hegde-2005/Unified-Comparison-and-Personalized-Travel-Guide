@@ -112,7 +112,8 @@ class RoutingEngine:
 
             if line != current_line:
                 # Line change → close previous leg
-                legs[-1]["to"] = prev
+                if legs:
+                    legs[-1]["to"] = prev
                 current_line = line
                 legs.append({
                     "from": prev,

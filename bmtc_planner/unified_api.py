@@ -41,9 +41,10 @@ from planner.journey_planner import JourneyPlanner as MetroPlanner
 
 # ── BMTC imports ──────────────────────────────────────────────────────────────
 from core.loader import ALL_STOPS, stops_df
-from features.routing import get_all_buses_comprehensive
+from features.routing import get_all_buses_comprehensive, _route_trips, estimate_route_schedule
 from core.graph import dijkstra, extract_segments
 from features.schedule import calculate_segment_times, normalize_search_start_time
+from core.stops import get_route_stop_names
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 app = FastAPI(title="Bengaluru Unified Transit API", version="1.0")
@@ -84,6 +85,10 @@ class JourneyRequest(BaseModel):
     source:      str
     destination: str
     time:        Optional[str] = None   # "HH:MM" or None → now
+
+class AllBusesRequest(BaseModel):
+    source:      str
+    destination: str
 
 class CompareRequest(BaseModel):
     source:      str
@@ -382,6 +387,56 @@ def bmtc_plan(req: JourneyRequest):
         "arrival":   ui_segs[-1]["arrival"]  if ui_segs else "",
         "segments":  ui_segs,
         "guide":     guide,
+    }
+
+
+@app.post("/api/bmtc/all-buses")
+def bmtc_all_buses(req: AllBusesRequest):
+    src_norm = req.source.strip().lower()
+    dst_norm = req.destination.strip().lower()
+    try:
+        direct, transfers = get_all_buses_comprehensive(src_norm, dst_norm)
+        return {
+            "direct": direct,
+            "transfer": transfers
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/bmtc/route-search")
+def bmtc_route_search(route: str):
+    route_clean = route.strip()
+    stops = get_route_stop_names(route_clean)
+    if not stops:
+        # Try reverse variant as fallback
+        stops = get_route_stop_names(route_clean + "_REV")
+        if stops:
+            route_clean = route_clean + "_REV"
+            
+    if not stops:
+        raise HTTPException(status_code=404, detail=f"Route '{route}' not found")
+        
+    base_route = route_clean.replace("_REV", "")
+    trips = _route_trips.get(base_route, 0)
+    
+    sched = {}
+    try:
+        sched_est = estimate_route_schedule(route_clean)
+        if sched_est:
+            sched = {
+                "departure": sched_est.get("departure"),
+                "arrival": sched_est.get("arrival")
+            }
+    except Exception:
+        pass
+        
+    return {
+        "route": base_route,
+        "stop_count": len(stops),
+        "trips": trips,
+        "schedule": sched,
+        "stops": stops
     }
 
 
