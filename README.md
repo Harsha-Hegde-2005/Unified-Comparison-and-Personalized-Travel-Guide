@@ -1,108 +1,123 @@
 # Bangalore Unified Journey Planner (UTRS)
 
-A unified transit planning system combining BMTC (buses), Bangalore Metro (trains), ride-hailing services (Ola/Uber/Rapido/Namma Yatri), and personal vehicles into a single recommendation engine for Bengaluru.
-
-## Architecture & Core Tech Stack
-- **Backend**: FastAPI (Python 3.13) serving all transit calculations under `bmtc_planner/unified_api.py`.
-- **BMTC Dijkstra Engine**: Location-aware frequency-weighted graph (`core/graph.py`) with per-level transfer options.
-- **Namma Metro Engine**: Green, Purple, and Yellow line journey planner.
-- **Cab Engine**: Calibrated OSRM/Haversine heuristic fares matching Namma Yatri, Uber, Ola, and Rapido.
-- **Personal Vehicles**: Arai mileage lookup and fuel cost estimation matching 500+ Indian car and bike models.
-- **UI Options**:
-  - Unified Streamlit app (`ui/multimodal_app.py`).
-  - React/Vite web application calling the FastAPI backend.
+A unified transit planning system combining **BMTC** (buses), **Namma Metro** (trains), **Ride-Hailing services** (Ola, Uber, Rapido, and Namma Yatri), and **Personal Vehicles** into a single multi-criteria journey optimizer for Bengaluru.
 
 ---
 
-## Project Structure
+## 📂 Repository Structure
+
+The project has been restructured into four clean, descriptive top-level folders:
+
 ```
-/BMTC_fixed/
-├── bmtc_planner/              # Main project root — run everything from here
-│   ├── unified_api.py         # Unified FastAPI backend (Port 8000)
-│   ├── core/                  # Graph engine, GTFS schedule, CSV loader, config
-│   ├── features/              # Routing optimization, fare engine, segment times
-│   ├── tools/                 # Stop normalization and clustering pipelines
-│   ├── tests/                 # Unit test suite
-│   ├── sandbox/               # Scratch/debug scripts (test_buses, direct_test, etc.)
-│   └── data/                  # Raw GTFS flat-files and processed CSVs
+/Unified-fare-comparison-framework-and-personalized-travel-guide/
+├── frontend/                     # Vite + React UI Application
+│   ├── src/                      # Source code (App.jsx, main.jsx, css, etc.)
+│   └── package.json              # Frontend scripts and dependencies
 │
-├── bmrcl_final/               # Namma Metro planner dependency
-├── namma-yatri-v4/            # Namma Yatri fare engines reference
-├── Personal vehicles/         # Fuel and mileage datasets (India master datasets)
+├── backend/                      # FastAPI Python Web Backend
+│   ├── main.py                   # Central FastAPI entry point (Port 8000)
+│   ├── shared/                   # Common transit interfaces & time/distance utilities
+│   ├── adapters/                 # Adapters bridging transit engines to unified contracts
+│   ├── multimodal/               # Cross-mode optimizer combining BMTC + Metro + Walks
+│   └── modes/                    # Individual travel planner engines
+│       ├── bmtc/                 # BMTC Dijkstra graph builder and scheduling Features
+│       ├── metro/                # Namma Metro BFS routing and slab fare estimators
+│       └── cab/                  # Ride-hailing fare models and calibrations
 │
-├── shared/                    # Unified interfaces & utility modules
-├── adapters/                  # BMTC & Metro adapters bridging to unified contracts
-├── multimodal/                # Cross-modal router (BMTC-Metro-BMTC connections)
+├── database/                     # Centralized Datasets Hub
+│   ├── bmtc/                     # Raw GTFS files & processed routes/stops CSVs
+│   ├── metro/                    # Metro station master JSON and slab-fare CSV
+│   ├── cab/                      # Namma Yatri and commercial cab fare configurations
+│   └── personal_vehicle/         # Master mileage & vehicle dataset CSV files
 │
-├── ui/                        # Multipage Streamlit UI
-│   ├── multimodal_app.py      # Streamlit home & mode selector
-│   └── pages/                 # BMTC, Metro, and Multimodal subpages
+├── testing/                      # Centralized Quality Assurance Suites
+│   ├── conftest.py               # Shared pytest fixtures (in-memory mock data)
+│   ├── test_integration.py       # Integration structural assertions
+│   └── test_*.py                 # Unit tests (routing, stops, fare, schedules, API)
 │
-├── test_integration.py       # Integration verification suite
-└── requirements.txt           # Unified Python package requirements
+├── docs/                         # Specifications, Sprint Plans, and Roadmaps
+├── pytest.ini                    # Pytest settings and import paths configuration
+└── requirements.txt              # Backend python package dependencies list
 ```
 
 ---
 
-## Installation & Setup
+## 🚀 How to Run the Project
 
-1. **Clone the repository and install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Initialize Local Configuration**:
-   Create a `.env` file inside `bmtc_planner/` if you have a Google Maps API Key:
-   ```bash
-   # bmtc_planner/.env
-   GOOGLE_MAPS_API_KEY=your_key_here
-   ```
-
----
-
-## Running the Servers
-
-### 1. Unified FastAPI Backend
-From the `bmtc_planner/` directory:
+### 1. Prerequisite Dependencies
+Ensure Python (3.11+) and Node.js (18+) are installed on your machine.
+Clone the repository and install the backend libraries:
 ```bash
-cd bmtc_planner
-uvicorn unified_api:app --reload --port 8000
+pip install -r requirements.txt
 ```
-This launches the REST API server at `http://localhost:8000`. You can visit the interactive docs at `http://localhost:8000/docs`.
 
-### 2. Streamlit UI
-From the workspace root:
-```bash
-streamlit run ui/multimodal_app.py
+### 2. Configure Google Maps API (Optional but Recommended)
+For high-accuracy road routing and vehicle lookups, create a `.env` file at the workspace root:
+```env
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 ```
-This opens the frontend dashboard at `http://localhost:8501`.
+*Note: If no key is set, the system seamlessly falls back to the public Open Source Routing Machine (OSRM) API for cabs, and Haversine distance heuristics for vehicles.*
+
+### 3. Run the Backend REST API
+Launch the FastAPI development server:
+```bash
+uvicorn backend.main:app --reload --port 8000
+```
+* The API will run at: `http://localhost:8000`
+* Interactive API Documentation (Swagger UI) is available at: `http://localhost:8000/docs`
+
+### 4. Run the React Frontend
+Navigate to the frontend directory and start the Vite dev server:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+* The UI dashboard will launch at: `http://localhost:5173`
 
 ---
 
-## Running the Test Suite
+## 🧪 Running Tests
 
-### 1. Unit Tests
-All unit tests are isolated within `bmtc_planner/tests/`. To run them (uses `pytest.ini` configuration):
+### 1. Pytest Unit Tests
+Run the entire unit testing suite covering routing logic, schedules, and fare formulas:
 ```bash
-cd bmtc_planner
 pytest
 ```
-*Expected: 44 tests passing.*
 
-### 2. Integration Tests
-To run the end-to-end integration structure validation:
+### 2. Integration Pipeline Verification
+Run the integration check to confirm directory layouts, shared import interfaces, and library availability:
 ```bash
-# Run from project root
-python test_integration.py
+python testing/test_integration.py
 ```
-*Expected: All layers (Shared, Adapters, Multimodal, UI, Dependencies) PASS.*
 
 ---
 
-## Critical Design Policies
-1. **FAST_QUERY_MODE must be `False`** in `bmtc_planner/core/config.py` for correct ordinary bus suggestion generation.
-2. **Graph Nodes are `(cluster_key, route_no)`** to support name disambiguation for locations with identical names.
-3. **Weight Formula** contains a log trip cap:
-   `weight = (distance_km * type_factor) / min(log1p(trips), log1p(30))`
-4. **Dijkstra Multi-option routing** stores scores using a composite key `(node, transfer_count)` to allow alternative transfers.
-5. **Segment Times** are parsed from direct arrival/departures to avoid double-counting waiting buffers.
+## 🛠️ Developer Workflow Guidelines
+
+To maintain code quality and prevent module resolution or database load failures, adhere to these practices:
+
+### 1. Directory Responsibility
+* **Raw/Processed Data**: Store all CSV, JSON, or text datasets inside `database/<mode_name>/`.
+* **Algorithmic Logic**: Encapsulate all algorithms under `backend/modes/<mode_name>/`.
+* **UI Features**: Write all React pages and styles inside `frontend/src/`.
+* **Testing Cases**: Add unit tests checking specific modes directly inside `testing/` prefixing filenames with `test_`.
+
+### 2. Resolving Files Safely (No Hardcoded Paths)
+Do **not** use absolute file system paths. Always construct paths relative to the current file using `os.path.dirname`:
+```python
+import os
+# Find workspace database root from a module
+_HERE = os.path.dirname(os.path.abspath(__file__))
+# Example: traversing up to workspace and into database
+DATABASE_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", "..", "database"))
+```
+
+### 3. Importing Code Cleanly
+* To keep mode packages modular and portable, use relative imports inside a sub-package (e.g. `from .engines import routing_engine` inside a planner).
+* When importing cross-module utilities, use backend-relative imports (e.g. `from backend.shared.utils.distance import haversine_distance`).
+* Avoid using global namespace imports that override system packages. Keep `sys.path` modifications isolated to main scripts or test entry points (`testing/conftest.py`).
+
+### 4. Git Alignment & Branching
+* Keep the `main` branch stable. Develop new modes and features in isolated `feature/<feature_name>` branches.
+* Before pushing a branch, make sure `pytest` passes with **100% success** and run `python testing/test_integration.py` to ensure other developers can clone your work seamlessly.
