@@ -2627,8 +2627,6 @@ Electronic City East Phase-II,128,12.84498,77.68094
 Electronic City FLY,34o,12.84598,77.67202
 Electronic City FLY,51d,12.84811,77.67068
 Electronic City KIA,4lr,12.85049,77.66201
-Electronic City PESIT College,33d,12.85897,77.66179
-Electronic City PESIT College,5jh,12.85881,77.6624
 Electronic City Toll,5un,12.8458,77.66797
 Electronic City Wipro Main Gate,3am,12.83594,77.65742
 Elgin Floor Mill,46o,12.95873,77.6061
