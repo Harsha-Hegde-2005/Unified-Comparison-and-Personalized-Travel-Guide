@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 /* ─────────────────────────────────────────────────────────────
    CONFIG
@@ -103,6 +103,15 @@ async function apiRouteSearch(route) {
   const res = await fetch(`${API_BASE}/api/bmtc/route-search?route=${encodeURIComponent(route)}`);
   if (!res.ok) throw new Error(`API ${res.status}`);
   return res.json();
+}
+
+async function apiRouteSuggestions(q) {
+  try {
+    const res = await fetch(`${API_BASE}/api/bmtc/routes?q=${encodeURIComponent(q)}`);
+    if (!res.ok) return [];
+    const d = await res.json();
+    return d.routes || [];
+  } catch { return []; }
 }
 
 async function apiStops() {
@@ -266,25 +275,34 @@ function StopTimeline({ stops, color }) {
     <div style={{ paddingLeft: 2 }}>
       {show.map((stop, i) => {
         if (stop === null) return (
-          <div key="mid" style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0" }}>
-            <div style={{ width: 20, display: "flex", justifyContent: "center" }}>
-              <div style={{ width: 1.5, height: 20, background: color + "40" }} />
+          <div key="mid" style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0", position: "relative" }}>
+            <div style={{ width: 20, display: "flex", justifyContent: "center", position: "relative", alignSelf: "stretch" }}>
+              <div style={{ position: "absolute", top: 0, bottom: 0, width: 1.5, background: color + "30" }} />
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: color + "50", zIndex: 2, alignSelf: "center" }} />
             </div>
-            <button onClick={() => setExpanded(true)} style={{ background: "none", border: `1px solid ${color}44`, borderRadius: 6, color, fontSize: 11, fontWeight: 700, padding: "2px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={() => setExpanded(true)} style={{ background: C.card, border: `1px solid ${color}44`, borderRadius: 6, color, fontSize: 11, fontWeight: 700, padding: "3px 10px", cursor: "pointer", fontFamily: "inherit", zIndex: 2 }}>
               +{stops.length - 2} intermediate stops
             </button>
           </div>
         );
-        const isFirst = stop === stops[0];
-        const isLast = stop === stops[stops.length - 1];
+        const isFirst = i === 0;
+        const isLast = i === show.length - 1;
         return (
-          <div key={`${stop}-${i}`} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 20 }}>
-              <div style={{ width: isFirst || isLast ? 12 : 7, height: isFirst || isLast ? 12 : 7, borderRadius: "50%", background: isFirst ? C.green : isLast ? C.red : color, boxShadow: isFirst || isLast ? `0 0 0 3px ${isFirst ? C.green : C.red}22` : "none", flexShrink: 0, marginTop: 3 }} />
-              {!isLast && <div style={{ width: 1.5, flex: 1, background: color + "30", minHeight: 18, margin: "3px 0" }} />}
+          <div key={`${stop}-${i}`} style={{ display: "flex", gap: 12, position: "relative" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 20, position: "relative", flexShrink: 0 }}>
+              <div style={{
+                width: isFirst || isLast ? 10 : 6,
+                height: isFirst || isLast ? 10 : 6,
+                borderRadius: "50%",
+                background: isFirst ? C.green : isLast ? C.red : color,
+                boxShadow: isFirst || isLast ? `0 0 0 3px ${isFirst ? C.green : C.red}22` : "none",
+                zIndex: 2,
+                marginTop: 4
+              }} />
+              {!isLast && <div style={{ position: "absolute", top: 10, bottom: 0, width: 1.5, background: color + "30", zIndex: 1 }} />}
             </div>
-            <div style={{ flex: 1, paddingBottom: isLast ? 0 : 5 }}>
-              <div style={{ fontSize: isFirst || isLast ? 13 : 12, fontWeight: isFirst || isLast ? 700 : 400, color: isFirst || isLast ? C.text : C.muted }}>{stop}</div>
+            <div style={{ flex: 1, paddingBottom: isLast ? 0 : 8 }}>
+              <div style={{ fontSize: isFirst || isLast ? 13 : 11.5, fontWeight: isFirst || isLast ? 700 : 400, color: isFirst || isLast ? C.text : C.muted }}>{stop}</div>
             </div>
           </div>
         );
@@ -324,51 +342,106 @@ function TravelGuide({ guide, color }) {
 /* ─────────────────────────────────────────────────────────────
    SEE ALL BUSES PANEL
 ───────────────────────────────────────────────────────────── */
+function isVajraBus(routeName) {
+  // Match routes with AC, V- prefix, VAJRA or VOLVO anywhere in name
+  const r = (routeName || "").toUpperCase();
+  return r.includes("AC") || r.startsWith("V-") || r.includes("VAJRA") || r.includes("VOLVO");
+}
+
 function AllBusesPanel({ src, dst, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all"); // all | direct | transfer | vajra
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
+    setLoading(true);
+    setData(null);
     apiAllBuses(src.toLowerCase(), dst.toLowerCase())
       .then(setData).catch(() => setData({ direct: [], transfer: [] }))
       .finally(() => setLoading(false));
   }, [src, dst]);
 
-  const direct   = data?.direct || [];
+  const toggleExpand = (id) => setExpandedId(expandedId === id ? null : id);
+
+  const direct   = data?.direct   || [];
   const transfer = data?.transfer || [];
 
+  const directVajraAvailable   = direct.some(b => isVajraBus(b.route));
+  const transferVajraAvailable = transfer.some(opt => opt.buses?.some(isVajraBus) || opt.segment_details?.some(s => isVajraBus(s.route)));
+
   const filteredDirect = filter === "vajra"
-    ? direct.filter(b => /V-|AC|VAJRA|VOLVO/i.test(b.route))
-    : filter === "direct" || filter === "all" ? direct : [];
-  const filteredXfer = filter === "transfer" || filter === "all" ? transfer : [];
+    ? direct.filter(b => isVajraBus(b.route))
+    : (filter === "direct" || filter === "all") ? direct : [];
+  const filteredXfer = filter === "vajra"
+    ? transfer.filter(opt => opt.buses?.some(isVajraBus) || opt.segment_details?.some(s => isVajraBus(s.route)))
+    : (filter === "transfer" || filter === "all") ? transfer : [];
+
+  // Build quick bus number summary
+  const allBusNums = [
+    ...direct.map(b => b.route),
+    ...transfer.flatMap(opt => opt.buses || []),
+  ];
+  const uniqueBusNums = [...new Set(allBusNums)].slice(0, 18);
 
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, marginTop: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
         <div>
           <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>All BMTC Buses</div>
-          <div style={{ fontSize: 11, color: C.muted }}>{src} → {dst}</div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{src} → {dst}</div>
         </div>
-        <button onClick={onClose} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, padding: "5px 10px", color: C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}>
-          ✕ Close
-        </button>
+        <button onClick={onClose} style={{
+          background: "none", border: `1px solid ${C.border2}`, borderRadius: 8,
+          padding: "5px 12px", color: C.muted, cursor: "pointer", fontFamily: "inherit",
+          fontSize: 12, flexShrink: 0, marginLeft: 12,
+        }}>✕ Close</button>
       </div>
 
-      {/* Filter tabs */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+      {/* Quick bus numbers summary */}
+      {!loading && uniqueBusNums.length > 0 && (
+        <div style={{
+          background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10,
+          padding: "10px 12px", marginBottom: 14,
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.06em", marginBottom: 8 }}>POSSIBLE BUS NUMBERS</div>
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+            {uniqueBusNums.map(rn => (
+              <span key={rn} style={{
+                background: isVajraBus(rn) ? C.accent + "22" : MC.bmtc.color + "18",
+                color: isVajraBus(rn) ? C.accent : MC.bmtc.color,
+                border: `1px solid ${isVajraBus(rn) ? C.accent : MC.bmtc.color}44`,
+                borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700,
+              }}>{rn}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Filter tabs — Segmented control style */}
+      <div style={{
+        display: "flex", background: C.surface, borderRadius: 12,
+        padding: 4, gap: 4, marginBottom: 14, border: `1px solid ${C.border2}`,
+      }}>
         {[
           { k: "all",      l: `All (${direct.length + transfer.length})` },
           { k: "direct",   l: `Direct (${direct.length})` },
           { k: "transfer", l: `Transfer (${transfer.length})` },
           { k: "vajra",    l: "Vajra / AC" },
         ].map(f => (
-          <button key={f.k} onClick={() => setFilter(f.k)} style={{
-            background: filter === f.k ? MC.bmtc.color + "22" : C.surface,
-            border: `1px solid ${filter === f.k ? MC.bmtc.color : C.border2}`,
-            borderRadius: 8, padding: "5px 12px", fontSize: 11, fontWeight: 700,
-            color: filter === f.k ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit",
-          }}>{f.l}</button>
+          <button key={f.k}
+            onClick={() => { setFilter(f.k); setExpandedId(null); }}
+            style={{
+              flex: 1,
+              background: filter === f.k ? C.card : "transparent",
+              border: "none",
+              boxShadow: filter === f.k ? "0 2px 8px #00000030" : "none",
+              borderRadius: 8, padding: "8px 4px", fontSize: 11, fontWeight: 700,
+              color: filter === f.k ? MC.bmtc.color : C.muted,
+              cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+              transition: "all 0.15s",
+            }}>{f.l}</button>
         ))}
       </div>
 
@@ -379,49 +452,283 @@ function AllBusesPanel({ src, dst, onClose }) {
         </div>
       )}
 
+      {/* Vajra availability notice */}
+      {!loading && filter === "vajra" && (
+        <div style={{ marginBottom: 12 }}>
+          {!directVajraAvailable && (
+            <div style={{
+              background: C.red + "18", border: `1px solid ${C.red}33`, borderRadius: 10,
+              padding: "9px 12px", color: C.red, fontSize: 12, display: "flex",
+              alignItems: "center", gap: 8, marginBottom: transferVajraAvailable ? 8 : 0,
+            }}>
+              <Ic n="alert" s={13} c={C.red} />
+              <span>No direct Vajra / AC bus for this route.</span>
+            </div>
+          )}
+          {transferVajraAvailable && !directVajraAvailable && (
+            <div style={{
+              background: C.accent + "11", border: `1px solid ${C.accent}33`, borderRadius: 10,
+              padding: "9px 12px", color: C.accent, fontSize: 12, display: "flex",
+              alignItems: "center", gap: 8,
+            }}>
+              <Ic n="info" s={13} c={C.accent} />
+              <span>Vajra / AC available on partial segments (see transfer options below).</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DIRECT BUSES */}
       {!loading && filteredDirect.length > 0 && (
-        <div>
+        <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.05em", marginBottom: 8 }}>DIRECT BUSES</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
-            {filteredDirect.map((b, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: C.surface, borderRadius: 10, padding: "10px 12px", border: `1px solid ${C.border}` }}>
-                <Pill color={MC.bmtc.color}>{b.route}</Pill>
-                <div style={{ flex: 1, fontSize: 12, color: C.muted }}>{b.stop_count} stops · Direct</div>
-                <div style={{ fontSize: 12, color: MC.bmtc.color, fontWeight: 700 }}>{b.trips}/day</div>
-                {b.fare && <div style={{ fontSize: 12, color: C.text, fontWeight: 600 }}>₹{b.fare}</div>}
-                {b.departure && <div style={{ fontSize: 11, color: C.muted }}>{b.departure}</div>}
-              </div>
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {filteredDirect.map((b, i) => {
+              const expId = `d-${i}`;
+              const isExp = expandedId === expId;
+              const hasToll = b.has_toll || b.toll > 0;
+              const isVajra = isVajraBus(b.route);
+              return (
+                <div key={i} style={{
+                  background: C.surface, borderRadius: 10,
+                  border: `1px solid ${isExp ? MC.bmtc.color + "66" : C.border}`,
+                  overflow: "hidden", transition: "border-color 0.15s",
+                }}>
+                  {/* Summary row */}
+                  <button onClick={() => toggleExpand(expId)} style={{
+                    display: "flex", alignItems: "center", gap: 10, background: "none",
+                    border: "none", padding: "11px 14px", width: "100%",
+                    cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                  }}>
+                    <Pill color={isVajra ? C.accent : MC.bmtc.color}>{b.route}</Pill>
+                    <div style={{ flex: 1, fontSize: 12, color: C.muted }}>{b.stop_count} stops</div>
+                    <div style={{ fontSize: 11, color: MC.bmtc.color, fontWeight: 700, marginRight: 4 }}>{b.trips}/day</div>
+                    {b.fare !== undefined && <div style={{ fontSize: 13, color: C.text, fontWeight: 700 }}>₹{b.fare}</div>}
+                    {b.departure && <div style={{ fontSize: 11, color: C.muted, marginLeft: 6 }}>{b.departure}</div>}
+                    <div style={{
+                      transform: isExp ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s", color: C.muted, marginLeft: 6, flexShrink: 0,
+                    }}><Ic n="chevron" s={14} /></div>
+                  </button>
+
+                  {/* Expanded detail */}
+                  {isExp && (
+                    <div style={{ padding: "0 14px 14px", borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
+                      {/* Timing row */}
+                      <div style={{
+                        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
+                        background: C.card, borderRadius: 8, padding: "10px 12px", marginBottom: 10,
+                      }}>
+                        {[
+                          ["Duration", b.duration || b.total_time ? `${b.duration || b.total_time} min` : "--"],
+                          ["Distance", b.distance !== undefined && b.distance !== null ? `${b.distance} km` : "--"],
+                          ["Departure", b.departure || "--"],
+                          ["Arrival",   b.arrival   || "--"],
+                        ].map(([lbl, val]) => (
+                          <div key={lbl}>
+                            <div style={{ fontSize: 10, color: C.muted, marginBottom: 2 }}>{lbl}</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{val}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Fare breakdown */}
+                      <div style={{
+                        background: C.card, borderRadius: 8, padding: "8px 12px", fontSize: 12, marginBottom: 10,
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                          <span style={{ color: C.muted }}>Base Ticket ({b.fare_category || (isVajra ? "Vajra/AC" : "Ordinary")})</span>
+                          <span style={{ color: C.text }}>₹{b.base_fare ?? b.fare}</span>
+                        </div>
+                        {hasToll && (
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                            <span style={{ color: C.yellow }}>Toll (NICE/ELC)</span>
+                            <span style={{ color: C.yellow }}>+₹{b.toll}</span>
+                          </div>
+                        )}
+                        <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, paddingTop: 5, borderTop: `1px dashed ${C.border}`, color: MC.bmtc.color }}>
+                          <span>Total</span><span>₹{b.fare}</span>
+                        </div>
+                      </div>
+
+                      {/* Alternative bus numbers */}
+                      {b.other_buses?.length > 0 && (
+                        <div style={{ marginBottom: 10 }}>
+                          <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, marginBottom: 5, letterSpacing: "0.04em" }}>ALSO RUNS THIS ROUTE</div>
+                          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                            {b.other_buses.map(ob => (
+                              <span key={ob} style={{
+                                background: C.dim, color: C.text,
+                                padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600,
+                              }}>{ob}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Stop timeline */}
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.05em", marginBottom: 6 }}>STOPS</div>
+                        <StopTimeline stops={b.stops || []} color={isVajra ? C.accent : MC.bmtc.color} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
+      {/* WITH TRANSFERS */}
       {!loading && filteredXfer.length > 0 && (
-        <div style={{ marginTop: 14 }}>
+        <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.05em", marginBottom: 8 }}>WITH TRANSFERS</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>
-            {filteredXfer.map((opt, i) => (
-              <div key={i} style={{ background: C.surface, borderRadius: 10, padding: "10px 12px", border: `1px solid ${C.border}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  {opt.buses.map((b, j) => (
-                    <span key={j} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <Pill color={MC.bmtc.color} small>{b}</Pill>
-                      {j < opt.buses.length - 1 && <span style={{ color: C.muted, fontSize: 10 }}>→</span>}
-                    </span>
-                  ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {filteredXfer.map((opt, i) => {
+              const expId = `t-${i}`;
+              const isExp = expandedId === expId;
+              const vajraLegs = (opt.segment_details || []).filter(s => isVajraBus(s.route));
+              const containsVajra = vajraLegs.length > 0;
+
+              return (
+                <div key={i} style={{
+                  background: C.surface, borderRadius: 10,
+                  border: `1px solid ${isExp ? MC.bmtc.color + "66" : C.border}`,
+                  overflow: "hidden", transition: "border-color 0.15s",
+                }}>
+                  {/* Summary row */}
+                  <button onClick={() => toggleExpand(expId)} style={{
+                    display: "flex", flexDirection: "column", background: "none", border: "none",
+                    padding: "11px 14px", width: "100%", cursor: "pointer",
+                    textAlign: "left", fontFamily: "inherit",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", width: "100%" }}>
+                      {opt.buses.map((b, j) => (
+                        <span key={j} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <Pill color={isVajraBus(b) ? C.accent : MC.bmtc.color} small>{b}</Pill>
+                          {j < opt.buses.length - 1 && <span style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>→</span>}
+                        </span>
+                      ))}
+                      {containsVajra && (
+                        <span style={{
+                          fontSize: 9, background: C.accent + "22", color: C.accent,
+                          border: `1px solid ${C.accent}44`, borderRadius: 4,
+                          padding: "1px 5px", fontWeight: 800,
+                        }}>VAJRA</span>
+                      )}
+                      <div style={{
+                        marginLeft: "auto", transform: isExp ? "rotate(180deg)" : "none",
+                        transition: "transform 0.2s", color: C.muted, flexShrink: 0,
+                      }}><Ic n="chevron" s={14} /></div>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%", marginTop: 5, fontSize: 11, color: C.muted }}>
+                      <span>{opt.transfers} transfer · {opt.total_time} min · {opt.distance} km</span>
+                      <strong style={{ color: C.text, fontSize: 12 }}>₹{opt.total_fare}</strong>
+                    </div>
+                  </button>
+
+                  {/* Expanded legs */}
+                  {isExp && (
+                    <div style={{ borderTop: `1px solid ${C.border}`, padding: "12px 14px" }}>
+                      {containsVajra && (
+                        <div style={{
+                          background: C.accent + "11", borderLeft: `3px solid ${C.accent}`,
+                          padding: "8px 10px", borderRadius: 4, marginBottom: 10,
+                        }}>
+                          {vajraLegs.map((seg, idx) => (
+                            <div key={idx} style={{ fontSize: 11, color: C.accent, fontWeight: 600 }}>
+                              ✨ Vajra: {seg.from} → {seg.to} ({seg.route})
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {(opt.segment_details || []).map((seg, idx) => {
+                          const hasToll = seg.has_toll || seg.toll > 0;
+                          const isSegVajra = isVajraBus(seg.route);
+                          return (
+                            <div key={idx} style={{
+                              background: C.card, borderRadius: 8,
+                              border: `1px solid ${isSegVajra ? C.accent + "44" : C.border}`,
+                              padding: 10,
+                            }}>
+                              {/* Leg header */}
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <span style={{
+                                    fontSize: 10, background: C.dim, color: C.muted,
+                                    borderRadius: 4, padding: "2px 6px", fontWeight: 700,
+                                  }}>LEG {idx + 1}</span>
+                                  <Pill color={isSegVajra ? C.accent : MC.bmtc.color} small>{seg.route}</Pill>
+                                </div>
+                                <span style={{ fontSize: 13, color: C.text, fontWeight: 700 }}>₹{seg.fare}</span>
+                              </div>
+
+                              {/* Board / Alight / Time */}
+                              <div style={{
+                                display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4,
+                                fontSize: 11, marginBottom: 8,
+                              }}>
+                                <div><span style={{ color: C.muted }}>Board</span><br /><strong style={{ color: C.text }}>{seg.from}</strong></div>
+                                <div><span style={{ color: C.muted }}>Alight</span><br /><strong style={{ color: C.text }}>{seg.to}</strong></div>
+                                <div><span style={{ color: C.muted }}>Duration</span><br /><strong style={{ color: C.text }}>{seg.duration} min</strong></div>
+                                <div><span style={{ color: C.muted }}>Time</span><br /><strong style={{ color: C.text }}>{seg.departure} – {seg.arrival}</strong></div>
+                              </div>
+
+                              {/* Fare */}
+                              <div style={{
+                                background: C.surface, borderRadius: 5, padding: "5px 8px",
+                                fontSize: 11, marginBottom: 8,
+                              }}>
+                                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                  <span style={{ color: C.muted }}>{seg.fare_category || (isSegVajra ? "Vajra" : "Ordinary")}</span>
+                                  <span style={{ color: C.text }}>₹{seg.base_fare ?? seg.fare}</span>
+                                </div>
+                                {hasToll && (
+                                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
+                                    <span style={{ color: C.yellow }}>Toll</span>
+                                    <span style={{ color: C.yellow }}>+₹{seg.toll}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Other buses */}
+                              {seg.other_buses?.length > 0 && (
+                                <div style={{ marginBottom: 8 }}>
+                                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, marginBottom: 4, letterSpacing: "0.04em" }}>ALTERNATIVE BUSES</div>
+                                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                                    {seg.other_buses.map(ob => (
+                                      <span key={ob} style={{
+                                        background: C.dim, color: C.text,
+                                        padding: "1px 5px", borderRadius: 4, fontSize: 9, fontWeight: 600,
+                                      }}>{ob}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Stops */}
+                              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 6 }}>
+                                <StopTimeline stops={seg.stops || []} color={isSegVajra ? C.accent : MC.bmtc.color} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
-                  {opt.transfers} transfer · {opt.total_time} min · ₹{opt.total_fare}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
       {!loading && filteredDirect.length === 0 && filteredXfer.length === 0 && (
-        <div style={{ textAlign: "center", padding: "20px 0", color: C.muted, fontSize: 13 }}>
-          No buses found for this combination.
+        <div style={{ textAlign: "center", padding: "30px 0", color: C.muted, fontSize: 13 }}>
+          {filter === "vajra" ? "No Vajra / AC buses found for this route." : "No buses found."}
         </div>
       )}
     </div>
@@ -429,54 +736,193 @@ function AllBusesPanel({ src, dst, onClose }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   ROUTE SEARCH PANEL
+   ROUTE SEARCH PANEL  (with autocomplete)
 ───────────────────────────────────────────────────────────── */
 function RouteSearchPanel() {
-  const [query, setQuery] = useState("");
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [query, setQuery]           = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showDrop, setShowDrop]     = useState(false);
+  const [result, setResult]         = useState(null);
+  const [direction, setDirection]   = useState("forward"); // forward | return
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState(null);
+  const debounceRef                 = useRef(null);
 
-  const search = async () => {
-    if (!query.trim()) return;
-    setLoading(true); setError(null); setResult(null);
+  // Debounced autocomplete
+  const fetchSuggestions = useCallback((q) => {
+    clearTimeout(debounceRef.current);
+    if (!q.trim()) { setSuggestions([]); return; }
+    debounceRef.current = setTimeout(async () => {
+      const list = await apiRouteSuggestions(q);
+      setSuggestions(list);
+    }, 200);
+  }, []);
+
+  const handleQueryChange = (val) => {
+    setQuery(val);
+    setShowDrop(true);
+    fetchSuggestions(val);
+  };
+
+  const selectSuggestion = (r) => {
+    setQuery(r);
+    setSuggestions([]);
+    setShowDrop(false);
+    doSearch(r);
+  };
+
+  const doSearch = async (q) => {
+    const term = (q || query).trim();
+    if (!term) return;
+    setLoading(true); setError(null); setResult(null); setShowDrop(false);
+    setDirection("forward");
     try {
-      const d = await apiRouteSearch(query.trim());
+      const d = await apiRouteSearch(term);
       setResult(d);
-    } catch (e) { setError("Route not found or API unavailable."); }
+    } catch { setError("Route not found. Try e.g. 360-K, V-360B, KBS-3E"); }
     finally { setLoading(false); }
   };
 
+  const visibleSuggestions = showDrop && suggestions.length > 0
+    ? suggestions.filter(s => s.toUpperCase() !== query.toUpperCase()).slice(0, 10)
+    : [];
+
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
-      <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 14 }}>Search by Route Number</div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-        <input value={query} onChange={e => setQuery(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && search()}
-          placeholder="e.g. 356-M, KBS-3E, NICE-7A…"
-          style={{ flex: 1, background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 14px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
-        />
-        <button onClick={search} disabled={loading} style={{ background: MC.bmtc.color, border: "none", borderRadius: 10, padding: "10px 16px", color: "white", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-          <Ic n="search" s={14} c="white" /> Search
-        </button>
-        {result && <button onClick={() => { setResult(null); setQuery(""); }} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 10, padding: "10px 12px", color: C.muted, cursor: "pointer", fontFamily: "inherit" }}>✕</button>}
+      <div style={{ fontWeight: 800, fontSize: 15, color: C.text, marginBottom: 14 }}>Route Lookup</div>
+
+      {/* Search input with dropdown */}
+      <div style={{ position: "relative", marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={query}
+            onChange={e => handleQueryChange(e.target.value)}
+            onFocus={() => { setShowDrop(true); if (query) fetchSuggestions(query); }}
+            onBlur={() => setTimeout(() => setShowDrop(false), 160)}
+            onKeyDown={e => { if (e.key === "Enter") doSearch(); if (e.key === "Escape") setShowDrop(false); }}
+            placeholder="Type route number, e.g. 360-K, V-360B, KBS-3E…"
+            style={{
+              flex: 1, background: C.surface, border: `1.5px solid ${C.border2}`,
+              borderRadius: 10, color: C.text, padding: "11px 14px",
+              fontSize: 13, outline: "none", fontFamily: "inherit",
+            }}
+          />
+          <button
+            onClick={() => doSearch()}
+            disabled={loading}
+            style={{
+              background: MC.bmtc.color, border: "none", borderRadius: 10,
+              padding: "11px 18px", color: "white", fontWeight: 700,
+              cursor: loading ? "wait" : "pointer", fontFamily: "inherit",
+              fontSize: 13, display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+            }}>
+            {loading
+              ? <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid white", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+              : <Ic n="search" s={14} c="white" />
+            }
+            Search
+          </button>
+          {(result || error) && (
+            <button
+              onClick={() => { setResult(null); setError(null); setQuery(""); setSuggestions([]); }}
+              style={{
+                background: "none", border: `1px solid ${C.border2}`, borderRadius: 10,
+                padding: "11px 13px", color: C.muted, cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
+              }}>✕</button>
+          )}
+        </div>
+
+        {/* Dropdown suggestions */}
+        {visibleSuggestions.length > 0 && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 4px)", left: 0,
+            right: 0, background: C.card, border: `1px solid ${C.border2}`,
+            borderRadius: 10, zIndex: 300, boxShadow: "0 16px 48px #00000099",
+            maxHeight: 260, overflowY: "auto",
+          }}>
+            {visibleSuggestions.map(r => (
+              <div
+                key={r}
+                onMouseDown={() => selectSuggestion(r)}
+                style={{
+                  padding: "10px 14px", cursor: "pointer", fontSize: 13,
+                  color: C.text, borderBottom: `1px solid ${C.border}`,
+                  display: "flex", alignItems: "center", gap: 10,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = C.surface}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <Pill color={isVajraBus(r) ? C.accent : MC.bmtc.color} small>{r}</Pill>
+                {isVajraBus(r) && <span style={{ fontSize: 10, color: C.accent, fontWeight: 700 }}>VAJRA/AC</span>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {loading && <div style={{ color: C.muted, fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${MC.bmtc.color}`, borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />Searching…</div>}
-      {error && <div style={{ color: C.red, fontSize: 13 }}>{error}</div>}
+      {error && (
+        <div style={{
+          color: C.red, fontSize: 12, background: C.red + "18",
+          border: `1px solid ${C.red}33`, borderRadius: 8, padding: "8px 12px",
+        }}>{error}</div>
+      )}
 
       {result && (
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <Pill color={MC.bmtc.color}>{result.route}</Pill>
-            <span style={{ fontSize: 12, color: C.muted }}>{result.stop_count} stops</span>
-            {result.trips && <span style={{ fontSize: 12, color: MC.bmtc.color, fontWeight: 700 }}>{result.trips}/day</span>}
+          {/* Route header */}
+          <div style={{
+            background: C.surface, borderRadius: 10, padding: "12px 14px",
+            marginBottom: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+          }}>
+            <Pill color={isVajraBus(result.route) ? C.accent : MC.bmtc.color}>{result.route}</Pill>
+            <span style={{ fontSize: 12, color: C.muted }}>
+              {direction === "forward" ? result.stop_count : (result.reverse_stops?.length || 0)} stops
+            </span>
+            {result.trips > 0 && (
+              <span style={{ fontSize: 12, color: MC.bmtc.color, fontWeight: 700 }}>{result.trips} trips/day</span>
+            )}
             {result.schedule?.departure && (
-              <span style={{ fontSize: 12, color: C.muted }}>🕐 {result.schedule.departure} → {result.schedule.arrival}</span>
+              <span style={{ fontSize: 12, color: C.muted }}>
+                🕐 {result.schedule.departure} → {result.schedule.arrival}
+              </span>
             )}
           </div>
-          <div style={{ maxHeight: 300, overflowY: "auto" }}>
-            <StopTimeline stops={result.stops || []} color={MC.bmtc.color} />
+
+          {/* Direction toggle if return stops are available */}
+          {result.reverse_stops && result.reverse_stops.length > 0 && (
+            <div style={{
+              display: "flex", background: C.surface, borderRadius: 12,
+              padding: 4, gap: 4, marginBottom: 12, border: `1px solid ${C.border2}`,
+            }}>
+              {[
+                { k: "forward", l: "Outbound / Forward" },
+                { k: "return",  l: "Inbound / Return" },
+              ].map(d => (
+                <button key={d.k}
+                  onClick={() => setDirection(d.k)}
+                  style={{
+                    flex: 1,
+                    background: direction === d.k ? C.card : "transparent",
+                    border: "none",
+                    boxShadow: direction === d.k ? "0 2px 8px #00000030" : "none",
+                    borderRadius: 8, padding: "8px 4px", fontSize: 11, fontWeight: 700,
+                    color: direction === d.k ? MC.bmtc.color : C.muted,
+                    cursor: "pointer", fontFamily: "inherit",
+                    transition: "all 0.15s",
+                  }}>{d.l}</button>
+              ))}
+            </div>
+          )}
+
+          {/* Stops */}
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.05em", marginBottom: 8 }}>
+            ALL STOPS ({direction === "forward" ? "OUTBOUND" : "INBOUND"})
+          </div>
+          <div style={{ maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
+            <StopTimeline
+              stops={direction === "forward" ? (result.stops || []) : (result.reverse_stops || [])}
+              color={isVajraBus(result.route) ? C.accent : MC.bmtc.color}
+            />
           </div>
         </div>
       )}
@@ -545,10 +991,30 @@ function ResultCard({ modeKey, data, selected, onSelect }) {
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{m.label}</div>
           <div style={{ fontSize: 11, color: C.muted }}>{m.line}</div>
-          {data.all_direct && data.all_direct.length > 0 && (
-            <div style={{ fontSize: 10, color: m.color, marginTop: 2 }}>
-              {data.all_direct.slice(0, 4).join(" · ")}
-              {data.all_direct.length > 4 ? ` +${data.all_direct.length - 4} more` : ""}
+          {modeKey === "bmtc" && (
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
+              {data.all_direct && data.all_direct.length > 0 ? (
+                data.all_direct.slice(0, 6).map(rn => (
+                  <span key={rn} style={{
+                    background: isVajraBus(rn) ? C.accent + "18" : m.color + "12",
+                    color: isVajraBus(rn) ? C.accent : m.color,
+                    border: `1px solid ${isVajraBus(rn) ? C.accent : m.color}33`,
+                    borderRadius: 4, padding: "2px 6px", fontSize: 10, fontWeight: 700,
+                  }}>{rn}</span>
+                ))
+              ) : data.segments && data.segments.length > 0 ? (
+                data.segments.map((seg, sidx) => (
+                  <span key={sidx} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                    <span style={{
+                      background: isVajraBus(seg.route) ? C.accent + "18" : m.color + "12",
+                      color: isVajraBus(seg.route) ? C.accent : m.color,
+                      border: `1px solid ${isVajraBus(seg.route) ? C.accent : m.color}33`,
+                      borderRadius: 4, padding: "2px 6px", fontSize: 10, fontWeight: 700,
+                    }}>{seg.route}</span>
+                    {sidx < data.segments.length - 1 && <span style={{ color: C.muted, fontSize: 10, fontWeight: 700 }}>→</span>}
+                  </span>
+                ))
+              ) : null}
             </div>
           )}
         </div>

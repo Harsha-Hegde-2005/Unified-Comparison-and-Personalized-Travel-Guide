@@ -82,6 +82,16 @@ def _load_all() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, str], list[str]]:
             f"Please ensure the data/ folder from the original project is present."
         )
 
+    def clean_stop_name(name: str) -> str:
+        if not isinstance(name, str):
+            return name
+        name_upper = name.upper()
+        for prefix in ["CS-", "CS "]:
+            if name_upper.startswith(prefix):
+                return name[len(prefix):].strip()
+        return name
+
+    df["stop_name"] = df["stop_name"].apply(clean_stop_name)
     df["stop_norm"] = df["stop_name"].str.strip().str.lower()
 
     # 2. Canonical name map
@@ -90,6 +100,7 @@ def _load_all() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, str], list[str]]:
     # 3. Reverse-routes supplement
     try:
         rev = pd.read_csv(REVERSE_SUPPLEMENT)
+        rev["stop_name"] = rev["stop_name"].apply(clean_stop_name)
         rev["stop_norm"] = rev["stop_name"].str.strip().str.lower()
         for norm, name in zip(rev["stop_norm"], rev["stop_name"]):
             if norm not in canonical:

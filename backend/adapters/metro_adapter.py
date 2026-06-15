@@ -42,8 +42,11 @@ class MetroAdapter(BaseJourneyPlanner):
 
     def plan(self, source: str, destination: str) -> JourneyResult:
         """Plan a metro journey and return unified result."""
+        from shared.utils import resolve_stop_name
+        resolved_src = resolve_stop_name(source, "metro", metro_stations=self.all_stations)
+        resolved_dst = resolve_stop_name(destination, "metro", metro_stations=self.all_stations)
         try:
-            metro_result = self.planner.plan_journey(source, destination)
+            metro_result = self.planner.plan_journey(resolved_src, resolved_dst)
         except Exception as e:
             raise ValueError(f"Metro route planning failed: {str(e)}")
 

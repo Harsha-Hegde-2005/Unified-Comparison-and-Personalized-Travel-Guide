@@ -28,8 +28,11 @@ class BMTCAdapter(BaseJourneyPlanner):
 
     def plan(self, source: str, destination: str) -> JourneyResult:
         """Plan a BMTC journey and return unified result."""
+        from shared.utils import resolve_stop_name
+        resolved_src = resolve_stop_name(source, "bmtc", bmtc_stops=self.all_stops)
+        resolved_dst = resolve_stop_name(destination, "bmtc", bmtc_stops=self.all_stops)
         try:
-            bmtc_result = self.plan_journey_fn(source, destination)
+            bmtc_result = self.plan_journey_fn(resolved_src, resolved_dst)
         except Exception as e:
             raise ValueError(f"BMTC route planning failed: {str(e)}")
 

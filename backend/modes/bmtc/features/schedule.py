@@ -172,85 +172,21 @@ def _gtfs_segment_times(
     """
     Find next real GTFS trip for route_no departing src_norm after after_dt.
     Returns (departure_dt, arrival_dt) or None if not found.
-    Only returns trips within BMTC service window (05:00–23:30).
-    CACHED for speed on repeated lookups.
+    Uses the fast pre-built departure index from core.gtfs.
     """
-    # Cache key: (route_no, src_norm, dst_norm)
-    cache_key = (route_no, src_norm, dst_norm)
-    if cache_key in _gtfs_segment_cache:
-        cached_dep, cached_arr = _gtfs_segment_cache[cache_key]
-        # Return cached result if it's still valid for this lookup time
-        if cached_dep >= after_dt:
-            return cached_dep, cached_arr
-    
     try:
-        from core.gtfs import _get_gtfs, _stop_ids_for_norm, _parse_gtfs_time
-        gtfs_data, _ = _get_gtfs()
-        if not gtfs_data:
+        from core.gtfs import get_route_next_departure
+        result = get_route_next_departure(route_no, src_norm, dst_norm, after_dt)
+        if result is None:
             return None
-
-        src_ids = _stop_ids_for_norm(src_norm)
-        dst_ids = _stop_ids_for_norm(dst_norm)
-        if not src_ids or not dst_ids:
-            return None
-
-        stop_times = gtfs_data["stop_times"]
-        trips      = gtfs_data["trips"]
-        routes     = gtfs_data["routes"]
-
-        base_route = route_no.replace("_REV", "")
-        route_row  = routes[routes["route_short_name"] == base_route]
-        if route_row.empty:
-            return None
-        route_ids = route_row["route_id"].tolist()
-        trip_ids  = trips[trips["route_id"].isin(route_ids)]["trip_id"].tolist()
-        if not trip_ids:
-            return None
-
-        relevant = stop_times[stop_times["trip_id"].isin(trip_ids)]
-
-        src_times = (
-            relevant[relevant["stop_id"].isin(src_ids)]
-            [["trip_id", "stop_sequence", "departure_time"]]
-            .rename(columns={"stop_sequence": "src_seq", "departure_time": "src_dep"})
-        )
-        dst_times = (
-            relevant[relevant["stop_id"].isin(dst_ids)]
-            [["trip_id", "stop_sequence", "arrival_time"]]
-            .rename(columns={"stop_sequence": "dst_seq", "arrival_time": "dst_arr"})
-        )
-
-        merged = src_times.merge(dst_times, on="trip_id")
-        merged = merged[merged["src_seq"] < merged["dst_seq"]]
-        if merged.empty:
-            return None
-
-        after_td   = timedelta(hours=after_dt.hour, minutes=after_dt.minute, seconds=after_dt.second)
-        bmtc_start = timedelta(hours=BMTC_START_HOUR)
-        bmtc_end   = timedelta(hours=BMTC_END_HOUR, minutes=BMTC_END_MINUTE)
-
-        candidates = []
-        for _, row in merged.iterrows():
-            dep_td = _parse_gtfs_time(row["src_dep"])
-            arr_td = _parse_gtfs_time(row["dst_arr"])
-            if dep_td is None or arr_td is None:
-                continue
-            if dep_td >= after_td and bmtc_start <= dep_td <= bmtc_end:
-                candidates.append((dep_td, arr_td))
-
-        if not candidates:
-            return None
-
-        candidates.sort(key=lambda x: x[0])
-        dep_td, arr_td = candidates[0]
-
+        dep_str, arr_str, duration_min = result
         base = after_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-        result = (base + dep_td, base + arr_td)
-        
-        # Cache the result for future lookups
-        _gtfs_segment_cache[cache_key] = result
-        return result
-
+        dep_h, dep_m = map(int, dep_str.split(":"))
+        arr_h, arr_m = map(int, arr_str.split(":"))
+        return (
+            base.replace(hour=dep_h, minute=dep_m, second=0),
+            base.replace(hour=arr_h, minute=arr_m, second=0),
+        )
     except Exception:
         return None
 

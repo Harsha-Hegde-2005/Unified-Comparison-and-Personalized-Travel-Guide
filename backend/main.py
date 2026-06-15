@@ -65,6 +65,25 @@ app.add_middleware(
     allow_methods=["*"], allow_headers=["*"],
 )
 
+
+@app.on_event("startup")
+async def _startup_preload_gtfs():
+    """Kick off GTFS loading in a background thread so the server stays responsive."""
+    import threading, sys as _sys
+    _bmtc_dir = os.path.join(_HERE, "modes", "bmtc")
+    def _load():
+        _sys.path.insert(0, _bmtc_dir)
+        try:
+            from core.gtfs import _load_gtfs
+            _load_gtfs()
+        except Exception as e:
+            print(f"GTFS background load error: {e}")
+        finally:
+            if _bmtc_dir in _sys.path:
+                _sys.path.remove(_bmtc_dir)
+    threading.Thread(target=_load, daemon=True, name="gtfs-loader").start()
+
+
 # ── Singletons ────────────────────────────────────────────────────────────────
 _metro_planner   = MetroPlanner()
 _metro_stations  = sorted(_metro_planner.routing_engine.stations.keys())
@@ -77,7 +96,9 @@ STOP_COORDS = (
 )
 
 def get_stop_coords(stop_name: str) -> tuple[float, float] | None:
-    norm = stop_name.strip().lower()
+    from shared.utils import resolve_stop_name
+    resolved = resolve_stop_name(stop_name, "bmtc", bmtc_stops=ALL_STOPS)
+    norm = resolved.strip().lower()
     if norm not in STOP_COORDS:
         return None
     return (
@@ -247,8 +268,11 @@ def _car_estimate(src: str, dst: str, dep_time: datetime) -> dict:
 
 @app.post("/api/metro/plan")
 def metro_plan(req: JourneyRequest):
+    from shared.utils import resolve_stop_name
+    source = resolve_stop_name(req.source, "metro", metro_stations=_metro_stations)
+    destination = resolve_stop_name(req.destination, "metro", metro_stations=_metro_stations)
     try:
-        result = _metro_planner.plan_journey(req.source, req.destination)
+        result = _metro_planner.plan_journey(source, destination)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -282,12 +306,12 @@ def metro_plan(req: JourneyRequest):
         })
 
     guide = [{"step": 1, "icon": "walk",
-              "text": f"Walk to {req.source} Metro Station", "duration": "5–8 min"}]
+              "text": f"Walk to {source} Metro Station", "duration": "5–8 min"}]
     for i, inst in enumerate(result["instructions"]):
         icon = "metro" if "Board" in inst else "transfer" if "Change" in inst else "walk"
         guide.append({"step": i + 2, "icon": icon, "text": inst, "duration": ""})
     guide.append({"step": len(guide) + 1, "icon": "walk",
-                  "text": f"Walk to {req.destination}", "duration": "3–5 min"})
+                  "text": f"Walk to {destination}", "duration": "3–5 min"})
 
     return {
         "available":        True, "mode": "metro",
@@ -312,8 +336,11 @@ def metro_plan(req: JourneyRequest):
 
 @app.post("/api/bmtc/plan")
 def bmtc_plan(req: JourneyRequest):
-    src_norm = req.source.strip().lower()
-    dst_norm = req.destination.strip().lower()
+    from shared.utils import resolve_stop_name
+    source = resolve_stop_name(req.source, "bmtc", bmtc_stops=ALL_STOPS)
+    destination = resolve_stop_name(req.destination, "bmtc", bmtc_stops=ALL_STOPS)
+    src_norm = source.strip().lower()
+    dst_norm = destination.strip().lower()
     dep_time = _parse_time(req.time)
 
     try:
@@ -323,7 +350,7 @@ def bmtc_plan(req: JourneyRequest):
 
     if not direct and not transfers:
         raise HTTPException(status_code=404,
-                            detail="No BMTC route found between these stops")
+                             detail="No BMTC route found between these stops")
 
     if direct:
         best = direct[0]
@@ -340,21 +367,21 @@ def bmtc_plan(req: JourneyRequest):
             "all_direct": [b["route"] for b in direct[:8]],
             "segments": [{
                 "route":     best["route"], "type": "bmtc",
-                "from":      req.source, "to": req.destination,
+                "from":      source, "to": destination,
                 "departure": _fmt(dep), "arrival": _fmt(arr),
                 "duration":  best.get("duration") or 30,
                 "fare":      int(cost), "distance": round(dist, 1),
-                "stops":     [req.source, req.destination],
+                "stops":     [source, destination],
             }],
             "guide": [
                 {"step": 1, "icon": "walk",
-                 "text": f"Walk to {req.source} bus stop", "duration": "3–5 min"},
+                 "text": f"Walk to {source} bus stop", "duration": "3–5 min"},
                 {"step": 2, "icon": "bus",
                  "text": f"Board Bus {best['route']} (Direct)",
                  "duration": f"{best.get('duration') or 30} min",
                  "detail": f"₹{int(cost)} · Direct"},
                 {"step": 3, "icon": "walk",
-                 "text": f"Arrive at {req.destination}", "duration": "~1 min"},
+                 "text": f"Arrive at {destination}", "duration": "~1 min"},
             ],
         }
 
@@ -362,7 +389,7 @@ def bmtc_plan(req: JourneyRequest):
     opt  = transfers[0]
     segs = opt.get("segment_times", [])
     guide    = [{"step": 1, "icon": "walk",
-                 "text": f"Walk to {req.source} bus stop", "duration": "3–5 min"}]
+                 "text": f"Walk to {source} bus stop", "duration": "3–5 min"}]
     ui_segs  = []
     for i, (seg, st) in enumerate(zip(opt["segments"], segs)):
         dep_s = st.get("departure", _fmt(dep_time))
@@ -384,7 +411,7 @@ def bmtc_plan(req: JourneyRequest):
             guide.append({"step": i + 3, "icon": "transfer",
                           "text": f"Transfer at {seg[2]}", "duration": "3–5 min"})
     guide.append({"step": len(guide) + 1, "icon": "walk",
-                  "text": f"Arrive at {req.destination}", "duration": "~1 min"})
+                  "text": f"Arrive at {destination}", "duration": "~1 min"})
 
     return {
         "available": True, "mode": "bmtc",
@@ -401,8 +428,11 @@ def bmtc_plan(req: JourneyRequest):
 
 @app.post("/api/bmtc/all-buses")
 def bmtc_all_buses(req: AllBusesRequest):
-    src_norm = req.source.strip().lower()
-    dst_norm = req.destination.strip().lower()
+    from shared.utils import resolve_stop_name
+    source = resolve_stop_name(req.source, "bmtc", bmtc_stops=ALL_STOPS)
+    destination = resolve_stop_name(req.destination, "bmtc", bmtc_stops=ALL_STOPS)
+    src_norm = source.strip().lower()
+    dst_norm = destination.strip().lower()
     try:
         direct, transfers = get_all_buses_comprehensive(src_norm, dst_norm)
         return {
@@ -413,15 +443,28 @@ def bmtc_all_buses(req: AllBusesRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/bmtc/routes")
+def bmtc_all_routes(q: str = ""):
+    """Return all route numbers (optionally filtered by prefix/substring) for autocomplete."""
+    all_routes = sorted(set(
+        r.replace("_REV", "") for r in _route_trips.keys()
+    ))
+    if q.strip():
+        q_upper = q.strip().upper()
+        filtered = [r for r in all_routes if q_upper in r.upper()]
+        return {"routes": filtered[:40]}
+    return {"routes": all_routes[:200]}
+
+
 @app.get("/api/bmtc/route-search")
 def bmtc_route_search(route: str):
     route_clean = route.strip()
     stops = get_route_stop_names(route_clean)
-    if not stops:
-        # Try reverse variant as fallback
-        stops = get_route_stop_names(route_clean + "_REV")
-        if stops:
-            route_clean = route_clean + "_REV"
+    rev_stops = get_route_stop_names(route_clean + "_REV")
+    
+    if not stops and rev_stops:
+        stops, rev_stops = rev_stops, []
+        route_clean = route_clean + "_REV"
             
     if not stops:
         raise HTTPException(status_code=404, detail=f"Route '{route}' not found")
@@ -445,7 +488,8 @@ def bmtc_route_search(route: str):
         "stop_count": len(stops),
         "trips": trips,
         "schedule": sched,
-        "stops": stops
+        "stops": stops,
+        "reverse_stops": rev_stops
     }
 
 

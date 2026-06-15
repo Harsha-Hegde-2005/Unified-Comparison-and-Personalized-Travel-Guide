@@ -422,9 +422,13 @@ def extract_segments(path: list[tuple]) -> list[tuple]:
             collected     = [stop]
 
     segments.append((current_route, start_stop, path[-1][0], collected.copy()))
-    # Strip cluster disambiguation suffix (###N) to restore plain stop_norms for display
+    # Strip cluster disambiguation suffix (###N) and CS- prefix to restore plain stop_norms for display
     def _to_norm(ck: str) -> str:
-        return ck.split("###")[0]
+        s = ck.split("###")[0].strip().lower()
+        for prefix in ["cs-", "cs "]:
+            if s.startswith(prefix):
+                s = s[len(prefix):].strip()
+        return s
     return [
         (r.replace("_REV", ""), _to_norm(s), _to_norm(e),
          [_to_norm(x) for x in stops])
