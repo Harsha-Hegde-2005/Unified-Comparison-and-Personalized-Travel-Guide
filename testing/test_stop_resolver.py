@@ -53,3 +53,21 @@ def test_resolve_stop_name_metro():
     
     # Krishnarajapura
     assert resolve_stop_name("kr puram", "metro", metro_stations=metro_stations) == "Krishnarajapura"
+
+def test_stop_coords_endpoint():
+    from fastapi.testclient import TestClient
+    from main import app
+    client = TestClient(app)
+    resp = client.post("/api/stops/coords", json={
+        "stops": ["Majestic", "Hosa Road", "NonExistentStopXYZ"]
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "coordinates" in data
+    coords = data["coordinates"]
+    assert "Majestic" in coords
+    assert "Hosa Road" in coords
+    assert "NonExistentStopXYZ" not in coords
+    assert "lat" in coords["Majestic"]
+    assert "lng" in coords["Majestic"]
+

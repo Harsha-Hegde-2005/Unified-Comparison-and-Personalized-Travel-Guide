@@ -145,6 +145,9 @@ class VehicleRequest(BaseModel):
 class VehicleSearchRequest(BaseModel):
     query: str
 
+class StopCoordsRequest(BaseModel):
+    stops: list[str]
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # HELPERS
@@ -371,7 +374,7 @@ def bmtc_plan(req: JourneyRequest):
                 "departure": _fmt(dep), "arrival": _fmt(arr),
                 "duration":  best.get("duration") or 30,
                 "fare":      int(cost), "distance": round(dist, 1),
-                "stops":     [source, destination],
+                "stops":     best.get("stops") or [source, destination],
             }],
             "guide": [
                 {"step": 1, "icon": "walk",
@@ -1030,6 +1033,56 @@ def compare(req: CompareRequest):
         results[best]["tag"] = tag_map.get(pref, "Recommended")
 
     return {"results": results, "searched_at": datetime.now().isoformat()}
+
+
+@app.post("/api/stops/coords")
+def get_stops_coordinates(req: StopCoordsRequest):
+    from shared.utils import resolve_stop_name
+    from multimodal.config import INTERCHANGE_POINTS
+    coords = {}
+    for stop in req.stops:
+        # Resolve as BMTC first
+        resolved = resolve_stop_name(stop, "bmtc", bmtc_stops=ALL_STOPS)
+        norm = resolved.strip().lower()
+        if norm in STOP_COORDS:
+            coords[stop] = {
+                "lat": float(STOP_COORDS[norm]["latitude"]),
+                "lng": float(STOP_COORDS[norm]["longitude"]),
+                "resolved": resolved
+            }
+            continue
+        
+        # If not found in BMTC, resolve as Metro
+        resolved = resolve_stop_name(stop, "metro", metro_stations=_metro_stations)
+        matched_metro = None
+        for station, pt in INTERCHANGE_POINTS.items():
+            if station.lower() == resolved.lower() or station.lower() in resolved.lower():
+                matched_metro = pt["coords"]
+                break
+        if matched_metro:
+            coords[stop] = {
+                "lat": float(matched_metro[0]),
+                "lng": float(matched_metro[1]),
+                "resolved": resolved
+            }
+            continue
+            
+        # Try a substring match on INTERCHANGE_POINTS directly
+        norm_stop = stop.strip().lower()
+        matched_metro = None
+        for station, pt in INTERCHANGE_POINTS.items():
+            if station.lower() in norm_stop:
+                matched_metro = pt["coords"]
+                resolved = station
+                break
+        if matched_metro:
+            coords[stop] = {
+                "lat": float(matched_metro[0]),
+                "lng": float(matched_metro[1]),
+                "resolved": resolved
+            }
+            
+    return {"coordinates": coords}
 
 
 # ══════════════════════════════════════════════════════════════════════════════

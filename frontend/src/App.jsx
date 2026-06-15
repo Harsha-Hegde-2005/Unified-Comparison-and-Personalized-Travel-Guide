@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
    CONFIG
 ───────────────────────────────────────────────────────────── */
 const API_BASE = "http://localhost:8000";
-const GOOGLE_MAPS_KEY = "YOUR_GOOGLE_MAPS_API_KEY"; // replace with your key
+const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY"; // replace with your key
 
 /* ─────────────────────────────────────────────────────────────
    DESIGN TOKENS
@@ -127,6 +127,190 @@ async function apiStops() {
   } catch { return { all: [], bmtc: [], metro: [] }; }
 }
 
+async function apiStopsCoords(stopsList) {
+  try {
+    const res = await fetch(`${API_BASE}/api/stops/coords`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stops: stopsList }),
+    });
+    if (!res.ok) return {};
+    const d = await res.json();
+    return d.coordinates || {};
+  } catch { return {}; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   LINEAR ROUTE MAP COMPONENT
+───────────────────────────────────────────────────────────── */
+function LinearRouteMap({ segments, activeMode }) {
+  if (!segments || segments.length === 0) {
+    return (
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24, textAlign: "center", color: C.muted, fontSize: 13 }}>
+        No route selected. Select a route card to view the linear route map.
+      </div>
+    );
+  }
+
+  const segmentColors = ["#f97316", "#3b82f6", "#ec4899", "#14b8a6", "#eab308", "#ef4444"];
+
+  // Collect all stops from all segments in order
+  const stopsList = [];
+  segments.forEach((seg, idx) => {
+    let color = C.accent;
+    const isMetro = seg.type === "metro";
+    const isWalk = seg.type === "walk" || (seg.route && seg.route.toLowerCase().includes("walk"));
+
+    if (isMetro) {
+      const rName = (seg.route || "").toLowerCase();
+      if (rName.includes("green")) color = "#22c55e";
+      else if (rName.includes("purple")) color = "#8b5cf6";
+      else if (rName.includes("yellow")) color = "#eab308";
+      else color = "#8b5cf6";
+    } else if (isWalk) {
+      color = "#6b7a99";
+    } else {
+      const transitSegmentIdx = segments.filter((s, sIdx) => sIdx < idx && s.type !== "walk" && !(s.route && s.route.toLowerCase().includes("walk"))).length;
+      color = segmentColors[transitSegmentIdx % segmentColors.length];
+    }
+
+    const segStops = seg.stops || [];
+    if (segStops.length === 0) {
+      if (seg.from && seg.to) {
+        segStops.push(seg.from, seg.to);
+      }
+    }
+
+    segStops.forEach((stop, sIdx) => {
+      // Avoid duplicate stops at transfer boundary
+      if (stopsList.length > 0 && stopsList[stopsList.length - 1].name === stop) {
+        stopsList[stopsList.length - 1].isTransfer = true;
+        stopsList[stopsList.length - 1].nextColor = color;
+        stopsList[stopsList.length - 1].nextRoute = seg.route || "Walk";
+        return;
+      }
+      stopsList.push({
+        name: stop,
+        color: color,
+        route: seg.route || "Walk",
+        isFirst: stopsList.length === 0,
+        isLast: false,
+        isTransfer: sIdx === 0 && stopsList.length > 0,
+        type: seg.type
+      });
+    });
+  });
+
+  if (stopsList.length > 0) {
+    stopsList[stopsList.length - 1].isLast = true;
+  }
+
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, minHeight: 340, display: "flex", flexDirection: "column", justifyContent: "center", boxSizing: "border-box" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 12, letterSpacing: "0.05em" }}>LINEAR STATION TIMELINE (---o---o---)</div>
+      
+      {/* Scrollable Track Container */}
+      <div style={{ overflowX: "auto", padding: "30px 10px 40px 10px", width: "100%", display: "flex", alignItems: "center", boxSizing: "border-box" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 0, position: "relative" }}>
+          
+          {stopsList.map((stop, sIdx) => {
+            const isEndpoint = stop.isFirst || stop.isLast;
+            const lineColor = stop.nextColor || stop.color;
+            const routeLabel = stop.nextRoute || stop.route;
+            const isTransfer = stop.isTransfer;
+
+            return (
+              <div key={sIdx} style={{ display: "flex", alignItems: "center", position: "relative" }}>
+                
+                {/* Station Node Wrapper */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 100, position: "relative", flexShrink: 0 }}>
+                  
+                  {/* Stop Name Label Above Node */}
+                  <div style={{
+                    position: "absolute",
+                    bottom: 24,
+                    width: 130,
+                    textAlign: "center",
+                    fontSize: isEndpoint || isTransfer ? 12 : 10,
+                    fontWeight: isEndpoint || isTransfer ? 700 : 500,
+                    color: isEndpoint || isTransfer ? C.text : C.muted,
+                    whiteSpace: "normal",
+                    lineHeight: "13px",
+                    height: 26,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}>
+                    {stop.name}
+                  </div>
+
+                  {/* Circular Node */}
+                  <div style={{
+                    width: isEndpoint || isTransfer ? 16 : 10,
+                    height: isEndpoint || isTransfer ? 16 : 10,
+                    borderRadius: "50%",
+                    background: isEndpoint ? stop.color : isTransfer ? "#fff" : stop.color,
+                    border: `3px solid ${stop.color}`,
+                    zIndex: 2,
+                    boxShadow: isEndpoint ? `0 0 0 4px ${stop.color}44` : isTransfer ? `0 0 0 3px ${stop.color}44` : "none",
+                    cursor: "pointer"
+                  }} title={stop.name} />
+
+                  {/* Label Below Node */}
+                  <div style={{
+                    position: "absolute",
+                    top: 24,
+                    fontSize: 9,
+                    fontWeight: 800,
+                    color: stop.color,
+                    letterSpacing: "0.02em"
+                  }}>
+                    {stop.isFirst ? "START" : stop.isLast ? "DESTINATION" : isTransfer ? "TRANSFER" : "STOP"}
+                  </div>
+                </div>
+
+                {/* Connection line between nodes */}
+                {!stop.isLast && (
+                  <div style={{
+                    width: 60,
+                    height: 5,
+                    background: lineColor,
+                    position: "relative",
+                    zIndex: 1,
+                    opacity: 0.85,
+                    borderStyle: stop.type === "walk" ? "dashed" : "solid"
+                  }}>
+                    {/* Route tag label above the line */}
+                    <div style={{
+                      position: "absolute",
+                      top: -16,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      fontSize: 8.5,
+                      fontWeight: 800,
+                      color: lineColor,
+                      background: C.surface,
+                      border: `1px solid ${lineColor}44`,
+                      borderRadius: 4,
+                      padding: "1px 5px",
+                      whiteSpace: "nowrap"
+                    }}>{routeLabel}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          
+        </div>
+      </div>
+      
+      <div style={{ fontSize: 10, color: C.muted, textAlign: "center", marginTop: 14 }}>
+        ↔ Scroll horizontally to view all intermediate stops.
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────────────────────────────────────────
    GOOGLE MAPS COMPONENT
 ───────────────────────────────────────────────────────────── */
@@ -134,6 +318,7 @@ function GoogleMap({ src, dst, segments, activeMode }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
   const [loaded, setLoaded] = useState(false);
+  const coordsCacheRef = useRef({});
 
   useEffect(() => {
     if (window.google) { setLoaded(true); return; }
@@ -167,50 +352,266 @@ function GoogleMap({ src, dst, segments, activeMode }) {
       });
     }
     const map = mapRef.current;
-    // Clear old markers/routes — simple reset
-    if (window._utrsMarkers) window._utrsMarkers.forEach(m => m.setMap(null));
-    window._utrsMarkers = [];
 
-    if (src) {
-      const geo = new window.google.maps.Geocoder();
-      geo.geocode({ address: src + ", Bengaluru" }, (res, st) => {
-        if (st === "OK") {
-          const pos = res[0].geometry.location;
-          const m = new window.google.maps.Marker({
-            map, position: pos, title: src,
-            icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: C.green, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 },
-          });
-          window._utrsMarkers.push(m);
-          if (!dst) map.setCenter(pos);
+    // Collect all stop names from segments to resolve coordinates
+    const allStopNames = [];
+    if (src) allStopNames.push(src);
+    if (dst) allStopNames.push(dst);
+    if (segments) {
+      segments.forEach(seg => {
+        if (seg.from) allStopNames.push(seg.from);
+        if (seg.to) allStopNames.push(seg.to);
+        if (seg.stops) {
+          seg.stops.forEach(st => allStopNames.push(st));
         }
       });
     }
-    if (dst) {
-      const geo = new window.google.maps.Geocoder();
-      geo.geocode({ address: dst + ", Bengaluru" }, (res, st) => {
-        if (st === "OK") {
-          const pos = res[0].geometry.location;
-          const m = new window.google.maps.Marker({
-            map, position: pos, title: dst,
-            icon: { path: window.google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: C.red, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 },
-          });
-          window._utrsMarkers.push(m);
+
+    const uniqueStops = [...new Set(allStopNames)].filter(Boolean);
+
+    const resolveAndRender = async () => {
+      const cache = coordsCacheRef.current;
+      const missing = uniqueStops.filter(s => !cache[s]);
+
+      if (missing.length > 0) {
+        try {
+          const backendCoords = await apiStopsCoords(missing);
+          Object.assign(cache, backendCoords);
+        } catch (e) {
+          console.error("Error fetching stop coords:", e);
         }
-      });
-    }
-    if (src && dst) {
-      const color = activeMode ? MC[activeMode]?.color || C.accent : C.accent;
-      const ds = new window.google.maps.DirectionsService();
-      const dr = new window.google.maps.DirectionsRenderer({
-        map, suppressMarkers: true,
-        polylineOptions: { strokeColor: color, strokeWeight: 4, strokeOpacity: 0.85 },
-      });
-      ds.route({ origin: src + ", Bengaluru", destination: dst + ", Bengaluru", travelMode: "DRIVING" },
-        (res, st) => { if (st === "OK") dr.setDirections(res); });
-      if (window._utrsRenderer) window._utrsRenderer.setMap(null);
-      window._utrsRenderer = dr;
-    }
-  }, [loaded, src, dst, activeMode]);
+
+        // Fallback geocoding for any still-missing stops
+        const stillMissing = uniqueStops.filter(s => !cache[s]);
+        if (stillMissing.length > 0) {
+          const geocoder = new window.google.maps.Geocoder();
+          const geocodePromises = stillMissing.map(stopName => {
+            return new Promise((resolve) => {
+              geocoder.geocode({ address: stopName + ", Bengaluru" }, (res, status) => {
+                if (status === "OK" && res && res[0]) {
+                  const loc = res[0].geometry.location;
+                  cache[stopName] = { lat: loc.lat(), lng: loc.lng() };
+                }
+                resolve();
+              });
+            });
+          });
+          await Promise.all(geocodePromises);
+        }
+      }
+
+      // Clear previous map objects
+      if (window._utrsMarkers) window._utrsMarkers.forEach(m => m.setMap(null));
+      window._utrsMarkers = [];
+
+      if (window._utrsRenderers) window._utrsRenderers.forEach(r => r.setMap(null));
+      window._utrsRenderers = [];
+
+      if (window._utrsPolylines) window._utrsPolylines.forEach(p => p.setMap(null));
+      window._utrsPolylines = [];
+
+      const bounds = new window.google.maps.LatLngBounds();
+
+      // Plot Start and Destination Markers
+      let srcPos = cache[src];
+      let dstPos = cache[dst];
+
+      if (srcPos) {
+        const sm = new window.google.maps.Marker({
+          map, position: srcPos, title: `Start: ${src}`,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 9,
+            fillColor: C.green,
+            fillOpacity: 1,
+            strokeColor: "#fff",
+            strokeWeight: 2
+          }
+        });
+        window._utrsMarkers.push(sm);
+        bounds.extend(srcPos);
+      }
+
+      if (dstPos) {
+        const dm = new window.google.maps.Marker({
+          map, position: dstPos, title: `Destination: ${dst}`,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 9,
+            fillColor: C.red,
+            fillOpacity: 1,
+            strokeColor: "#fff",
+            strokeWeight: 2
+          }
+        });
+        window._utrsMarkers.push(dm);
+        bounds.extend(dstPos);
+      }
+
+      // Render segments
+      if (segments && segments.length > 0) {
+        const segmentColors = ["#f97316", "#3b82f6", "#ec4899", "#14b8a6", "#eab308", "#ef4444"];
+
+        segments.forEach((seg, idx) => {
+          let color = C.accent;
+          const isMetro = seg.type === "metro";
+          const isWalk = seg.type === "walk" || (seg.route && seg.route.toLowerCase().includes("walk"));
+
+          if (isMetro) {
+            const rName = (seg.route || "").toLowerCase();
+            if (rName.includes("green")) color = "#22c55e";
+            else if (rName.includes("purple")) color = "#8b5cf6";
+            else if (rName.includes("yellow")) color = "#eab308";
+            else color = "#8b5cf6"; // default purple metro
+          } else if (isWalk) {
+            color = "#6b7a99";
+          } else {
+            // Alternate colors for transfer transit legs
+            const transitSegmentIdx = segments.filter((s, sIdx) => sIdx < idx && s.type !== "walk" && !(s.route && s.route.toLowerCase().includes("walk"))).length;
+            color = segmentColors[transitSegmentIdx % segmentColors.length];
+          }
+
+          const segStops = seg.stops || [];
+          const pathCoords = segStops.map(s => cache[s]).filter(Boolean);
+
+          // Plot intermediate stop markers
+          segStops.forEach(stopName => {
+            const pos = cache[stopName];
+            if (!pos) return;
+            bounds.extend(pos);
+
+            const isGlobalBound = stopName.toLowerCase() === (src || "").toLowerCase() || stopName.toLowerCase() === (dst || "").toLowerCase();
+            if (isGlobalBound) return;
+
+            const isTransferStop = stopName === seg.from || stopName === seg.to;
+            const stopMarker = new window.google.maps.Marker({
+              map,
+              position: pos,
+              title: stopName,
+              icon: {
+                path: window.google.maps.SymbolPath.CIRCLE,
+                scale: isTransferStop ? 6 : 4,
+                fillColor: isTransferStop ? color : "#fff",
+                fillOpacity: 1,
+                strokeColor: isTransferStop ? "#fff" : color,
+                strokeWeight: isTransferStop ? 2 : 1.5,
+              }
+            });
+
+            const info = new window.google.maps.InfoWindow({
+              content: `<div style="color:#000;font-size:12px;font-family:sans-serif;padding:2px 4px;"><strong>${stopName}</strong>${seg.route ? `<br/>Line: ${seg.route}` : ""}</div>`
+            });
+            stopMarker.addListener("mouseover", () => info.open(map, stopMarker));
+            stopMarker.addListener("mouseout", () => info.close());
+            stopMarker.addListener("click", () => info.open(map, stopMarker));
+
+            window._utrsMarkers.push(stopMarker);
+          });
+
+          // Draw the segment line
+          if (isMetro) {
+            if (pathCoords.length > 1) {
+              const poly = new window.google.maps.Polyline({
+                map, path: pathCoords, strokeColor: color, strokeWeight: 5, strokeOpacity: 0.9
+              });
+              window._utrsPolylines.push(poly);
+            }
+          } else if (isWalk) {
+            if (pathCoords.length > 1) {
+              const poly = new window.google.maps.Polyline({
+                map, path: pathCoords, strokeColor: color, strokeWeight: 4, strokeOpacity: 0.75,
+                icons: [{
+                  icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 3 },
+                  offset: "0", repeat: "15px"
+                }]
+              });
+              window._utrsPolylines.push(poly);
+            } else if (seg.from && seg.to) {
+              const ds = new window.google.maps.DirectionsService();
+              const dr = new window.google.maps.DirectionsRenderer({
+                map, suppressMarkers: true,
+                polylineOptions: {
+                  strokeColor: color, strokeWeight: 4, strokeOpacity: 0.75,
+                  icons: [{
+                    icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 3 },
+                    offset: "0", repeat: "15px"
+                  }]
+                }
+              });
+              ds.route({
+                origin: seg.from + ", Bengaluru", destination: seg.to + ", Bengaluru", travelMode: "WALKING"
+              }, (res, status) => { if (status === "OK") dr.setDirections(res); });
+              window._utrsRenderers.push(dr);
+            }
+          } else {
+            // Bus, Cab, Car
+            if (seg.from && seg.to) {
+              const ds = new window.google.maps.DirectionsService();
+              const dr = new window.google.maps.DirectionsRenderer({
+                map, suppressMarkers: true,
+                polylineOptions: { strokeColor: color, strokeWeight: 5, strokeOpacity: 0.85 }
+              });
+
+              let waypoints = [];
+              if (segStops.length > 2) {
+                const innerStops = segStops.slice(1, -1);
+                const maxWaypoints = 15;
+                const step = Math.ceil(innerStops.length / maxWaypoints);
+                const sampled = innerStops.filter((_, sidx) => sidx % step === 0);
+                waypoints = sampled.map(stopName => ({
+                  location: stopName + ", Bengaluru", stopover: false
+                }));
+              }
+
+              ds.route({
+                origin: seg.from + ", Bengaluru",
+                destination: seg.to + ", Bengaluru",
+                waypoints: waypoints,
+                optimizeWaypoints: false,
+                travelMode: "DRIVING"
+              }, (res, status) => {
+                if (status === "OK") {
+                  dr.setDirections(res);
+                } else {
+                  console.warn("Directions failed for segment, falling back to Polyline.", status);
+                  if (pathCoords.length > 1) {
+                    const poly = new window.google.maps.Polyline({
+                      map, path: pathCoords, strokeColor: color, strokeWeight: 5, strokeOpacity: 0.8
+                    });
+                    window._utrsPolylines.push(poly);
+                  }
+                }
+              });
+              window._utrsRenderers.push(dr);
+            }
+          }
+        });
+      } else {
+        // Fallback for simple src -> dst driving directions when no segments
+        if (srcPos && dstPos) {
+          const ds = new window.google.maps.DirectionsService();
+          const dr = new window.google.maps.DirectionsRenderer({
+            map, suppressMarkers: true,
+            polylineOptions: { strokeColor: C.accent, strokeWeight: 5, strokeOpacity: 0.85 }
+          });
+          ds.route({
+            origin: srcPos, destination: dstPos, travelMode: "DRIVING"
+          }, (res, status) => { if (status === "OK") dr.setDirections(res); });
+          window._utrsRenderers.push(dr);
+        }
+      }
+
+      if (!bounds.isEmpty()) {
+        map.fitBounds(bounds);
+        const listener = window.google.maps.event.addListener(map, "idle", () => {
+          if (map.getZoom() > 16) map.setZoom(16);
+          window.google.maps.event.removeListener(listener);
+        });
+      }
+    };
+
+    resolveAndRender();
+  }, [loaded, src, dst, segments, activeMode]);
 
   return (
     <div style={{ position: "relative", height: "100%", minHeight: 340, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.border}` }}>
@@ -1251,6 +1652,7 @@ export default function App() {
   const [stops, setStops]         = useState({ all: [], bmtc: [], metro: [] });
   const [showAllBuses, setShowAllBuses] = useState(false);
   const [showRouteSearch, setShowRouteSearch] = useState(false);
+  const [mapView, setMapView]           = useState("gmap"); // "gmap" | "linear"
 
   useEffect(() => { apiStops().then(setStops); }, []);
 
@@ -1473,7 +1875,28 @@ export default function App() {
 
             {/* Right: Map + Guide */}
             <div style={{ position: "sticky", top: 72 }}>
-              <GoogleMap src={src} dst={dst} segments={selectedData?.segments} activeMode={selected} />
+              {selectedData?.available && (
+                <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 3, marginBottom: 12, gap: 4 }}>
+                  <button onClick={() => setMapView("gmap")} style={{
+                    flex: 1, background: mapView === "gmap" ? C.card : "transparent",
+                    border: "none", borderRadius: 9, color: mapView === "gmap" ? C.accent : C.muted,
+                    padding: "7px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                    transition: "all 0.2s"
+                  }}>🗺️ Google Map</button>
+                  <button onClick={() => setMapView("linear")} style={{
+                    flex: 1, background: mapView === "linear" ? C.card : "transparent",
+                    border: "none", borderRadius: 9, color: mapView === "linear" ? C.accent : C.muted,
+                    padding: "7px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                    transition: "all 0.2s"
+                  }}>🛤️ Linear Route Map</button>
+                </div>
+              )}
+              
+              {mapView === "linear" && selectedData ? (
+                <LinearRouteMap segments={selectedData?.segments} activeMode={selected} />
+              ) : (
+                <GoogleMap src={src} dst={dst} segments={selectedData?.segments} activeMode={selected} />
+              )}
               {selectedData?.available && (
                 <div style={{ marginTop: 14, background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 12, letterSpacing: "0.05em" }}>STEP-BY-STEP GUIDE</div>
