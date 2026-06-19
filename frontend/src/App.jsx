@@ -53,6 +53,7 @@ const P = {
   x:        "M18 6L6 18M6 6l12 12",
   list:     "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
   route:    "M3 12h18M3 6h18M3 18h18",
+  chat:     "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z",
 };
 
 function Ic({ n, s = 16, c = "currentColor", sw = 1.8 }) {
@@ -192,6 +193,7 @@ async function apiGetDashboard(token) {
   const res = await fetch(`${API_BASE}/api/user/dashboard`, {
     headers: { "Authorization": `Bearer ${token}` }
   });
+  if (res.status === 401) throw new Error("Unauthorized");
   if (!res.ok) throw new Error("Failed to fetch dashboard");
   return res.json();
 }
@@ -200,6 +202,7 @@ async function apiGetVehicles(token) {
   const res = await fetch(`${API_BASE}/api/user/vehicles`, {
     headers: { "Authorization": `Bearer ${token}` }
   });
+  if (res.status === 401) throw new Error("Unauthorized");
   if (!res.ok) throw new Error("Failed to fetch vehicles");
   return res.json();
 }
@@ -230,6 +233,7 @@ async function apiGetDocuments(token) {
   const res = await fetch(`${API_BASE}/api/user/documents`, {
     headers: { "Authorization": `Bearer ${token}` }
   });
+  if (res.status === 401) throw new Error("Unauthorized");
   if (!res.ok) throw new Error("Failed to fetch documents");
   return res.json();
 }
@@ -1926,7 +1930,7 @@ function CompareTable({ results }) {
 /* ─────────────────────────────────────────────────────────────
    DASHBOARD
 ───────────────────────────────────────────────────────────── */
-function Dashboard({ token, username, onPlan, onSelectRoute }) {
+function Dashboard({ token, username, onPlan, onSelectRoute, onLogout }) {
   const [data, setData] = useState({ stats: [], recent: [], saved: [] });
   const [vehicles, setVehicles] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -1959,10 +1963,13 @@ function Dashboard({ token, username, onPlan, onSelectRoute }) {
       setDocuments(docs);
     } catch (e) {
       console.error("Error loading dashboard data:", e);
+      if (e.message === "Unauthorized" && onLogout) {
+        onLogout();
+      }
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, onLogout]);
 
   useEffect(() => {
     if (token) loadData();
@@ -2412,6 +2419,389 @@ function AuthScreen({ onLoginSuccess }) {
   );
 }
 
+function ChatbotWidget({ triggerSearch, setSelected }) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      sender: "bot",
+      text: "Hello! I am your Commuter Assistant. I can help you plan your journey, find options matching your budget, check rain forecast impact, or compare transit vs. driving. Try asking: 'How long does it take from Majestic to Silk Board?' or 'Will it rain at 4 PM?'",
+    }
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, loading, open]);
+
+  const sendMessage = async (text) => {
+    if (!text.trim()) return;
+    
+    // Add user message
+    const userMsg = { sender: "user", text };
+    setMessages(prev => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/chatbot/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      
+      if (!response.ok) throw new Error("Server error");
+      const data = await response.json();
+      
+      setMessages(prev => [...prev, {
+        sender: "bot",
+        text: data.text,
+        intent: data.intent,
+        parameters: data.parameters,
+        embedded_data: data.embedded_data
+      }]);
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        sender: "bot",
+        text: "Sorry, I'm having trouble connecting right now. Please try again.",
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCardClick = (msg) => {
+    const embed = msg.embedded_data;
+    const params = msg.parameters;
+    
+    let source = params?.source || embed?.source || embed?.from_stop;
+    let destination = params?.destination || embed?.destination || embed?.to_stop;
+    
+    if (!source || !destination) {
+      source = params?.source || "Majestic";
+      destination = params?.destination || "Indiranagar";
+    }
+    
+    triggerSearch(source, destination).then(() => {
+      if (embed?.mode) {
+        setSelected(embed.mode);
+      }
+    });
+  };
+
+  const chips = [
+    { text: "Cheapest option under ₹50 from Electronic City to Majestic" },
+    { text: "Will it rain at 4 PM today?" },
+    { text: "Shall I take my bike to Indiranagar?" }
+  ];
+
+  return (
+    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, fontFamily: "inherit" }}>
+      {/* Floating Button */}
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, #f97316, #8b5cf6)",
+            border: "none",
+            boxShadow: "0 8px 32px rgba(249, 115, 22, 0.4)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+            position: "relative"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "scale(1.1) translateY(-3px)";
+            e.currentTarget.style.boxShadow = "0 12px 40px rgba(249, 115, 22, 0.5)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "none";
+            e.currentTarget.style.boxShadow = "0 8px 32px rgba(249, 115, 22, 0.4)";
+          }}
+        >
+          <Ic n="chat" s={28} c="white" sw={2} />
+          <span style={{ position: "absolute", top: 2, right: 2, width: 12, height: 12, borderRadius: "50%", background: C.green, border: "2px solid #08090f" }} />
+        </button>
+      )}
+
+      {/* Chat Window */}
+      {open && (
+        <div style={{
+          width: 360,
+          height: 520,
+          background: C.surface,
+          border: `1px solid ${C.border2}`,
+          borderRadius: 20,
+          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.7)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          backdropFilter: "blur(20px)",
+          animation: "fadeIn 0.25s ease-out"
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: "16px 20px",
+            background: "linear-gradient(135deg, #151929, #0f1120)",
+            borderBottom: `1.5px solid ${C.border}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #f97316, #8b5cf6)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                🤖
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>Commuter Assistant</div>
+                <div style={{ fontSize: 11, color: C.green, display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.green }} /> Online
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              style={{
+                background: "none",
+                border: "none",
+                color: C.muted,
+                cursor: "pointer",
+                padding: 4,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              <Ic n="x" s={18} />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div
+            ref={scrollRef}
+            style={{
+              flex: 1,
+              padding: "20px",
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16
+            }}
+          >
+            {messages.map((m, idx) => (
+              <div key={idx} style={{
+                display: "flex",
+                justifyContent: m.sender === "user" ? "flex-end" : "flex-start",
+                alignItems: "flex-end",
+                gap: 8
+              }}>
+                {m.sender === "bot" && (
+                  <div style={{ fontSize: 16, marginBottom: 4 }}>🤖</div>
+                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: "80%" }}>
+                  <div style={{
+                    padding: "12px 16px",
+                    borderRadius: m.sender === "user" ? "18px 18px 2px 18px" : "18px 18px 18px 2px",
+                    background: m.sender === "user" ? "linear-gradient(135deg, #f97316, #ea580c)" : C.card,
+                    border: m.sender === "user" ? "none" : `1px solid ${C.border}`,
+                    color: C.text,
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                    whiteSpace: "pre-line",
+                    boxShadow: m.sender === "user" ? "0 4px 12px rgba(249, 115, 22, 0.2)" : "none"
+                  }}>
+                    {m.text}
+                  </div>
+
+                  {/* Embedded Route Card */}
+                  {m.sender === "bot" && m.embedded_data && (
+                    <div
+                      onClick={() => handleCardClick(m)}
+                      style={{
+                        background: `${MC[m.embedded_data.mode]?.color || C.accent}14`,
+                        border: `1.5px solid ${(MC[m.embedded_data.mode]?.color || C.accent)}44`,
+                        borderRadius: 12,
+                        padding: 12,
+                        cursor: "pointer",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                        transition: "all 0.2s",
+                        marginTop: 4,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.borderColor = MC[m.embedded_data.mode]?.color || C.accent;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "none";
+                        e.currentTarget.style.borderColor = `${(MC[m.embedded_data.mode]?.color || C.accent)}44`;
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: MC[m.embedded_data.mode]?.color || C.accent, textTransform: "uppercase" }}>
+                          {MC[m.embedded_data.mode]?.label || "Recommended Option"}
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 900, color: C.text }}>
+                          ₹{m.embedded_data.cost}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>
+                        {m.parameters?.source || m.embedded_data.from_stop || "Trip"} → {m.parameters?.destination || m.embedded_data.to_stop || "Destination"}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.muted, display: "flex", justifyContent: "space-between" }}>
+                        <span>⏱️ {m.embedded_data.time} mins</span>
+                        {m.embedded_data.transfers !== undefined && (
+                          <span>🔄 {m.embedded_data.transfers} transfer(s)</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 10, color: C.accent, fontWeight: 800, textAlign: "right", marginTop: 4 }}>
+                        Click to draw route on map 🗺️
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {loading && (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ fontSize: 16 }}>🤖</div>
+                <div style={{
+                  padding: "12px 18px",
+                  borderRadius: "18px 18px 18px 2px",
+                  background: C.card,
+                  border: `1px solid ${C.border}`,
+                  display: "flex",
+                  gap: 4,
+                  alignItems: "center"
+                }}>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.muted, animation: "bounce 1.4s infinite ease-in-out both" }} />
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.muted, animation: "bounce 1.4s infinite ease-in-out both 0.2s" }} />
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.muted, animation: "bounce 1.4s infinite ease-in-out both 0.4s" }} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Suggestion Chips */}
+          <div style={{
+            padding: "8px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            borderTop: `1px solid ${C.border}`,
+            background: "#0d0f1a"
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.03em" }}>Quick suggestions</div>
+            <div style={{
+              display: "flex",
+              gap: 6,
+              overflowX: "auto",
+              paddingBottom: 4,
+              whiteSpace: "nowrap",
+              scrollbarWidth: "none"
+            }}>
+              {chips.map((c, i) => (
+                <button
+                  key={i}
+                  onClick={() => sendMessage(c.text)}
+                  style={{
+                    background: C.card,
+                    border: `1px solid ${C.border2}`,
+                    borderRadius: 14,
+                    padding: "6px 12px",
+                    color: C.text,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = C.accent;
+                    e.currentTarget.style.background = "#1c2238";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = C.border2;
+                    e.currentTarget.style.background = C.card;
+                  }}
+                >
+                  {c.text}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Input Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendMessage(input);
+            }}
+            style={{
+              padding: 16,
+              borderTop: `1px solid ${C.border}`,
+              background: "#151929",
+              display: "flex",
+              gap: 8
+            }}
+          >
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask for route, budget constraint, weather..."
+              style={{
+                flex: 1,
+                background: C.bg,
+                border: `1px solid ${C.border2}`,
+                borderRadius: 12,
+                padding: "10px 14px",
+                color: C.text,
+                fontSize: 13,
+                fontFamily: "inherit"
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                background: "linear-gradient(135deg, #f97316, #ea580c)",
+                border: "none",
+                borderRadius: 12,
+                color: "white",
+                padding: "10px 16px",
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit"
+              }}
+            >
+              Send
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─────────────────────────────────────────────────────────────
    MAIN APP
 ───────────────────────────────────────────────────────────── */
@@ -2448,7 +2838,10 @@ export default function App() {
 
   useEffect(() => {
     if (token) {
-      apiGetVehicles(token).then(setUserVehicles).catch(console.error);
+      apiGetVehicles(token).then(setUserVehicles).catch(e => {
+        console.error(e);
+        if (e.message === "Unauthorized") onLogout();
+      });
     } else {
       setUserVehicles([]);
       setSelectedVehicle("");
@@ -2460,11 +2853,14 @@ export default function App() {
     return `${String(n.getHours()).padStart(2,"0")}:${String(n.getMinutes()).padStart(2,"0")}`;
   };
 
-  const search = async () => {
-    if (!src.trim() || !dst.trim()) return;
+  const triggerSearch = async (source, destination, customTime = null) => {
+    if (!source.trim() || !destination.trim()) return;
+    setSrc(source);
+    setDst(destination);
+    if (customTime) setTime(customTime);
     setLoading(true); setError(null); setShowAllBuses(false);
     try {
-      const res = await apiCompare(src, dst, time || nowTime(), pref, selectedVehicle);
+      const res = await apiCompare(source, destination, customTime || time || nowTime(), pref, selectedVehicle);
       setResults(res);
       setSelected(null);
       setSelectedCabVehicle(res.cab?.all_estimates?.[0] || null);
@@ -2473,8 +2869,8 @@ export default function App() {
 
       if (token) {
         apiSaveJourney(token, {
-          from_stop: src,
-          to_stop: dst,
+          from_stop: source,
+          to_stop: destination,
           mode: "search",
           cost: 0,
           duration: 0,
@@ -2488,6 +2884,8 @@ export default function App() {
       setError(`Backend unreachable: ${e.message}. Run: uvicorn backend.main:app --reload --port 8000`);
     } finally { setLoading(false); }
   };
+
+  const search = () => triggerSearch(src, dst);
 
   const handleSaveJourney = async () => {
     if (!token || !selectedData) return;
@@ -2610,6 +3008,7 @@ export default function App() {
               setDst(to_stop);
               setPage("plan");
             }} 
+            onLogout={onLogout}
           />
         )}
 
@@ -2846,9 +3245,18 @@ export default function App() {
           </div>
         )}
       </div>
+      <ChatbotWidget triggerSearch={triggerSearch} setSelected={setSelected} />
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes bounce {
+          0%, 80%, 100% { transform: scale(0); }
+          40% { transform: scale(1.0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px) scale(0.95); }
+          to { opacity: 1; transform: none; }
+        }
         * { box-sizing: border-box; }
         input::placeholder { color: #2a3250; }
         input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }

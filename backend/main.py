@@ -26,6 +26,9 @@ import os, sys, json, math, re as _re
 from datetime import datetime, timedelta
 from typing import Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -1057,6 +1060,330 @@ def health():
     }
 
 
+# ── Chatbot Endpoint ────────────────────────────────────────────────────────
+from chatbot_engine import ChatbotEngine
+
+class ChatbotRequest(BaseModel):
+    message: str
+    time: Optional[str] = None
+    weather: Optional[str] = None
+
+@app.post("/api/chatbot/query")
+def chatbot_query(req: ChatbotRequest):
+    engine = ChatbotEngine(bmtc_stops=ALL_STOPS, metro_stations=_metro_stations, all_vehicles=_all_vehicles)
+    
+    # Extract stops
+    matched_stops = engine.extract_stops(req.message)
+    
+    # Classify intent
+    intent, params = engine.classify_intent(req.message, matched_stops)
+    
+    dep_time = None
+    if req.time:
+        try:
+            dep_time = _parse_time(req.time)
+        except Exception:
+            pass
+    if not dep_time:
+        dep_time = params.get("time")
+    if not dep_time:
+        dep_time = datetime.now()
+        
+    data = {}
+    embedded_data = None
+    
+    if intent in ("journey_time", "journey_cost", "budget_constrained", "possible_ways"):
+        source = params.get("source")
+        destination = params.get("destination")
+        
+        if source and destination:
+            compare_results = {}
+            
+            # BMTC
+            try:
+                compare_results["bmtc"] = bmtc_plan(
+                    JourneyRequest(source=source, destination=destination, time=_fmt(dep_time))
+                )
+            except Exception:
+                compare_results["bmtc"] = {"available": False, "mode": "bmtc"}
+            
+            # Metro
+            try:
+                compare_results["metro"] = metro_plan(
+                    JourneyRequest(source=source, destination=destination, time=_fmt(dep_time))
+                )
+            except Exception:
+                compare_results["metro"] = {"available": False, "mode": "metro"}
+                
+            # Cab
+            src_coords = get_stop_coords(source)
+            dst_coords = get_stop_coords(destination)
+            if src_coords and dst_coords:
+                try:
+                    all_estimates = []
+                    for p_key, p_info in RIDE_PROVIDERS.items():
+                        try:
+                            estimates = p_info["fn"](
+                                src_coords[0], src_coords[1], dst_coords[0], dst_coords[1], dep_time, "clear"
+                            )
+                            all_estimates.extend(estimates)
+                        except Exception:
+                            pass
+                    if all_estimates:
+                        all_estimates.sort(key=lambda x: x["cost"])
+                        default_est = all_estimates[0]
+                        compare_results["cab"] = {
+                            "available": True,
+                            "mode": "cab",
+                            "time": default_est["time"],
+                            "cost": default_est["cost"],
+                            "cost_max": default_est["cost_max"],
+                            "transfers": 0,
+                            "distance": default_est["distance"],
+                            "departure": default_est["departure"],
+                            "arrival": default_est["arrival"],
+                            "segments": default_est["segments"],
+                            "guide": default_est["guide"],
+                        }
+                    else:
+                        compare_results["cab"] = _cab_estimate(source, destination, dep_time)
+                except Exception:
+                    compare_results["cab"] = _cab_estimate(source, destination, dep_time)
+            else:
+                compare_results["cab"] = _cab_estimate(source, destination, dep_time)
+                
+            # Car
+            compare_results["car"] = _car_estimate(source, destination, dep_time)
+            
+            # Build modes list
+            modes_data = []
+            for mode, mdata in compare_results.items():
+                if mdata.get("available"):
+                    modes_data.append({
+                        "mode": mode,
+                        "time": mdata.get("time", 999),
+                        "cost": mdata.get("cost", 999),
+                        "details": mdata
+                    })
+                    
+            if modes_data:
+                if intent == "journey_time":
+                    best_option = min(modes_data, key=lambda x: x["time"])
+                    data["best_option"] = best_option
+                    embedded_data = best_option["details"]
+                elif intent == "journey_cost":
+                    best_option = min(modes_data, key=lambda x: x["cost"])
+                    data["best_option"] = best_option
+                    embedded_data = best_option["details"]
+                elif intent == "budget_constrained":
+                    budget = params.get("budget", 0)
+                    options = [x for x in modes_data if x["cost"] <= budget]
+                    options.sort(key=lambda x: x["cost"])
+                    data["options"] = options
+                    if options:
+                        embedded_data = options[0]["details"]
+                    else:
+                        cheapest = min(modes_data, key=lambda x: x["cost"])
+                        data["cheapest_available"] = cheapest
+                        embedded_data = cheapest["details"]
+                elif intent == "possible_ways":
+                    data["options"] = modes_data
+                    if modes_data:
+                        cheapest = min(modes_data, key=lambda x: x["cost"])
+                        embedded_data = cheapest["details"]
+            else:
+                data["best_option"] = None
+                data["options"] = []
+                data["cheapest_available"] = None
+        else:
+            data["best_option"] = None
+            data["options"] = []
+            data["cheapest_available"] = None
+            
+    elif intent == "vehicle_vs_transit":
+        vtype = params.get("vtype", "bike")
+        destination = params.get("destination")
+        
+        source = "Majestic"
+        if matched_stops:
+            src_parsed, dst_parsed = engine.determine_source_dest(matched_stops, req.message)
+            if src_parsed:
+                source = src_parsed
+            if dst_parsed:
+                destination = dst_parsed
+                
+        src_coords = get_stop_coords(source)
+        dst_coords = get_stop_coords(destination or "Indiranagar")
+        
+        vehicle_name = None
+        if vtype == "bike":
+            if _bikes_df is not None and not _bikes_df.empty:
+                vehicle_name = _bikes_df["full_name"].iloc[0]
+            else:
+                vehicle_name = "Honda Activa"
+        else:
+            if _cars_df is not None and not _cars_df.empty:
+                vehicle_name = _cars_df["name"].iloc[0]
+            else:
+                vehicle_name = "Maruti Swift"
+                
+        v_cost, v_time = 0, 0
+        if src_coords and dst_coords and vehicle_name:
+            try:
+                v_res = vehicle_estimate(VehicleRequest(
+                    vehicle=vehicle_name,
+                    source_lat=src_coords[0], source_lng=src_coords[1],
+                    dest_lat=dst_coords[0], dest_lng=dst_coords[1]
+                ))
+                v_cost = v_res.get("cost", 0)
+                v_time = v_res.get("time", 0)
+            except Exception:
+                v_res = _car_estimate(source, destination or "Indiranagar", dep_time)
+                v_cost = v_res.get("cost", 0)
+                v_time = v_res.get("time", 0)
+        else:
+            v_res = _car_estimate(source, destination or "Indiranagar", dep_time)
+            v_cost = v_res.get("cost", 0)
+            v_time = v_res.get("time", 0)
+            
+        t_cost, t_time = 999, 999
+        transit_option = None
+        # BMTC
+        try:
+            b_res = bmtc_plan(JourneyRequest(source=source, destination=destination or "Indiranagar", time=_fmt(dep_time)))
+            if b_res.get("available") and b_res.get("cost", 999) < t_cost:
+                t_cost = b_res.get("cost", 999)
+                t_time = b_res.get("time", 999)
+                transit_option = b_res
+        except Exception:
+            pass
+        # Metro
+        try:
+            m_res = metro_plan(JourneyRequest(source=source, destination=destination or "Indiranagar", time=_fmt(dep_time)))
+            if m_res.get("available") and m_res.get("cost", 999) < t_cost:
+                t_cost = m_res.get("cost", 999)
+                t_time = m_res.get("time", 999)
+                transit_option = m_res
+        except Exception:
+            pass
+            
+        if t_cost == 999:
+            t_cost = 25
+            t_time = 45
+            
+        weather = req.weather or engine.get_simulated_weather(dep_time)
+        
+        data["vehicle_cost"] = v_cost
+        data["vehicle_time"] = v_time
+        data["transit_cost"] = t_cost
+        data["transit_time"] = t_time
+        data["weather"] = weather
+        
+        if transit_option:
+            embedded_data = transit_option
+            
+    elif intent == "ac_bus_available":
+        source = params.get("source")
+        destination = params.get("destination")
+        has_ac = False
+        ac_buses = []
+        
+        if source and destination:
+            try:
+                b_res = bmtc_plan(JourneyRequest(source=source, destination=destination, time=_fmt(dep_time)))
+                if b_res.get("available"):
+                    from modes.bmtc.features.routing import get_all_direct_buses
+                    from shared.utils import resolve_stop_name
+                    src_norm = resolve_stop_name(source, "bmtc", bmtc_stops=ALL_STOPS).strip().lower()
+                    dst_norm = resolve_stop_name(destination, "bmtc", bmtc_stops=ALL_STOPS).strip().lower()
+                    direct = get_all_direct_buses(src_norm, dst_norm, dep_time)
+                    for b in direct:
+                        route_no = b["route"]
+                        category = b.get("fare_category", "ordinary").lower()
+                        if category in ("vajra", "ac", "premium") or route_no.lower().startswith("v") or "vajra" in route_no.lower():
+                            has_ac = True
+                            ac_buses.append(route_no)
+                    
+                    if has_ac:
+                        embedded_data = b_res
+            except Exception:
+                pass
+                
+        data["has_ac"] = has_ac
+        data["ac_buses"] = ac_buses
+
+    elif intent == "nearest_stops":
+        loc = params.get("location")
+        nearest = None
+        if loc:
+            coords = get_stop_coords(loc)
+            if not coords:
+                from shared.utils import resolve_stop_name
+                from multimodal.config import INTERCHANGE_POINTS
+                resolved = resolve_stop_name(loc, "metro", metro_stations=_metro_stations)
+                for station, pt in INTERCHANGE_POINTS.items():
+                    if station.lower() == resolved.lower() or station.lower() in resolved.lower():
+                        coords = pt["coords"]
+                        break
+                        
+            if coords:
+                from shared.utils import resolve_stop_name
+                bmtc_dists = []
+                for norm, info in STOP_COORDS.items():
+                    lat = float(info["latitude"])
+                    lng = float(info["longitude"])
+                    d = _haversine_km(coords[0], coords[1], lat, lng)
+                    if d > 0.05:
+                        c_name = resolve_stop_name(norm, "bmtc", bmtc_stops=ALL_STOPS)
+                        bmtc_dists.append((c_name, d))
+                        
+                metro_dists = []
+                from multimodal.config import INTERCHANGE_POINTS
+                for station, pt in INTERCHANGE_POINTS.items():
+                    m_coords = pt["coords"]
+                    d = _haversine_km(coords[0], coords[1], m_coords[0], m_coords[1])
+                    if d > 0.05:
+                        metro_dists.append((station, d))
+                        
+                bmtc_dists.sort(key=lambda x: x[1])
+                metro_dists.sort(key=lambda x: x[1])
+                
+                seen_names = set()
+                uniq_bmtc = []
+                for name, dist in bmtc_dists:
+                    if name not in seen_names:
+                        seen_names.add(name)
+                        uniq_bmtc.append((name, dist))
+                        if len(uniq_bmtc) >= 3:
+                            break
+                
+                nearest = {
+                    "bmtc": uniq_bmtc,
+                    "metro": metro_dists[:3]
+                }
+        data["nearest"] = nearest
+
+    elif intent == "weather_query":
+        weather = req.weather or engine.get_simulated_weather(dep_time)
+        data["weather"] = weather
+        
+    text_response = engine.format_response(intent, params, data)
+    
+    serialized_params = {}
+    for k, v in params.items():
+        if isinstance(v, datetime):
+            serialized_params[k] = v.isoformat()
+        else:
+            serialized_params[k] = v
+            
+    return {
+        "text": text_response,
+        "intent": intent,
+        "parameters": serialized_params,
+        "embedded_data": embedded_data
+    }
+
+
 # ── User Auth, Garage, and Document Library Endpoints ──────────────────────
 import shutil
 from fastapi.staticfiles import StaticFiles
@@ -1073,6 +1400,7 @@ app.mount("/uploads", StaticFiles(directory=uploads_path), name="uploads")
 class UserAuthRequest(BaseModel):
     username: str
     password: str
+
 
 class UserAuthResponse(BaseModel):
     access_token: str
