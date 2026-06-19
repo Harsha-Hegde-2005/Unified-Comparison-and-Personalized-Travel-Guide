@@ -84,6 +84,7 @@ for _route_no, _group in _combined_routes_df.groupby("route_no"):
         "positions": _positions,
         "stop_set": set(_norms),
         "cumulative_km": _cumulative_km,
+        "coords": [(row.latitude, row.longitude) for row in _rows],
     }
     _direct_route_index.append(_route_info)
     for _stop_norm in _positions:
@@ -183,10 +184,10 @@ def _estimate_segment_fast(
     }
 
 
-def _estimate_direct_segment(route_no: str, src_norm: str, dst_norm: str, norms: list[str]) -> dict:
+def _estimate_direct_segment(route_no: str, src_norm: str, dst_norm: str, norms: list[str], departure_dt: datetime | None = None) -> dict:
     from features.schedule import calculate_segment_times, normalize_search_start_time
 
-    start_time = normalize_search_start_time(datetime.now())
+    start_time = normalize_search_start_time(departure_dt)
     segment_norms = norms[norms.index(src_norm):norms.index(dst_norm) + 1]
     times = calculate_segment_times(
         [(route_no, src_norm, dst_norm, segment_norms)],
@@ -229,6 +230,7 @@ def _get_or_estimate_direct_segment(
     norms: list[str],
     trips_per_day: int = 0,
     request_minute: int = 0,          # minute-precision key to bust stale cache
+    departure_dt: datetime | None = None,
 ) -> dict:
     # Cache keyed by (route, src, dst, request_minute) so each new API request
     # gets fresh staggered times (not a stale time from a previous request).
@@ -237,14 +239,14 @@ def _get_or_estimate_direct_segment(
         return _segment_estimate_cache[cache_key]
 
     route_info = next((r for r in _direct_route_index if r["route_no"] == route_no), None)
-    now_dt = _normalize_search_start_time()
+    now_dt = _normalize_search_start_time(departure_dt)
     result = (
         _estimate_segment_fast(route_info, src_norm, dst_norm, now_dt, trips_per_day)
         if route_info
         else None
     )
     if result is None:
-        result = _estimate_direct_segment(route_no, src_norm, dst_norm, norms)
+        result = _estimate_direct_segment(route_no, src_norm, dst_norm, norms, departure_dt)
     _segment_estimate_cache[cache_key] = result
     return result
 
@@ -262,6 +264,8 @@ def _route_priority(route_no: str, src_norm: str = "", dst_norm: str = "") -> tu
         score -= 100
     if is_vajra_route(base):
         score += 35
+    if "NICE" in base:
+        score += 20
     if "356" in base and (src_norm == "hosa road" or dst_norm == "sujatha talkies"):
         score += 45
     return (score, -_route_trips.get(route_no.replace("_REV", ""), 0), base)
@@ -271,7 +275,7 @@ def _route_stop_positions(route_info: dict, stop_norm: str) -> list[int]:
     return route_info["positions"].get(stop_norm, [])
 
 
-def get_all_direct_buses(src_raw: str, dst_raw: str) -> list[dict]:
+def get_all_direct_buses(src_raw: str, dst_raw: str, departure_dt: datetime | None = None) -> list[dict]:
     """
     Every route connecting src -> dst directly.
 
@@ -283,8 +287,9 @@ def get_all_direct_buses(src_raw: str, dst_raw: str) -> list[dict]:
     seen_base: set = set()
 
     # Use a per-request minute key so the cache doesn't serve yesterday's times
-    from datetime import datetime as _dt
-    _req_minute = _dt.now().hour * 60 + _dt.now().minute
+    if departure_dt is None:
+        departure_dt = datetime.now()
+    _req_minute = departure_dt.hour * 60 + departure_dt.minute
 
     src_routes    = _routes_by_stop.get(src_norm, [])
     dst_route_ids = {id(route_info) for route_info in _routes_by_stop.get(dst_norm, [])}
@@ -308,6 +313,7 @@ def get_all_direct_buses(src_raw: str, dst_raw: str) -> list[dict]:
             schedule   = _get_or_estimate_direct_segment(
                 route_no, src_norm, dst_norm, norms,
                 trips_per_day=trips, request_minute=_req_minute,
+                departure_dt=departure_dt,
             )
             stops = [canonical_stop_name(n) for n in norms[si:di + 1]]
             results.append({
@@ -339,22 +345,36 @@ def _best_join_indices(first: dict, second: dict, src_norm: str, dst_norm: str) 
         return None
 
     best = None
-    for join_norm in first["stop_set"] & second["stop_set"]:
-        for src_idx in first_src_positions:
-            for first_join_idx in _route_stop_positions(first, join_norm):
-                if src_idx >= first_join_idx:
-                    continue
-                for second_join_idx in _route_stop_positions(second, join_norm):
-                    for dst_idx in second_dst_positions:
-                        if second_join_idx >= dst_idx:
-                            continue
-                        travel_stops = (first_join_idx - src_idx) + (dst_idx - second_join_idx)
-                        candidate = (travel_stops, src_idx, first_join_idx, second_join_idx, dst_idx, join_norm)
-                        if best is None or candidate < best:
-                            best = candidate
+    from core.graph import _nearby_stops
+    for s1 in first["stop_set"]:
+        candidates = {s1}
+        if s1 in _nearby_stops:
+            candidates.update(_nearby_stops[s1])
+        
+        valid_joins = candidates & second["stop_set"]
+        if not valid_joins:
+            continue
+            
+        for join_norm in valid_joins:
+            for src_idx in first_src_positions:
+                for first_join_idx in _route_stop_positions(first, s1):
+                    if src_idx >= first_join_idx:
+                        continue
+                    for second_join_idx in _route_stop_positions(second, join_norm):
+                        for dst_idx in second_dst_positions:
+                            if second_join_idx >= dst_idx:
+                                continue
+                            lat1, lon1 = first["coords"][first_join_idx]
+                            lat2, lon2 = second["coords"][second_join_idx]
+                            if _haversine(lat1, lon1, lat2, lon2) > 0.35:
+                                continue
+                            travel_stops = (first_join_idx - src_idx) + (dst_idx - second_join_idx)
+                            candidate = (travel_stops, src_idx, first_join_idx, second_join_idx, dst_idx, s1, join_norm)
+                            if best is None or candidate < best:
+                                best = candidate
     if best is None:
         return None
-    return best[1], best[2], best[3], best[4], best[5]
+    return best[1], best[2], best[3], best[4], best[5], best[6]
 
 
 @lru_cache(maxsize=512)
@@ -379,10 +399,10 @@ def _fast_transfer_options(src_norm: str, dst_norm: str, limit: int = 8, request
             if not join:
                 continue
 
-            src_idx, first_join_idx, second_join_idx, dst_idx, join_norm = join
+            src_idx, first_join_idx, second_join_idx, dst_idx, first_join, second_join = join
             base_first = first["base_route"]
             base_second = second["base_route"]
-            seen_key = (base_first, base_second, join_norm)
+            seen_key = (base_first, base_second, first_join)
             if seen_key in seen:
                 continue
             seen.add(seen_key)
@@ -390,10 +410,10 @@ def _fast_transfer_options(src_norm: str, dst_norm: str, limit: int = 8, request
             first_stops = first["norms"][src_idx:first_join_idx + 1]
             second_stops = second["norms"][second_join_idx:dst_idx + 1]
             segs = [
-                (base_first, src_norm, join_norm, first_stops),
-                (base_second, join_norm, dst_norm, second_stops),
+                (base_first, src_norm, first_join, first_stops),
+                (base_second, second_join, dst_norm, second_stops),
             ]
-            t1 = _estimate_segment_fast(first, src_norm, join_norm, start_time)
+            t1 = _estimate_segment_fast(first, src_norm, first_join, start_time)
             if not t1:
                 continue
 
@@ -409,7 +429,7 @@ def _fast_transfer_options(src_norm: str, dst_norm: str, limit: int = 8, request
                 arr_dt = start_time + timedelta(minutes=(t1.get("duration") or 0))
 
             t2_start_time = arr_dt + timedelta(minutes=TRANSFER_TIME)
-            t2 = _estimate_segment_fast(second, join_norm, dst_norm, t2_start_time)
+            t2 = _estimate_segment_fast(second, second_join, dst_norm, t2_start_time)
             if not t2:
                 continue
 
@@ -428,9 +448,9 @@ def _fast_transfer_options(src_norm: str, dst_norm: str, limit: int = 8, request
                 "segments": segs,
                 "segment_times": times,
                 "_score": (
+                    total_time,
                     _route_priority(base_first, src_norm, dst_norm),
                     _route_priority(base_second, src_norm, dst_norm),
-                    total_time,
                     total_fare,
                 ),
             })
@@ -469,6 +489,7 @@ def get_all_buses_comprehensive(
     src_raw: str,
     dst_raw: str,
     max_transfer_options: int = 8,
+    departure_dt: datetime | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """
     Returns (direct_buses, transfer_options).
@@ -480,34 +501,26 @@ def get_all_buses_comprehensive(
     src_norm = src_raw.strip().lower()
     dst_norm = dst_raw.strip().lower()
 
-    from datetime import datetime as _dt
-    _req_minute = _dt.now().hour * 60 + _dt.now().minute
+    if departure_dt is None:
+        departure_dt = datetime.now()
+    _req_minute = departure_dt.hour * 60 + departure_dt.minute
 
-    direct = get_all_direct_buses(src_norm, dst_norm)
-    fast_xfer = list(_fast_transfer_options(src_norm, dst_norm, max_transfer_options, _req_minute))
-    if fast_xfer:
-        enriched_xfer = [_enrich_transfer_option(opt) for opt in fast_xfer]
-        return direct, enriched_xfer
+    direct = get_all_direct_buses(src_norm, dst_norm, departure_dt)
+    fast_xfer = list(_fast_transfer_options(src_norm, dst_norm, max_transfer_options * 2, _req_minute))
+    enriched_xfer = [_enrich_transfer_option(opt) for opt in fast_xfer]
 
-    if FAST_QUERY_MODE:
-        from core.graph import dijkstra, extract_segments
-
-        best = dijkstra(src_norm, dst_norm, max_transfers=2)
-        opts = [best] if best else []
-    else:
-        from core.graph import dijkstra_all_options, extract_segments
-
-        opts = dijkstra_all_options(
-            src_norm,
-            dst_norm,
-            max_transfers=2,
-            max_options=min(max_transfer_options, 3),
-        )
+    from core.graph import dijkstra_all_options, extract_segments
+    opts = dijkstra_all_options(
+        src_norm,
+        dst_norm,
+        max_transfers=2,
+        max_options=min(max_transfer_options, 3),
+    )
 
     transfer_options = []
     from features.schedule import calculate_segment_times, normalize_search_start_time
 
-    start_time = normalize_search_start_time(datetime.now())
+    start_time = normalize_search_start_time(departure_dt)
     for path, (transfers, dist) in opts:
         if transfers == 0:
             continue
@@ -528,12 +541,22 @@ def get_all_buses_comprehensive(
             "segment_times": times,
         }))
 
-    transfer_options.sort(key=lambda opt: (
-        _route_priority(opt["buses"][0], src_norm, dst_norm),
+    # Merge and deduplicate
+    all_transfers = enriched_xfer + transfer_options
+    seen_buses = set()
+    unique_transfers = []
+    for opt in all_transfers:
+        bus_tuple = tuple(opt["buses"])
+        if bus_tuple not in seen_buses:
+            seen_buses.add(bus_tuple)
+            unique_transfers.append(opt)
+
+    unique_transfers.sort(key=lambda opt: (
         opt["total_time"],
-        opt["total_fare"],
+        opt["transfers"],
+        _route_priority(opt["buses"][0], src_norm, dst_norm),
     ))
-    return direct, transfer_options
+    return direct, unique_transfers[:max_transfer_options]
 
 
 def estimate_route_schedule(route_no: str, start_time: datetime | None = None) -> dict:

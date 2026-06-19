@@ -125,11 +125,10 @@ def _build_everything() -> tuple[dict, dict, dict, dict]:
     print(f"Graph built: {len(graph_):,} nodes, {n_edges:,} edges "
           f"(freq-weighted + {rev_ct} reverse routes)")
 
-    # 4. Build proximity-based stop cluster map using a grid-bucket spatial index.
-    # Naive O(n²) over 5,000+ unique stops is too slow (~29M comparisons).
-    # Grid buckets reduce this to O(n) average — each stop only checks its
-    # immediate grid cell and the 8 surrounding cells (~9 buckets per stop).
-    WALK_TRANSFER_KM = 0.20   # 200 metres walking tolerance
+    # 4. Build proximity-based stop cluster map using a grid-bucket spatial index on cluster_keys.
+    # Naive O(n²) over 5,700+ unique cluster_keys is too slow.
+    # Grid buckets reduce this to O(n) average.
+    WALK_TRANSFER_KM = 0.35   # 350 metres walking tolerance
 
     # Degree-to-km conversion at Bengaluru latitude (~13°N)
     KM_PER_DEG_LAT = 111.0
@@ -139,49 +138,53 @@ def _build_everything() -> tuple[dict, dict, dict, dict]:
     CELL_DEG_LAT = WALK_TRANSFER_KM / KM_PER_DEG_LAT * 1.05
     CELL_DEG_LNG = WALK_TRANSFER_KM / KM_PER_DEG_LNG * 1.05
 
-    # Compute one centroid per stop_norm
+    # Compute coordinate per cluster_key
     all_combined = pd.concat([stops_df, _rev_df], ignore_index=True) if not _rev_df.empty else stops_df
-    stop_coords  = all_combined.groupby("stop_norm")[["latitude", "longitude"]].mean()
-    norms        = list(stop_coords.index)
-    lats         = stop_coords["latitude"].values
-    lngs         = stop_coords["longitude"].values
+    all_combined["cluster_key"] = [
+        _cluster_key(r.route_no, int(r.stop_sequence), r.stop_norm)
+        for r in all_combined.itertuples(index=False)
+    ]
+    cluster_coords = all_combined.groupby("cluster_key")[["latitude", "longitude"]].mean()
+    cluster_keys   = list(cluster_coords.index)
+    lats           = cluster_coords["latitude"].values
+    lngs           = cluster_coords["longitude"].values
 
-    # Build grid: cell → list of (norm, lat, lng)
+    # Build grid: cell → list of (cluster_key, lat, lng)
     grid: dict[tuple[int, int], list] = {}
-    for i, n in enumerate(norms):
+    for i, ck in enumerate(cluster_keys):
         cell = (int(lats[i] / CELL_DEG_LAT), int(lngs[i] / CELL_DEG_LNG))
-        grid.setdefault(cell, []).append((n, lats[i], lngs[i]))
+        grid.setdefault(cell, []).append((ck, lats[i], lngs[i]))
 
-    # For each stop, check only the 9 surrounding cells
-    nearby_stops: dict[str, list[str]] = {}
-    for i, n in enumerate(norms):
+    # For each cluster_key, check only the 9 surrounding cells
+    nearby_cluster_keys: dict[str, list[str]] = {}
+    for i, ck in enumerate(cluster_keys):
         cx = int(lats[i] / CELL_DEG_LAT)
         cy = int(lngs[i] / CELL_DEG_LNG)
         neighbours = []
         for dx in (-1, 0, 1):
             for dy in (-1, 0, 1):
-                for m, mlat, mlng in grid.get((cx + dx, cy + dy), []):
-                    if m == n:
+                for m_ck, mlat, mlng in grid.get((cx + dx, cy + dy), []):
+                    if m_ck == ck:
                         continue
                     d = haversine(lats[i], lngs[i], mlat, mlng)
                     if d <= WALK_TRANSFER_KM:
-                        neighbours.append(m)
+                        neighbours.append(m_ck)
         if neighbours:
-            nearby_stops[n] = neighbours
+            nearby_cluster_keys[ck] = neighbours
 
-    nearby_ct = sum(len(v) for v in nearby_stops.values())
-    print(f"Proximity clusters: {len(nearby_stops)} stops have <={int(WALK_TRANSFER_KM*1000)}m neighbours "
+    # Keep nearby_stops and nearby_ct for logs & compatibility
+    nearby_stops: dict[str, list[str]] = {}
+    for ck, neighbours in nearby_cluster_keys.items():
+        norm = cluster_to_norm[ck]
+        for n_ck in neighbours:
+            n_norm = cluster_to_norm[n_ck]
+            if n_norm != norm:
+                nearby_stops.setdefault(norm, set()).add(n_norm)
+    nearby_stops = {k: list(v) for k, v in nearby_stops.items()}
+
+    nearby_ct = sum(len(v) for v in nearby_cluster_keys.values())
+    print(f"Proximity clusters: {len(nearby_cluster_keys)} cluster_keys have <={int(WALK_TRANSFER_KM*1000)}m neighbours "
           f"({nearby_ct} proximity pairs)")
-
-    nearby_cluster_keys = {
-        cluster_key: list(dict.fromkeys(
-            ck
-            for nearby_norm in nearby_stops.get(stop_norm, [])
-            for ck in norm_to_cluster_keys.get(nearby_norm, [])
-            if ck != cluster_key
-        ))
-        for cluster_key, stop_norm in cluster_to_norm.items()
-    }
     transfer_neighbour_cache: dict[tuple[str, str], list[tuple[tuple, float]]] = {}
     for cluster_key, routes_at_stop in stop_routes.items():
         same_stop_routes = list(routes_at_stop)
@@ -274,15 +277,15 @@ def dijkstra(
     for src_ck in src_keys:
         for r in _stop_routes.get(src_ck, []):
             node = (src_ck, r)
-            heapq.heappush(pq, (0, 0.0, node))
-            wscore[node] = (0, 0.0)
+            heapq.heappush(pq, (0.0, 0, node))
+            wscore[node] = (0.0, 0)
             raw_km[node] = 0.0
 
     best_end = None
 
     while pq:
-        transfers, w_dist, node = heapq.heappop(pq)
-        if wscore.get(node, (999, 999.0)) < (transfers, w_dist):
+        w_dist, transfers, node = heapq.heappop(pq)
+        if wscore.get(node, (999.0, 999)) < (w_dist, transfers):
             continue
         stop, route = node
         if stop in dst_keys:
@@ -296,21 +299,21 @@ def dijkstra(
             new_t   = transfers
             new_w   = w_dist + weight
             new_raw = raw_km.get(node, 0.0) + raw_d
-            if wscore.get(neighbour, (999, 999.0)) > (new_t, new_w):
-                wscore[neighbour] = (new_t, new_w)
+            if wscore.get(neighbour, (999.0, 999)) > (new_w, new_t):
+                wscore[neighbour] = (new_w, new_t)
                 raw_km[neighbour] = new_raw
                 parent[neighbour] = node
-                heapq.heappush(pq, (new_t, new_w, neighbour))
+                heapq.heappush(pq, (new_w, new_t, neighbour))
 
         for neighbour, _ in _transfer_neighbours(stop, route):
             new_t   = transfers + 1
-            new_w   = w_dist
+            new_w   = w_dist + 2.0  # 2.0 km transfer penalty
             new_raw = raw_km.get(node, 0.0)
-            if wscore.get(neighbour, (999, 999.0)) > (new_t, new_w):
-                wscore[neighbour] = (new_t, new_w)
+            if wscore.get(neighbour, (999.0, 999)) > (new_w, new_t):
+                wscore[neighbour] = (new_w, new_t)
                 raw_km[neighbour] = new_raw
                 parent[neighbour] = node
-                heapq.heappush(pq, (new_t, new_w, neighbour))
+                heapq.heappush(pq, (new_w, new_t, neighbour))
 
     if not best_end:
         return None
@@ -321,7 +324,7 @@ def dijkstra(
         path.append(cur)
         cur = parent.get(cur)
     path.reverse()
-    return path, (wscore[best_end][0], raw_km[best_end])
+    return path, (wscore[best_end][1], raw_km[best_end])
 
 
 # ── Dijkstra — multiple options ───────────────────────────────────────────────
@@ -346,13 +349,13 @@ def dijkstra_all_options(
     for src_ck in src_keys:
         for r in _stop_routes.get(src_ck, []):
             node = (src_ck, r)
-            heapq.heappush(pq, (0, 0.0, node))
-            wscore[node] = (0, 0.0)
+            heapq.heappush(pq, (0.0, 0, node))
+            wscore[node] = (0.0, 0)
             raw_km[node] = 0.0
 
     while pq:
-        transfers, w_dist, node = heapq.heappop(pq)
-        if wscore.get(node, (999, 999.0)) < (transfers, w_dist):
+        w_dist, transfers, node = heapq.heappop(pq)
+        if wscore.get(node, (999.0, 999)) < (w_dist, transfers):
             continue
         stop, route = node
         if stop in dst_keys:
@@ -369,21 +372,21 @@ def dijkstra_all_options(
             new_t   = transfers
             new_w   = w_dist + weight
             new_raw = raw_km.get(node, 0.0) + raw_d
-            if wscore.get(neighbour, (999, 999.0)) > (new_t, new_w):
-                wscore[neighbour] = (new_t, new_w)
+            if wscore.get(neighbour, (999.0, 999)) > (new_w, new_t):
+                wscore[neighbour] = (new_w, new_t)
                 raw_km[neighbour] = new_raw
                 parent[neighbour] = node
-                heapq.heappush(pq, (new_t, new_w, neighbour))
+                heapq.heappush(pq, (new_w, new_t, neighbour))
 
         for neighbour, _ in _transfer_neighbours(stop, route):
             new_t   = transfers + 1
-            new_w   = w_dist
+            new_w   = w_dist + 2.0  # 2.0 km transfer penalty
             new_raw = raw_km.get(node, 0.0)
-            if wscore.get(neighbour, (999, 999.0)) > (new_t, new_w):
-                wscore[neighbour] = (new_t, new_w)
+            if wscore.get(neighbour, (999.0, 999)) > (new_w, new_t):
+                wscore[neighbour] = (new_w, new_t)
                 raw_km[neighbour] = new_raw
                 parent[neighbour] = node
-                heapq.heappush(pq, (new_t, new_w, neighbour))
+                heapq.heappush(pq, (new_w, new_t, neighbour))
 
     if not found_per_level:
         return []
