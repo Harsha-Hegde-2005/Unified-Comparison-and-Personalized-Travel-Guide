@@ -8,18 +8,12 @@ IST = ZoneInfo("Asia/Kolkata")
 
 class FareEngine:
     """
-    Computes Namma Yatri ride fares.
+    Computes calibrated ride fares for Namma Yatri, Uber, Ola, and Rapido.
 
-    Formula (calibrated from real Namma Yatri app, Apr 2026):
-
-        estimate = effective_base + distance_km * per_km
-        night    = estimate * night_surcharge_pct   [if 10PM–5AM IST]
-        estimate = round(estimate + night)
-        fare_min = estimate
-        fare_max = estimate + fare_range_buffer  (default +10)
-
-    Calibrated reference: 4.9km route
-        Auto ₹111, Non-AC ₹161, AC ₹171, XL ₹236, XL Premium ₹264
+    Formula (calibrated from specification):
+        subtotal = base_fare + max(0, distance_km - base_dist) * per_km + duration_min * per_min
+        estimate = max(subtotal, min_fare) * surge_multiplier
+        estimate = round(estimate)
     """
 
     def __init__(self, fare_config_path: str = None):
@@ -28,73 +22,126 @@ class FareEngine:
             fare_config_path = os.path.abspath(
                 os.path.join(base_dir, "..", "..", "..", "database", "cab", "fare_config.json")
             )
-        self.config      = self._load_config(fare_config_path)
-        self.vehicles    = self.config["vehicles"]
-        self.night_start = self.config["night_hours"]["start"]
-        self.night_end   = self.config["night_hours"]["end"]
-        self._ensure_effective_base()
+        self.config = self._load_config(fare_config_path)
+        self.providers = self.config["providers"]
 
     def _load_config(self, path: str) -> dict:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
 
-    def _ensure_effective_base(self):
+    def get_surge_multiplier(self, current_time: datetime = None, weather: str = "clear", is_auto: bool = False) -> float:
         """
-        Backward-compat: if config still uses old base_fare + base_dist_km style,
-        compute effective_base automatically so both formats work.
+        Compute dynamic surge multiplier based on peak hours and weather.
+        S_surge = 1.0 + delta_time + delta_weather
         """
-        for cfg in self.vehicles.values():
-            if "effective_base" not in cfg:
-                cfg["effective_base"] = (
-                    cfg.get("base_fare", 0)
-                    - cfg.get("base_dist_km", 0) * cfg.get("per_km", 0)
-                )
-
-    def is_night(self, current_time: datetime = None) -> bool:
         if current_time is None:
             current_time = datetime.now(IST)
         elif current_time.tzinfo is None:
             current_time = current_time.replace(tzinfo=IST)
-        hour = current_time.hour
-        return hour >= self.night_start or hour < self.night_end
+        else:
+            current_time = current_time.astimezone(IST)
 
-    def get_fare(self, distance_km: float, vehicle_type: str,
-                 current_time: datetime = None) -> dict:
-        vehicle_type = vehicle_type.lower()
-        if vehicle_type not in self.vehicles:
+        time_minutes = current_time.hour * 60 + current_time.minute
+
+        # 1. Peak Commute Windows (delta_time)
+        delta_time = 0.0
+        if is_auto:
+            # Autos only get late night flat surcharge (22:00 - 05:00)
+            if time_minutes >= (22 * 60) or time_minutes < (5 * 60):
+                delta_time = 0.50
+        else:
+            # Morning Peak (08:30 – 10:30 IST)
+            if (8 * 60 + 30) <= time_minutes <= (10 * 60 + 30):
+                delta_time = 0.25
+            # Evening Peak (17:30 – 20:30 IST)
+            elif (17 * 60 + 30) <= time_minutes <= (20 * 60 + 30):
+                delta_time = 0.30
+            # Late Night Surcharge (22:00 – 05:00 IST)
+            elif time_minutes >= (22 * 60) or time_minutes < (5 * 60):
+                delta_time = 0.50
+
+        # 2. Weather Surcharges (delta_weather)
+        delta_weather = 0.0
+        weather_lower = weather.lower()
+        if "light rain" in weather_lower or "drizzle" in weather_lower:
+            delta_weather = 0.15
+        elif "heavy rain" in weather_lower or "thunderstorm" in weather_lower:
+            delta_weather = 0.40
+        elif "storm" in weather_lower or "flood" in weather_lower:
+            delta_weather = 0.75
+
+        return 1.0 + delta_time + delta_weather
+
+    def is_night(self, current_time: datetime = None) -> bool:
+        """Return True if Late Night surcharge window (22:00 - 05:00 IST) is active."""
+        if current_time is None:
+            current_time = datetime.now(IST)
+        elif current_time.tzinfo is None:
+            current_time = current_time.replace(tzinfo=IST)
+        else:
+            current_time = current_time.astimezone(IST)
+        hour = current_time.hour
+        return hour >= 22 or hour < 5
+
+    def get_fare(self, provider_key: str, vehicle_key: str, distance_km: float,
+                 duration_min: float, current_time: datetime = None, weather: str = "clear") -> dict:
+        provider_key = provider_key.lower()
+        vehicle_key = vehicle_key.lower()
+
+        if provider_key not in self.providers:
             raise ValueError(
-                f"Unknown vehicle type '{vehicle_type}'. "
-                f"Valid options: {', '.join(self.vehicles.keys())}"
+                f"Unknown provider '{provider_key}'. "
+                f"Valid options: {', '.join(self.providers.keys())}"
             )
 
-        cfg   = self.vehicles[vehicle_type]
+        provider_cfg = self.providers[provider_key]
+        vehicles = provider_cfg["vehicles"]
+
+        if vehicle_key not in vehicles:
+            raise ValueError(
+                f"Unknown vehicle type '{vehicle_key}' for provider '{provider_key}'. "
+                f"Valid options: {', '.join(vehicles.keys())}"
+            )
+
+        cfg = vehicles[vehicle_key]
+        is_auto = "auto" in vehicle_key or "bike" in vehicle_key
+        surge_mult = self.get_surge_multiplier(current_time, weather, is_auto)
         night = self.is_night(current_time)
 
-        estimate = max(
-            cfg["effective_base"] + distance_km * cfg["per_km"],
-            cfg["min_fare"]
-        )
-        if night:
-            estimate += estimate * cfg["night_surcharge_pct"]
+        # Base calculation
+        distance_charge = max(0.0, distance_km - cfg["base_dist"]) * cfg["per_km"]
+        duration_charge = duration_min * cfg["per_min"]
+        subtotal = cfg["base_fare"] + distance_charge + duration_charge
 
+        estimate = max(subtotal, cfg["min_fare"]) * surge_mult
         estimate = round(estimate)
-        buf      = cfg.get("fare_range_buffer", 10)
+
+        buf = cfg.get("fare_range_buffer", 10)
 
         return {
             "vehicle":       cfg["name"],
             "description":   cfg["description"],
             "capacity":      cfg["capacity"],
+            "icon":          cfg.get("icon", "🚗"),
             "distance_km":   distance_km,
+            "duration_min":  duration_min,
             "fare_estimate": estimate,
             "fare_min":      estimate,
             "fare_max":      estimate + buf,
             "fare_display":  f"Rs. {estimate} - Rs. {estimate + buf}",
-            "is_night":      night
+            "is_night":      night,
+            "surge":         round(surge_mult, 2)
         }
 
-    def get_all_fares(self, distance_km: float,
-                      current_time: datetime = None) -> list:
+    def get_all_fares_for_provider(self, provider_key: str, distance_km: float,
+                                   duration_min: float, current_time: datetime = None,
+                                   weather: str = "clear") -> list:
+        provider_key = provider_key.lower()
+        if provider_key not in self.providers:
+            raise ValueError(f"Unknown provider '{provider_key}'")
+
+        vehicles = self.providers[provider_key]["vehicles"]
         return sorted(
-            [self.get_fare(distance_km, v, current_time) for v in self.vehicles],
+            [self.get_fare(provider_key, v, distance_km, duration_min, current_time, weather) for v in vehicles],
             key=lambda x: x["fare_min"]
         )

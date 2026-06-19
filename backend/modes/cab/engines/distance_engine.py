@@ -1,5 +1,5 @@
-import requests
 import os
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables from .env
@@ -12,8 +12,7 @@ GOOGLE_DIST_URL = "https://maps.googleapis.com/maps/api/distancematrix/json"
 class DistanceEngine:
     """
     Calculates driving distance (km) and duration (min) between two coordinates.
-
-    Uses: Google Maps Distance Matrix API
+    Gracefully falls back from Google Maps to public OSRM, and then to Haversine.
     """
 
     def get_distance(self, source_coords: dict, destination_coords: dict) -> dict:
@@ -23,10 +22,17 @@ class DistanceEngine:
         Returns:
             { "distance_km": 17.99, "duration_min": 22 }
         """
-        if not GOOGLE_MAPS_KEY:
-            raise ValueError("Google Maps API key is missing")
+        if GOOGLE_MAPS_KEY:
+            try:
+                return self._google(source_coords, destination_coords)
+            except Exception as e:
+                print(f"Google Maps API failed: {e}. Falling back to OSRM.")
 
-        return self._google(source_coords, destination_coords)
+        try:
+            return self._osrm(source_coords, destination_coords)
+        except Exception as e:
+            print(f"OSRM API failed: {e}. Falling back to Haversine × 1.3 road factor.")
+            return self._haversine(source_coords, destination_coords)
 
     def _google(self, src: dict, dst: dict) -> dict:
         resp = requests.get(
@@ -40,7 +46,6 @@ class DistanceEngine:
             },
             timeout=8,
         )
-
         resp.raise_for_status()
         data = resp.json()
 
@@ -48,11 +53,48 @@ class DistanceEngine:
             raise ValueError(f"Google Maps error: {data.get('status')}")
 
         elem = data["rows"][0]["elements"][0]
-
         if elem["status"] != "OK":
             raise ValueError(f"Route not found: {elem['status']}")
 
         return {
             "distance_km": round(elem["distance"]["value"] / 1000, 2),
             "duration_min": round(elem["duration"]["value"] / 60, 2),
+        }
+
+    def _osrm(self, src: dict, dst: dict) -> dict:
+        url = f"https://router.project-osrm.org/route/v1/driving/{src['longitude']},{src['latitude']};{dst['longitude']},{dst['latitude']}"
+        params = {"overview": "false"}
+        resp = requests.get(
+            url,
+            params=params,
+            headers={"User-Agent": "NammaYatri-FareCalculator/1.0"},
+            timeout=8
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        if data.get("code") != "Ok":
+            raise ValueError(f"OSRM routing error: {data.get('message', 'Route not found')}")
+
+        route = data["routes"][0]
+        return {
+            "distance_km": round(route["distance"] / 1000, 2),
+            "duration_min": round(route["duration"] / 60, 2),
+        }
+
+    def _haversine(self, src: dict, dst: dict) -> dict:
+        from math import radians, sin, cos, sqrt, atan2
+        lat1, lon1 = src["latitude"], src["longitude"]
+        lat2, lon2 = dst["latitude"], dst["longitude"]
+        R = 6371
+        dlat = radians(lat2 - lat1)
+        dlon = radians(lon2 - lon1)
+        a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+        dist_km = 2 * R * atan2(sqrt(a), sqrt(1 - a)) * 1.3  # 1.3 road factor correction
+
+        # Zero-traffic driving speed approximation: 30 km/h
+        duration_min = dist_km / 30 * 60
+        return {
+            "distance_km": round(dist_km, 2),
+            "duration_min": round(duration_min, 2),
         }

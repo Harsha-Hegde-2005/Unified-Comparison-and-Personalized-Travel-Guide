@@ -1,62 +1,168 @@
 {
-  "_note": "Calibrated using 2 real data points: 4.9km and 9.4km from Namma Yatri app. Formula: fare = effective_base + distance_km * per_km",
-  "vehicles": {
-    "auto": {
-      "name": "Auto",
-      "description": "Easy Commute",
-      "capacity": 3,
-      "effective_base": 31.51,
-      "per_km": 16.22,
-      "night_surcharge_pct": 0.05,
-      "min_fare": 36,
-      "waiting_charge_per_hr": 40,
-      "fare_range_buffer": 10
+  "_note": "Calibrated tariffs for Bangalore ride-hailing providers (April - June 2026)",
+  "providers": {
+    "namma_yatri": {
+      "name": "Namma Yatri",
+      "vehicles": {
+        "auto": {
+          "name": "Auto (Flat)",
+          "base_fare": 30.0,
+          "base_dist": 2.0,
+          "per_km": 15.0,
+          "per_min": 0.0,
+          "min_fare": 30.0,
+          "capacity": 3,
+          "description": "Flat rate direct auto",
+          "icon": "🛺"
+        },
+        "non_ac_cab": {
+          "name": "Cab (Non-AC)",
+          "base_fare": 80.0,
+          "base_dist": 4.0,
+          "per_km": 18.0,
+          "per_min": 1.0,
+          "min_fare": 80.0,
+          "capacity": 4,
+          "description": "Budget non-AC cab",
+          "icon": "🚗"
+        },
+        "ac_cab": {
+          "name": "Cab (AC)",
+          "base_fare": 100.0,
+          "base_dist": 4.0,
+          "per_km": 21.0,
+          "per_min": 1.2,
+          "min_fare": 100.0,
+          "capacity": 4,
+          "description": "Comfortable AC cab",
+          "icon": "❄️🚗"
+        }
+      }
     },
-    "non_ac_cab": {
-      "name": "Non-AC Cab",
-      "description": "Budget Friendly",
-      "capacity": 4,
-      "effective_base": 100.02,
-      "per_km": 12.44,
-      "night_surcharge_pct": 0.10,
-      "min_fare": 100,
-      "waiting_charge_per_hr": 60,
-      "fare_range_buffer": 10
+    "uber": {
+      "name": "Uber",
+      "vehicles": {
+        "uber_auto": {
+          "name": "Uber Auto",
+          "base_fare": 35.0,
+          "base_dist": 1.5,
+          "per_km": 16.5,
+          "per_min": 0.0,
+          "min_fare": 35.0,
+          "capacity": 3,
+          "description": "Direct auto booking",
+          "icon": "🛺"
+        },
+        "uber_go": {
+          "name": "Uber Go",
+          "base_fare": 85.0,
+          "base_dist": 3.0,
+          "per_km": 19.5,
+          "per_min": 1.5,
+          "min_fare": 85.0,
+          "capacity": 4,
+          "description": "Affordable compact rides",
+          "icon": "🚗"
+        },
+        "uber_premier": {
+          "name": "Uber Premier",
+          "base_fare": 110.0,
+          "base_dist": 3.0,
+          "per_km": 24.0,
+          "per_min": 2.0,
+          "min_fare": 110.0,
+          "capacity": 4,
+          "description": "Comfortable sedans",
+          "icon": "⭐🚗"
+        },
+        "uber_xl": {
+          "name": "Uber XL",
+          "base_fare": 150.0,
+          "base_dist": 3.0,
+          "per_km": 30.0,
+          "per_min": 2.5,
+          "min_fare": 150.0,
+          "capacity": 6,
+          "description": "Spacious 6-seater SUVs",
+          "icon": "🚙"
+        }
+      }
     },
-    "ac_cab": {
-      "name": "AC Cab",
-      "description": "Budget + Cool",
-      "capacity": 4,
-      "effective_base": 50.13,
-      "per_km": 24.67,
-      "night_surcharge_pct": 0.10,
-      "min_fare": 115,
-      "waiting_charge_per_hr": 60,
-      "fare_range_buffer": 10
+    "ola": {
+      "name": "Ola",
+      "vehicles": {
+        "ola_auto": {
+          "name": "Ola Auto",
+          "base_fare": 35.0,
+          "base_dist": 1.5,
+          "per_km": 16.0,
+          "per_min": 0.0,
+          "min_fare": 35.0,
+          "capacity": 3,
+          "description": "Auto ride at your doorstep",
+          "icon": "🛺"
+        },
+        "ola_mini": {
+          "name": "Ola Mini",
+          "base_fare": 90.0,
+          "base_dist": 3.0,
+          "per_km": 19.0,
+          "per_min": 1.6,
+          "min_fare": 90.0,
+          "capacity": 4,
+          "description": "Standard budget hatchbacks",
+          "icon": "🚗"
+        },
+        "ola_prime": {
+          "name": "Ola Prime",
+          "base_fare": 115.0,
+          "base_dist": 3.0,
+          "per_km": 23.0,
+          "per_min": 2.1,
+          "min_fare": 115.0,
+          "capacity": 4,
+          "description": "Premium sedans with top-rated drivers",
+          "icon": "⭐🚗"
+        }
+      }
     },
-    "xl_cab": {
-      "name": "XL Cab",
-      "description": "AC, Extra Spacious",
-      "capacity": 6,
-      "effective_base": 73.76,
-      "per_km": 33.11,
-      "night_surcharge_pct": 0.10,
-      "min_fare": 130,
-      "waiting_charge_per_hr": 60,
-      "fare_range_buffer": 10
-    },
-    "xl_premium": {
-      "name": "XL Premium",
-      "description": "AC, Comfortable",
-      "capacity": 6,
-      "effective_base": 69.09,
-      "per_km": 39.78,
-      "night_surcharge_pct": 0.10,
-      "min_fare": 150,
-      "waiting_charge_per_hr": 80,
-      "fare_range_buffer": 10
+    "rapido": {
+      "name": "Rapido",
+      "vehicles": {
+        "rapido_bike": {
+          "name": "Rapido Bike",
+          "base_fare": 20.0,
+          "base_dist": 1.0,
+          "per_km": 11.0,
+          "per_min": 0.0,
+          "min_fare": 20.0,
+          "capacity": 1,
+          "description": "Bike taxi for quick solo commute",
+          "icon": "🏍️"
+        },
+        "rapido_auto": {
+          "name": "Rapido Auto",
+          "base_fare": 30.0,
+          "base_dist": 1.5,
+          "per_km": 15.5,
+          "per_min": 0.0,
+          "min_fare": 30.0,
+          "capacity": 3,
+          "description": "Direct auto request",
+          "icon": "🛺"
+        },
+        "rapido_cab": {
+          "name": "Rapido Cab",
+          "base_fare": 80.0,
+          "base_dist": 3.0,
+          "per_km": 18.0,
+          "per_min": 1.4,
+          "min_fare": 80.0,
+          "capacity": 4,
+          "description": "Rapido budget cabs",
+          "icon": "🚗"
+        }
+      }
     }
-  },
-  "night_hours": { "start": 22, "end": 5 },
-  "source": "Calibrated using 2 real app data points (4.9km + 9.4km) — Apr 2026"
+  }
 }

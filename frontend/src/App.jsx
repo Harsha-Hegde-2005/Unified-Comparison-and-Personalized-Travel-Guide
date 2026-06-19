@@ -140,6 +140,121 @@ async function apiStopsCoords(stopsList) {
   } catch { return {}; }
 }
 
+async function apiSignup(username, password) {
+  const res = await fetch(`${API_BASE}/api/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Sign up failed");
+  }
+  return res.json();
+}
+
+async function apiLogin(username, password) {
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Login failed");
+  }
+  return res.json();
+}
+
+async function apiSaveJourney(token, journey) {
+  const res = await fetch(`${API_BASE}/api/user/journey`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(journey),
+  });
+  if (!res.ok) throw new Error("Failed to save journey");
+  return res.json();
+}
+
+async function apiDeleteJourney(token, journeyId) {
+  const res = await fetch(`${API_BASE}/api/user/journey/${journeyId}`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error("Failed to delete journey");
+  return res.json();
+}
+
+async function apiGetDashboard(token) {
+  const res = await fetch(`${API_BASE}/api/user/dashboard`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error("Failed to fetch dashboard");
+  return res.json();
+}
+
+async function apiGetVehicles(token) {
+  const res = await fetch(`${API_BASE}/api/user/vehicles`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error("Failed to fetch vehicles");
+  return res.json();
+}
+
+async function apiAddVehicle(token, vehicle) {
+  const res = await fetch(`${API_BASE}/api/user/vehicles`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(vehicle),
+  });
+  if (!res.ok) throw new Error("Failed to add vehicle");
+  return res.json();
+}
+
+async function apiDeleteVehicle(token, vehicleId) {
+  const res = await fetch(`${API_BASE}/api/user/vehicles/${vehicleId}`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error("Failed to delete vehicle");
+  return res.json();
+}
+
+async function apiGetDocuments(token) {
+  const res = await fetch(`${API_BASE}/api/user/documents`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error("Failed to fetch documents");
+  return res.json();
+}
+
+async function apiAddDocument(token, formData) {
+  const res = await fetch(`${API_BASE}/api/user/documents`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`
+    },
+    body: formData,
+  });
+  if (!res.ok) throw new Error("Failed to upload document");
+  return res.json();
+}
+
+async function apiDeleteDocument(token, docId) {
+  const res = await fetch(`${API_BASE}/api/user/documents/${docId}`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error("Failed to delete document");
+  return res.json();
+}
+
 /* ─────────────────────────────────────────────────────────────
    LINEAR ROUTE MAP COMPONENT
 ───────────────────────────────────────────────────────────── */
@@ -1334,8 +1449,10 @@ function RouteSearchPanel() {
 /* ─────────────────────────────────────────────────────────────
    RESULT CARD
 ───────────────────────────────────────────────────────────── */
-function ResultCard({ modeKey, data, selected, onSelect }) {
+function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, setSelectedCabVehicle }) {
   const [tab, setTab] = useState(null);
+  const [cabFilter, setCabFilter] = useState("all");
+  const [cabProviderFilter, setCabProviderFilter] = useState("all");
   const m = MC[modeKey];
   const isSelected = selected === modeKey;
 
@@ -1420,7 +1537,11 @@ function ResultCard({ modeKey, data, selected, onSelect }) {
           )}
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 22, color: m.color }}>₹{data.cost}</div>
+          <div style={{ fontWeight: 800, fontSize: 20, color: m.color }}>
+            {modeKey === "cab" && data.cost_max && data.cost_max > data.cost
+              ? `₹${data.cost} - ₹${data.cost_max}`
+              : `₹${data.cost}`}
+          </div>
           <div style={{ fontSize: 11, color: C.muted }}>{realDuration} min</div>
         </div>
       </div>
@@ -1439,6 +1560,246 @@ function ResultCard({ modeKey, data, selected, onSelect }) {
           </div>
         ))}
       </div>
+
+      {/* Cab options section - only visible when selected and modeKey is cab */}
+      {(() => {
+        if (modeKey !== "cab" || !isSelected || !data.all_estimates) return null;
+
+        const getVehicleCategory = (est) => {
+          const key = (est.vehicle_key || "").toLowerCase();
+          const name = (est.vehicle_name || "").toLowerCase();
+          if (key.includes("auto") || name.includes("auto")) return "auto";
+          if (key.includes("bike") || name.includes("bike")) return "bike";
+          if (key.includes("ac_cab") || name.includes("cab (ac)") || key.includes("premier") || name.includes("premier") || key.includes("prime") || name.includes("prime")) return "ac_cab";
+          if (key.includes("xl") || name.includes("xl")) return "other";
+          return "cab"; // Default to budget cab
+        };
+
+        const PROVIDER_STYLES = {
+          namma_yatri: { bg: "#eab308", text: "#000", label: "Namma Yatri" },
+          uber: { bg: "#374151", text: "#fff", label: "Uber" },
+          ola: { bg: "#84cc16", text: "#000", label: "Ola" },
+          rapido: { bg: "#ea580c", text: "#fff", label: "Rapido" },
+        };
+
+        const categories = [
+          { id: "all", label: "All Types", icon: "🌐" },
+          { id: "auto", label: "Auto", icon: "🛺" },
+          { id: "cab", label: "Cab", icon: "🚗" },
+          { id: "ac_cab", label: "AC Cab", icon: "❄️" },
+          { id: "bike", label: "Bike", icon: "🏍️" },
+          { id: "other", label: "Other", icon: "🚙" },
+        ];
+
+        const providerOptions = [
+          { id: "all", label: "All Providers", icon: "🌐", color: m.color },
+          { id: "namma_yatri", label: "Namma Yatri", icon: "🛺", color: "#eab308" },
+          { id: "ola", label: "Ola", icon: "🚗", color: "#84cc16" },
+          { id: "uber", label: "Uber", icon: "🚗", color: "#e2e8f0" },
+          { id: "rapido", label: "Rapido", icon: "🏍️", color: "#ea580c" },
+        ];
+
+        const filteredEsts = data.all_estimates.filter(est => {
+          const matchesType = cabFilter === "all" || getVehicleCategory(est) === cabFilter;
+          const matchesProvider = cabProviderFilter === "all" || est.provider_key === cabProviderFilter;
+          return matchesType && matchesProvider;
+        });
+
+        return (
+          <div onClick={e => e.stopPropagation()} style={{
+            padding: "14px 18px",
+            borderTop: `1px solid ${C.border}`,
+            background: C.bg + "55",
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 10, letterSpacing: "0.05em" }}>
+              AVAILABLE VEHICLES & PROVIDERS
+            </div>
+            
+            {/* Category Filter Pills */}
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 8, scrollbarWidth: "none" }}>
+              {categories.map(cat => {
+                const count = data.all_estimates.filter(est => 
+                  (cat.id === "all" || getVehicleCategory(est) === cat.id) &&
+                  (cabProviderFilter === "all" || est.provider_key === cabProviderFilter)
+                ).length;
+                
+                if (count === 0 && cat.id !== "all") return null; // hide empty categories
+                
+                const isCatActive = cabFilter === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setCabFilter(cat.id)}
+                    style={{
+                      background: isCatActive ? m.color + "22" : C.surface,
+                      border: `1.5px solid ${isCatActive ? m.color : C.border2}`,
+                      borderRadius: 20,
+                      padding: "6px 12px",
+                      color: isCatActive ? m.color : C.muted,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      transition: "all 0.15s",
+                      fontFamily: "inherit"
+                    }}
+                  >
+                    <span>{cat.icon}</span>
+                    <span>{cat.label}</span>
+                    <span style={{
+                      fontSize: 9,
+                      background: isCatActive ? m.color + "44" : C.border2,
+                      color: isCatActive ? m.color : C.muted,
+                      borderRadius: 10,
+                      padding: "1px 5px",
+                      marginLeft: 2
+                    }}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Provider Filter Pills */}
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, marginBottom: 12, scrollbarWidth: "none" }}>
+              {providerOptions.map(prov => {
+                const count = data.all_estimates.filter(est => 
+                  (prov.id === "all" || est.provider_key === prov.id) &&
+                  (cabFilter === "all" || getVehicleCategory(est) === cabFilter)
+                ).length;
+
+                if (count === 0 && prov.id !== "all") return null;
+
+                const isProvActive = cabProviderFilter === prov.id;
+                const activeColor = prov.color;
+                return (
+                  <button
+                    key={prov.id}
+                    onClick={() => setCabProviderFilter(prov.id)}
+                    style={{
+                      background: isProvActive ? activeColor + "22" : C.surface,
+                      border: `1.5px solid ${isProvActive ? activeColor : C.border2}`,
+                      borderRadius: 20,
+                      padding: "6px 12px",
+                      color: isProvActive ? activeColor : C.muted,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      transition: "all 0.15s",
+                      fontFamily: "inherit"
+                    }}
+                  >
+                    <span>{prov.icon}</span>
+                    <span>{prov.label}</span>
+                    <span style={{
+                      fontSize: 9,
+                      background: isProvActive ? activeColor + "44" : C.border2,
+                      color: isProvActive ? activeColor : C.muted,
+                      borderRadius: 10,
+                      padding: "1px 5px",
+                      marginLeft: 2
+                    }}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Vehicle List */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, maxHeight: 300, overflowY: "auto", paddingRight: 4 }}>
+              {filteredEsts.length > 0 ? (
+                filteredEsts.map((est, index) => {
+                  const isVehSelected = selectedCabVehicle &&
+                    selectedCabVehicle.provider_key === est.provider_key &&
+                    selectedCabVehicle.vehicle_key === est.vehicle_key;
+                  
+                  const pStyle = PROVIDER_STYLES[est.provider_key] || { bg: C.surface, text: C.text, label: est.provider };
+                  
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setSelectedCabVehicle(est);
+                        onSelect("cab");
+                      }}
+                      style={{
+                        background: isVehSelected ? C.surface : C.card,
+                        border: `2px solid ${isVehSelected ? m.color : C.border}`,
+                        borderRadius: 12,
+                        padding: "12px 14px",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        width: "100%",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        transition: "all 0.15s",
+                        boxShadow: isVehSelected ? `0 4px 16px ${m.color}15` : "none",
+                        fontFamily: "inherit"
+                      }}
+                    >
+                      {/* Left details */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{
+                          fontSize: 24,
+                          width: 42,
+                          height: 42,
+                          background: isVehSelected ? m.color + "18" : C.surface,
+                          borderRadius: 10,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: `1px solid ${isVehSelected ? m.color + "44" : C.border2}`
+                        }}>
+                          {est.icon || "🚗"}
+                        </div>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>{est.vehicle_name}</span>
+                            <span style={{
+                              fontSize: 9,
+                              background: pStyle.bg,
+                              color: pStyle.text,
+                              padding: "1px 6px",
+                              borderRadius: 4,
+                              fontWeight: 700,
+                              letterSpacing: "0.03em"
+                            }}>{pStyle.label.toUpperCase()}</span>
+                          </div>
+                          <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                            {est.description || "Door-to-door ride"} · 👥 {est.capacity || 4}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right details */}
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 900, color: isVehSelected ? m.color : C.text }}>
+                          {est.cost_max && est.cost_max > est.cost
+                            ? `₹${est.cost} - ₹${est.cost_max}`
+                            : `₹${est.cost}`}
+                        </div>
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                          ⏱ {est.time} min
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div style={{ padding: "20px 0", textAlign: "center", color: C.muted, fontSize: 12 }}>
+                  No options available in this category.
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Tabs */}
       <div onClick={e => e.stopPropagation()} style={{ borderTop: `1px solid ${C.border}` }}>
@@ -1565,31 +1926,180 @@ function CompareTable({ results }) {
 /* ─────────────────────────────────────────────────────────────
    DASHBOARD
 ───────────────────────────────────────────────────────────── */
-function Dashboard({ onPlan }) {
-  const recent = [
-    { from: "Hosa Road", to: "Majestic", mode: "bmtc", cost: 28, date: "Today, 09:14" },
-    { from: "Koramangala", to: "MG Road", mode: "metro", cost: 48, date: "Yesterday" },
-    { from: "Electronic City", to: "Hebbal", mode: "cab", cost: 145, date: "Jun 3" },
+function Dashboard({ token, username, onPlan, onSelectRoute }) {
+  const [data, setData] = useState({ stats: [], recent: [], saved: [] });
+  const [vehicles, setVehicles] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Vehicle form state
+  const [vname, setVname] = useState("");
+  const [vfuel, setVfuel] = useState("Petrol");
+  const [veff, setVeff] = useState("");
+
+  // Document form state
+  const [docType, setDocType] = useState("Driving License");
+  const [docNum, setDocNum] = useState("");
+  const [docExpiry, setDocExpiry] = useState("");
+  const [docFile, setDocFile] = useState(null);
+
+  const [garageOpen, setGarageOpen] = useState(false);
+  const [gloveboxOpen, setGloveboxOpen] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [dash, vehs, docs] = await Promise.all([
+        apiGetDashboard(token),
+        apiGetVehicles(token),
+        apiGetDocuments(token)
+      ]);
+      setData(dash);
+      setVehicles(vehs);
+      setDocuments(docs);
+    } catch (e) {
+      console.error("Error loading dashboard data:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) loadData();
+  }, [token, loadData]);
+
+  const handleAddVehicle = async (e) => {
+    e.preventDefault();
+    if (!vname.trim() || !veff) return;
+    try {
+      await apiAddVehicle(token, {
+        name: vname.trim(),
+        fuel_type: vfuel,
+        efficiency: parseFloat(veff)
+      });
+      setVname("");
+      setVeff("");
+      setGarageOpen(false);
+      const vehs = await apiGetVehicles(token);
+      setVehicles(vehs);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteVehicle = async (id) => {
+    if (!confirm("Are you sure you want to delete this vehicle?")) return;
+    try {
+      await apiDeleteVehicle(token, id);
+      setVehicles(vehicles.filter(v => v.id !== id));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleAddDocument = async (e) => {
+    e.preventDefault();
+    if (!docNum.trim() || !docExpiry || !docFile) {
+      alert("Please fill all document fields and select a file.");
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append("doc_type", docType);
+      formData.append("doc_number", docNum);
+      formData.append("expiry_date", docExpiry);
+      formData.append("file", docFile);
+
+      await apiAddDocument(token, formData);
+      setDocNum("");
+      setDocExpiry("");
+      setDocFile(null);
+      setGloveboxOpen(false);
+      
+      const fileInput = document.getElementById("doc-file-input");
+      if (fileInput) fileInput.value = "";
+      
+      const docs = await apiGetDocuments(token);
+      setDocuments(docs);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteDocument = async (id) => {
+    if (!confirm("Are you sure you want to delete this document?")) return;
+    try {
+      await apiDeleteDocument(token, id);
+      setDocuments(documents.filter(d => d.id !== id));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteSavedRoute = async (id) => {
+    if (!confirm("Are you sure you want to delete this saved route?")) return;
+    try {
+      await apiDeleteJourney(token, id);
+      loadData();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const getDocExpiryStatus = (expiryStr) => {
+    if (!expiryStr) return { label: "No Date", color: C.muted };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(expiryStr);
+    expiry.setHours(0, 0, 0, 0);
+    
+    if (expiry < today) {
+      return { label: "Expired", color: C.red };
+    }
+    
+    const diffTime = expiry - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays <= 30) {
+      return { label: `Expiring in ${diffDays}d`, color: C.yellow };
+    }
+    
+    return { label: "Valid", color: C.green };
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 300, color: C.muted, flexDirection: "column", gap: 10 }}>
+        <div style={{ width: 28, height: 28, borderRadius: "50%", border: `3px solid ${C.accent}`, borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+        <div style={{ fontSize: 13 }}>Loading your profile...</div>
+      </div>
+    );
+  }
+
+  const defaultStats = [
+    { label: "Journeys",   val: "0",    icon: "mappin", color: MC.bmtc.color },
+    { label: "Saved",      val: "₹0",  icon: "trend",  color: MC.metro.color },
+    { label: "Time saved", val: "0 hr",icon: "clock",  color: MC.cab.color },
+    { label: "Avg cost",   val: "₹0",   icon: "now",    color: MC.car.color },
   ];
-  const stats = [
-    { label: "Journeys",   val: "24",    icon: "mappin", color: MC.bmtc.color },
-    { label: "Saved",      val: "₹940",  icon: "trend",  color: MC.metro.color },
-    { label: "Time saved", val: "6.2 hr",icon: "clock",  color: MC.cab.color },
-    { label: "Avg cost",   val: "₹52",   icon: "now",    color: MC.car.color },
-  ];
+
+  const displayStats = data.stats && data.stats.length > 0 ? data.stats : defaultStats;
+
   return (
     <div>
+      {/* Welcome back */}
       <div style={{ background: `linear-gradient(135deg, ${MC.bmtc.color}22, ${MC.metro.color}22)`, border: `1px solid ${C.border2}`, borderRadius: 16, padding: "24px 28px", marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>Welcome back 👋</div>
-          <div style={{ color: C.muted, fontSize: 13 }}>Plan your next journey — BMTC · Metro · Namma Yatri · Personal Vehicle</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>Welcome back, {username} 👋</div>
+          <div style={{ color: C.muted, fontSize: 13 }}>Unified transit travel dashboard, garage, and document library.</div>
         </div>
         <button onClick={onPlan} style={{ background: `linear-gradient(135deg, ${C.accent}, #ea580c)`, border: "none", color: "white", borderRadius: 12, padding: "12px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: `0 4px 20px ${C.accent}44`, display: "flex", alignItems: "center", gap: 8 }}>
           <Ic n="arrow" s={16} c="white" /> Plan Journey
         </button>
       </div>
+
+      {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
-        {stats.map(s => (
+        {displayStats.map(s => (
           <div key={s.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "18px 16px" }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: s.color + "18", border: `1px solid ${s.color}33`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
               <Ic n={s.icon} s={18} c={s.color} />
@@ -1599,36 +2109,303 @@ function Dashboard({ onPlan }) {
           </div>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+
+      {/* Primary panels (Recent Journeys & Saved Routes) */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+        {/* Recent Journeys */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 16 }}>Recent Journeys</div>
-          {recent.map((r, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < recent.length - 1 ? `1px solid ${C.border}` : "none" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: MC[r.mode].bg, border: `1px solid ${MC[r.mode].color}44`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Ic n={MC[r.mode].icon} s={15} c={MC[r.mode].color} />
+          {data.recent && data.recent.length > 0 ? (
+            data.recent.map((r, i) => (
+              <div key={r.id || i}
+                onClick={() => onSelectRoute(r.from, r.to)}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, cursor: "pointer", transition: "background 0.2s", borderBottom: i < data.recent.length - 1 ? `1px solid ${C.border}` : "none" }}
+                onMouseEnter={e => e.currentTarget.style.background = C.surface}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: C.surface, border: `1px solid ${C.border2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Ic n="search" s={14} c={C.muted} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{r.from} → {r.to}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{r.date}</div>
+                </div>
+                <div style={{ fontSize: 11, color: C.accent, fontWeight: 700, opacity: 0.8 }}>Search →</div>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{r.from} → {r.to}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>{r.date}</div>
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: MC[r.mode].color }}>₹{r.cost}</div>
+            ))
+          ) : (
+            <div style={{ textAlign: "center", padding: "40px 0", color: C.muted, fontSize: 13 }}>
+              No recent journeys. Start planning to save options!
             </div>
-          ))}
+          )}
         </div>
+
+        {/* Saved Routes */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 16 }}>Transport Network</div>
-          {Object.entries(MC).map(([k, m]) => (
-            <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ width: 30, height: 30, borderRadius: 8, background: m.bg, border: `1px solid ${m.color}44`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Ic n={m.icon} s={14} c={m.color} />
+          <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 16 }}>Saved Routes</div>
+          {data.saved && data.saved.length > 0 ? (
+            data.saved.map((r, i) => (
+              <div key={r.id || i}
+                onClick={() => onSelectRoute(r.from, r.to)}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, cursor: "pointer", transition: "background 0.2s", borderBottom: i < data.saved.length - 1 ? `1px solid ${C.border}` : "none" }}
+                onMouseEnter={e => e.currentTarget.style.background = C.surface}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: MC[r.mode]?.bg || C.surface, border: `1px solid ${MC[r.mode]?.color || C.border}44`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Ic n={MC[r.mode]?.icon || "mappin"} s={15} c={MC[r.mode]?.color || C.text} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+                      {r.custom_name ? r.custom_name : `${r.from} → ${r.to}`}
+                    </span>
+                    {r.custom_name && <Pill color={MC[r.mode]?.color || C.accent} small>{MC[r.mode]?.short || "SAVED"}</Pill>}
+                  </div>
+                  {r.custom_name && <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{r.from} → {r.to}</div>}
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{r.date} · ₹{r.cost}</div>
+                </div>
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }} onClick={e => e.stopPropagation()}>
+                  <button onClick={() => handleDeleteSavedRoute(r.id)} style={{ background: "none", border: "none", color: C.red, cursor: "pointer", padding: "4px" }} title="Delete Saved Route">
+                    <Ic n="x" s={14} c={C.red} />
+                  </button>
+                </div>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{m.label}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>{m.line}</div>
-              </div>
-              <Pill color={m.color} small>{k === "bmtc" || k === "metro" ? "Live" : k === "cab" ? "Live" : "Est."}</Pill>
+            ))
+          ) : (
+            <div style={{ textAlign: "center", padding: "40px 0", color: C.muted, fontSize: 13 }}>
+              No saved routes yet. Bookmark routes from planning results!
             </div>
-          ))}
+          )}
+        </div>
+      </div>
+
+      {/* Secondary Panels (Garage & Documents Library) */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* My Garage */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: C.text, display: "flex", alignItems: "center", gap: 6 }}>
+              🏎️ My Garage <span style={{ fontSize: 11, color: C.muted }}>({vehicles.length} vehicles)</span>
+            </div>
+            <button onClick={() => setGarageOpen(!garageOpen)} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, padding: "4px 10px", fontSize: 11, color: C.accent, cursor: "pointer", fontFamily: "inherit" }}>
+              {garageOpen ? "Close Form" : "+ Add Vehicle"}
+            </button>
+          </div>
+
+          {garageOpen && (
+            <form onSubmit={handleAddVehicle} style={{ background: C.surface, borderRadius: 10, padding: 14, marginBottom: 14, border: `1px solid ${C.border2}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 10 }}>NEW VEHICLE</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <input value={vname} onChange={e => setVname(e.target.value)} placeholder="Vehicle name, e.g. Tata Nexon EV" required style={{ width: "100%", background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <select value={vfuel} onChange={e => setVfuel(e.target.value)} style={{ flex: 1, background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }}>
+                    <option value="Petrol">Petrol</option>
+                    <option value="Diesel">Diesel</option>
+                    <option value="EV">EV (Electric)</option>
+                    <option value="CNG">CNG</option>
+                  </select>
+                  <input type="number" step="0.1" value={veff} onChange={e => setVeff(e.target.value)} placeholder="Mileage (km/L or km/kWh)" required style={{ flex: 1.2, background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+                </div>
+                <button type="submit" style={{ background: C.accent, border: "none", color: "white", borderRadius: 8, padding: "8px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                  Save to Garage
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 280, overflowY: "auto" }}>
+            {vehicles.length > 0 ? (
+              vehicles.map(v => (
+                <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: MC.car.bg, border: `1px solid ${MC.car.color}44`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontSize: 12 }}>{v.fuel_type === "EV" || v.fuel_type === "electric" ? "⚡" : "🚗"}</span>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{v.name}</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>Type: {v.fuel_type} · Efficiency: {v.efficiency} {v.fuel_type === "EV" ? "km/kWh" : "km/L"}</div>
+                  </div>
+                  <button onClick={() => handleDeleteVehicle(v.id)} style={{ background: "none", border: "none", color: C.red, cursor: "pointer", padding: "4px" }} title="Delete Vehicle">
+                    <Ic n="x" s={14} c={C.red} />
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div style={{ textAlign: "center", padding: "30px 0", color: C.muted, fontSize: 12 }}>
+                No personal vehicles added yet. Add vehicles to calculate journey driving costs!
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Digital Glovebox */}
+        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: C.text, display: "flex", alignItems: "center", gap: 6 }}>
+              📁 Digital Glovebox <span style={{ fontSize: 11, color: C.muted }}>({documents.length} documents)</span>
+            </div>
+            <button onClick={() => setGloveboxOpen(!gloveboxOpen)} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, padding: "4px 10px", fontSize: 11, color: C.accent, cursor: "pointer", fontFamily: "inherit" }}>
+              {gloveboxOpen ? "Close Form" : "+ Add Document"}
+            </button>
+          </div>
+
+          {gloveboxOpen && (
+            <form onSubmit={handleAddDocument} style={{ background: C.surface, borderRadius: 10, padding: 14, marginBottom: 14, border: `1px solid ${C.border2}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 10 }}>NEW DOCUMENT</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <select value={docType} onChange={e => setDocType(e.target.value)} style={{ width: "100%", background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }}>
+                  <option value="Driving License">Driving License</option>
+                  <option value="Registration Certificate (RC)">Registration Certificate (RC)</option>
+                  <option value="Insurance Policy">Insurance Policy</option>
+                  <option value="Pollution Under Control (PUC)">Pollution Under Control (PUC)</option>
+                </select>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input value={docNum} onChange={e => setDocNum(e.target.value)} placeholder="Document Number" required style={{ flex: 1, background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+                  <input type="date" value={docExpiry} onChange={e => setDocExpiry(e.target.value)} required style={{ flex: 1, background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 9, color: C.muted, marginBottom: 4 }}>UPLOAD SCAN (PDF/IMAGE)</div>
+                  <input id="doc-file-input" type="file" onChange={e => setDocFile(e.target.files[0])} required style={{ fontSize: 11, color: C.text }} />
+                </div>
+                <button type="submit" style={{ background: C.accent, border: "none", color: "white", borderRadius: 8, padding: "8px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                  Upload Document
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 280, overflowY: "auto" }}>
+            {documents.length > 0 ? (
+              documents.map(d => {
+                const status = getDocExpiryStatus(d.expiry_date);
+                return (
+                  <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{d.doc_type}</span>
+                        <Pill color={status.color} small>{status.label}</Pill>
+                      </div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>No: {d.doc_number} · Expires: {d.expiry_date}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                      <a href={`${API_BASE}${d.file_path}`} target="_blank" rel="noreferrer" style={{ background: C.accent + "18", color: C.accent, border: `1px solid ${C.accent}44`, borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, textDecoration: "none" }}>
+                        View file
+                      </a>
+                      <button onClick={() => handleDeleteDocument(d.id)} style={{ background: "none", border: "none", color: C.red, cursor: "pointer", padding: "4px" }} title="Delete Document">
+                        <Ic n="x" s={14} c={C.red} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div style={{ textAlign: "center", padding: "30px 0", color: C.muted, fontSize: 12 }}>
+                No documents uploaded yet. Save driving license, RC, and insurance details for easy access.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthScreen({ onLoginSuccess }) {
+  const [isLogin, setIsLogin] = useState(true);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!username.trim() || !password) return;
+    setLoading(true); setError(null);
+    try {
+      if (isLogin) {
+        const res = await apiLogin(username.trim(), password);
+        onLoginSuccess(res.username, res.access_token);
+      } else {
+        const res = await apiSignup(username.trim(), password);
+        onLoginSuccess(res.username, res.access_token);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#08090f", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
+      <div style={{ background: "#0f1120", border: "1px solid #1e2440", borderRadius: 24, width: 420, padding: 36, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", position: "relative" }}>
+        
+        {/* Header */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 28 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: `linear-gradient(135deg, #f97316, #ea580c)`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+            <Ic n="bus" s={24} c="white" sw={2.2} />
+          </div>
+          <div style={{ fontWeight: 900, fontSize: 22, color: "#e8ecf5", letterSpacing: "-0.04em" }}>UTRS Bengaluru</div>
+          <div style={{ fontSize: 10, color: "#6b7a99", letterSpacing: "0.15em", marginTop: 4, fontWeight: 700 }}>UNIFIED TRANSIT REGISTER</div>
+        </div>
+
+        {/* Title */}
+        <div style={{ fontSize: 16, fontWeight: 800, color: "#e8ecf5", marginBottom: 18, textAlign: "center" }}>
+          {isLogin ? "Sign In to your Account" : "Create your Account"}
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              required
+              style={{ width: "100%", background: "#151929", border: "1.5px solid #252d4a", borderRadius: 12, color: "#e8ecf5", padding: "12px 14px", fontSize: 14, outline: "none", fontFamily: "inherit" }}
+            />
+          </div>
+          <div>
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              style={{ width: "100%", background: "#151929", border: "1.5px solid #252d4a", borderRadius: 12, color: "#e8ecf5", padding: "12px 14px", fontSize: 14, outline: "none", fontFamily: "inherit" }}
+            />
+          </div>
+
+          {error && (
+            <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 10, padding: "10px 12px", fontSize: 12, color: "#ef4444" }}>
+              ⚠️ {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ width: "100%", background: "linear-gradient(135deg, #f97316, #ea580c)", border: "none", color: "white", borderRadius: 12, padding: "13px", fontSize: 14, fontWeight: 800, cursor: loading ? "wait" : "pointer", boxShadow: "0 4px 24px rgba(249, 115, 22, 0.3)", marginTop: 6 }}
+          >
+            {loading ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid white", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                <span>Processing...</span>
+              </div>
+            ) : (
+              isLogin ? "Sign In" : "Sign Up"
+            )}
+          </button>
+        </form>
+
+        {/* Switcher */}
+        <div style={{ marginTop: 24, fontSize: 13, textAlign: "center", color: "#6b7a99" }}>
+          {isLogin ? "New to UTRS? " : "Already have an account? "}
+          <button
+            onClick={() => { setIsLogin(!isLogin); setError(null); }}
+            style={{ background: "none", border: "none", color: "#f97316", fontWeight: 700, cursor: "pointer", padding: "0 4px", fontSize: 13, textDecoration: "underline" }}
+          >
+            {isLogin ? "Create Account" : "Sign In"}
+          </button>
         </div>
       </div>
     </div>
@@ -1639,6 +2416,9 @@ function Dashboard({ onPlan }) {
    MAIN APP
 ───────────────────────────────────────────────────────────── */
 export default function App() {
+  const [token, setToken] = useState(localStorage.getItem("token") || null);
+  const [user, setUser] = useState(localStorage.getItem("username") || null);
+
   const [page, setPage]           = useState("dashboard");
   const [src, setSrc]             = useState("");
   const [dst, setDst]             = useState("");
@@ -1646,6 +2426,7 @@ export default function App() {
   const [pref, setPref]           = useState("cost");
   const [results, setResults]     = useState(null);
   const [selected, setSelected]   = useState(null);
+  const [selectedCabVehicle, setSelectedCabVehicle] = useState(null);
   const [view, setView]           = useState("cards");
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState(null);
@@ -1654,7 +2435,25 @@ export default function App() {
   const [showRouteSearch, setShowRouteSearch] = useState(false);
   const [mapView, setMapView]           = useState("gmap"); // "gmap" | "linear"
 
-  useEffect(() => { apiStops().then(setStops); }, []);
+  // Saved vehicles logic
+  const [userVehicles, setUserVehicles] = useState([]);
+  const [selectedVehicle, setSelectedVehicle] = useState("");
+
+  const [saving, setSaving] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
+
+  useEffect(() => {
+    apiStops().then(setStops);
+  }, []);
+
+  useEffect(() => {
+    if (token) {
+      apiGetVehicles(token).then(setUserVehicles).catch(console.error);
+    } else {
+      setUserVehicles([]);
+      setSelectedVehicle("");
+    }
+  }, [token, page]);
 
   const nowTime = () => {
     const n = new Date();
@@ -1665,22 +2464,101 @@ export default function App() {
     if (!src.trim() || !dst.trim()) return;
     setLoading(true); setError(null); setShowAllBuses(false);
     try {
-      const res = await apiCompare(src, dst, time || nowTime(), pref);
+      const res = await apiCompare(src, dst, time || nowTime(), pref, selectedVehicle);
       setResults(res);
       setSelected(null);
+      setSelectedCabVehicle(res.cab?.all_estimates?.[0] || null);
       setView("cards");
       setPage("results");
+
+      if (token) {
+        apiSaveJourney(token, {
+          from_stop: src,
+          to_stop: dst,
+          mode: "search",
+          cost: 0,
+          duration: 0,
+          distance: 0.0,
+          date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+          is_saved: false,
+          custom_name: null
+        }).catch(console.error);
+      }
     } catch (e) {
-      setError(`Backend unreachable: ${e.message}. Run: uvicorn unified_api:app --reload --port 8000`);
+      setError(`Backend unreachable: ${e.message}. Run: uvicorn backend.main:app --reload --port 8000`);
     } finally { setLoading(false); }
   };
 
-  const selectedData = results && selected ? results[selected] : null;
+  const handleSaveJourney = async () => {
+    if (!token || !selectedData) return;
+    const nameInput = prompt("Enter an optional name for this saved route (e.g., Office, Home, College):");
+    if (nameInput === null) return; // User clicked Cancel
+    const customName = nameInput.trim();
+
+    setSaving(true);
+    setSaveSuccessMsg("");
+    try {
+      await apiSaveJourney(token, {
+        from_stop: src,
+        to_stop: dst,
+        mode: selected,
+        cost: selectedData.cost,
+        duration: selectedData.time,
+        distance: selectedData.distance,
+        date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+        is_saved: true,
+        custom_name: customName || null
+      });
+      setSaveSuccessMsg("Journey saved!");
+      setTimeout(() => setSaveSuccessMsg(""), 3000);
+    } catch (err) {
+      alert("Failed to save: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onLoginSuccess = (username, userToken) => {
+    localStorage.setItem("username", username);
+    localStorage.setItem("token", userToken);
+    setUser(username);
+    setToken(userToken);
+    setPage("dashboard");
+  };
+
+  const onLogout = () => {
+    localStorage.removeItem("username");
+    localStorage.removeItem("token");
+    setUser(null);
+    setToken(null);
+    setResults(null);
+    setPage("dashboard");
+  };
+
+  const selectedData = (() => {
+    if (!results || !selected) return null;
+    if (selected === "cab" && selectedCabVehicle) {
+      return {
+        ...results.cab,
+        ...selectedCabVehicle,
+        segments: selectedCabVehicle.segments,
+        guide: selectedCabVehicle.guide,
+        cost: selectedCabVehicle.cost,
+        time: selectedCabVehicle.time,
+        distance: selectedCabVehicle.distance,
+      };
+    }
+    return results[selected];
+  })();
   const prefs = [
     { k: "cost",        e: "💰", l: "Cheapest"    },
     { k: "time",        e: "⚡", l: "Fastest"     },
     { k: "convenience", e: "🎯", l: "Comfortable" },
   ];
+
+  if (!token) {
+    return <AuthScreen onLoginSuccess={onLoginSuccess} />;
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'DM Sans','Segoe UI',sans-serif", color: C.text }}>
@@ -1693,8 +2571,8 @@ export default function App() {
               <Ic n="bus" s={17} c="white" sw={2.2} />
             </div>
             <div>
-              <div style={{ fontWeight: 900, fontSize: 15, letterSpacing: "-0.03em" }}>UTRS Bengaluru</div>
-              <div style={{ fontSize: 9, color: C.muted, letterSpacing: "0.1em" }}>UNIFIED TRANSIT</div>
+              <div style={{ fontWeight: 900, fontSize: 15, letterSpacing: "-0.03em" }}>UTRS U-Transit</div>
+              <div style={{ fontSize: 9, color: C.muted, letterSpacing: "0.1em" }}>BENGALURU</div>
             </div>
           </div>
           {[
@@ -1706,13 +2584,15 @@ export default function App() {
               <Ic n={n.icon} s={14} c={page === n.id ? C.accent : C.muted} />{n.label}
             </button>
           ))}
-          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-            {Object.entries(MC).map(([k, m]) => (
-              <div key={k} style={{ display: "flex", alignItems: "center", gap: 4, background: m.bg, border: `1px solid ${m.color}33`, borderRadius: 20, padding: "3px 8px" }}>
-                <Ic n={m.icon} s={10} c={m.color} />
-                <span style={{ fontSize: 9, color: m.color, fontWeight: 800 }}>{m.short}</span>
-              </div>
-            ))}
+
+          {/* User Signout Button */}
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 12, padding: "6px 12px", fontSize: 12, fontWeight: 700, color: C.text }}>
+              👤 {user}
+            </div>
+            <button onClick={onLogout} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 10, padding: "6px 14px", color: C.muted, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              Logout
+            </button>
           </div>
         </div>
       </nav>
@@ -1720,7 +2600,18 @@ export default function App() {
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px" }}>
 
         {/* DASHBOARD */}
-        {page === "dashboard" && <Dashboard onPlan={() => setPage("plan")} />}
+        {page === "dashboard" && (
+          <Dashboard 
+            token={token} 
+            username={user} 
+            onPlan={() => setPage("plan")} 
+            onSelectRoute={(from_stop, to_stop) => {
+              setSrc(from_stop);
+              setDst(to_stop);
+              setPage("plan");
+            }} 
+          />
+        )}
 
         {/* PLAN */}
         {page === "plan" && (
@@ -1766,6 +2657,19 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Vehicle Selection dropdown */}
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, marginBottom: 8, letterSpacing: "0.05em" }}>VEHICLE (FOR OWN VEHICLE COST ESTIMATE)</div>
+                  <select value={selectedVehicle} onChange={e => setSelectedVehicle(e.target.value)} style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}>
+                    <option value="">Default Vehicle (ICE Car)</option>
+                    {userVehicles.map(v => (
+                      <option key={v.id} value={`custom: ${v.name} | ${v.fuel_type} | ${v.efficiency}`}>
+                        🚗 {v.name} ({v.fuel_type} · {v.efficiency} {v.fuel_type === "EV" ? "km/kWh" : "km/L"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Error */}
                 {error && (
                   <div style={{ marginTop: 12, background: C.red + "18", border: `1px solid ${C.red}44`, borderRadius: 10, padding: "10px 12px", display: "flex", gap: 8, alignItems: "flex-start" }}>
@@ -1777,7 +2681,7 @@ export default function App() {
                 {/* Main search button */}
                 <button onClick={search} disabled={loading || !src || !dst} style={{ width: "100%", marginTop: 18, background: loading || !src || !dst ? C.dim : `linear-gradient(135deg, ${C.accent}, #ea580c)`, border: "none", color: "white", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 800, cursor: loading ? "wait" : !src || !dst ? "not-allowed" : "pointer", boxShadow: src && dst ? `0 4px 24px ${C.accent}40` : "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit" }}>
                   {loading ? (
-                    <><div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid white", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />Searching all modes…</>
+                    <><div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid white", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />Comparing options…</>
                   ) : (
                     <><Ic n="arrow" s={18} c="white" sw={2.5} />Compare All Options</>
                   )}
@@ -1843,12 +2747,42 @@ export default function App() {
 
               {view === "cards" ? (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                  {Object.keys(results).map(m => (
-                    <ResultCard key={m} modeKey={m} data={results[m]} selected={selected} onSelect={setSelected} />
-                  ))}
+                  {Object.keys(results).map(m => {
+                    const cardData = (m === "cab" && selectedCabVehicle) ? {
+                      ...results.cab,
+                      ...selectedCabVehicle,
+                      segments: selectedCabVehicle.segments,
+                      guide: selectedCabVehicle.guide,
+                      cost: selectedCabVehicle.cost,
+                      time: selectedCabVehicle.time,
+                      distance: selectedCabVehicle.distance,
+                    } : results[m];
+                    return (
+                      <ResultCard
+                        key={m}
+                        modeKey={m}
+                        data={cardData}
+                        selected={selected}
+                        onSelect={setSelected}
+                        selectedCabVehicle={selectedCabVehicle}
+                        setSelectedCabVehicle={setSelectedCabVehicle}
+                      />
+                    );
+                  })}
                 </div>
               ) : (
-                <CompareTable results={results} />
+                <CompareTable results={{
+                  ...results,
+                  cab: selectedCabVehicle ? {
+                    ...results.cab,
+                    ...selectedCabVehicle,
+                    segments: selectedCabVehicle.segments,
+                    guide: selectedCabVehicle.guide,
+                    cost: selectedCabVehicle.cost,
+                    time: selectedCabVehicle.time,
+                    distance: selectedCabVehicle.distance,
+                  } : results.cab
+                }} />
               )}
 
               {/* CTA */}
@@ -1861,9 +2795,14 @@ export default function App() {
                       {selectedData.time} min · ₹{selectedData.cost} · {selectedData.transfers} transfer(s) · {selectedData.distance} km
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 10, padding: "10px 16px", color: C.muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
-                      <Ic n="save" s={13} c={C.muted} /> Save
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {saveSuccessMsg && (
+                      <span style={{ fontSize: 12, color: C.green, fontWeight: 700 }}>
+                        {saveSuccessMsg}
+                      </span>
+                    )}
+                    <button onClick={handleSaveJourney} disabled={saving} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 10, padding: "10px 16px", color: C.muted, fontSize: 12, cursor: saving ? "wait" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
+                      <Ic n="save" s={13} c={C.muted} /> {saving ? "Saving..." : "Save"}
                     </button>
                     <button style={{ background: MC[selected].color, border: "none", borderRadius: 10, padding: "10px 22px", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: `0 4px 20px ${MC[selected].color}44`, display: "flex", alignItems: "center", gap: 6 }}>
                       <Ic n="share" s={14} c="white" /> Start Navigation
@@ -1913,6 +2852,7 @@ export default function App() {
         * { box-sizing: border-box; }
         input::placeholder { color: #2a3250; }
         input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
+        select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml;utf8,<svg fill='%236b7a99' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #252d4a; border-radius: 4px; }
       `}</style>

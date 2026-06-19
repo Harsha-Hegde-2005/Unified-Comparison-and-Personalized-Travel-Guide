@@ -68,7 +68,14 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def _startup_preload_gtfs():
-    """Kick off GTFS loading in a background thread so the server stays responsive."""
+    """Kick off GTFS loading in a background thread and initialize database tables."""
+    try:
+        from db import init_db
+        init_db()
+        print("Database initialized successfully.")
+    except Exception as dbe:
+        print(f"Database init error: {dbe}")
+
     import threading, sys as _sys
     _bmtc_dir = os.path.join(_HERE, "modes", "bmtc")
     def _load():
@@ -134,6 +141,7 @@ class CabRequest(BaseModel):
     dst_lng:  float
     time:     Optional[str] = None
     provider: Optional[str] = None        # None → all providers
+    weather:  Optional[str] = "clear"
 
 class VehicleRequest(BaseModel):
     vehicle:     str
@@ -218,7 +226,7 @@ def _cab_estimate(src: str, dst: str, dep_time: datetime) -> dict:
     arr      = dep_time + timedelta(minutes=est_min + 5)
     return {
         "available": True, "mode": "cab",
-        "time": est_min, "cost": est_fare,
+        "time": est_min, "cost": est_fare, "cost_max": est_fare + 30,
         "transfers": 0, "distance": est_km,
         "departure": _fmt(dep_time), "arrival": _fmt(arr),
         "segments": [{
@@ -347,7 +355,7 @@ def bmtc_plan(req: JourneyRequest):
     dep_time = _parse_time(req.time)
 
     try:
-        direct, transfers = get_all_buses_comprehensive(src_norm, dst_norm)
+        direct, transfers = get_all_buses_comprehensive(src_norm, dst_norm, departure_dt=dep_time)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -500,68 +508,76 @@ def bmtc_route_search(route: str):
 # NAMMA YATRI ENGINE SETUP
 # ══════════════════════════════════════════════════════════════════════════════
 
-_CAB_DIR = os.path.join(_HERE, "modes", "cab")
-sys.path.insert(0, _CAB_DIR)
-
 try:
-    from engines.fare_engine import FareEngine as _FareEngine
-    from engines.time_engine import TimeEngine as _TimeEngine
+    from modes.cab.engines.fare_engine import FareEngine as _FareEngine
+    from modes.cab.engines.time_engine import TimeEngine as _TimeEngine
+    from modes.cab.engines.distance_engine import DistanceEngine as _DistanceEngine
     _ny_fare   = _FareEngine(os.path.abspath(os.path.join(_HERE, "..", "database", "cab", "fare_config.json")))
     _ny_time   = _TimeEngine()
-    print(f"Namma Yatri engines loaded: {list(_ny_fare.vehicles.keys())}")
+    _ny_distance = _DistanceEngine()
+    print(f"Cab fare engine loaded: {list(_ny_fare.providers.keys())}")
     _NAMMA_OK  = True
 except Exception as _e:
-    print(f"Namma Yatri engines not loaded ({_e}) — cab estimates will use fallback")
+    import traceback
+    traceback.print_exc()
+    print(f"Cab fare engine not loaded ({_e}) — cab estimates will use fallback")
     _ny_fare  = None
     _ny_time  = None
+    _ny_distance = None
     _NAMMA_OK = False
-finally:
-    if _CAB_DIR in sys.path:
-        sys.path.remove(_CAB_DIR)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CAB / AUTO / BIKE PROVIDER FUNCTIONS
 # ══════════════════════════════════════════════════════════════════════════════
-# Architecture:
-#   Each provider is a thin wrapper normalised to a shared CabResult schema.
-#   Adding a new provider:
-#     1. Write _<provider>_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time)
-#     2. Return a list of CabResult-shaped dicts
-#     3. Add to RIDE_PROVIDERS dict — it auto-appears everywhere.
-# ══════════════════════════════════════════════════════════════════════════════
 
-def _namma_yatri_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time) -> list[dict]:
-    """Real FareEngine + calibrated TimeEngine estimates for Namma Yatri."""
-    road = _google_road_distance(src_lat, src_lng, dst_lat, dst_lng)
-    if road:
-        dist_km, osrm_min = road
+def _generic_cab_estimates(provider_key: str, provider_name: str, src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
+    if _NAMMA_OK:
+        try:
+            road = _ny_distance.get_distance(
+                {"latitude": src_lat, "longitude": src_lng},
+                {"latitude": dst_lat, "longitude": dst_lng}
+            )
+            dist_km  = road["distance_km"]
+            osrm_min = road["duration_min"]
+        except Exception as e:
+            print(f"DistanceEngine failed: {e}, using haversine fallback")
+            dist_km  = _haversine_road_km(src_lat, src_lng, dst_lat, dst_lng)
+            osrm_min = dist_km / 30 * 60
     else:
-        dist_km  = _haversine_road_km(src_lat, src_lng, dst_lat, dst_lng)
-        osrm_min = dist_km / 30 * 60
+        road = _google_road_distance(src_lat, src_lng, dst_lat, dst_lng)
+        if road:
+            dist_km, osrm_min = road
+        else:
+            dist_km  = _haversine_road_km(src_lat, src_lng, dst_lat, dst_lng)
+            osrm_min = dist_km / 30 * 60
 
     results = []
 
     if _NAMMA_OK:
         time_est  = _ny_time.estimate_duration(osrm_min, dist_km, dep_time)
-        all_fares = _ny_fare.get_all_fares(dist_km, dep_time)
+        travel_min = time_est["minutes"]
+        all_fares = _ny_fare.get_all_fares_for_provider(provider_key, dist_km, travel_min, dep_time, weather)
 
-        icon_map  = {"auto": "🛺", "non_ac_cab": "🚗", "ac_cab": "❄️🚗",
-                     "xl_cab": "🚙", "xl_premium": "⭐🚙"}
-        vtype_map = {"auto": "auto", "non_ac_cab": "cab", "ac_cab": "cab",
-                     "xl_cab": "cab", "xl_premium": "cab"}
+        for fare in all_fares:
+            vname = fare["vehicle"].lower()
+            if "auto" in vname:
+                vtype = "auto"
+            elif "bike" in vname:
+                vtype = "bike"
+            else:
+                vtype = "cab"
 
-        for key, fare in zip(_ny_fare.vehicles.keys(), all_fares):
-            travel_min = time_est["minutes"]
-            arr        = dep_time + timedelta(minutes=5 + travel_min)
+            key = fare["vehicle"].lower().replace(" ", "_").replace("(", "").replace(")", "").replace("-", "_")
+            arr = dep_time + timedelta(minutes=5 + travel_min)
             results.append({
-                "provider":      "Namma Yatri", "provider_key": "namma_yatri",
+                "provider":      provider_name, "provider_key": provider_key,
                 "vehicle_key":   key,
                 "vehicle_name":  fare["vehicle"],
                 "description":   fare["description"],
                 "capacity":      fare["capacity"],
-                "icon":          icon_map.get(key, "🚗"),
-                "vtype":         vtype_map.get(key, "cab"),
+                "icon":          fare["icon"],
+                "vtype":         vtype,
                 "available":     True, "mode": "cab",
                 "distance":      dist_km,
                 "time":          5 + travel_min,
@@ -574,7 +590,7 @@ def _namma_yatri_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time) -> list
                 "departure":     _fmt(dep_time),
                 "arrival":       _fmt(arr),
                 "segments": [{
-                    "route":     f"Namma Yatri {fare['vehicle']}", "type": "cab",
+                    "route":     f"{provider_name} {fare['vehicle']}", "type": "cab",
                     "from":      f"{src_lat:.4f},{src_lng:.4f}",
                     "to":        f"{dst_lat:.4f},{dst_lng:.4f}",
                     "departure": _fmt(dep_time), "arrival": _fmt(arr),
@@ -583,7 +599,7 @@ def _namma_yatri_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time) -> list
                 }],
                 "guide": [
                     {"step": 1, "icon": "cab",
-                     "text": f"Book {fare['vehicle']} on Namma Yatri",
+                     "text": f"Book {fare['vehicle']} on {provider_name}",
                      "duration": "~2–5 min pickup"},
                     {"step": 2, "icon": "car", "text": "Ride to destination",
                      "duration": f"~{travel_min} min",
@@ -591,17 +607,17 @@ def _namma_yatri_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time) -> list
                 ],
             })
     else:
-        # Heuristic fallback when engines not loaded
+        # Fallback when engines not loaded
         travel_min = int(dist_km / 25 * 60)
         arr        = dep_time + timedelta(minutes=5 + travel_min)
         results.append({
-            "provider": "Namma Yatri", "provider_key": "namma_yatri",
+            "provider": provider_name, "provider_key": provider_key,
             "vehicle_key": "auto", "vehicle_name": "Auto",
             "description": "Easy Commute", "capacity": 3, "icon": "🛺",
             "vtype": "auto", "available": True, "mode": "cab",
             "distance": dist_km, "time": 5 + travel_min,
             "cost": int(30 + dist_km * 16), "cost_max": int(40 + dist_km * 16),
-            "fare_display": f"Rs. {int(30 + dist_km * 16)}",
+            "fare_display": f"Rs. {int(30 + dist_km * 16)} - Rs. {int(40 + dist_km * 16)}",
             "transfers": 0, "is_night": False, "traffic_level": "moderate",
             "departure": _fmt(dep_time), "arrival": _fmt(arr),
             "segments": [], "guide": [],
@@ -610,146 +626,23 @@ def _namma_yatri_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time) -> list
     return results
 
 
-def _ola_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time) -> list[dict]:
-    """Ola fare estimates (calibrated heuristics; replace with real API when available)."""
-    road       = _google_road_distance(src_lat, src_lng, dst_lat, dst_lng)
-    dist_km    = road[0] if road else _haversine_road_km(src_lat, src_lng, dst_lat, dst_lng)
-    osrm_min   = road[1] if road else dist_km / 30 * 60
-    travel_min = int(osrm_min * 2.8)
-
-    ola_vehicles = [
-        {"key": "ola_auto",  "name": "Ola Auto",  "icon": "🛺",   "vtype": "auto",
-         "base": 25, "per_km": 15, "min": 35,  "capacity": 3},
-        {"key": "ola_mini",  "name": "Ola Mini",  "icon": "🚗",   "vtype": "cab",
-         "base": 50, "per_km": 13, "min": 80,  "capacity": 4},
-        {"key": "ola_prime", "name": "Ola Prime", "icon": "⭐🚗", "vtype": "cab",
-         "base": 60, "per_km": 16, "min": 100, "capacity": 4},
-    ]
-
-    results = []
-    for v in ola_vehicles:
-        fare = max(int(v["base"] + dist_km * v["per_km"]), v["min"])
-        arr  = dep_time + timedelta(minutes=5 + travel_min)
-        results.append({
-            "provider": "Ola", "provider_key": "ola",
-            "vehicle_key": v["key"], "vehicle_name": v["name"],
-            "description": "", "capacity": v["capacity"], "icon": v["icon"],
-            "vtype": v["vtype"], "available": True, "mode": "cab",
-            "distance": dist_km, "time": 5 + travel_min,
-            "cost": fare, "cost_max": fare + 15,
-            "fare_display": f"Rs. {fare} - Rs. {fare + 15}",
-            "transfers": 0, "is_night": False, "traffic_level": "moderate",
-            "departure": _fmt(dep_time), "arrival": _fmt(arr),
-            "segments": [{"route": v["name"], "type": "cab",
-                          "from": f"{src_lat:.4f},{src_lng:.4f}",
-                          "to":   f"{dst_lat:.4f},{dst_lng:.4f}",
-                          "departure": _fmt(dep_time), "arrival": _fmt(arr),
-                          "duration": travel_min, "fare": fare,
-                          "distance": dist_km, "stops": []}],
-            "guide": [
-                {"step": 1, "icon": "cab",
-                 "text": f"Book {v['name']} on Ola", "duration": "~3–6 min pickup"},
-                {"step": 2, "icon": "car", "text": "Ride to destination",
-                 "duration": f"~{travel_min} min", "detail": f"₹{fare} est."},
-            ],
-        })
-    return results
+def _namma_yatri_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
+    return _generic_cab_estimates("namma_yatri", "Namma Yatri", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
 
-def _rapido_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time) -> list[dict]:
-    """Rapido fare estimates (calibrated heuristics)."""
-    road       = _google_road_distance(src_lat, src_lng, dst_lat, dst_lng)
-    dist_km    = road[0] if road else _haversine_road_km(src_lat, src_lng, dst_lat, dst_lng)
-    travel_min = int((road[1] if road else dist_km / 30 * 60) * 2.8)
-
-    rapido_vehicles = [
-        {"key": "rapido_bike", "name": "Rapido Bike", "icon": "🏍️", "vtype": "bike",
-         "base": 20, "per_km": 8,  "min": 25, "capacity": 1},
-        {"key": "rapido_auto", "name": "Rapido Auto", "icon": "🛺", "vtype": "auto",
-         "base": 22, "per_km": 14, "min": 30, "capacity": 3},
-        {"key": "rapido_cab",  "name": "Rapido Cab",  "icon": "🚗", "vtype": "cab",
-         "base": 45, "per_km": 12, "min": 70, "capacity": 4},
-    ]
-
-    results = []
-    for v in rapido_vehicles:
-        fare = max(int(v["base"] + dist_km * v["per_km"]), v["min"])
-        arr  = dep_time + timedelta(minutes=5 + travel_min)
-        results.append({
-            "provider": "Rapido", "provider_key": "rapido",
-            "vehicle_key": v["key"], "vehicle_name": v["name"],
-            "description": "", "capacity": v["capacity"], "icon": v["icon"],
-            "vtype": v["vtype"], "available": True, "mode": "cab",
-            "distance": dist_km, "time": 5 + travel_min,
-            "cost": fare, "cost_max": fare + 10,
-            "fare_display": f"Rs. {fare} - Rs. {fare + 10}",
-            "transfers": 0, "is_night": False, "traffic_level": "moderate",
-            "departure": _fmt(dep_time), "arrival": _fmt(arr),
-            "segments": [{"route": v["name"], "type": "cab",
-                          "from": f"{src_lat:.4f},{src_lng:.4f}",
-                          "to":   f"{dst_lat:.4f},{dst_lng:.4f}",
-                          "departure": _fmt(dep_time), "arrival": _fmt(arr),
-                          "duration": travel_min, "fare": fare,
-                          "distance": dist_km, "stops": []}],
-            "guide": [
-                {"step": 1, "icon": "cab",
-                 "text": f"Book {v['name']} on Rapido", "duration": "~2–4 min pickup"},
-                {"step": 2, "icon": "car", "text": "Ride to destination",
-                 "duration": f"~{travel_min} min", "detail": f"₹{fare} est."},
-            ],
-        })
-    return results
+def _ola_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
+    return _generic_cab_estimates("ola", "Ola", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
 
-def _uber_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time) -> list[dict]:
-    """Uber fare estimates (calibrated heuristics)."""
-    road       = _google_road_distance(src_lat, src_lng, dst_lat, dst_lng)
-    dist_km    = road[0] if road else _haversine_road_km(src_lat, src_lng, dst_lat, dst_lng)
-    travel_min = int((road[1] if road else dist_km / 30 * 60) * 2.8)
+def _rapido_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
+    return _generic_cab_estimates("rapido", "Rapido", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
-    uber_vehicles = [
-        {"key": "uber_auto",    "name": "Uber Auto",    "icon": "🛺",   "vtype": "auto",
-         "base": 27, "per_km": 15, "min": 35,  "capacity": 3},
-        {"key": "uber_go",      "name": "Uber Go",      "icon": "🚗",   "vtype": "cab",
-         "base": 55, "per_km": 13, "min": 85,  "capacity": 4},
-        {"key": "uber_premier", "name": "Uber Premier", "icon": "⭐🚗", "vtype": "cab",
-         "base": 70, "per_km": 18, "min": 110, "capacity": 4},
-        {"key": "uber_xl",      "name": "Uber XL",      "icon": "🚙",   "vtype": "cab",
-         "base": 80, "per_km": 22, "min": 130, "capacity": 6},
-    ]
 
-    results = []
-    for v in uber_vehicles:
-        fare = max(int(v["base"] + dist_km * v["per_km"]), v["min"])
-        arr  = dep_time + timedelta(minutes=5 + travel_min)
-        results.append({
-            "provider": "Uber", "provider_key": "uber",
-            "vehicle_key": v["key"], "vehicle_name": v["name"],
-            "description": "", "capacity": v["capacity"], "icon": v["icon"],
-            "vtype": v["vtype"], "available": True, "mode": "cab",
-            "distance": dist_km, "time": 5 + travel_min,
-            "cost": fare, "cost_max": fare + 15,
-            "fare_display": f"Rs. {fare} - Rs. {fare + 15}",
-            "transfers": 0, "is_night": False, "traffic_level": "moderate",
-            "departure": _fmt(dep_time), "arrival": _fmt(arr),
-            "segments": [{"route": v["name"], "type": "cab",
-                          "from": f"{src_lat:.4f},{src_lng:.4f}",
-                          "to":   f"{dst_lat:.4f},{dst_lng:.4f}",
-                          "departure": _fmt(dep_time), "arrival": _fmt(arr),
-                          "duration": travel_min, "fare": fare,
-                          "distance": dist_km, "stops": []}],
-            "guide": [
-                {"step": 1, "icon": "cab",
-                 "text": f"Book {v['name']} on Uber", "duration": "~3–7 min pickup"},
-                {"step": 2, "icon": "car", "text": "Ride to destination",
-                 "duration": f"~{travel_min} min", "detail": f"₹{fare} est."},
-            ],
-        })
-    return results
+def _uber_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
+    return _generic_cab_estimates("uber", "Uber", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
 
 # ── Provider registry ─────────────────────────────────────────────────────────
-# Add a new provider here and it auto-appears in /api/cab/providers and /api/compare.
 
 RIDE_PROVIDERS = {
     "namma_yatri": {"fn": _namma_yatri_estimates, "label": "Namma Yatri", "live": True},
@@ -788,7 +681,7 @@ def cab_estimate(req: CabRequest):
             continue
         try:
             estimates = RIDE_PROVIDERS[p]["fn"](
-                req.src_lat, req.src_lng, req.dst_lat, req.dst_lng, dep_time
+                req.src_lat, req.src_lng, req.dst_lat, req.dst_lng, dep_time, req.weather
             )
             estimates.sort(key=lambda x: x["cost"])
             results[p] = {
@@ -815,7 +708,7 @@ _VEHICLE_DIR = os.path.abspath(os.path.join(_HERE, "..", "database", "personal_v
 _BIKES_CSV   = os.path.join(_VEHICLE_DIR, "india_500_bike_models_master_dataset.csv")
 _CARS_CSV    = os.path.join(_VEHICLE_DIR, "Car details v3.csv")
 
-_FUEL_PRICES = {"petrol": 102.94, "diesel": 88.99, "electric": 0.0, "cng": 75.0}
+_FUEL_PRICES = {"petrol": 102.94, "diesel": 88.99, "electric": 7.00, "ev": 7.00, "cng": 75.0}
 
 try:
     import pandas as _pd
@@ -841,6 +734,24 @@ except Exception as _ve:
 
 def _lookup_vehicle(name: str) -> dict | None:
     """Return {mileage, fuel, vtype, engine} or None."""
+    if name.startswith("custom:"):
+        try:
+            parts = name.split(":", 1)[1].split("|")
+            vname = parts[0].strip()
+            fuel = parts[1].strip().lower()
+            if fuel == "ev":
+                fuel = "electric"
+            efficiency = float(parts[2].strip())
+            return {
+                "mileage": efficiency,
+                "fuel":    fuel,
+                "vtype":   "EV" if fuel == "electric" else "Car",
+                "engine":  "Electric" if fuel == "electric" else "ICE",
+            }
+        except Exception as e:
+            print(f"Error parsing custom vehicle: {e}")
+            return None
+
     if _bikes_df is not None:
         bike = _bikes_df[_bikes_df["full_name"].str.lower() == name.lower()]
         if not bike.empty:
@@ -998,12 +909,47 @@ def compare(req: CompareRequest):
     except Exception as e:
         results["metro"] = {"available": False, "mode": "metro", "error": str(e)}
 
-    # Cab fallback (heuristic, always present)
-    results["cab"] = _cab_estimate(req.source, req.destination, dep_time)
-
     # Personal vehicle — use real coordinates + dataset if vehicle supplied
     src_coords = get_stop_coords(req.source)
     dst_coords = get_stop_coords(req.destination)
+
+    # Cab estimates - try using real coordinates, fallback to heuristic
+    if src_coords and dst_coords:
+        try:
+            all_estimates = []
+            for p_key, p_info in RIDE_PROVIDERS.items():
+                try:
+                    estimates = p_info["fn"](
+                        src_coords[0], src_coords[1], dst_coords[0], dst_coords[1], dep_time, "clear"
+                    )
+                    all_estimates.extend(estimates)
+                except Exception as ex:
+                    print(f"Error fetching estimates for {p_key}: {ex}")
+            
+            if all_estimates:
+                all_estimates.sort(key=lambda x: x["cost"])
+                default_est = all_estimates[0]
+                results["cab"] = {
+                    "available": True,
+                    "mode": "cab",
+                    "time": default_est["time"],
+                    "cost": default_est["cost"],
+                    "cost_max": default_est["cost_max"],
+                    "transfers": 0,
+                    "distance": default_est["distance"],
+                    "departure": default_est["departure"],
+                    "arrival": default_est["arrival"],
+                    "segments": default_est["segments"],
+                    "guide": default_est["guide"],
+                    "all_estimates": all_estimates,
+                }
+            else:
+                results["cab"] = _cab_estimate(req.source, req.destination, dep_time)
+        except Exception as e:
+            print(f"Real cab estimation error: {e}")
+            results["cab"] = _cab_estimate(req.source, req.destination, dep_time)
+    else:
+        results["cab"] = _cab_estimate(req.source, req.destination, dep_time)
 
     if req.vehicle and src_coords and dst_coords:
         try:
@@ -1109,3 +1055,239 @@ def health():
         "vehicles_loaded": len(_all_vehicles),
         "time":            datetime.now().isoformat(),
     }
+
+
+# ── User Auth, Garage, and Document Library Endpoints ──────────────────────
+import shutil
+from fastapi.staticfiles import StaticFiles
+from db import get_db, User, Journey, Vehicle, Document
+from auth import hash_password, verify_password, create_access_token, get_current_user
+from sqlalchemy.orm import Session
+from fastapi import Depends, UploadFile, File, Form
+
+# Mount uploads static folder
+uploads_path = os.path.join(_HERE, "uploads")
+os.makedirs(uploads_path, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_path), name="uploads")
+
+class UserAuthRequest(BaseModel):
+    username: str
+    password: str
+
+class UserAuthResponse(BaseModel):
+    access_token: str
+    token_type: str
+    username: str
+
+class JourneySaveRequest(BaseModel):
+    from_stop: str
+    to_stop: str
+    mode: str
+    cost: int
+    duration: int
+    distance: float
+    date: str
+    is_saved: Optional[bool] = True
+    custom_name: Optional[str] = None
+
+class VehicleAddRequest(BaseModel):
+    name: str
+    fuel_type: str
+    efficiency: float
+
+@app.post("/api/auth/signup", response_model=UserAuthResponse)
+def auth_signup(req: UserAuthRequest, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.username == req.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    hashed = hash_password(req.password)
+    user = User(username=req.username, password_hash=hashed)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    token = create_access_token({"sub": user.username})
+    return {"access_token": token, "token_type": "bearer", "username": user.username}
+
+@app.post("/api/auth/login", response_model=UserAuthResponse)
+def auth_login(req: UserAuthRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == req.username).first()
+    if not user or not verify_password(req.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    
+    token = create_access_token({"sub": user.username})
+    return {"access_token": token, "token_type": "bearer", "username": user.username}
+
+@app.post("/api/user/journey")
+def save_user_journey(req: JourneySaveRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    journey = Journey(
+        user_id=current_user.id,
+        from_stop=req.from_stop,
+        to_stop=req.to_stop,
+        mode=req.mode,
+        cost=req.cost,
+        duration=req.duration,
+        distance=req.distance,
+        date=req.date,
+        is_saved=req.is_saved if req.is_saved is not None else True,
+        custom_name=req.custom_name
+    )
+    db.add(journey)
+    db.commit()
+    return {"status": "success", "journey_id": journey.id}
+
+@app.delete("/api/user/journey/{journey_id}")
+def delete_user_journey(journey_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    journey = db.query(Journey).filter(Journey.id == journey_id, Journey.user_id == current_user.id).first()
+    if not journey:
+        raise HTTPException(status_code=404, detail="Journey not found")
+    db.delete(journey)
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/api/user/dashboard")
+def get_user_dashboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    journeys = db.query(Journey).filter(Journey.user_id == current_user.id).order_by(Journey.id.desc()).all()
+    
+    # Separate search history (is_saved = False) and saved routes (is_saved = True)
+    recent_searches = [j for j in journeys if not j.is_saved]
+    saved_routes = [j for j in journeys if j.is_saved]
+    
+    total_saved_routes = len(saved_routes)
+    total_cost = sum(j.cost for j in saved_routes)
+    avg_cost = int(total_cost / total_saved_routes) if total_saved_routes > 0 else 0
+    
+    # Savings calculation based on saved routes
+    money_saved = sum(150 if j.mode in ("bmtc", "metro") else 0 for j in saved_routes)
+    time_saved_hr = round(sum(0.5 if j.mode == "metro" else 0.2 if j.mode == "bmtc" else 0 for j in saved_routes), 1)
+    
+    recent_list = []
+    for j in recent_searches[:6]:
+        recent_list.append({
+            "id": j.id,
+            "from": j.from_stop,
+            "to": j.to_stop,
+            "date": j.date
+        })
+        
+    saved_list = []
+    for j in saved_routes[:6]:
+        saved_list.append({
+            "id": j.id,
+            "from": j.from_stop,
+            "to": j.to_stop,
+            "mode": j.mode,
+            "cost": j.cost,
+            "date": j.date,
+            "custom_name": j.custom_name
+        })
+        
+    stats = [
+        {"label": "Journeys", "val": str(total_saved_routes), "icon": "mappin", "color": "#f97316"},
+        {"label": "Saved", "val": f"₹{money_saved}", "icon": "trend", "color": "#8b5cf6"},
+        {"label": "Time saved", "val": f"{time_saved_hr} hr" if time_saved_hr > 0 else "0 hr", "icon": "clock", "color": "#f59e0b"},
+        {"label": "Avg cost", "val": f"₹{avg_cost}", "icon": "now", "color": "#10b981"}
+    ]
+    
+    return {
+        "stats": stats,
+        "recent": recent_list,
+        "saved": saved_list
+    }
+
+@app.get("/api/user/vehicles")
+def get_user_vehicles(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    vehicles = db.query(Vehicle).filter(Vehicle.user_id == current_user.id).all()
+    return [{"id": v.id, "name": v.name, "fuel_type": v.fuel_type, "efficiency": v.efficiency} for v in vehicles]
+
+@app.post("/api/user/vehicles")
+def add_user_vehicle(req: VehicleAddRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    vehicle = Vehicle(
+        user_id=current_user.id,
+        name=req.name,
+        fuel_type=req.fuel_type,
+        efficiency=req.efficiency
+    )
+    db.add(vehicle)
+    db.commit()
+    return {"status": "success", "vehicle_id": vehicle.id}
+
+@app.delete("/api/user/vehicles/{vehicle_id}")
+def delete_user_vehicle(vehicle_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id, Vehicle.user_id == current_user.id).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    db.delete(vehicle)
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/api/user/documents")
+def get_user_documents(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    documents = db.query(Document).filter(Document.user_id == current_user.id).all()
+    return [
+        {
+            "id": d.id,
+            "doc_type": d.doc_type,
+            "doc_number": d.doc_number,
+            "expiry_date": d.expiry_date,
+            "file_path": d.file_path
+        }
+        for d in documents
+    ]
+
+@app.post("/api/user/documents")
+async def add_user_document(
+    doc_type: str = Form(...),
+    doc_number: str = Form(...),
+    expiry_date: str = Form(...),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    uploads_dir = os.path.join(_HERE, "uploads")
+    os.makedirs(uploads_dir, exist_ok=True)
+    
+    file_ext = os.path.splitext(file.filename)[1]
+    safe_filename = f"user_{current_user.id}_{doc_type.lower()}{file_ext}"
+    file_dest = os.path.join(uploads_dir, safe_filename)
+    
+    with open(file_dest, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    existing = db.query(Document).filter(Document.user_id == current_user.id, Document.doc_type == doc_type).first()
+    if existing:
+        existing.doc_number = doc_number
+        existing.expiry_date = expiry_date
+        existing.file_path = f"/uploads/{safe_filename}"
+        db.commit()
+        return {"status": "success", "document_id": existing.id}
+    else:
+        doc = Document(
+            user_id=current_user.id,
+            doc_type=doc_type,
+            doc_number=doc_number,
+            expiry_date=expiry_date,
+            file_path=f"/uploads/{safe_filename}"
+        )
+        db.add(doc)
+        db.commit()
+        return {"status": "success", "document_id": doc.id}
+
+@app.delete("/api/user/documents/{doc_id}")
+def delete_user_document(doc_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id, Document.user_id == current_user.id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    try:
+        filename = doc.file_path.split("/")[-1]
+        file_path = os.path.join(_HERE, "uploads", filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception as e:
+        print(f"Error removing file: {e}")
+        
+    db.delete(doc)
+    db.commit()
+    return {"status": "success"} # forced reload update
