@@ -896,6 +896,9 @@ def compare(req: CompareRequest):
     dep_time = _parse_time(req.time)
     results  = {}
 
+    from weather_helper import get_realtime_weather
+    weather_cond = get_realtime_weather(dep_time)
+
     # BMTC
     try:
         results["bmtc"] = bmtc_plan(
@@ -923,7 +926,7 @@ def compare(req: CompareRequest):
             for p_key, p_info in RIDE_PROVIDERS.items():
                 try:
                     estimates = p_info["fn"](
-                        src_coords[0], src_coords[1], dst_coords[0], dst_coords[1], dep_time, "clear"
+                        src_coords[0], src_coords[1], dst_coords[0], dst_coords[1], dep_time, weather_cond
                     )
                     all_estimates.extend(estimates)
                 except Exception as ex:

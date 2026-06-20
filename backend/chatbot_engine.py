@@ -11,14 +11,9 @@ class ChatbotEngine:
         self.all_vehicles = all_vehicles or []
 
     def get_simulated_weather(self, time: datetime) -> str:
-        """Simulated weather timeline matching spec examples."""
-        h = time.hour
-        if 8 <= h <= 10:
-            return "light rain"
-        elif 15 <= h <= 18:
-            return "heavy rain"
-        else:
-            return "clear"
+        """Fetch weather condition (real-time Open-Meteo API, falls back to timeline)."""
+        from weather_helper import get_realtime_weather
+        return get_realtime_weather(time)
 
     def extract_stops(self, text: str) -> List[str]:
         """Fuzzy/exact substring stop name extraction."""

@@ -179,3 +179,4 @@ def test_api_chatbot_query_general_greetings():
     data = resp.json()
     assert data["intent"] == "general"
     assert "hello" in data["text"].lower() or "how can i help" in data["text"].lower()
+
