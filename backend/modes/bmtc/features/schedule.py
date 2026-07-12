@@ -69,6 +69,13 @@ _register_route_cache(stops_df)
 if not _rev_df.empty:
     _register_route_cache(_rev_df)
 
+_stop_coords_dict = {}
+for _df in [stops_df, _rev_df]:
+    if _df is not None and not _df.empty:
+        for _row in _df.itertuples(index=False):
+            _stop_coords_dict[_row.stop_norm] = (float(_row.latitude), float(_row.longitude))
+
+
 # ── BMTC operational window ────────────────────────────────────────────────────
 BMTC_START_HOUR = 5
 BMTC_END_HOUR   = 23
@@ -210,30 +217,49 @@ def calculate_segment_times(
     """
     current_time  = start_time or datetime.now()
     segment_times = []
+    arrival_at_stop_dt = current_time
 
     for i, (route_no, start, end, seg_stops) in enumerate(segments):
         base_route   = route_no.replace("_REV", "")
         route_data   = _route_cache.get(route_no) or _route_cache.get(base_route)
-        if not route_data:
-            continue
 
-        stop_index = route_data["stop_index"]
-        start_idx = stop_index.get(start)
-        end_idx = stop_index.get(end)
-        if start_idx is None or end_idx is None:
-            continue
+        segment_distance = 0.0
+        has_coords = False
+        if seg_stops and len(seg_stops) > 1:
+            for idx in range(len(seg_stops) - 1):
+                c1 = _stop_coords_dict.get(seg_stops[idx])
+                c2 = _stop_coords_dict.get(seg_stops[idx+1])
+                if c1 and c2:
+                    segment_distance += haversine(c1[0], c1[1], c2[0], c2[1])
+                    has_coords = True
 
-        lo = min(start_idx, end_idx)
-        hi = max(start_idx, end_idx)
-        ordered = route_data["ordered"]
-        cumulative_km = route_data["cumulative_km"]
-        segment_distance = cumulative_km[hi] - cumulative_km[lo]
-        sub_norms = route_data["norms"][lo:hi + 1]
-        if start_idx > end_idx:
-            sub_norms = list(reversed(sub_norms))
+        if not has_coords or segment_distance == 0.0:
+            c1 = _stop_coords_dict.get(start)
+            c2 = _stop_coords_dict.get(end)
+            if c1 and c2:
+                segment_distance = haversine(c1[0], c1[1], c2[0], c2[1])
+            else:
+                segment_distance = 5.0
 
-        wait_time     = WAITING_TIME if i == 0 else TRANSFER_TIME
-        current_time += timedelta(minutes=wait_time)
+        sub_norms = seg_stops or [start, end]
+
+        # Calculate headway-based wait time fallback
+        import hashlib
+        from features.routing import _route_trips
+        route_base = route_no.replace("_REV", "").upper()
+        trips = _route_trips.get(route_base, 0)
+        if trips > 0:
+            OPERATIONAL_MINUTES = 18 * 60
+            headway_minutes = OPERATIONAL_MINUTES / trips
+            seed_val = int(hashlib.md5(route_base.encode()).hexdigest()[:4], 16)
+            seed_frac = seed_val / 65535.0
+            wait_mins = max(2.0, min(headway_minutes * seed_frac, headway_minutes))
+            if i > 0:
+                wait_mins = max(TRANSFER_TIME, wait_mins)
+        else:
+            wait_mins = WAITING_TIME if i == 0 else TRANSFER_TIME
+
+        current_time += timedelta(minutes=wait_mins)
 
         departure_dt = current_time
         arrival_dt   = None
@@ -247,10 +273,6 @@ def calculate_segment_times(
             travel_mins = (arrival_dt - departure_dt).total_seconds() / 60
             time_source = "schedule"
 
-        # ── 2. Google Maps traffic ETA ─────────────────────────────────────
-        # SKIPPED for performance: speed-model fallback is fast enough
-        # (Google Maps API calls add 5+ sec per segment — too slow for multiple routes)
-
         # ── 3. Speed-model fallback ────────────────────────────────────────
         if arrival_dt is None:
             travel_mins = calculate_travel_time(segment_distance, departure_dt)
@@ -258,6 +280,10 @@ def calculate_segment_times(
             time_source = "estimate"
 
         current_time = arrival_dt
+
+        # Calculate waiting time relative to when the user arrived at the stop
+        waiting_time = max(0, int((departure_dt - arrival_at_stop_dt).total_seconds() / 60))
+        arrival_at_stop_dt = arrival_dt
 
         fare_info = segment_fare_breakdown(route_no, segment_distance, sub_norms)
 
@@ -272,7 +298,8 @@ def calculate_segment_times(
             "toll":        fare_info["toll"],
             "fare_category": fare_info["fare_category"],
             "has_toll":    fare_info["has_toll"],
-            "time_source": time_source,  # "schedule" | "google_traffic" | "estimate"
+            "time_source": time_source,
+            "waiting_time": waiting_time,
         })
 
     return segment_times
@@ -293,21 +320,29 @@ def estimate_segment_fast(
     """
     current_time = start_time or datetime.now()
     route_data = _route_cache.get(route_no) or _route_cache.get(route_no.replace("_REV", ""))
-    if not route_data:
-        return None
 
-    stop_index = route_data["stop_index"]
-    start_idx = stop_index.get(start)
-    end_idx = stop_index.get(end)
-    if start_idx is None or end_idx is None:
-        return None
+    segment_distance = 0.0
+    sub_norms = [start, end]
 
-    lo = min(start_idx, end_idx)
-    hi = max(start_idx, end_idx)
-    segment_distance = route_data["cumulative_km"][hi] - route_data["cumulative_km"][lo]
-    sub_norms = route_data["norms"][lo:hi + 1]
-    if start_idx > end_idx:
-        sub_norms = list(reversed(sub_norms))
+    if route_data:
+        stop_index = route_data["stop_index"]
+        start_idx = stop_index.get(start)
+        end_idx = stop_index.get(end)
+        if start_idx is not None and end_idx is not None:
+            lo = min(start_idx, end_idx)
+            hi = max(start_idx, end_idx)
+            segment_distance = route_data["cumulative_km"][hi] - route_data["cumulative_km"][lo]
+            sub_norms = route_data["norms"][lo:hi + 1]
+            if start_idx > end_idx:
+                sub_norms = list(reversed(sub_norms))
+
+    if segment_distance == 0.0:
+        c1 = _stop_coords_dict.get(start)
+        c2 = _stop_coords_dict.get(end)
+        if c1 and c2:
+            segment_distance = haversine(c1[0], c1[1], c2[0], c2[1])
+        else:
+            segment_distance = 5.0
 
     departure_dt = current_time + timedelta(minutes=WAITING_TIME)
     travel_mins = calculate_travel_time(segment_distance, departure_dt)
@@ -319,4 +354,5 @@ def estimate_segment_fast(
         "distance": round(segment_distance, 2),
         "departure": format_time(departure_dt),
         "arrival": format_time(arrival_dt),
+        "waiting_time": int(WAITING_TIME),
     }

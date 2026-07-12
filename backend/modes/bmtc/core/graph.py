@@ -19,6 +19,7 @@ from __future__ import annotations
 import heapq
 import math
 from math import radians, sin, cos, sqrt, atan2
+from functools import lru_cache
 
 import pandas as pd
 import streamlit as st
@@ -128,7 +129,7 @@ def _build_everything() -> tuple[dict, dict, dict, dict]:
     # 4. Build proximity-based stop cluster map using a grid-bucket spatial index on cluster_keys.
     # Naive O(n²) over 5,700+ unique cluster_keys is too slow.
     # Grid buckets reduce this to O(n) average.
-    WALK_TRANSFER_KM = 0.35   # 350 metres walking tolerance
+    WALK_TRANSFER_KM = 1.0   # 1.0 km walking tolerance (to integrate up to 1km walking shortcut)
 
     # Degree-to-km conversion at Bengaluru latitude (~13°N)
     KM_PER_DEG_LAT = 111.0
@@ -185,28 +186,6 @@ def _build_everything() -> tuple[dict, dict, dict, dict]:
     nearby_ct = sum(len(v) for v in nearby_cluster_keys.values())
     print(f"Proximity clusters: {len(nearby_cluster_keys)} cluster_keys have <={int(WALK_TRANSFER_KM*1000)}m neighbours "
           f"({nearby_ct} proximity pairs)")
-    transfer_neighbour_cache: dict[tuple[str, str], list[tuple[tuple, float]]] = {}
-    for cluster_key, routes_at_stop in stop_routes.items():
-        same_stop_routes = list(routes_at_stop)
-        nearby_clusters = nearby_cluster_keys.get(cluster_key, [])
-        for current_route in same_stop_routes:
-            neighbours: list[tuple[tuple, float]] = []
-            seen: set[tuple[tuple, float]] = set()
-            for route_no in same_stop_routes:
-                if route_no == current_route:
-                    continue
-                item = ((cluster_key, route_no), 0.0)
-                if item not in seen:
-                    seen.add(item)
-                    neighbours.append(item)
-            if not FAST_QUERY_MODE:
-                for nearby_ck in nearby_clusters:
-                    for route_no in stop_routes.get(nearby_ck, set()):
-                        item = ((nearby_ck, route_no), 0.05)
-                        if item not in seen:
-                            seen.add(item)
-                            neighbours.append(item)
-            transfer_neighbour_cache[(cluster_key, current_route)] = neighbours
     return (
         graph_,
         stop_routes,
@@ -216,50 +195,53 @@ def _build_everything() -> tuple[dict, dict, dict, dict]:
         cluster_to_norm,
         norm_to_cluster_keys,
         nearby_cluster_keys,
-        transfer_neighbour_cache,
     )
 
 
 # ── Module-level references — cheap after first load ─────────────────────────
 
-graph, _stop_routes, _raw_km, _route_trips, _nearby_stops, _cluster_to_norm, _norm_to_cluster_keys, _nearby_cluster_keys, _transfer_neighbour_cache = _build_everything()
+graph, _stop_routes, _raw_km, _route_trips, _nearby_stops, _cluster_to_norm, _norm_to_cluster_keys, _nearby_cluster_keys = _build_everything()
 
 
-# ── Transfer neighbours (lazy) ────────────────────────────────────────────────
+# ── Transfer neighbours (lazy & cached) ────────────────────────────────────────
 
 def _cluster_keys_for_norm(stop_norm: str) -> list[str]:
     """Return all cluster_keys that correspond to this stop_norm (handles name collisions)."""
     return _norm_to_cluster_keys.get(stop_norm, [])
 
 
+_transfer_cache_dynamic: dict[tuple[str, str], list[tuple[tuple, float]]] = {}
+
 def _transfer_neighbours(stop_norm: str, current_route: str) -> list[tuple[tuple, float]]:
     """
-    Return all (node, weight) pairs reachable by transferring at cluster_key.
-    stop_norm argument is actually a cluster_key (location-aware stop identifier).
-    Includes:
-      - Same-stop transfers (weight=0): board a different route at the exact same stop.
-      - Proximity transfers (weight=small walk penalty): board at a nearby stop ≤200m away.
+    Return all (node, weight) pairs reachable by transferring.
+    stop_norm parameter is a cluster_key.
+    Dynamically computes same-stop transfers and proximity transfers with caching.
     """
-    return _transfer_neighbour_cache.get((stop_norm, current_route), [])
+    key = (stop_norm, current_route)
+    if key in _transfer_cache_dynamic:
+        return _transfer_cache_dynamic[key]
+    
+    cluster_key = stop_norm
     results = []
-    cluster_key = stop_norm  # parameter name kept for API compatibility
-
-    # Same-stop transfers (exact same physical location)
+    
+    # Same-stop transfers (exact same physical location) - weight = 0.0
     for r in _stop_routes.get(cluster_key, set()):
         if r != current_route:
             results.append(((cluster_key, r), 0.0))
-
-    # Proximity transfers — nearby_stops is keyed by stop_norm, but cluster_key
-    # may have ###N suffix. Strip it to look up proximity neighbours.
+            
+    # Proximity transfers (walking) - weight = 0.05
     for nearby_ck in _nearby_cluster_keys.get(cluster_key, []):
         for r in _stop_routes.get(nearby_ck, set()):
-            results.append(((nearby_ck, r), WALK_PENALTY))
-
+            results.append(((nearby_ck, r), 0.05))
+            
+    _transfer_cache_dynamic[key] = results
     return results
 
 
 # ── Dijkstra — single best path ───────────────────────────────────────────────
 
+@lru_cache(maxsize=1024)
 def dijkstra(
     src: str,
     dst: str,
@@ -329,6 +311,7 @@ def dijkstra(
 
 # ── Dijkstra — multiple options ───────────────────────────────────────────────
 
+@lru_cache(maxsize=1024)
 def dijkstra_all_options(
     src: str,
     dst: str,

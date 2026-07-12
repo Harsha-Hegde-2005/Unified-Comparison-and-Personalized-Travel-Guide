@@ -1,7 +1,7 @@
 """
 features/fare.py
 ================
-Fare utilities for ordinary, Vajra/AC, and toll-inclusive BMTC pricing.
+Fare utilities for ordinary, Vajra/AC, KIA airport, and toll-inclusive BMTC pricing.
 """
 
 from core.config import (
@@ -9,8 +9,11 @@ from core.config import (
     ORDINARY_FARE_DEFAULT,
     VAJRA_FARE_SLABS,
     VAJRA_FARE_DEFAULT,
+    KIA_FARE_SLABS,
+    KIA_FARE_DEFAULT,
     TOLL_STOP_SURCHARGES,
     VAJRA_ROUTE_PATTERNS,
+    KIA_ROUTE_PATTERNS,
 )
 
 
@@ -22,19 +25,32 @@ def _fare_from_slab(distance_km: float, slabs: list[tuple[int, int]], default_fa
     return default_fare
 
 
+def is_kia_route(route_no: str) -> bool:
+    """Return True when a route is a KIA airport bus (premium airport pricing)."""
+    route = route_no.replace("_REV", "").upper()
+    return any(token in route for token in KIA_ROUTE_PATTERNS)
+
+
 def is_vajra_route(route_no: str) -> bool:
     """Return True when a route should use Vajra / AC fare slabs."""
     route = route_no.replace("_REV", "").upper()
+    # KIA routes are NOT Vajra — they have their own fare structure
+    if is_kia_route(route_no):
+        return False
     return any(token in route for token in VAJRA_ROUTE_PATTERNS)
 
 
 def fare_category_for_route(route_no: str) -> str:
     """Return the pricing bucket for a route."""
+    if is_kia_route(route_no):
+        return "kia_airport"
     return "vajra" if is_vajra_route(route_no) else "ordinary"
 
 
 def bmtc_fare(distance_km: float, route_no: str | None = None) -> int:
     """Return the base BMTC fare (Rs) for a given distance and route type."""
+    if route_no and is_kia_route(route_no):
+        return _fare_from_slab(distance_km, KIA_FARE_SLABS, KIA_FARE_DEFAULT)
     if route_no and is_vajra_route(route_no):
         return _fare_from_slab(distance_km, VAJRA_FARE_SLABS, VAJRA_FARE_DEFAULT)
     return _fare_from_slab(distance_km, ORDINARY_FARE_SLABS, ORDINARY_FARE_DEFAULT)

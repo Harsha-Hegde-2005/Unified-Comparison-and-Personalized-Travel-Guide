@@ -32,7 +32,7 @@ WAITING_TIME   = 5    # minutes — boarding wait at first stop
 TRANSFER_TIME  = 3    # minutes — per transfer penalty
 MAX_TRANSFERS  = 2    # hard cap on transfers for Dijkstra
 MAX_OPTIONS    = 5    # number of route alternatives to surface
-FAST_QUERY_MODE = False
+FAST_QUERY_MODE = True
 
 # ── Bus speed (km/h) by time-of-day — Bengaluru traffic profile ───────────────
 SPEED_PEAK     = 10.0   # 07:00–10:00, 17:00–21:00
@@ -56,6 +56,13 @@ VAJRA_FARE_SLABS = [
 ]
 VAJRA_FARE_DEFAULT = 85
 
+# KIA / Airport bus fares — premium airport express pricing
+# BMTC airport buses charge Rs.150–310 depending on distance zone
+KIA_FARE_SLABS = [
+    (10,  150), (20, 200), (30, 250), (40, 280),
+]
+KIA_FARE_DEFAULT = 310  # full airport run (e.g. Kempegowda station → KIA ~40 km)
+
 # ── Toll surcharges ───────────────────────────────────────────────────────────
 TOLL_STOP_SURCHARGES: dict[str, int] = {
     "elc toll point": 7, "electronic city fly": 7,
@@ -74,6 +81,9 @@ TOLL_STOP_SURCHARGES: dict[str, int] = {
 
 # Premium-route markers used for Vajra / AC pricing.
 VAJRA_ROUTE_PATTERNS = ["AC", "V-", "VAJRA", "VOLVO"]
+
+# Airport-bus markers — KIA and AP routes are separate high-fare category
+KIA_ROUTE_PATTERNS = ["KIA", "-AP ", "-AP_", "KBS-KIA", "PTH-KIA", "AIRPORT"]
 
 # ── Routes to exclude from suggestions (airport premium only) ──────────────────
 # Do NOT include "AC" here — Vajra AC buses are normal premium services, not airport-exclusive

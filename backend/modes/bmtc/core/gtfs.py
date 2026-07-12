@@ -119,13 +119,56 @@ def _load_gtfs() -> None:
 
             gtfs_stops["stop_name"] = gtfs_stops["stop_name"].apply(clean_stop_name)
             gtfs_stops["stop_norm"] = gtfs_stops["stop_name"].str.strip().str.lower()
-            known_norms = set(stops_df["stop_norm"].unique())
+            from core.loader import _rev_df
+            import math
+
+            # Group all_stops_combined by stop_norm to get average coordinates
+            all_stops_combined = pd.concat([stops_df, _rev_df], ignore_index=True) if not _rev_df.empty else stops_df
+            coords_by_norm = all_stops_combined.groupby("stop_norm")[["latitude", "longitude"]].mean()
+
+            def haversine(lat1, lon1, lat2, lon2):
+                R = 6371
+                dlat = math.radians(lat2 - lat1)
+                dlon = math.radians(lon2 - lon1)
+                a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+                return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+            # Grid parameters (150m tolerance)
+            TOLERANCE_KM = 0.15
+            KM_PER_DEG_LAT = 111.0
+            KM_PER_DEG_LNG = 111.0 * math.cos(math.radians(13.0)) # ≈ 108.1
+            CELL_DEG_LAT = TOLERANCE_KM / KM_PER_DEG_LAT * 1.05
+            CELL_DEG_LNG = TOLERANCE_KM / KM_PER_DEG_LNG * 1.05
+
+            grid = {}
+            for norm, row in coords_by_norm.iterrows():
+                lat, lng = row["latitude"], row["longitude"]
+                cell = (int(lat / CELL_DEG_LAT), int(lng / CELL_DEG_LNG))
+                grid.setdefault(cell, []).append((str(norm), lat, lng))
+
+            # Match GTFS stops to known norms using exact and proximity matching
             for _, row in gtfs_stops.iterrows():
                 n = row["stop_norm"]
-                if n in known_norms:
-                    _norm_to_ids.setdefault(n, []).append(str(row["stop_id"]))
+                stop_id = str(row["stop_id"])
+                gtfs_lat, gtfs_lng = row["stop_lat"], row["stop_lon"]
+                
+                # 1. Exact match
+                if n in coords_by_norm.index:
+                    _norm_to_ids.setdefault(n, []).append(stop_id)
+                
+                # 2. Proximity match (find any known stop within 150m)
+                cx = int(gtfs_lat / CELL_DEG_LAT)
+                cy = int(gtfs_lng / CELL_DEG_LNG)
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        for norm_cand, clat, clng in grid.get((cx + dx, cy + dy), []):
+                            if norm_cand == n:
+                                continue # already handled by exact match
+                            d = haversine(gtfs_lat, gtfs_lng, clat, clng)
+                            if d <= TOLERANCE_KM:
+                                _norm_to_ids.setdefault(norm_cand, []).append(stop_id)
 
-            print(f"GTFS: matched {len(_norm_to_ids)} stop norms to GTFS IDs.")
+            print(f"GTFS: matched {len(_norm_to_ids)} stop norms to GTFS IDs (with proximity fallback).")
 
             # ── Build fast route-departure index ──────────────────────────────
             # Merge stop_times with trips → routes to get route_short_name per trip
