@@ -452,7 +452,7 @@ def _best_join_indices_cached(first_route_no: str, second_route_no: str, src_nor
                                 continue
                             lat1, lon1 = first["coords"][first_join_idx]
                             lat2, lon2 = second["coords"][second_join_idx]
-                            if _haversine(lat1, lon1, lat2, lon2) > 1.0:
+                            if _haversine(lat1, lon1, lat2, lon2) > 0.75:
                                 continue
                             travel_stops = (first_join_idx - src_idx) + (dst_idx - second_join_idx)
                             routes_at_join = len(_routes_by_stop.get(join_norm, []))
@@ -541,21 +541,17 @@ def _fast_transfer_options(src_norm: str, dst_norm: str, limit: int = 8, request
                     total_fare,
                 )
             elif preference.lower() == "cost":
-                # Use generalized cost (Fare + 0.25 * Time) as the primary sorting metric
-                # so that options taking 5 hours are not ranked above 35-minute options just to save 1 Rs.
                 score_val = (
-                    total_fare + 0.25 * total_time,
+                    total_fare,
                     _route_priority(base_first, src_norm, dst_norm, preference)[0] +
                     _route_priority(base_second, src_norm, dst_norm, preference)[0],
                     total_time,
                 )
             else:  # time / fastest
-                # Sort by total_time first. Sorting by route priority first was a bug
-                # that caused actual journey duration to be ignored.
                 score_val = (
-                    total_time,
                     _route_priority(base_first, src_norm, dst_norm, preference)[0] +
                     _route_priority(base_second, src_norm, dst_norm, preference)[0],
+                    total_time,
                     total_fare,
                 )
             candidates.append({

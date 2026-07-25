@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -9,11 +9,14 @@ IST = ZoneInfo("Asia/Kolkata")
 class FareEngine:
     """
     Computes calibrated ride fares for Namma Yatri, Uber, Ola, and Rapido.
-
-    Formula (calibrated from specification):
-        subtotal = base_fare + max(0, distance_km - base_dist) * per_km + duration_min * per_min
-        estimate = max(subtotal, min_fare) * surge_multiplier
-        estimate = round(estimate)
+    Incorporates advanced calculations matching the improved JS fareCalculator:
+      - billable distance beyond included Km
+      - waiting time charge beyond free waiting minutes
+      - surge multiplier applied to pre-surge subtotal
+      - night surcharge multiplier applied to (subtotal + surge)
+      - flat booking fee
+      - flat long-distance surcharge threshold
+    Config version: 2026-07-13-v3 (Rapido long-distance surcharge added)
     """
 
     def __init__(self, fare_config_path: str = None):
@@ -22,8 +25,18 @@ class FareEngine:
             fare_config_path = os.path.abspath(
                 os.path.join(base_dir, "..", "..", "..", "database", "cab", "fare_config.json")
             )
-        self.config = self._load_config(fare_config_path)
-        self.providers = self.config["providers"]
+        self._fare_config_path = fare_config_path
+        self._fare_config_mtime = None
+        self._reload_config()
+
+    def _reload_config(self):
+        """Load (or hot-reload) fare_config.json from disk."""
+        mtime = os.path.getmtime(self._fare_config_path)
+        if mtime != self._fare_config_mtime:
+            with open(self._fare_config_path, "r", encoding="utf-8") as f:
+                self.config = json.load(f)
+            self.providers = self.config["providers"]
+            self._fare_config_mtime = mtime
 
     def _load_config(self, path: str) -> dict:
         with open(path, "r", encoding="utf-8") as f:
@@ -72,8 +85,8 @@ class FareEngine:
 
         return 1.0 + delta_time + delta_weather
 
-    def is_night(self, current_time: datetime = None) -> bool:
-        """Return True if Late Night surcharge window (22:00 - 05:00 IST) is active."""
+    def is_night(self, current_time: datetime = None, start_hour: int = 22, end_hour: int = 5) -> bool:
+        """Return True if current time is within the night surcharge window."""
         if current_time is None:
             current_time = datetime.now(IST)
         elif current_time.tzinfo is None:
@@ -81,10 +94,17 @@ class FareEngine:
         else:
             current_time = current_time.astimezone(IST)
         hour = current_time.hour
-        return hour >= 22 or hour < 5
+        if start_hour == end_hour:
+            return False
+        if start_hour < end_hour:
+            return start_hour <= hour < end_hour
+        # window wraps past midnight
+        return hour >= start_hour or hour < end_hour
 
     def get_fare(self, provider_key: str, vehicle_key: str, distance_km: float,
-                 duration_min: float, current_time: datetime = None, weather: str = "clear") -> dict:
+                 duration_min: float, current_time: datetime = None, weather: str = "clear",
+                 waiting_min: float = 0.0) -> dict:
+        self._reload_config()
         provider_key = provider_key.lower()
         vehicle_key = vehicle_key.lower()
 
@@ -104,16 +124,55 @@ class FareEngine:
             )
 
         cfg = vehicles[vehicle_key]
+
+        # 1. Base Charge, Distance Charge, Duration Charge, Waiting Charge
+        base_fare = cfg.get("base_fare", 0.0)
+        base_dist = cfg.get("base_dist", 0.0)
+        per_km_rate = cfg.get("per_km", 0.0)
+        per_min_rate = cfg.get("per_min", 0.0)
+
+        billable_km = max(0.0, distance_km - base_dist)
+        distance_charge = round(billable_km * per_km_rate, 2)
+        duration_charge = round(duration_min * per_min_rate, 2)
+
+        free_waiting_mins = cfg.get("free_waiting_mins", 0.0)
+        waiting_charge_per_min = cfg.get("waiting_charge_per_min", 0.0)
+        billable_waiting_min = max(0.0, waiting_min - free_waiting_mins)
+        waiting_charge = round(billable_waiting_min * waiting_charge_per_min, 2)
+
+        pre_surge_subtotal = round(base_fare + distance_charge + duration_charge + waiting_charge, 2)
+
+        # 2. Surge Multiplier (dynamic calculation based on peaks and weather)
         is_auto = "auto" in vehicle_key or "bike" in vehicle_key
         surge_mult = self.get_surge_multiplier(current_time, weather, is_auto)
-        night = self.is_night(current_time)
+        surge_amount = round(pre_surge_subtotal * (surge_mult - 1.0), 2)
 
-        # Base calculation
-        distance_charge = max(0.0, distance_km - cfg["base_dist"]) * cfg["per_km"]
-        duration_charge = duration_min * cfg["per_min"]
-        subtotal = cfg["base_fare"] + distance_charge + duration_charge
+        # 3. Night Charge
+        night_cfg = cfg.get("night_charge")
+        night_active = False
+        night_mult = 1.0
+        if night_cfg and night_cfg.get("enabled", False):
+            night_active = self.is_night(current_time, night_cfg.get("start_hour", 22), night_cfg.get("end_hour", 5))
+            if night_active:
+                night_mult = night_cfg.get("multiplier", 1.0)
+        
+        night_amount = round((pre_surge_subtotal + surge_amount) * (night_mult - 1.0), 2)
 
-        estimate = max(subtotal, cfg["min_fare"]) * surge_mult
+        # 4. Booking Fee
+        booking_fee = cfg.get("booking_fee", 0.0)
+
+        # 5. Long Distance Surcharge
+        long_distance_cfg = cfg.get("long_distance")
+        long_distance_charge = 0.0
+        if long_distance_cfg:
+            threshold_km = long_distance_cfg.get("threshold_km", 0.0)
+            if distance_km > threshold_km:
+                long_distance_charge = long_distance_cfg.get("surcharge", 0.0)
+
+        # 6. Totals
+        raw_total = round(pre_surge_subtotal + surge_amount + night_amount + booking_fee + long_distance_charge, 2)
+        min_fare = cfg.get("min_fare", 0.0)
+        estimate = max(raw_total, min_fare)
         estimate = round(estimate)
 
         buf = cfg.get("fare_range_buffer", 10)
@@ -129,13 +188,21 @@ class FareEngine:
             "fare_min":      estimate,
             "fare_max":      estimate + buf,
             "fare_display":  f"Rs. {estimate} - Rs. {estimate + buf}",
-            "is_night":      night,
-            "surge":         round(surge_mult, 2)
+            "is_night":      night_active,
+            "surge":         round(surge_mult, 2),
+            "pet":           cfg.get("pet", False),
+            "rental":        cfg.get("rental", False),
+            "parcel":        cfg.get("parcel", False),
+            "book_any":      cfg.get("book_any", False),
+            "black":         cfg.get("black", False),
+            "saver":         cfg.get("saver", False),
+            "vtype":         cfg.get("vtype", "")
         }
 
     def get_all_fares_for_provider(self, provider_key: str, distance_km: float,
                                    duration_min: float, current_time: datetime = None,
                                    weather: str = "clear") -> list:
+        self._reload_config()
         provider_key = provider_key.lower()
         if provider_key not in self.providers:
             raise ValueError(f"Unknown provider '{provider_key}'")

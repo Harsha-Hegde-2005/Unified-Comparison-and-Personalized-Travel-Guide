@@ -38,19 +38,88 @@ def get_random_coord():
     }
 
 
-def calculate_spec_fare(base_fare, base_dist, per_km, per_min, min_fare,
-                        distance, duration, surge_multiplier):
-    """Reference implementation of the tariff formula in the spec."""
-    dist_charge = max(0.0, distance - base_dist) * per_km
-    dur_charge = duration * per_min
-    subtotal = base_fare + dist_charge + dur_charge
-    fare = max(subtotal, min_fare) * surge_multiplier
-    return round(fare)
+def calculate_spec_fare(cfg, distance, duration, current_time, weather, is_auto):
+    """Reference implementation of the updated tariff formula."""
+    base_fare = cfg.get("base_fare", 0.0)
+    base_dist = cfg.get("base_dist", 0.0)
+    per_km_rate = cfg.get("per_km", 0.0)
+    per_min_rate = cfg.get("per_min", 0.0)
+
+    billable_km = max(0.0, distance - base_dist)
+    distance_charge = round(billable_km * per_km_rate, 2)
+    duration_charge = round(duration * per_min_rate, 2)
+
+    waiting_charge = 0.0  # Default waiting time is 0.0 in calibration simulation
+
+    pre_surge_subtotal = round(base_fare + distance_charge + duration_charge + waiting_charge, 2)
+
+    # Surge Multiplier
+    time_minutes = current_time.hour * 60 + current_time.minute
+    delta_time = 0.0
+    if is_auto:
+        if time_minutes >= (22 * 60) or time_minutes < (5 * 60):
+            delta_time = 0.50
+    else:
+        if (8 * 60 + 30) <= time_minutes <= (10 * 60 + 30):
+            delta_time = 0.25
+        elif (17 * 60 + 30) <= time_minutes <= (20 * 60 + 30):
+            delta_time = 0.30
+        elif time_minutes >= (22 * 60) or time_minutes < (5 * 60):
+            delta_time = 0.50
+
+    delta_weather = 0.0
+    weather_lower = weather.lower()
+    if "light rain" in weather_lower or "drizzle" in weather_lower:
+        delta_weather = 0.15
+    elif "heavy rain" in weather_lower or "thunderstorm" in weather_lower:
+        delta_weather = 0.40
+    elif "storm" in weather_lower or "flood" in weather_lower:
+        delta_weather = 0.75
+
+    surge_mult = 1.0 + delta_time + delta_weather
+    surge_amount = round(pre_surge_subtotal * (surge_mult - 1.0), 2)
+
+    # Night Surcharge
+    night_cfg = cfg.get("night_charge")
+    night_active = False
+    night_mult = 1.0
+    if night_cfg and night_cfg.get("enabled", False):
+        start_hour = night_cfg.get("start_hour", 22)
+        end_hour = night_cfg.get("end_hour", 5)
+        hour = current_time.hour
+        if start_hour == end_hour:
+            night_active = False
+        elif start_hour < end_hour:
+            night_active = start_hour <= hour < end_hour
+        else:
+            night_active = hour >= start_hour or hour < end_hour
+
+        if night_active:
+            night_mult = night_cfg.get("multiplier", 1.0)
+
+    night_amount = round((pre_surge_subtotal + surge_amount) * (night_mult - 1.0), 2)
+
+    # Booking Fee
+    booking_fee = cfg.get("booking_fee", 0.0)
+
+    # Long Distance Surcharge
+    long_distance_cfg = cfg.get("long_distance")
+    long_distance_charge = 0.0
+    if long_distance_cfg:
+        threshold_km = long_distance_cfg.get("threshold_km", 0.0)
+        if distance > threshold_km:
+            long_distance_charge = long_distance_cfg.get("surcharge", 0.0)
+
+    # Total estimate
+    raw_total = round(pre_surge_subtotal + surge_amount + night_amount + booking_fee + long_distance_charge, 2)
+    min_fare = cfg.get("min_fare", 0.0)
+    estimate = max(raw_total, min_fare)
+    return round(estimate)
 
 
 def main():
     print("=" * 60)
-    print("UTRS CAB FARE ENGINE CALIBRATION & MAPE VALIDATION")
+    print("UTRS CAB FARE ENGINE CALIBRATION & MAPE VALIDATION (CALIBRATED)")
     print("=" * 60)
 
     # 1. Load engines
@@ -59,31 +128,6 @@ def main():
     distance_engine = DistanceEngine()
 
     print(f"Loaded providers: {list(fare_engine.providers.keys())}")
-
-    # Official spec parameter matrix
-    spec_tariffs = {
-        "namma_yatri": {
-            "auto": {"base_fare": 30.0, "base_dist": 2.0, "per_km": 15.0, "per_min": 0.0, "min_fare": 30.0},
-            "non_ac_cab": {"base_fare": 80.0, "base_dist": 4.0, "per_km": 18.0, "per_min": 1.0, "min_fare": 80.0},
-            "ac_cab": {"base_fare": 100.0, "base_dist": 4.0, "per_km": 21.0, "per_min": 1.2, "min_fare": 100.0}
-        },
-        "uber": {
-            "uber_auto": {"base_fare": 35.0, "base_dist": 1.5, "per_km": 16.5, "per_min": 0.0, "min_fare": 35.0},
-            "uber_go": {"base_fare": 85.0, "base_dist": 3.0, "per_km": 19.5, "per_min": 1.5, "min_fare": 85.0},
-            "uber_premier": {"base_fare": 110.0, "base_dist": 3.0, "per_km": 24.0, "per_min": 2.0, "min_fare": 110.0},
-            "uber_xl": {"base_fare": 150.0, "base_dist": 3.0, "per_km": 30.0, "per_min": 2.5, "min_fare": 150.0}
-        },
-        "ola": {
-            "ola_auto": {"base_fare": 35.0, "base_dist": 1.5, "per_km": 16.0, "per_min": 0.0, "min_fare": 35.0},
-            "ola_mini": {"base_fare": 90.0, "base_dist": 3.0, "per_km": 19.0, "per_min": 1.6, "min_fare": 90.0},
-            "ola_prime": {"base_fare": 115.0, "base_dist": 3.0, "per_km": 23.0, "per_min": 2.1, "min_fare": 115.0}
-        },
-        "rapido": {
-            "rapido_bike": {"base_fare": 20.0, "base_dist": 1.0, "per_km": 11.0, "per_min": 0.0, "min_fare": 20.0},
-            "rapido_auto": {"base_fare": 30.0, "base_dist": 1.5, "per_km": 15.5, "per_min": 0.0, "min_fare": 30.0},
-            "rapido_cab": {"base_fare": 80.0, "base_dist": 3.0, "per_km": 18.0, "per_min": 1.4, "min_fare": 80.0}
-        }
-    }
 
     # Weather levels and time categories to randomize over
     weathers = ["clear", "light rain", "heavy rain", "storm"]
@@ -117,28 +161,27 @@ def main():
         minute = random.randint(0, 59)
         trip_time = base_dt.replace(hour=hour, minute=minute)
 
-        for provider, vehicles in spec_tariffs.items():
-            for vehicle_key, spec_params in vehicles.items():
+        for provider_key, provider_cfg in fare_engine.providers.items():
+            for vehicle_key, vehicle_cfg in provider_cfg["vehicles"].items():
                 is_auto = "auto" in vehicle_key or "bike" in vehicle_key
-                surge = fare_engine.get_surge_multiplier(trip_time, weather, is_auto)
 
                 # 1. Expected fare from spec formula
                 expected = calculate_spec_fare(
-                    spec_params["base_fare"],
-                    spec_params["base_dist"],
-                    spec_params["per_km"],
-                    spec_params["per_min"],
-                    spec_params["min_fare"],
+                    vehicle_cfg,
                     dist_km,
                     dur_min,
-                    surge
+                    trip_time,
+                    weather,
+                    is_auto
                 )
 
                 # 2. Estimate from FareEngine
-                res = fare_engine.get_fare(provider, vehicle_key, dist_km, dur_min, trip_time, weather)
+                res = fare_engine.get_fare(provider_key, vehicle_key, dist_km, dur_min, trip_time, weather)
                 estimated = res["fare_min"]
 
                 # 3. Compute percentage error
+                if expected == 0:
+                    continue
                 absolute_pct_error = abs(expected - estimated) / expected
                 total_absolute_pct_error += absolute_pct_error
                 total_predictions += 1

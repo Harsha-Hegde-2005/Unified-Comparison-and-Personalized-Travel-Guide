@@ -135,3 +135,54 @@ class TestBmtcNewEndpoints:
         assert data["route"] == "356"
         assert data["stop_count"] > 0
         assert len(data["stops"]) > 0
+
+
+class TestCoordinateWalkRouting:
+    """Test coordinate-based inputs, nearest station mapping, walk segments, and Navigation URLs."""
+
+    def test_coordinate_stops_coords(self):
+        # Verify coordinates list input resolves directly
+        resp = client.post("/api/stops/coords", json={
+            "stops": ["12.8747, 77.6497", "Indiranagar"]
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "12.8747, 77.6497" in data["coordinates"]
+        coords = data["coordinates"]["12.8747, 77.6497"]
+        assert coords["lat"] == 12.8747
+        assert coords["lng"] == 77.6497
+
+    def test_metro_coordinate_routing(self):
+        # Coordinate to coordinate search
+        resp = client.post("/api/metro/plan", json={
+            "source": "12.8747, 77.6497",
+            "destination": "12.9667, 77.5667"
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["available"] is True
+        assert len(data["segments"]) >= 2
+        # Check first segment is a Walk
+        first_seg = data["segments"][0]
+        assert first_seg["type"] == "walk"
+        assert first_seg["from"] == "12.8747, 77.6497"
+        # Check guide step has nav_url
+        first_step = data["guide"][0]
+        assert first_step["icon"] == "walk"
+        assert "nav_url" in first_step
+        assert "google.com/maps" in first_step["nav_url"]
+
+    def test_bmtc_coordinate_routing(self):
+        # Coordinate to coordinate direct or transfer search
+        resp = client.post("/api/bmtc/plan", json={
+            "source": "12.8747, 77.6497",
+            "destination": "12.9176, 77.6234"
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["available"] is True
+        assert len(data["segments"]) >= 2
+        assert data["segments"][0]["type"] == "walk"
+        assert data["guide"][0]["icon"] == "walk"
+        assert "nav_url" in data["guide"][0]
+

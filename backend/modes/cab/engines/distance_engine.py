@@ -15,6 +15,13 @@ class DistanceEngine:
     Gracefully falls back from Google Maps to public OSRM, and then to Haversine.
     """
 
+    google_maps_disabled = False
+
+    def __init__(self):
+        # Instance-level cache so it resets cleanly on every server reload
+        self._cache = {}
+
+
     def get_distance(self, source_coords: dict, destination_coords: dict) -> dict:
         """
         Returns driving distance and duration.
@@ -22,11 +29,29 @@ class DistanceEngine:
         Returns:
             { "distance_km": 17.99, "duration_min": 22 }
         """
-        if GOOGLE_MAPS_KEY:
+        # Round coordinates to 5 decimals (approx. 1.1 meters) to avoid float mismatch in cache keys
+        cache_key = (
+            round(source_coords["latitude"], 5),
+            round(source_coords["longitude"], 5),
+            round(destination_coords["latitude"], 5),
+            round(destination_coords["longitude"], 5)
+        )
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        result = self._get_distance_raw(source_coords, destination_coords)
+        self._cache[cache_key] = result
+        return result
+
+    def _get_distance_raw(self, source_coords: dict, destination_coords: dict) -> dict:
+        if GOOGLE_MAPS_KEY and not DistanceEngine.google_maps_disabled:
             try:
                 return self._google(source_coords, destination_coords)
             except Exception as e:
                 print(f"Google Maps API failed: {e}. Falling back to OSRM.")
+                if "REQUEST_DENIED" in str(e) or "API key" in str(e) or "OVER_QUERY_LIMIT" in str(e):
+                    print("Google Maps API key is invalid or restricted. Disabling further Google Maps API requests.")
+                    DistanceEngine.google_maps_disabled = True
 
         try:
             return self._osrm(source_coords, destination_coords)

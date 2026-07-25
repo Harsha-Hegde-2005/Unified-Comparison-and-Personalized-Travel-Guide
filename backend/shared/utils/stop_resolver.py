@@ -2,16 +2,25 @@
 
 from typing import List, Optional
 
-# Prefix cleaning helper (strips CS- / CS prefixes)
 def clean_input_name(name: str) -> str:
     if not name or not isinstance(name, str):
         return ""
+    import re
+    # Remove parenthetical coordinates e.g. "Hebbal (12.8712, 77.6562)" -> "Hebbal"
+    name = re.sub(r"\s*\(\s*-?\d+\.?\d*\s*,\s*-?\d+\.?\d*\s*\)", "", name)
     name = name.strip()
     name_upper = name.upper()
     for prefix in ["CS-", "CS "]:
         if name_upper.startswith(prefix):
             name = name[len(prefix):].strip()
+            name_upper = name.upper()
             break
+            
+    # Strip common metro suffixes
+    for suffix in [" METRO STATION", " METRO"]:
+        if name_upper.endswith(suffix):
+            name = name[:-len(suffix)].strip()
+            name_upper = name.upper()
     return name
 
 # Mapping of synonyms/variations to canonical keys
@@ -84,6 +93,18 @@ HUB_MAPPINGS = {
     "konanakunte cross": {
         "metro": "Konanakunte Cross",
         "bmtc": "Konanakunte Cross",
+    },
+    "manyata": {
+        "bmtc": "Manyatha Tech Park",
+    },
+    "manyatha": {
+        "bmtc": "Manyatha Tech Park",
+    },
+    "manyata tech park": {
+        "bmtc": "Manyatha Tech Park",
+    },
+    "manyatha teck park": {
+        "bmtc": "Manyatha Tech Park",
     },
 }
 

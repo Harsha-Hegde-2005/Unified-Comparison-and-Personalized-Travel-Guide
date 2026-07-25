@@ -104,14 +104,17 @@ def test_api_chatbot_query_journey_time():
     assert "embedded_data" in data
 
 def test_api_chatbot_query_weather():
-    resp = client.post("/api/chatbot/query", json={
-        "message": "Will it rain at 4 pm today?"
-    })
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "text" in data
-    assert data["intent"] == "weather_query"
-    assert "rain" in data["text"].lower()
+    from unittest.mock import patch
+    with patch("weather_helper.get_realtime_weather", return_value="heavy rain"):
+        resp = client.post("/api/chatbot/query", json={
+            "message": "Will it rain at 4 pm today?"
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "text" in data
+        assert data["intent"] == "weather_query"
+        assert "rain" in data["text"].lower()
+
 
 def test_api_chatbot_query_bike_comparison():
     resp = client.post("/api/chatbot/query", json={
@@ -179,4 +182,112 @@ def test_api_chatbot_query_general_greetings():
     data = resp.json()
     assert data["intent"] == "general"
     assert "hello" in data["text"].lower() or "how can i help" in data["text"].lower()
+
+
+def test_chatbot_local_context_resolution():
+    engine = ChatbotEngine(bmtc_stops=["Majestic", "Indiranagar"], metro_stations=[])
+    
+    # Starting location clarification
+    history = [
+        {"sender": "user", "text": "how to go to Indiranagar"},
+        {"sender": "bot", "text": "Where are you starting your journey from?"}
+    ]
+    res = engine.resolve_context_from_history("Majestic", history)
+    assert res is not None
+    intent, params = res
+    assert intent == "journey_time"
+    assert params["source"] == "Majestic"
+    assert params["destination"] == "Indiranagar"
+    
+    # Destination location clarification
+    history2 = [
+        {"sender": "user", "text": "from Majestic how to travel?"},
+        {"sender": "bot", "text": "Where would you like to travel to?"}
+    ]
+    res2 = engine.resolve_context_from_history("Indiranagar", history2)
+    assert res2 is not None
+    intent2, params2 = res2
+    assert intent2 == "journey_time"
+    assert params2["source"] == "Majestic"
+    assert params2["destination"] == "Indiranagar"
+
+
+def test_api_chatbot_clarification_loop():
+    resp = client.post("/api/chatbot/query", json={
+        "message": "how to go to Indiranagar?"
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["intent"] == "clarification"
+    assert "starting" in data["text"].lower() or "where" in data["text"].lower()
+
+    resp2 = client.post("/api/chatbot/query", json={
+        "message": "I want to start from Majestic, how to travel?"
+    })
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["intent"] == "clarification"
+    assert "destination" in data2["text"].lower() or "want to go" in data2["text"].lower()
+
+
+def test_api_chatbot_history_context_integration():
+    history = [
+        {"sender": "user", "text": "how to go to Indiranagar"},
+        {"sender": "bot", "text": "Where are you starting your journey from?"}
+    ]
+    resp = client.post("/api/chatbot/query", json={
+        "message": "Majestic",
+        "history": history
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["intent"] in ("journey_time", "journey_cost")
+    assert "text" in data
+    assert data["parameters"]["source"] == "Majestic"
+    assert data["parameters"]["destination"] == "Indiranagar"
+
+
+def test_chatbot_landmark_and_mode_preference():
+    # Test case 1: metro timing preference from hosa road to majestic
+    resp = client.post("/api/chatbot/query", json={
+        "message": "when is next metro from hosa road to majestic?"
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["intent"] in ("journey_time", "journey_cost")
+    # Should select metro as embedded data
+    assert data["embedded_data"] is not None
+    assert data["embedded_data"]["mode"] == "metro"
+    assert "metro" in data["text"].lower()
+
+    # Test case 2: bus timing preference
+    resp = client.post("/api/chatbot/query", json={
+        "message": "at what time bus is there from hosa road to majestic?"
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["embedded_data"] is not None
+    assert data["embedded_data"]["mode"] == "bmtc"
+    assert "bus" in data["text"].lower()
+
+    # Test case 3: landmark geocoding (Lulu Mall)
+    resp = client.post("/api/chatbot/query", json={
+        "message": "how to go to lulu mall from majestic?"
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    # It should successfully geocode lulu mall and compute the route!
+    assert data["intent"] in ("journey_time", "journey_cost")
+    assert data["embedded_data"] is not None
+    assert data["parameters"]["destination"].lower() == "lulu mall"
+
+    # Test case 4: current location fallback geocoding
+    resp = client.post("/api/chatbot/query", json={
+        "message": "how can I go to Indiranagar from my current location?"
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["intent"] in ("journey_time", "journey_cost")
+    assert data["parameters"]["source"].lower() == "current location"
+    assert data["embedded_data"] is not None
 

@@ -21,28 +21,28 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 111-C_REV,20,Maharani College,12.97907,77.58511,maharani college
 111-C_REV,21,Cauvery Bhavana,12.97372,77.58157,cauvery bhavana
 111-C_REV,22,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-114-C_REV,1,Sultan palya,13.02654,77.60409,sultan palya
-114-C_REV,2,Ashwathkatte Sultanpalya,13.02459,77.60346,ashwathkatte sultanpalya
-114-C_REV,3,Sultanpalya Cross Pushpanjali Talkies,13.02211,77.60242,sultanpalya cross pushpanjali talkies
-114-C_REV,4,Dinnur Main Road,13.02395,77.5989,dinnur main road
-114-C_REV,5,HMT Layout R T Nagara,13.02465,77.59481,hmt layout r t nagara
-114-C_REV,6,RT Nagara Police Station,13.02424,77.59288,rt nagara police station
-114-C_REV,7,RTN Post Office,13.022,77.59251,rtn post office
-114-C_REV,8,Rahamathnagara,13.01755,77.5919,rahamathnagara
-114-C_REV,9,Matadahalli,13.01366,77.59365,matadahalli
-114-C_REV,10,C Q A L,13.01175,77.59331,c q a l
-114-C_REV,11,TV Tower,13.00978,77.59078,tv tower
-114-C_REV,12,Munireddy Palya J C Nagara,13.00676,77.59276,munireddy palya j c nagara
-114-C_REV,13,Jayamahal,13.00189,77.59448,jayamahal
-114-C_REV,14,Cantonment Railway Station,12.99384,77.59712,cantonment railway station
-114-C_REV,15,CSI Hospital,12.98983,77.59938,csi hospital
-114-C_REV,16,Cunningham Road,12.98787,77.59427,cunningham road
-114-C_REV,17,High Ground Police Station,12.98885,77.59222,high ground police station
-114-C_REV,18,Sophiya School,12.98573,77.58934,sophiya school
-114-C_REV,19,Telephone Exchange AGO/VSD,12.98219,77.58869,telephone exchange ago/vsd
-114-C_REV,20,Maharani College,12.97907,77.58511,maharani college
-114-C_REV,21,Cauvery Bhavana,12.97372,77.58157,cauvery bhavana
-114-C_REV,22,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+114-C_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+114-C_REV,2,Cauvery Bhavana,12.97372,77.58157,cauvery bhavana
+114-C_REV,3,Maharani College,12.97907,77.58511,maharani college
+114-C_REV,4,Telephone Exchange AGO/VSD,12.98219,77.58869,telephone exchange ago/vsd
+114-C_REV,5,Sophiya School,12.98573,77.58934,sophiya school
+114-C_REV,6,High Ground Police Station,12.98885,77.59222,high ground police station
+114-C_REV,7,Cunningham Road,12.98787,77.59427,cunningham road
+114-C_REV,8,CSI Hospital,12.98983,77.59938,csi hospital
+114-C_REV,9,Cantonment Railway Station,12.99384,77.59712,cantonment railway station
+114-C_REV,10,Jayamahal,13.00189,77.59448,jayamahal
+114-C_REV,11,Munireddy Palya J C Nagara,13.00676,77.59276,munireddy palya j c nagara
+114-C_REV,12,TV Tower,13.00978,77.59078,tv tower
+114-C_REV,13,C Q A L,13.01175,77.59331,c q a l
+114-C_REV,14,Matadahalli,13.01366,77.59365,matadahalli
+114-C_REV,15,Rahamathnagara,13.01755,77.5919,rahamathnagara
+114-C_REV,16,RTN Post Office,13.022,77.59251,rtn post office
+114-C_REV,17,RT Nagara Police Station,13.02424,77.59288,rt nagara police station
+114-C_REV,18,HMT Layout R T Nagara,13.02465,77.59481,hmt layout r t nagara
+114-C_REV,19,Dinnur Main Road,13.02395,77.5989,dinnur main road
+114-C_REV,20,Sultanpalya Cross Pushpanjali Talkies,13.02211,77.60242,sultanpalya cross pushpanjali talkies
+114-C_REV,21,Ashwathkatte Sultanpalya,13.02459,77.60346,ashwathkatte sultanpalya
+114-C_REV,22,Sultan palya,13.02654,77.60409,sultan palya
 13_REV,1,Banashankari Bus Station,12.91779,77.57272,banashankari bus station
 13_REV,2,Sangam Circle,12.91763,77.57733,sangam circle
 13_REV,3,Jayanagara 40th Cross,12.91991,77.58062,jayanagara 40th cross
@@ -88,28 +88,28 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 143_REV,8,Poornima Talkies,12.96101,77.58802,poornima talkies
 143_REV,9,Town Hall,12.96355,77.58375,town hall
 143_REV,10,KR Market,12.9641,77.57897,kr market
-171-G_REV,1,Koramangala 1st Block,12.9249,77.63458,koramangala 1st block
-171-G_REV,2,Wipro Park Koramangala,12.92897,77.63319,wipro park koramangala
-171-G_REV,3,Maharaja Signal,12.93427,77.62983,maharaja signal
-171-G_REV,4,Sony World 80ft Road Koramangala,12.93782,77.62639,sony world 80ft road koramangala
-171-G_REV,5,Koramangala Bus Station,12.9405,77.62479,koramangala bus station
-171-G_REV,6,Koramangala Police Station,12.94172,77.62179,koramangala police station
-171-G_REV,7,Kalyana Mantapa Koramangala,12.93727,77.61845,kalyana mantapa koramangala
-171-G_REV,8,Jyothi Nivas College,12.93542,77.61453,jyothi nivas college
-171-G_REV,9,Koramangala Forum Mall,12.93486,77.61195,koramangala forum mall
-171-G_REV,10,Adugodi Police Station,12.93897,77.60976,adugodi police station
-171-G_REV,11,Adugodi,12.94397,77.60748,adugodi
-171-G_REV,12,MICO Gate Adugodi,12.94399,77.60532,mico gate adugodi
-171-G_REV,13,MICO Factory Junction,12.94453,77.60276,mico factory junction
-171-G_REV,14,Wilson Garden 14th Main,12.94659,77.60052,wilson garden 14th main
-171-G_REV,15,Wilson Garden 10th Cross,12.94752,77.59831,wilson garden 10th cross
-171-G_REV,16,Wilson Garden Police Station,12.95064,77.59558,wilson garden police station
-171-G_REV,17,Shanthinagara Bus Station,12.95483,77.59235,shanthinagara bus station
-171-G_REV,18,KH Road,12.95815,77.59299,kh road
-171-G_REV,19,Pallavi Talkies,12.9679,77.59102,pallavi talkies
-171-G_REV,20,Corporation,12.96839,77.58675,corporation
-171-G_REV,21,Mysore Bank,12.97253,77.58199,mysore bank
-171-G_REV,22,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+171-G_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+171-G_REV,2,Mysore Bank,12.97253,77.58199,mysore bank
+171-G_REV,3,Corporation,12.96839,77.58675,corporation
+171-G_REV,4,Pallavi Talkies,12.9679,77.59102,pallavi talkies
+171-G_REV,5,KH Road,12.95815,77.59299,kh road
+171-G_REV,6,Shanthinagara Bus Station,12.95483,77.59235,shanthinagara bus station
+171-G_REV,7,Wilson Garden Police Station,12.95064,77.59558,wilson garden police station
+171-G_REV,8,Wilson Garden 10th Cross,12.94752,77.59831,wilson garden 10th cross
+171-G_REV,9,Wilson Garden 14th Main,12.94659,77.60052,wilson garden 14th main
+171-G_REV,10,MICO Factory Junction,12.94453,77.60276,mico factory junction
+171-G_REV,11,MICO Gate Adugodi,12.94399,77.60532,mico gate adugodi
+171-G_REV,12,Adugodi,12.94397,77.60748,adugodi
+171-G_REV,13,Adugodi Police Station,12.93897,77.60976,adugodi police station
+171-G_REV,14,Koramangala Forum Mall,12.93486,77.61195,koramangala forum mall
+171-G_REV,15,Jyothi Nivas College,12.93542,77.61453,jyothi nivas college
+171-G_REV,16,Kalyana Mantapa Koramangala,12.93727,77.61845,kalyana mantapa koramangala
+171-G_REV,17,Koramangala Police Station,12.94172,77.62179,koramangala police station
+171-G_REV,18,Koramangala Bus Station,12.9405,77.62479,koramangala bus station
+171-G_REV,19,Sony World 80ft Road Koramangala,12.93782,77.62639,sony world 80ft road koramangala
+171-G_REV,20,Maharaja Signal,12.93427,77.62983,maharaja signal
+171-G_REV,21,Wipro Park Koramangala,12.92897,77.63319,wipro park koramangala
+171-G_REV,22,Koramangala 1st Block,12.9249,77.63458,koramangala 1st block
 176_REV,1,Kaval Byrasandra,13.01974,77.60769,kaval byrasandra
 176_REV,2,P and T Quarters,13.0215,77.6046,p and t quarters
 176_REV,3,Sultanpalya Cross Pushpanjali Talkies,13.02211,77.60242,sultanpalya cross pushpanjali talkies
@@ -270,45 +270,45 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 211_REV,37,JP Nagara Metro Station,12.90795,77.57299,jp nagara metro station
 211_REV,38,Sarakki,12.90966,77.57288,sarakki
 211_REV,39,Banashankari Bus Station,12.91779,77.57272,banashankari bus station
-213-B_REV,1,Gundanjaneya Swamy Temple Ravagodlu,12.74957,77.51291,gundanjaneya swamy temple ravagodlu
-213-B_REV,2,Ravagodlu,12.74814,77.50117,ravagodlu
-213-B_REV,3,Ravagodlu Gate,12.74895,77.48633,ravagodlu gate
-213-B_REV,4,Bolare Gate,12.75414,77.48453,bolare gate
-213-B_REV,5,Nettigere Cross,12.76129,77.48658,nettigere cross
-213-B_REV,6,Sadhanapalya Gate,12.76801,77.48864,sadhanapalya gate
-213-B_REV,7,Hosa Doddy Gate,12.76459,77.48742,hosa doddy gate
-213-B_REV,8,Nelagulli Cross,12.77409,77.49217,nelagulli cross
-213-B_REV,9,Somanahalli Gate,12.78052,77.49675,somanahalli gate
-213-B_REV,10,APS College,12.78266,77.49952,aps college
-213-B_REV,11,Gandhi Nagara,12.79003,77.50442,gandhi nagara
-213-B_REV,12,Pattareddypalya,12.79444,77.50537,pattareddypalya
-213-B_REV,13,Kaggalipura,12.80032,77.5084,kaggalipura
-213-B_REV,14,Santekatte,12.80664,77.51056,santekatte
-213-B_REV,15,Saluhunase,12.81079,77.51148,saluhunase
-213-B_REV,16,Udayapura,12.81303,77.51202,udayapura
-213-B_REV,17,Udipalya,12.82017,77.51331,udipalya
-213-B_REV,18,Art Of Living,12.82261,77.5141,art of living
-213-B_REV,19,Dayananda Sagar Vidya Samste,12.82479,77.51377,dayananda sagar vidya samste
+213-B_REV,1,Banashankari Bus Station,12.91736,77.5727,banashankari bus station
+213-B_REV,2,Sarakki,12.90966,77.57288,sarakki
+213-B_REV,3,Jaraganahalli Cross,12.90142,77.57331,jaraganahalli cross
+213-B_REV,4,Yalachenahalli,12.89768,77.57145,yalachenahalli
+213-B_REV,5,Metro,12.89312,77.56718,metro
+213-B_REV,6,Konanakunte Cross,12.89058,77.56442,konanakunte cross
+213-B_REV,7,Doddakallasandra,12.88596,77.55671,doddakallasandra
+213-B_REV,8,Raghuvanahalli Cross,12.88072,77.54602,raghuvanahalli cross
+213-B_REV,9,Bayyanapalya,12.87554,77.54355,bayyanapalya
+213-B_REV,10,Thalagattapura,12.86958,77.53685,thalagattapura
+213-B_REV,11,Vajramuneshwara Gate,12.86483,77.53314,vajramuneshwara gate
+213-B_REV,12,Jyothi Farm,12.85983,77.52876,jyothi farm
+213-B_REV,13,NICE Road Kanakapura Road Junction,12.85691,77.52659,nice road kanakapura road junction
+213-B_REV,14,Chinnayyanapalya Silk Farm,12.85375,77.52338,chinnayyanapalya silk farm
+213-B_REV,15,Agara Cross,12.84899,77.52207,agara cross
+213-B_REV,16,Kuppareddy Kere,12.84267,77.5177,kuppareddy kere
+213-B_REV,17,Shanimahathma Temple,12.83704,77.51601,shanimahathma temple
+213-B_REV,18,Lakshmipura,12.83307,77.51365,lakshmipura
+213-B_REV,19,Saalu Doddy,12.8306,77.513,saalu doddy
 213-B_REV,20,Art Of Living Ravishankar Ashram,12.82863,77.51255,art of living ravishankar ashram
-213-B_REV,21,Saalu Doddy,12.8306,77.513,saalu doddy
-213-B_REV,22,Lakshmipura,12.83307,77.51365,lakshmipura
-213-B_REV,23,Shanimahathma Temple,12.83704,77.51601,shanimahathma temple
-213-B_REV,24,Kuppareddy Kere,12.84267,77.5177,kuppareddy kere
-213-B_REV,25,Agara Cross,12.84899,77.52207,agara cross
-213-B_REV,26,Chinnayyanapalya Silk Farm,12.85375,77.52338,chinnayyanapalya silk farm
-213-B_REV,27,NICE Road Kanakapura Road Junction,12.85691,77.52659,nice road kanakapura road junction
-213-B_REV,28,Jyothi Farm,12.85983,77.52876,jyothi farm
-213-B_REV,29,Vajramuneshwara Gate,12.86483,77.53314,vajramuneshwara gate
-213-B_REV,30,Thalagattapura,12.86958,77.53685,thalagattapura
-213-B_REV,31,Bayyanapalya,12.87554,77.54355,bayyanapalya
-213-B_REV,32,Raghuvanahalli Cross,12.88072,77.54602,raghuvanahalli cross
-213-B_REV,33,Doddakallasandra,12.88596,77.55671,doddakallasandra
-213-B_REV,34,Konanakunte Cross,12.89058,77.56442,konanakunte cross
-213-B_REV,35,Metro,12.89312,77.56718,metro
-213-B_REV,36,Yalachenahalli,12.89768,77.57145,yalachenahalli
-213-B_REV,37,Jaraganahalli Cross,12.90142,77.57331,jaraganahalli cross
-213-B_REV,38,Sarakki,12.90966,77.57288,sarakki
-213-B_REV,39,Banashankari Bus Station,12.91736,77.5727,banashankari bus station
+213-B_REV,21,Dayananda Sagar Vidya Samste,12.82479,77.51377,dayananda sagar vidya samste
+213-B_REV,22,Art Of Living,12.82261,77.5141,art of living
+213-B_REV,23,Udipalya,12.82017,77.51331,udipalya
+213-B_REV,24,Udayapura,12.81303,77.51202,udayapura
+213-B_REV,25,Saluhunase,12.81079,77.51148,saluhunase
+213-B_REV,26,Santekatte,12.80664,77.51056,santekatte
+213-B_REV,27,Kaggalipura,12.80032,77.5084,kaggalipura
+213-B_REV,28,Pattareddypalya,12.79444,77.50537,pattareddypalya
+213-B_REV,29,Gandhi Nagara,12.79003,77.50442,gandhi nagara
+213-B_REV,30,APS College,12.78266,77.49952,aps college
+213-B_REV,31,Somanahalli Gate,12.78052,77.49675,somanahalli gate
+213-B_REV,32,Nelagulli Cross,12.77409,77.49217,nelagulli cross
+213-B_REV,33,Hosa Doddy Gate,12.76459,77.48742,hosa doddy gate
+213-B_REV,34,Sadhanapalya Gate,12.76801,77.48864,sadhanapalya gate
+213-B_REV,35,Nettigere Cross,12.76129,77.48658,nettigere cross
+213-B_REV,36,Bolare Gate,12.75414,77.48453,bolare gate
+213-B_REV,37,Ravagodlu Gate,12.74895,77.48633,ravagodlu gate
+213-B_REV,38,Ravagodlu,12.74814,77.50117,ravagodlu
+213-B_REV,39,Gundanjaneya Swamy Temple Ravagodlu,12.74957,77.51291,gundanjaneya swamy temple ravagodlu
 214-H_REV,1,Gullahatti Kaval,12.72968,77.547,gullahatti kaval
 214-H_REV,2,Muni Nagara,12.74811,77.53654,muni nagara
 214-H_REV,3,Yanasandra,12.75181,77.53479,yanasandra
@@ -461,97 +461,97 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 223-E SBS-RMS_REV,20,BHEL,12.94874,77.53559,bhel
 223-E SBS-RMS_REV,21,Deepanjalinagara,12.9514,77.53724,deepanjalinagara
 223-E SBS-RMS_REV,22,Bapujinagara,12.95321,77.54182,bapujinagara
-234-A_REV,1,Ullala Satelite Town,12.96283,77.47502,ullala satelite town
-234-A_REV,2,Ullala Satellite Town Cross,12.96215,77.47858,ullala satellite town cross
-234-A_REV,3,Ullala Lake,12.95874,77.47942,ullala lake
-234-A_REV,4,Ullalu Village,12.95591,77.48012,ullalu village
-234-A_REV,5,Manganahalli Cross,12.95265,77.48418,manganahalli cross
-234-A_REV,6,Vidyaniketan Public School,12.95118,77.48631,vidyaniketan public school
-234-A_REV,7,Amma Ashrama Cross,12.94958,77.48867,amma ashrama cross
-234-A_REV,8,Press Layout,12.9509,77.4918,press layout
-234-A_REV,9,Muneshwara Layout,12.95129,77.49417,muneshwara layout
-234-A_REV,10,Bengaluru University Quarters,12.95195,77.50025,bengaluru university quarters
-234-A_REV,11,BUC ADM Block,12.95005,77.50086,buc adm block
-234-A_REV,12,BUC Library,12.94439,77.50435,buc library
-234-A_REV,13,BUC Ladies Hostel,12.94187,77.50602,buc ladies hostel
+234-A_REV,1,KR Market (Kalasipalya),12.96154,77.57736,kr market (kalasipalya)
+234-A_REV,2,Rayan Circle,12.96136,77.56889,rayan circle
+234-A_REV,3,Vinayaka Talkies,12.96381,77.56838,vinayaka talkies
+234-A_REV,4,Sirsi Circle,12.96038,77.55686,sirsi circle
+234-A_REV,5,Mysore Road TollGate,12.95738,77.55178,mysore road tollgate
+234-A_REV,6,New Guddadahalli,12.95587,77.54596,new guddadahalli
+234-A_REV,7,Bapujinagara,12.95321,77.54182,bapujinagara
+234-A_REV,8,Deepanjalinagara,12.9514,77.53724,deepanjalinagara
+234-A_REV,9,BHEL,12.94874,77.53559,bhel
+234-A_REV,10,Mysore Road Metro Station,12.94633,77.52972,mysore road metro station
+234-A_REV,11,Nayandahalli,12.94288,77.52576,nayandahalli
+234-A_REV,12,BWSSB Quarters Nayandahalli,12.93987,77.5236,bwssb quarters nayandahalli
+234-A_REV,13,Rajarajeshwari nagara Gate,12.93649,77.51861,rajarajeshwari nagara gate
 234-A_REV,14,Bengaluru University Gate,12.93573,77.51332,bengaluru university gate
-234-A_REV,15,Rajarajeshwari nagara Gate,12.93649,77.51861,rajarajeshwari nagara gate
-234-A_REV,16,BWSSB Quarters Nayandahalli,12.93987,77.5236,bwssb quarters nayandahalli
-234-A_REV,17,Nayandahalli,12.94288,77.52576,nayandahalli
-234-A_REV,18,Mysore Road Metro Station,12.94633,77.52972,mysore road metro station
-234-A_REV,19,BHEL,12.94874,77.53559,bhel
-234-A_REV,20,Deepanjalinagara,12.9514,77.53724,deepanjalinagara
-234-A_REV,21,Bapujinagara,12.95321,77.54182,bapujinagara
-234-A_REV,22,New Guddadahalli,12.95587,77.54596,new guddadahalli
-234-A_REV,23,Mysore Road TollGate,12.95738,77.55178,mysore road tollgate
-234-A_REV,24,Sirsi Circle,12.96038,77.55686,sirsi circle
-234-A_REV,25,Vinayaka Talkies,12.96381,77.56838,vinayaka talkies
-234-A_REV,26,Rayan Circle,12.96136,77.56889,rayan circle
-234-A_REV,27,KR Market (Kalasipalya),12.96154,77.57736,kr market (kalasipalya)
-238-U_REV,1,Muddayanapalya Junction,12.97138,77.48809,muddayanapalya junction
-238-U_REV,2,Annapoorneshwarinagara Cross,12.97002,77.49658,annapoorneshwarinagara cross
-238-U_REV,3,Nagarabhavi Vishweshwaraiah Sports Club,12.96913,77.49957,nagarabhavi vishweshwaraiah sports club
-238-U_REV,4,ITI Layout,12.9679,77.50217,iti layout
-238-U_REV,5,Deepa Complex,12.96636,77.50508,deepa complex
-238-U_REV,6,Ambedkar Institute of Technology,12.96338,77.50515,ambedkar institute of technology
-238-U_REV,7,Kengunte Circle,12.96045,77.50473,kengunte circle
-238-U_REV,8,Vinayaka Layout Nagarabhavi,12.96076,77.50745,vinayaka layout nagarabhavi
-238-U_REV,9,NGEF Layout Nagarabhavi,12.96104,77.50972,ngef layout nagarabhavi
-238-U_REV,10,12th Block Nagarabhavi,12.96076,77.51351,12th block nagarabhavi
-238-U_REV,11,Manasa Nagara,12.95925,77.51674,manasa nagara
-238-U_REV,12,Nagarabhavi Circle,12.9601,77.51982,nagarabhavi circle
-238-U_REV,13,Maruthi Nagara,12.96178,77.5217,maruthi nagara
-238-U_REV,14,Byraveshwaranagara,12.96501,77.52338,byraveshwaranagara
-238-U_REV,15,Kalyananagara,12.96736,77.52379,kalyananagara
+234-A_REV,15,BUC Ladies Hostel,12.94187,77.50602,buc ladies hostel
+234-A_REV,16,BUC Library,12.94439,77.50435,buc library
+234-A_REV,17,BUC ADM Block,12.95005,77.50086,buc adm block
+234-A_REV,18,Bengaluru University Quarters,12.95195,77.50025,bengaluru university quarters
+234-A_REV,19,Muneshwara Layout,12.95129,77.49417,muneshwara layout
+234-A_REV,20,Press Layout,12.9509,77.4918,press layout
+234-A_REV,21,Amma Ashrama Cross,12.94958,77.48867,amma ashrama cross
+234-A_REV,22,Vidyaniketan Public School,12.95118,77.48631,vidyaniketan public school
+234-A_REV,23,Manganahalli Cross,12.95265,77.48418,manganahalli cross
+234-A_REV,24,Ullalu Village,12.95591,77.48012,ullalu village
+234-A_REV,25,Ullala Lake,12.95874,77.47942,ullala lake
+234-A_REV,26,Ullala Satellite Town Cross,12.96215,77.47858,ullala satellite town cross
+234-A_REV,27,Ullala Satelite Town,12.96283,77.47502,ullala satelite town
+238-U_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+238-U_REV,2,Okalipura,12.98267,77.56837,okalipura
+238-U_REV,3,Minerva Mill,12.97945,77.56435,minerva mill
+238-U_REV,4,1st Cross Magadi Road,12.97569,77.5628,1st cross magadi road
+238-U_REV,5,5th Cross Magadi Road,12.97578,77.56071,5th cross magadi road
+238-U_REV,6,10th Cross Magadi Road,12.97574,77.55706,10th cross magadi road
+238-U_REV,7,Magadi Road Metro Station,12.97562,77.55479,magadi road metro station
+238-U_REV,8,Prasanna Theatre,12.97542,77.55288,prasanna theatre
+238-U_REV,9,Magadi Road TollGate,12.97459,77.54897,magadi road tollgate
+238-U_REV,10,Manuvana,12.97431,77.54454,manuvana
+238-U_REV,11,Vijayanagara,12.97433,77.53843,vijayanagara
+238-U_REV,12,Govindarajanagara,12.97561,77.53646,govindarajanagara
+238-U_REV,13,Prashanth Nagara,12.97551,77.53118,prashanth nagara
+238-U_REV,14,Saraswathi Nagara,12.9738,77.53041,saraswathi nagara
+238-U_REV,15,Priyadarshini Layout,12.97112,77.52676,priyadarshini layout
 238-U_REV,16,Moodalapalya,12.97054,77.5249,moodalapalya
-238-U_REV,17,Priyadarshini Layout,12.97112,77.52676,priyadarshini layout
-238-U_REV,18,Saraswathi Nagara,12.9738,77.53041,saraswathi nagara
-238-U_REV,19,Prashanth Nagara,12.97551,77.53118,prashanth nagara
-238-U_REV,20,Govindarajanagara,12.97561,77.53646,govindarajanagara
-238-U_REV,21,Vijayanagara,12.97433,77.53843,vijayanagara
-238-U_REV,22,Manuvana,12.97431,77.54454,manuvana
-238-U_REV,23,Magadi Road TollGate,12.97459,77.54897,magadi road tollgate
-238-U_REV,24,Prasanna Theatre,12.97542,77.55288,prasanna theatre
-238-U_REV,25,Magadi Road Metro Station,12.97562,77.55479,magadi road metro station
-238-U_REV,26,10th Cross Magadi Road,12.97574,77.55706,10th cross magadi road
-238-U_REV,27,5th Cross Magadi Road,12.97578,77.56071,5th cross magadi road
-238-U_REV,28,1st Cross Magadi Road,12.97569,77.5628,1st cross magadi road
-238-U_REV,29,Minerva Mill,12.97945,77.56435,minerva mill
-238-U_REV,30,Okalipura,12.98267,77.56837,okalipura
-238-U_REV,31,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-238-US_REV,1,Srigandhada Kaval,12.97868,77.50174,srigandhada kaval
-238-US_REV,2,D Group Employees Layout Srigandhada Kaval,12.97808,77.49874,d group employees layout srigandhada kaval
-238-US_REV,3,Annapoorneshwarinagara Water Tank,12.97196,77.49702,annapoorneshwarinagara water tank
-238-US_REV,4,Annapoorneshwarinagara Cross,12.97002,77.49658,annapoorneshwarinagara cross
-238-US_REV,5,Nagarabhavi Vishweshwaraiah Sports Club,12.96913,77.49957,nagarabhavi vishweshwaraiah sports club
-238-US_REV,6,ITI Layout,12.9679,77.50217,iti layout
-238-US_REV,7,Deepa Complex,12.96636,77.50508,deepa complex
-238-US_REV,8,Ambedkar Institute of Technology,12.96338,77.50515,ambedkar institute of technology
-238-US_REV,9,Kengunte Circle,12.96045,77.50473,kengunte circle
-238-US_REV,10,Vinayaka Layout Nagarabhavi,12.96076,77.50745,vinayaka layout nagarabhavi
-238-US_REV,11,NGEF Layout Nagarabhavi,12.96104,77.50972,ngef layout nagarabhavi
-238-US_REV,12,12th Block Nagarabhavi,12.96076,77.51351,12th block nagarabhavi
-238-US_REV,13,Manasa Nagara,12.95925,77.51674,manasa nagara
-238-US_REV,14,Nagarabhavi Circle,12.9601,77.51982,nagarabhavi circle
-238-US_REV,15,Maruthi Nagara,12.96178,77.5217,maruthi nagara
-238-US_REV,16,Byraveshwaranagara,12.96501,77.52338,byraveshwaranagara
+238-U_REV,17,Kalyananagara,12.96736,77.52379,kalyananagara
+238-U_REV,18,Byraveshwaranagara,12.96501,77.52338,byraveshwaranagara
+238-U_REV,19,Maruthi Nagara,12.96178,77.5217,maruthi nagara
+238-U_REV,20,Nagarabhavi Circle,12.9601,77.51982,nagarabhavi circle
+238-U_REV,21,Manasa Nagara,12.95925,77.51674,manasa nagara
+238-U_REV,22,12th Block Nagarabhavi,12.96076,77.51351,12th block nagarabhavi
+238-U_REV,23,NGEF Layout Nagarabhavi,12.96104,77.50972,ngef layout nagarabhavi
+238-U_REV,24,Vinayaka Layout Nagarabhavi,12.96076,77.50745,vinayaka layout nagarabhavi
+238-U_REV,25,Kengunte Circle,12.96045,77.50473,kengunte circle
+238-U_REV,26,Ambedkar Institute of Technology,12.96338,77.50515,ambedkar institute of technology
+238-U_REV,27,Deepa Complex,12.96636,77.50508,deepa complex
+238-U_REV,28,ITI Layout,12.9679,77.50217,iti layout
+238-U_REV,29,Nagarabhavi Vishweshwaraiah Sports Club,12.96913,77.49957,nagarabhavi vishweshwaraiah sports club
+238-U_REV,30,Annapoorneshwarinagara Cross,12.97002,77.49658,annapoorneshwarinagara cross
+238-U_REV,31,Muddayanapalya Junction,12.97138,77.48809,muddayanapalya junction
+238-US_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+238-US_REV,2,Okalipura,12.98267,77.56837,okalipura
+238-US_REV,3,Minerva Mill,12.97945,77.56435,minerva mill
+238-US_REV,4,1st Cross Magadi Road,12.97569,77.5628,1st cross magadi road
+238-US_REV,5,5th Cross Magadi Road,12.97578,77.56071,5th cross magadi road
+238-US_REV,6,10th Cross Magadi Road,12.97574,77.55706,10th cross magadi road
+238-US_REV,7,Magadi Road Metro Station,12.97562,77.55479,magadi road metro station
+238-US_REV,8,Prasanna Theatre,12.97542,77.55288,prasanna theatre
+238-US_REV,9,Magadi Road TollGate,12.97459,77.54897,magadi road tollgate
+238-US_REV,10,Manuvana,12.97431,77.54454,manuvana
+238-US_REV,11,Vijayanagara,12.97433,77.53843,vijayanagara
+238-US_REV,12,Govindarajanagara,12.97561,77.53646,govindarajanagara
+238-US_REV,13,Prashanth Nagara,12.97551,77.53118,prashanth nagara
+238-US_REV,14,Saraswathi Nagara,12.9738,77.53041,saraswathi nagara
+238-US_REV,15,Priyadarshini Layout,12.97112,77.52676,priyadarshini layout
+238-US_REV,16,Moodalapalya,12.97054,77.5249,moodalapalya
 238-US_REV,17,Kalyananagara,12.96736,77.52379,kalyananagara
-238-US_REV,18,Moodalapalya,12.97054,77.5249,moodalapalya
-238-US_REV,19,Priyadarshini Layout,12.97112,77.52676,priyadarshini layout
-238-US_REV,20,Saraswathi Nagara,12.9738,77.53041,saraswathi nagara
-238-US_REV,21,Prashanth Nagara,12.97551,77.53118,prashanth nagara
-238-US_REV,22,Govindarajanagara,12.97561,77.53646,govindarajanagara
-238-US_REV,23,Vijayanagara,12.97433,77.53843,vijayanagara
-238-US_REV,24,Manuvana,12.97431,77.54454,manuvana
-238-US_REV,25,Magadi Road TollGate,12.97459,77.54897,magadi road tollgate
-238-US_REV,26,Prasanna Theatre,12.97542,77.55288,prasanna theatre
-238-US_REV,27,Magadi Road Metro Station,12.97562,77.55479,magadi road metro station
-238-US_REV,28,10th Cross Magadi Road,12.97574,77.55706,10th cross magadi road
-238-US_REV,29,5th Cross Magadi Road,12.97578,77.56071,5th cross magadi road
-238-US_REV,30,1st Cross Magadi Road,12.97569,77.5628,1st cross magadi road
-238-US_REV,31,Minerva Mill,12.97945,77.56435,minerva mill
-238-US_REV,32,Okalipura,12.98267,77.56837,okalipura
-238-US_REV,33,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+238-US_REV,18,Byraveshwaranagara,12.96501,77.52338,byraveshwaranagara
+238-US_REV,19,Maruthi Nagara,12.96178,77.5217,maruthi nagara
+238-US_REV,20,Nagarabhavi Circle,12.9601,77.51982,nagarabhavi circle
+238-US_REV,21,Manasa Nagara,12.95925,77.51674,manasa nagara
+238-US_REV,22,12th Block Nagarabhavi,12.96076,77.51351,12th block nagarabhavi
+238-US_REV,23,NGEF Layout Nagarabhavi,12.96104,77.50972,ngef layout nagarabhavi
+238-US_REV,24,Vinayaka Layout Nagarabhavi,12.96076,77.50745,vinayaka layout nagarabhavi
+238-US_REV,25,Kengunte Circle,12.96045,77.50473,kengunte circle
+238-US_REV,26,Ambedkar Institute of Technology,12.96338,77.50515,ambedkar institute of technology
+238-US_REV,27,Deepa Complex,12.96636,77.50508,deepa complex
+238-US_REV,28,ITI Layout,12.9679,77.50217,iti layout
+238-US_REV,29,Nagarabhavi Vishweshwaraiah Sports Club,12.96913,77.49957,nagarabhavi vishweshwaraiah sports club
+238-US_REV,30,Annapoorneshwarinagara Cross,12.97002,77.49658,annapoorneshwarinagara cross
+238-US_REV,31,Annapoorneshwarinagara Water Tank,12.97196,77.49702,annapoorneshwarinagara water tank
+238-US_REV,32,D Group Employees Layout Srigandhada Kaval,12.97808,77.49874,d group employees layout srigandhada kaval
+238-US_REV,33,Srigandhada Kaval,12.97868,77.50174,srigandhada kaval
 240-J_REV,1,Tavarekere,12.9658,77.40008,tavarekere
 240-J_REV,2,Ganesha Temple Tavarekere,12.96708,77.40326,ganesha temple tavarekere
 240-J_REV,3,Lakkuppe,12.97004,77.40989,lakkuppe
@@ -591,111 +591,111 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 240-J_REV,37,Vinayaka Talkies,12.96381,77.56838,vinayaka talkies
 240-J_REV,38,Rayan Circle,12.96136,77.56889,rayan circle
 240-J_REV,39,KR Market (Kalasipalya),12.96154,77.57736,kr market (kalasipalya)
-240-MA_REV,1,Magadi,12.95484,77.22693,magadi
-240-MA_REV,2,Hombalamma Kere,12.95205,77.22752,hombalamma kere
-240-MA_REV,3,Hosapete Gate,12.95118,77.23744,hosapete gate
-240-MA_REV,4,Thirumala Gate,12.95118,77.2404,thirumala gate
-240-MA_REV,5,Ranganathpura,12.95115,77.24165,ranganathpura
-240-MA_REV,6,Jyothipura,12.94389,77.25141,jyothipura
-240-MA_REV,7,Thandya,12.9459,77.26576,thandya
-240-MA_REV,8,Maralugondla Cross,12.94737,77.27127,maralugondla cross
-240-MA_REV,9,Chikka Thogurupalya,12.9562,77.28287,chikka thogurupalya
-240-MA_REV,10,Thagachaguppe,12.95987,77.29018,thagachaguppe
-240-MA_REV,11,Dudapanahalli,12.96021,77.29614,dudapanahalli
-240-MA_REV,12,Bachenahatti,12.955,77.30395,bachenahatti
-240-MA_REV,13,Adakamaranahalli Cross (Magadi Road),12.95436,77.30902,adakamaranahalli cross (magadi road)
-240-MA_REV,14,Varadenahalli Handpost,12.95539,77.31192,varadenahalli handpost
-240-MA_REV,15,Shanubhoganahalli,12.96136,77.32491,shanubhoganahalli
-240-MA_REV,16,TG Halli Quarters,12.95244,77.33529,tg halli quarters
-240-MA_REV,17,TB Gate Thippagondanahalli,12.96245,77.34291,tb gate thippagondanahalli
-240-MA_REV,18,Gangappanahalli,12.95872,77.35111,gangappanahalli
-240-MA_REV,19,Cholanayakanahalli,12.96021,77.35949,cholanayakanahalli
-240-MA_REV,20,Marenahalli,12.97325,77.36164,marenahalli
-240-MA_REV,21,RINAC Factory Marenahalli,12.97478,77.36582,rinac factory marenahalli
-240-MA_REV,22,Karekal Cross,12.97391,77.37388,karekal cross
-240-MA_REV,23,Deva Machohalli Cross,12.96552,77.3811,deva machohalli cross
-240-MA_REV,24,Peddanapalya Cross,12.96762,77.38862,peddanapalya cross
-240-MA_REV,25,Tavarekere,12.9658,77.40008,tavarekere
-240-MA_REV,26,Ganesha Temple Tavarekere,12.96708,77.40326,ganesha temple tavarekere
-240-MA_REV,27,Lakkuppe,12.97004,77.40989,lakkuppe
-240-MA_REV,28,Channadasipalya,12.97091,77.4147,channadasipalya
-240-MA_REV,29,Honaganahatti,12.97421,77.42097,honaganahatti
-240-MA_REV,30,Channenahalli,12.97791,77.43037,channenahalli
-240-MA_REV,31,Channenahalli Arch,12.97987,77.43545,channenahalli arch
-240-MA_REV,32,Hamsa Farm,12.98175,77.43952,hamsa farm
-240-MA_REV,33,Seegehalli Gate,12.98408,77.44376,seegehalli gate
-240-MA_REV,34,Kadabagere Cross,12.98912,77.44947,kadabagere cross
-240-MA_REV,35,Machohalli Gate,12.99088,77.45429,machohalli gate
-240-MA_REV,36,Forest Gate,12.99185,77.45952,forest gate
-240-MA_REV,37,Chikka Gollarahatti,12.99147,77.46559,chikka gollarahatti
-240-MA_REV,38,Kachohalli Gate,12.99056,77.46871,kachohalli gate
-240-MA_REV,39,Gollarahatti,12.98862,77.47274,gollarahatti
-240-MA_REV,40,College Cross Byadarahalli,12.98569,77.47952,college cross byadarahalli
-240-MA_REV,41,Byadarahalli,12.9852,77.48196,byadarahalli
-240-MA_REV,42,East West College Cross,12.98568,77.48629,east west college cross
-240-MA_REV,43,Anjananagara,12.98617,77.48817,anjananagara
-240-MA_REV,44,Herohalli Cross1,12.98736,77.4924,herohalli cross1
-240-MA_REV,45,Janapriya Apartment,12.98895,77.49938,janapriya apartment
-240-MA_REV,46,Sunkadakatte,12.98946,77.50638,sunkadakatte
-240-MA_REV,47,Kottigepalya,12.98786,77.51405,kottigepalya
-240-MA_REV,48,Summanahalli,12.98682,77.52077,summanahalli
-240-MA_REV,49,Kamakshipalya,12.98385,77.52924,kamakshipalya
-240-MA_REV,50,KHB Colony,12.98142,77.53525,khb colony
-240-MA_REV,51,Agrahara Dasarahalli,12.97853,77.54293,agrahara dasarahalli
-240-MA_REV,52,Magadi Road TollGate,12.97459,77.54897,magadi road tollgate
-240-MA_REV,53,Prasanna Theatre,12.97542,77.55288,prasanna theatre
-240-MA_REV,54,Magadi Road Metro Station,12.97562,77.55479,magadi road metro station
-240-MA_REV,55,10th Cross Magadi Road,12.97574,77.55706,10th cross magadi road
-240-MA_REV,56,5th Cross Magadi Road,12.97578,77.56071,5th cross magadi road
-240-MA_REV,57,1st Cross Magadi Road,12.97569,77.5628,1st cross magadi road
-240-MA_REV,58,Hunasemara,12.97532,77.56521,hunasemara
-240-MA_REV,59,Binny Mill,12.97036,77.56621,binny mill
-240-MA_REV,60,Binnypet,12.96448,77.56171,binnypet
-240-MA_REV,61,Sirsi Circle,12.96223,77.55995,sirsi circle
-240-MA_REV,62,Vinayaka Talkies,12.96381,77.56838,vinayaka talkies
-240-MA_REV,63,Rayan Circle,12.96136,77.56889,rayan circle
-240-MA_REV,64,KR Market (Kalasipalya),12.96154,77.57736,kr market (kalasipalya)
-241-H_REV,1,Mahadeshwara Nagara,12.9921,77.49432,mahadeshwara nagara
-241-H_REV,2,Maruthi Nagara,12.98967,77.49398,maruthi nagara
-241-H_REV,3,Herohalli Cross,12.98803,77.49388,herohalli cross
-241-H_REV,4,Janapriya Apartment,12.98895,77.49938,janapriya apartment
-241-H_REV,5,Sunkadakatte,12.98946,77.50638,sunkadakatte
-241-H_REV,6,Kottigepalya,12.98786,77.51405,kottigepalya
-241-H_REV,7,Summanahalli,12.98682,77.52077,summanahalli
-241-H_REV,8,Kamakshipalya,12.98385,77.52924,kamakshipalya
-241-H_REV,9,KHB Colony,12.98142,77.53525,khb colony
+240-MA_REV,1,KR Market (Kalasipalya),12.96154,77.57736,kr market (kalasipalya)
+240-MA_REV,2,Rayan Circle,12.96136,77.56889,rayan circle
+240-MA_REV,3,Vinayaka Talkies,12.96381,77.56838,vinayaka talkies
+240-MA_REV,4,Sirsi Circle,12.96223,77.55995,sirsi circle
+240-MA_REV,5,Binnypet,12.96448,77.56171,binnypet
+240-MA_REV,6,Binny Mill,12.97036,77.56621,binny mill
+240-MA_REV,7,Hunasemara,12.97532,77.56521,hunasemara
+240-MA_REV,8,1st Cross Magadi Road,12.97569,77.5628,1st cross magadi road
+240-MA_REV,9,5th Cross Magadi Road,12.97578,77.56071,5th cross magadi road
+240-MA_REV,10,10th Cross Magadi Road,12.97574,77.55706,10th cross magadi road
+240-MA_REV,11,Magadi Road Metro Station,12.97562,77.55479,magadi road metro station
+240-MA_REV,12,Prasanna Theatre,12.97542,77.55288,prasanna theatre
+240-MA_REV,13,Magadi Road TollGate,12.97459,77.54897,magadi road tollgate
+240-MA_REV,14,Agrahara Dasarahalli,12.97853,77.54293,agrahara dasarahalli
+240-MA_REV,15,KHB Colony,12.98142,77.53525,khb colony
+240-MA_REV,16,Kamakshipalya,12.98385,77.52924,kamakshipalya
+240-MA_REV,17,Summanahalli,12.98682,77.52077,summanahalli
+240-MA_REV,18,Kottigepalya,12.98786,77.51405,kottigepalya
+240-MA_REV,19,Sunkadakatte,12.98946,77.50638,sunkadakatte
+240-MA_REV,20,Janapriya Apartment,12.98895,77.49938,janapriya apartment
+240-MA_REV,21,Herohalli Cross1,12.98736,77.4924,herohalli cross1
+240-MA_REV,22,Anjananagara,12.98617,77.48817,anjananagara
+240-MA_REV,23,East West College Cross,12.98568,77.48629,east west college cross
+240-MA_REV,24,Byadarahalli,12.9852,77.48196,byadarahalli
+240-MA_REV,25,College Cross Byadarahalli,12.98569,77.47952,college cross byadarahalli
+240-MA_REV,26,Gollarahatti,12.98862,77.47274,gollarahatti
+240-MA_REV,27,Kachohalli Gate,12.99056,77.46871,kachohalli gate
+240-MA_REV,28,Chikka Gollarahatti,12.99147,77.46559,chikka gollarahatti
+240-MA_REV,29,Forest Gate,12.99185,77.45952,forest gate
+240-MA_REV,30,Machohalli Gate,12.99088,77.45429,machohalli gate
+240-MA_REV,31,Kadabagere Cross,12.98912,77.44947,kadabagere cross
+240-MA_REV,32,Seegehalli Gate,12.98408,77.44376,seegehalli gate
+240-MA_REV,33,Hamsa Farm,12.98175,77.43952,hamsa farm
+240-MA_REV,34,Channenahalli Arch,12.97987,77.43545,channenahalli arch
+240-MA_REV,35,Channenahalli,12.97791,77.43037,channenahalli
+240-MA_REV,36,Honaganahatti,12.97421,77.42097,honaganahatti
+240-MA_REV,37,Channadasipalya,12.97091,77.4147,channadasipalya
+240-MA_REV,38,Lakkuppe,12.97004,77.40989,lakkuppe
+240-MA_REV,39,Ganesha Temple Tavarekere,12.96708,77.40326,ganesha temple tavarekere
+240-MA_REV,40,Tavarekere,12.9658,77.40008,tavarekere
+240-MA_REV,41,Peddanapalya Cross,12.96762,77.38862,peddanapalya cross
+240-MA_REV,42,Deva Machohalli Cross,12.96552,77.3811,deva machohalli cross
+240-MA_REV,43,Karekal Cross,12.97391,77.37388,karekal cross
+240-MA_REV,44,RINAC Factory Marenahalli,12.97478,77.36582,rinac factory marenahalli
+240-MA_REV,45,Marenahalli,12.97325,77.36164,marenahalli
+240-MA_REV,46,Cholanayakanahalli,12.96021,77.35949,cholanayakanahalli
+240-MA_REV,47,Gangappanahalli,12.95872,77.35111,gangappanahalli
+240-MA_REV,48,TB Gate Thippagondanahalli,12.96245,77.34291,tb gate thippagondanahalli
+240-MA_REV,49,TG Halli Quarters,12.95244,77.33529,tg halli quarters
+240-MA_REV,50,Shanubhoganahalli,12.96136,77.32491,shanubhoganahalli
+240-MA_REV,51,Varadenahalli Handpost,12.95539,77.31192,varadenahalli handpost
+240-MA_REV,52,Adakamaranahalli Cross (Magadi Road),12.95436,77.30902,adakamaranahalli cross (magadi road)
+240-MA_REV,53,Bachenahatti,12.955,77.30395,bachenahatti
+240-MA_REV,54,Dudapanahalli,12.96021,77.29614,dudapanahalli
+240-MA_REV,55,Thagachaguppe,12.95987,77.29018,thagachaguppe
+240-MA_REV,56,Chikka Thogurupalya,12.9562,77.28287,chikka thogurupalya
+240-MA_REV,57,Maralugondla Cross,12.94737,77.27127,maralugondla cross
+240-MA_REV,58,Thandya,12.9459,77.26576,thandya
+240-MA_REV,59,Jyothipura,12.94389,77.25141,jyothipura
+240-MA_REV,60,Ranganathpura,12.95115,77.24165,ranganathpura
+240-MA_REV,61,Thirumala Gate,12.95118,77.2404,thirumala gate
+240-MA_REV,62,Hosapete Gate,12.95118,77.23744,hosapete gate
+240-MA_REV,63,Hombalamma Kere,12.95205,77.22752,hombalamma kere
+240-MA_REV,64,Magadi,12.95484,77.22693,magadi
+241-H_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+241-H_REV,2,Okalipura,12.98267,77.56837,okalipura
+241-H_REV,3,Minerva Mill,12.97945,77.56435,minerva mill
+241-H_REV,4,1st Cross Magadi Road,12.97569,77.5628,1st cross magadi road
+241-H_REV,5,5th Cross Magadi Road,12.97578,77.56071,5th cross magadi road
+241-H_REV,6,10th Cross Magadi Road,12.97574,77.55706,10th cross magadi road
+241-H_REV,7,Magadi Road Metro Station,12.97562,77.55479,magadi road metro station
+241-H_REV,8,Prasanna Theatre,12.97542,77.55288,prasanna theatre
+241-H_REV,9,Magadi Road TollGate,12.97459,77.54897,magadi road tollgate
 241-H_REV,10,Agrahara Dasarahalli,12.97853,77.54293,agrahara dasarahalli
-241-H_REV,11,Magadi Road TollGate,12.97459,77.54897,magadi road tollgate
-241-H_REV,12,Prasanna Theatre,12.97542,77.55288,prasanna theatre
-241-H_REV,13,Magadi Road Metro Station,12.97562,77.55479,magadi road metro station
-241-H_REV,14,10th Cross Magadi Road,12.97574,77.55706,10th cross magadi road
-241-H_REV,15,5th Cross Magadi Road,12.97578,77.56071,5th cross magadi road
-241-H_REV,16,1st Cross Magadi Road,12.97569,77.5628,1st cross magadi road
-241-H_REV,17,Minerva Mill,12.97945,77.56435,minerva mill
-241-H_REV,18,Okalipura,12.98267,77.56837,okalipura
-241-H_REV,19,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-243-L_REV,1,Lingadeeranahalli,12.99903,77.47898,lingadeeranahalli
-243-L_REV,2,Arch Lingadeeranahalli,12.99961,77.48872,arch lingadeeranahalli
-243-L_REV,3,Syndicate Bank Layout,12.99796,77.48947,syndicate bank layout
-243-L_REV,4,Venkateshwara Layout,12.99335,77.4886,venkateshwara layout
-243-L_REV,5,Herohalli Sunkadakatte,12.99053,77.48753,herohalli sunkadakatte
-243-L_REV,6,Herohalli Cross,12.98749,77.49262,herohalli cross
-243-L_REV,7,Janapriya Apartment,12.98895,77.49938,janapriya apartment
-243-L_REV,8,Sunkadakatte,12.98946,77.50638,sunkadakatte
-243-L_REV,9,Kottigepalya,12.98786,77.51405,kottigepalya
-243-L_REV,10,Summanahalli,12.98682,77.52077,summanahalli
-243-L_REV,11,Kamakshipalya,12.98385,77.52924,kamakshipalya
-243-L_REV,12,KHB Colony,12.98142,77.53525,khb colony
-243-L_REV,13,Agrahara Dasarahalli,12.97853,77.54293,agrahara dasarahalli
-243-L_REV,14,Magadi Road TollGate,12.97459,77.54897,magadi road tollgate
-243-L_REV,15,Prasanna Theatre,12.97542,77.55288,prasanna theatre
-243-L_REV,16,Magadi Road Metro Station,12.97562,77.55479,magadi road metro station
-243-L_REV,17,10th Cross Magadi Road,12.97574,77.55706,10th cross magadi road
-243-L_REV,18,5th Cross Magadi Road,12.97578,77.56071,5th cross magadi road
-243-L_REV,19,1st Cross Magadi Road,12.97569,77.5628,1st cross magadi road
-243-L_REV,20,Minerva Mill,12.97945,77.56435,minerva mill
-243-L_REV,21,Okalipura,12.98267,77.56837,okalipura
-243-L_REV,22,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+241-H_REV,11,KHB Colony,12.98142,77.53525,khb colony
+241-H_REV,12,Kamakshipalya,12.98385,77.52924,kamakshipalya
+241-H_REV,13,Summanahalli,12.98682,77.52077,summanahalli
+241-H_REV,14,Kottigepalya,12.98786,77.51405,kottigepalya
+241-H_REV,15,Sunkadakatte,12.98946,77.50638,sunkadakatte
+241-H_REV,16,Janapriya Apartment,12.98895,77.49938,janapriya apartment
+241-H_REV,17,Herohalli Cross,12.98803,77.49388,herohalli cross
+241-H_REV,18,Maruthi Nagara,12.98967,77.49398,maruthi nagara
+241-H_REV,19,Mahadeshwara Nagara,12.9921,77.49432,mahadeshwara nagara
+243-L_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+243-L_REV,2,Okalipura,12.98267,77.56837,okalipura
+243-L_REV,3,Minerva Mill,12.97945,77.56435,minerva mill
+243-L_REV,4,1st Cross Magadi Road,12.97569,77.5628,1st cross magadi road
+243-L_REV,5,5th Cross Magadi Road,12.97578,77.56071,5th cross magadi road
+243-L_REV,6,10th Cross Magadi Road,12.97574,77.55706,10th cross magadi road
+243-L_REV,7,Magadi Road Metro Station,12.97562,77.55479,magadi road metro station
+243-L_REV,8,Prasanna Theatre,12.97542,77.55288,prasanna theatre
+243-L_REV,9,Magadi Road TollGate,12.97459,77.54897,magadi road tollgate
+243-L_REV,10,Agrahara Dasarahalli,12.97853,77.54293,agrahara dasarahalli
+243-L_REV,11,KHB Colony,12.98142,77.53525,khb colony
+243-L_REV,12,Kamakshipalya,12.98385,77.52924,kamakshipalya
+243-L_REV,13,Summanahalli,12.98682,77.52077,summanahalli
+243-L_REV,14,Kottigepalya,12.98786,77.51405,kottigepalya
+243-L_REV,15,Sunkadakatte,12.98946,77.50638,sunkadakatte
+243-L_REV,16,Janapriya Apartment,12.98895,77.49938,janapriya apartment
+243-L_REV,17,Herohalli Cross,12.98749,77.49262,herohalli cross
+243-L_REV,18,Herohalli Sunkadakatte,12.99053,77.48753,herohalli sunkadakatte
+243-L_REV,19,Venkateshwara Layout,12.99335,77.4886,venkateshwara layout
+243-L_REV,20,Syndicate Bank Layout,12.99796,77.48947,syndicate bank layout
+243-L_REV,21,Arch Lingadeeranahalli,12.99961,77.48872,arch lingadeeranahalli
+243-L_REV,22,Lingadeeranahalli,12.99903,77.47898,lingadeeranahalli
 248-N_REV,1,Jalahalli Cross,13.03949,77.51843,jalahalli cross
 248-N_REV,2,Systems Peenya,13.03506,77.51806,systems peenya
 248-N_REV,3,TVS Cross Peenya,13.02835,77.51953,tvs cross peenya
@@ -794,49 +794,49 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 258_REV,47,Corporation,12.96701,77.58822,corporation
 258_REV,48,Town Hall,12.96355,77.58375,town hall
 258_REV,49,KR Market,12.96437,77.57736,kr market
-258-C_REV,1,Nelamangala Bus Station,13.09796,77.39438,nelamangala bus station
-258-C_REV,2,Anjaneya Temple Nelamangala,13.09737,77.39777,anjaneya temple nelamangala
-258-C_REV,3,TB Nelamangala,13.09718,77.40144,tb nelamangala
-258-C_REV,4,Weavers Colony Nelamangala,13.09416,77.40559,weavers colony nelamangala
-258-C_REV,5,Nursery Nelamangala,13.09008,77.40945,nursery nelamangala
-258-C_REV,6,Binnamangala,13.08745,77.41256,binnamangala
-258-C_REV,7,Vishwa Shanti Ashrama,13.08378,77.41777,vishwa shanti ashrama
-258-C_REV,8,Arishinakunte,13.08026,77.42417,arishinakunte
-258-C_REV,9,Devannanapalya,13.07769,77.43139,devannanapalya
-258-C_REV,10,Dasanapura,13.07542,77.43636,dasanapura
-258-C_REV,11,Ravuthanahalli Cross,13.07362,77.43959,ravuthanahalli cross
-258-C_REV,12,Adakimaranahalli,13.07065,77.4449,adakimaranahalli
-258-C_REV,13,Makali,13.0658,77.45363,makali
-258-C_REV,14,Madanayakanahalli,13.06146,77.46102,madanayakanahalli
-258-C_REV,15,TCI,13.05924,77.46527,tci
-258-C_REV,16,Madavara NICE Road,13.05684,77.4741,madavara nice road
-258-C_REV,17,Anchepalya,13.05529,77.47983,anchepalya
-258-C_REV,18,Jindal,13.05399,77.48328,jindal
-258-C_REV,19,Chikkabidarakallu,13.05235,77.48774,chikkabidarakallu
-258-C_REV,20,Marison Factory,13.05049,77.49285,marison factory
-258-C_REV,21,Widia Factory,13.04907,77.497,widia factory
+258-C_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+258-C_REV,2,Central,12.9898,77.57204,central
+258-C_REV,3,Link Road,12.99426,77.57388,link road
+258-C_REV,4,Malleshwara Circle,12.99727,77.56945,malleshwara circle
+258-C_REV,5,Malleshwara 8th Cross,12.99969,77.56933,malleshwara 8th cross
+258-C_REV,6,Malleshwara 11th Cross,13.00238,77.5693,malleshwara 11th cross
+258-C_REV,7,Malleshwara 13th Cross,13.00408,77.56923,malleshwara 13th cross
+258-C_REV,8,Malleshwara 18th Cross,13.00894,77.56918,malleshwara 18th cross
+258-C_REV,9,Tata Institute,13.01313,77.56755,tata institute
+258-C_REV,10,Yeshawanthapura Bus Station,13.01771,77.55657,yeshawanthapura bus station
+258-C_REV,11,Govardhan Talkies,13.01853,77.55339,govardhan talkies
+258-C_REV,12,RMC Yard (Yeshawanthapura New Railway Station),13.02462,77.54776,rmc yard (yeshawanthapura new railway station)
+258-C_REV,13,MEI Factory,13.02652,77.54439,mei factory
+258-C_REV,14,Goraguntepalya,13.02835,77.54123,goraguntepalya
+258-C_REV,15,CMTI,13.03143,77.53561,cmti
+258-C_REV,16,Peenya Metro Station,13.03299,77.53297,peenya metro station
+258-C_REV,17,SRS Peenya,13.03471,77.52987,srs peenya
+258-C_REV,18,Peenya Industry Metro Station,13.03599,77.52579,peenya industry metro station
+258-C_REV,19,Jalahalli Cross,13.0399,77.51879,jalahalli cross
+258-C_REV,20,T Dasarahalli,13.04309,77.51288,t dasarahalli
+258-C_REV,21,8th Mile Dasarahalli,13.04541,77.50795,8th mile dasarahalli
 258-C_REV,22,Deepak Factory,13.04749,77.50135,deepak factory
-258-C_REV,23,8th Mile Dasarahalli,13.04541,77.50795,8th mile dasarahalli
-258-C_REV,24,T Dasarahalli,13.04309,77.51288,t dasarahalli
-258-C_REV,25,Jalahalli Cross,13.0399,77.51879,jalahalli cross
-258-C_REV,26,Peenya Industry Metro Station,13.03599,77.52579,peenya industry metro station
-258-C_REV,27,SRS Peenya,13.03471,77.52987,srs peenya
-258-C_REV,28,Peenya Metro Station,13.03299,77.53297,peenya metro station
-258-C_REV,29,CMTI,13.03143,77.53561,cmti
-258-C_REV,30,Goraguntepalya,13.02835,77.54123,goraguntepalya
-258-C_REV,31,MEI Factory,13.02652,77.54439,mei factory
-258-C_REV,32,RMC Yard (Yeshawanthapura New Railway Station),13.02462,77.54776,rmc yard (yeshawanthapura new railway station)
-258-C_REV,33,Govardhan Talkies,13.01853,77.55339,govardhan talkies
-258-C_REV,34,Yeshawanthapura Bus Station,13.01771,77.55657,yeshawanthapura bus station
-258-C_REV,35,Tata Institute,13.01313,77.56755,tata institute
-258-C_REV,36,Malleshwara 18th Cross,13.00894,77.56918,malleshwara 18th cross
-258-C_REV,37,Malleshwara 13th Cross,13.00408,77.56923,malleshwara 13th cross
-258-C_REV,38,Malleshwara 11th Cross,13.00238,77.5693,malleshwara 11th cross
-258-C_REV,39,Malleshwara 8th Cross,12.99969,77.56933,malleshwara 8th cross
-258-C_REV,40,Malleshwara Circle,12.99727,77.56945,malleshwara circle
-258-C_REV,41,Link Road,12.99426,77.57388,link road
-258-C_REV,42,Central,12.9898,77.57204,central
-258-C_REV,43,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+258-C_REV,23,Widia Factory,13.04907,77.497,widia factory
+258-C_REV,24,Marison Factory,13.05049,77.49285,marison factory
+258-C_REV,25,Chikkabidarakallu,13.05235,77.48774,chikkabidarakallu
+258-C_REV,26,Jindal,13.05399,77.48328,jindal
+258-C_REV,27,Anchepalya,13.05529,77.47983,anchepalya
+258-C_REV,28,Madavara NICE Road,13.05684,77.4741,madavara nice road
+258-C_REV,29,TCI,13.05924,77.46527,tci
+258-C_REV,30,Madanayakanahalli,13.06146,77.46102,madanayakanahalli
+258-C_REV,31,Makali,13.0658,77.45363,makali
+258-C_REV,32,Adakimaranahalli,13.07065,77.4449,adakimaranahalli
+258-C_REV,33,Ravuthanahalli Cross,13.07362,77.43959,ravuthanahalli cross
+258-C_REV,34,Dasanapura,13.07542,77.43636,dasanapura
+258-C_REV,35,Devannanapalya,13.07769,77.43139,devannanapalya
+258-C_REV,36,Arishinakunte,13.08026,77.42417,arishinakunte
+258-C_REV,37,Vishwa Shanti Ashrama,13.08378,77.41777,vishwa shanti ashrama
+258-C_REV,38,Binnamangala,13.08745,77.41256,binnamangala
+258-C_REV,39,Nursery Nelamangala,13.09008,77.40945,nursery nelamangala
+258-C_REV,40,Weavers Colony Nelamangala,13.09416,77.40559,weavers colony nelamangala
+258-C_REV,41,TB Nelamangala,13.09718,77.40144,tb nelamangala
+258-C_REV,42,Anjaneya Temple Nelamangala,13.09737,77.39777,anjaneya temple nelamangala
+258-C_REV,43,Nelamangala Bus Station,13.09796,77.39438,nelamangala bus station
 258-MD_REV,1,Thyamagondlu,13.21567,77.30226,thyamagondlu
 258-MD_REV,2,Kerekodi Thyamagondlu,13.21465,77.30956,kerekodi thyamagondlu
 258-MD_REV,3,Subramanyanagara Thyamagondlu,13.21181,77.31258,subramanyanagara thyamagondlu
@@ -1189,203 +1189,203 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 298-M_REV,48,Swastik Sheshadripuram College,12.98798,77.57422,swastik sheshadripuram college
 298-M_REV,49,Central,12.9898,77.57204,central
 298-M_REV,50,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-298-MP_REV,1,Vijayapura Bus Stand Jangamakote,13.29479,77.80199,vijayapura bus stand jangamakote
-298-MP_REV,2,Muncipal Office Vijayapura,13.296,77.80039,muncipal office vijayapura
-298-MP_REV,3,Govt Hospital Vijayapura,13.29565,77.79391,govt hospital vijayapura
-298-MP_REV,4,Shivagiri Choultry Vijyapura,13.29465,77.79109,shivagiri choultry vijyapura
-298-MP_REV,5,Dargha,13.28742,77.77445,dargha
-298-MP_REV,6,Guduvanahalli Gate,13.28069,77.76368,guduvanahalli gate
-298-MP_REV,7,Chikka Tattamangala Gate,13.28015,77.76282,chikka tattamangala gate
-298-MP_REV,8,Chatra (Yeliyuru Gate),13.27743,77.75846,chatra (yeliyuru gate)
-298-MP_REV,9,Kurubarakunte Cross (Narsari),13.26681,77.74152,kurubarakunte cross (narsari)
-298-MP_REV,10,Brigade Atmosphere,13.26541,77.73924,brigade atmosphere
-298-MP_REV,11,Devanahalli Govt Hospital,13.25748,77.72655,devanahalli govt hospital
-298-MP_REV,12,Vijayapura Cross,13.25686,77.7173,vijayapura cross
-298-MP_REV,13,Devanahalli New Bus Station,13.24528,77.71281,devanahalli new bus station
-298-MP_REV,14,Devanahalli Old Bus Stand,13.24845,77.7156,devanahalli old bus stand
-298-MP_REV,15,Devanahalli Talluk Office,13.24358,77.70893,devanahalli talluk office
-298-MP_REV,16,Devanahalli Bypass NH-7,13.24231,77.70399,devanahalli bypass nh-7
-298-MP_REV,17,Hiranandani Villas,13.23888,77.6997,hiranandani villas
-298-MP_REV,18,Sanna Amanikere,13.23411,77.69477,sanna amanikere
-298-MP_REV,19,Chikka Sanne Gate,13.23031,77.69109,chikka sanne gate
-298-MP_REV,20,Dhaba Gate,13.22638,77.68726,dhaba gate
-298-MP_REV,21,Palya Gate,13.22143,77.68249,palya gate
-298-MP_REV,22,Bhuvanahalli Gate,13.21859,77.6798,bhuvanahalli gate
-298-MP_REV,23,Bachahalli Gate,13.21205,77.67332,bachahalli gate
-298-MP_REV,24,Kannamangala Gate,13.20729,77.66878,kannamangala gate
-298-MP_REV,25,Navayuga Toll,13.201,77.66132,navayuga toll
-298-MP_REV,26,Airport Trumpet,13.19905,77.6582,airport trumpet
-298-MP_REV,27,Sadahalli Gate,13.19051,77.64626,sadahalli gate
-298-MP_REV,28,Thabarahalli,13.18848,77.64475,thabarahalli
-298-MP_REV,29,ITC Factory,13.18644,77.64325,itc factory
-298-MP_REV,30,Chikkajala,13.17273,77.63369,chikkajala
+298-MP_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+298-MP_REV,2,Central,12.9898,77.57204,central
+298-MP_REV,3,Swastik Sheshadripuram College,12.98798,77.57422,swastik sheshadripuram college
+298-MP_REV,4,Shivananda Store,12.98666,77.57938,shivananda store
+298-MP_REV,5,RM Guttahalli,13.00009,77.58425,rm guttahalli
+298-MP_REV,6,Palace Ground,13.01061,77.58399,palace ground
+298-MP_REV,7,Mekhri Circle,13.01756,77.584,mekhri circle
+298-MP_REV,8,CBI,13.02653,77.58565,cbi
+298-MP_REV,9,Veterinary Hospital,13.03018,77.58697,veterinary hospital
+298-MP_REV,10,Canara Bank Hebbala,13.0357,77.58909,canara bank hebbala
+298-MP_REV,11,Hebbala,13.03917,77.58951,hebbala
+298-MP_REV,12,Hebbala Bridge,13.04294,77.59145,hebbala bridge
+298-MP_REV,13,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
+298-MP_REV,14,Kodigehalli Gate,13.05734,77.59362,kodigehalli gate
+298-MP_REV,15,Byatarayanapura,13.06693,77.59337,byatarayanapura
+298-MP_REV,16,GKVK GATE,13.07276,77.59292,gkvk gate
+298-MP_REV,17,Jakkur Aerodrum,13.07701,77.59301,jakkur aerodrum
+298-MP_REV,18,Allalasandra Gate,13.08737,77.59557,allalasandra gate
+298-MP_REV,19,Raitarasanthe Yalahanka,13.09749,77.59892,raitarasanthe yalahanka
+298-MP_REV,20,Kogilu Cross,13.10398,77.60084,kogilu cross
+298-MP_REV,21,Kendriya Vihara,13.10643,77.60213,kendriya vihara
+298-MP_REV,22,Venkatala,13.1111,77.60498,venkatala
+298-MP_REV,23,Palanahalli Gate,13.11678,77.60847,palanahalli gate
+298-MP_REV,24,Bagalur Cross,13.12211,77.61116,bagalur cross
+298-MP_REV,25,Indian Air Force,13.13092,77.6153,indian air force
+298-MP_REV,26,Bharathi Nagara,13.13752,77.61764,bharathi nagara
+298-MP_REV,27,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
+298-MP_REV,28,SMVIT Cross,13.15197,77.62063,smvit cross
+298-MP_REV,29,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
+298-MP_REV,30,Vidyanagara Cross,13.161,77.6269,vidyanagara cross
 298-MP_REV,31,Kadiganahalli Gate,13.16825,77.63162,kadiganahalli gate
-298-MP_REV,32,Vidyanagara Cross,13.161,77.6269,vidyanagara cross
-298-MP_REV,33,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
-298-MP_REV,34,SMVIT Cross,13.15197,77.62063,smvit cross
-298-MP_REV,35,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
-298-MP_REV,36,Bharathi Nagara,13.13752,77.61764,bharathi nagara
-298-MP_REV,37,Indian Air Force,13.13092,77.6153,indian air force
-298-MP_REV,38,Bagalur Cross,13.12211,77.61116,bagalur cross
-298-MP_REV,39,Palanahalli Gate,13.11678,77.60847,palanahalli gate
-298-MP_REV,40,Venkatala,13.1111,77.60498,venkatala
-298-MP_REV,41,Kendriya Vihara,13.10643,77.60213,kendriya vihara
-298-MP_REV,42,Kogilu Cross,13.10398,77.60084,kogilu cross
-298-MP_REV,43,Raitarasanthe Yalahanka,13.09749,77.59892,raitarasanthe yalahanka
-298-MP_REV,44,Allalasandra Gate,13.08737,77.59557,allalasandra gate
-298-MP_REV,45,Jakkur Aerodrum,13.07701,77.59301,jakkur aerodrum
-298-MP_REV,46,GKVK GATE,13.07276,77.59292,gkvk gate
-298-MP_REV,47,Byatarayanapura,13.06693,77.59337,byatarayanapura
-298-MP_REV,48,Kodigehalli Gate,13.05734,77.59362,kodigehalli gate
-298-MP_REV,49,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
-298-MP_REV,50,Hebbala Bridge,13.04294,77.59145,hebbala bridge
-298-MP_REV,51,Hebbala,13.03917,77.58951,hebbala
-298-MP_REV,52,Canara Bank Hebbala,13.0357,77.58909,canara bank hebbala
-298-MP_REV,53,Veterinary Hospital,13.03018,77.58697,veterinary hospital
-298-MP_REV,54,CBI,13.02653,77.58565,cbi
-298-MP_REV,55,Mekhri Circle,13.01756,77.584,mekhri circle
-298-MP_REV,56,Palace Ground,13.01061,77.58399,palace ground
-298-MP_REV,57,RM Guttahalli,13.00009,77.58425,rm guttahalli
-298-MP_REV,58,Shivananda Store,12.98666,77.57938,shivananda store
-298-MP_REV,59,Swastik Sheshadripuram College,12.98798,77.57422,swastik sheshadripuram college
-298-MP_REV,60,Central,12.9898,77.57204,central
-298-MP_REV,61,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-298-MV_REV,1,Vijayapura Bus Stand Jangamakote,13.29479,77.80199,vijayapura bus stand jangamakote
-298-MV_REV,2,Muncipal Office Vijayapura,13.296,77.80039,muncipal office vijayapura
-298-MV_REV,3,Govt Hospital Vijayapura,13.29565,77.79391,govt hospital vijayapura
-298-MV_REV,4,Shivagiri Choultry Vijyapura,13.29465,77.79109,shivagiri choultry vijyapura
-298-MV_REV,5,Dargha,13.28742,77.77445,dargha
-298-MV_REV,6,Guduvanahalli Gate,13.28069,77.76368,guduvanahalli gate
-298-MV_REV,7,Chikka Tattamangala Gate,13.28015,77.76282,chikka tattamangala gate
-298-MV_REV,8,Chatra (Yeliyuru Gate),13.27743,77.75846,chatra (yeliyuru gate)
-298-MV_REV,9,Kurubarakunte Cross (Narsari),13.26681,77.74152,kurubarakunte cross (narsari)
-298-MV_REV,10,Brigade Atmosphere,13.26541,77.73924,brigade atmosphere
-298-MV_REV,11,Devanahalli Govt Hospital,13.25748,77.72655,devanahalli govt hospital
-298-MV_REV,12,Vijayapura Cross,13.25686,77.7173,vijayapura cross
-298-MV_REV,13,Devanahalli Old Bus Stand,13.24845,77.7156,devanahalli old bus stand
-298-MV_REV,14,Devanahalli New Bus Station,13.24528,77.71281,devanahalli new bus station
-298-MV_REV,15,Devanahalli Talluk Office,13.24358,77.70893,devanahalli talluk office
-298-MV_REV,16,Devanahalli Bypass NH-7,13.24231,77.70399,devanahalli bypass nh-7
-298-MV_REV,17,Hiranandani Villas,13.23888,77.6997,hiranandani villas
-298-MV_REV,18,Sanna Amanikere,13.23411,77.69477,sanna amanikere
-298-MV_REV,19,Chikka Sanne Gate,13.23031,77.69109,chikka sanne gate
-298-MV_REV,20,Dhaba Gate,13.22638,77.68726,dhaba gate
-298-MV_REV,21,Palya Gate,13.22143,77.68249,palya gate
-298-MV_REV,22,Bachahalli Gate,13.21205,77.67332,bachahalli gate
-298-MV_REV,23,Kannamangala Gate,13.20729,77.66878,kannamangala gate
-298-MV_REV,24,Navayuga Toll,13.201,77.66132,navayuga toll
-298-MV_REV,25,Airport Trumpet,13.19905,77.6582,airport trumpet
-298-MV_REV,26,Sadahalli Gate,13.19051,77.64626,sadahalli gate
-298-MV_REV,27,Thabarahalli,13.18848,77.64475,thabarahalli
-298-MV_REV,28,ITC Factory,13.18644,77.64325,itc factory
-298-MV_REV,29,Chikkajala,13.17273,77.63369,chikkajala
-298-MV_REV,30,Kadiganahalli Gate,13.16825,77.63162,kadiganahalli gate
+298-MP_REV,32,Chikkajala,13.17273,77.63369,chikkajala
+298-MP_REV,33,ITC Factory,13.18644,77.64325,itc factory
+298-MP_REV,34,Thabarahalli,13.18848,77.64475,thabarahalli
+298-MP_REV,35,Sadahalli Gate,13.19051,77.64626,sadahalli gate
+298-MP_REV,36,Airport Trumpet,13.19905,77.6582,airport trumpet
+298-MP_REV,37,Navayuga Toll,13.201,77.66132,navayuga toll
+298-MP_REV,38,Kannamangala Gate,13.20729,77.66878,kannamangala gate
+298-MP_REV,39,Bachahalli Gate,13.21205,77.67332,bachahalli gate
+298-MP_REV,40,Bhuvanahalli Gate,13.21859,77.6798,bhuvanahalli gate
+298-MP_REV,41,Palya Gate,13.22143,77.68249,palya gate
+298-MP_REV,42,Dhaba Gate,13.22638,77.68726,dhaba gate
+298-MP_REV,43,Chikka Sanne Gate,13.23031,77.69109,chikka sanne gate
+298-MP_REV,44,Sanna Amanikere,13.23411,77.69477,sanna amanikere
+298-MP_REV,45,Hiranandani Villas,13.23888,77.6997,hiranandani villas
+298-MP_REV,46,Devanahalli Bypass NH-7,13.24231,77.70399,devanahalli bypass nh-7
+298-MP_REV,47,Devanahalli Talluk Office,13.24358,77.70893,devanahalli talluk office
+298-MP_REV,48,Devanahalli Old Bus Stand,13.24845,77.7156,devanahalli old bus stand
+298-MP_REV,49,Devanahalli New Bus Station,13.24528,77.71281,devanahalli new bus station
+298-MP_REV,50,Vijayapura Cross,13.25686,77.7173,vijayapura cross
+298-MP_REV,51,Devanahalli Govt Hospital,13.25748,77.72655,devanahalli govt hospital
+298-MP_REV,52,Brigade Atmosphere,13.26541,77.73924,brigade atmosphere
+298-MP_REV,53,Kurubarakunte Cross (Narsari),13.26681,77.74152,kurubarakunte cross (narsari)
+298-MP_REV,54,Chatra (Yeliyuru Gate),13.27743,77.75846,chatra (yeliyuru gate)
+298-MP_REV,55,Chikka Tattamangala Gate,13.28015,77.76282,chikka tattamangala gate
+298-MP_REV,56,Guduvanahalli Gate,13.28069,77.76368,guduvanahalli gate
+298-MP_REV,57,Dargha,13.28742,77.77445,dargha
+298-MP_REV,58,Shivagiri Choultry Vijyapura,13.29465,77.79109,shivagiri choultry vijyapura
+298-MP_REV,59,Govt Hospital Vijayapura,13.29565,77.79391,govt hospital vijayapura
+298-MP_REV,60,Muncipal Office Vijayapura,13.296,77.80039,muncipal office vijayapura
+298-MP_REV,61,Vijayapura Bus Stand Jangamakote,13.29479,77.80199,vijayapura bus stand jangamakote
+298-MV_REV,1,KR Market,12.96437,77.57736,kr market
+298-MV_REV,2,Town Hall,12.96355,77.58375,town hall
+298-MV_REV,3,Corporation,12.96701,77.58822,corporation
+298-MV_REV,4,KR Circle,12.97386,77.58661,kr circle
+298-MV_REV,5,Maharani College,12.97907,77.58511,maharani college
+298-MV_REV,6,Telephone Exchange AGO/VSD,12.98219,77.58869,telephone exchange ago/vsd
+298-MV_REV,7,RM Guttahalli,13.00009,77.58425,rm guttahalli
+298-MV_REV,8,Palace Ground,13.01061,77.58399,palace ground
+298-MV_REV,9,Mekhri Circle,13.01756,77.584,mekhri circle
+298-MV_REV,10,CBI,13.02653,77.58565,cbi
+298-MV_REV,11,Veterinary Hospital,13.03018,77.58697,veterinary hospital
+298-MV_REV,12,Canara Bank Hebbala,13.0357,77.58909,canara bank hebbala
+298-MV_REV,13,Hebbala,13.03917,77.58951,hebbala
+298-MV_REV,14,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
+298-MV_REV,15,Kodigehalli Gate,13.05734,77.59362,kodigehalli gate
+298-MV_REV,16,Byatarayanapura,13.06693,77.59337,byatarayanapura
+298-MV_REV,17,GKVK GATE,13.07276,77.59292,gkvk gate
+298-MV_REV,18,Jakkur Aerodrum,13.07701,77.59301,jakkur aerodrum
+298-MV_REV,19,Allalasandra Gate,13.08737,77.59557,allalasandra gate
+298-MV_REV,20,Raitarasanthe Yalahanka,13.09749,77.59892,raitarasanthe yalahanka
+298-MV_REV,21,Kogilu Cross,13.10398,77.60084,kogilu cross
+298-MV_REV,22,Kendriya Vihara,13.10643,77.60213,kendriya vihara
+298-MV_REV,23,Venkatala,13.1111,77.60498,venkatala
+298-MV_REV,24,Palanahalli Gate,13.11678,77.60847,palanahalli gate
+298-MV_REV,25,Bagalur Cross,13.12211,77.61116,bagalur cross
+298-MV_REV,26,Indian Air Force,13.13092,77.6153,indian air force
+298-MV_REV,27,Bharathi Nagara,13.13752,77.61764,bharathi nagara
+298-MV_REV,28,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
+298-MV_REV,29,SMVIT Cross,13.15197,77.62063,smvit cross
+298-MV_REV,30,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
 298-MV_REV,31,Vidyanagara Cross,13.161,77.6269,vidyanagara cross
-298-MV_REV,32,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
-298-MV_REV,33,SMVIT Cross,13.15197,77.62063,smvit cross
-298-MV_REV,34,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
-298-MV_REV,35,Bharathi Nagara,13.13752,77.61764,bharathi nagara
-298-MV_REV,36,Indian Air Force,13.13092,77.6153,indian air force
-298-MV_REV,37,Bagalur Cross,13.12211,77.61116,bagalur cross
-298-MV_REV,38,Palanahalli Gate,13.11678,77.60847,palanahalli gate
-298-MV_REV,39,Venkatala,13.1111,77.60498,venkatala
-298-MV_REV,40,Kendriya Vihara,13.10643,77.60213,kendriya vihara
-298-MV_REV,41,Kogilu Cross,13.10398,77.60084,kogilu cross
-298-MV_REV,42,Raitarasanthe Yalahanka,13.09749,77.59892,raitarasanthe yalahanka
-298-MV_REV,43,Allalasandra Gate,13.08737,77.59557,allalasandra gate
-298-MV_REV,44,Jakkur Aerodrum,13.07701,77.59301,jakkur aerodrum
-298-MV_REV,45,GKVK GATE,13.07276,77.59292,gkvk gate
-298-MV_REV,46,Byatarayanapura,13.06693,77.59337,byatarayanapura
-298-MV_REV,47,Kodigehalli Gate,13.05734,77.59362,kodigehalli gate
-298-MV_REV,48,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
-298-MV_REV,49,Hebbala,13.03917,77.58951,hebbala
-298-MV_REV,50,Canara Bank Hebbala,13.0357,77.58909,canara bank hebbala
-298-MV_REV,51,Veterinary Hospital,13.03018,77.58697,veterinary hospital
-298-MV_REV,52,CBI,13.02653,77.58565,cbi
-298-MV_REV,53,Mekhri Circle,13.01756,77.584,mekhri circle
-298-MV_REV,54,Palace Ground,13.01061,77.58399,palace ground
-298-MV_REV,55,RM Guttahalli,13.00009,77.58425,rm guttahalli
-298-MV_REV,56,Telephone Exchange AGO/VSD,12.98219,77.58869,telephone exchange ago/vsd
-298-MV_REV,57,Maharani College,12.97907,77.58511,maharani college
-298-MV_REV,58,KR Circle,12.97386,77.58661,kr circle
-298-MV_REV,59,Corporation,12.96701,77.58822,corporation
-298-MV_REV,60,Town Hall,12.96355,77.58375,town hall
-298-MV_REV,61,KR Market,12.96437,77.57736,kr market
-298-P_REV,1,Hosakote Bus Stand (Old),13.07877,77.78704,hosakote bus stand (old)
-298-P_REV,2,Raghavendra Tent,13.07952,77.78213,raghavendra tent
-298-P_REV,3,Upparahalli (Kumbalahalli Gate),13.08851,77.78079,upparahalli (kumbalahalli gate)
-298-P_REV,4,Kaateramma Devasthana,13.09309,77.77893,kaateramma devasthana
-298-P_REV,5,Halappanahalli,13.10203,77.77788,halappanahalli
-298-P_REV,6,Shankanipura Gate,13.1069,77.77621,shankanipura gate
-298-P_REV,7,Lakkondahalli Temple,13.11064,77.77428,lakkondahalli temple
-298-P_REV,8,Venkatapura Gate Lakkondahalli,13.11453,77.77365,venkatapura gate lakkondahalli
-298-P_REV,9,Lakkondahalli Gate,13.11712,77.77344,lakkondahalli gate
-298-P_REV,10,Thimmasandra Gate,13.12414,77.77332,thimmasandra gate
-298-P_REV,11,Sun Valley Public School Thimmsandra,13.12839,77.77382,sun valley public school thimmsandra
-298-P_REV,12,Hasigaala,13.13525,77.77485,hasigaala
-298-P_REV,13,Kammasandra,13.14985,77.78102,kammasandra
-298-P_REV,14,Yanagunte,13.15781,77.79075,yanagunte
-298-P_REV,15,Sadhapanalli Gate,13.16294,77.7928,sadhapanalli gate
-298-P_REV,16,Attibele Sulibele,13.1698,77.79387,attibele sulibele
-298-P_REV,17,Devanahalli Cross Sulibele,13.18487,77.79804,devanahalli cross sulibele
-298-P_REV,18,Sulibele KEB,13.18568,77.80048,sulibele keb
+298-MV_REV,32,Kadiganahalli Gate,13.16825,77.63162,kadiganahalli gate
+298-MV_REV,33,Chikkajala,13.17273,77.63369,chikkajala
+298-MV_REV,34,ITC Factory,13.18644,77.64325,itc factory
+298-MV_REV,35,Thabarahalli,13.18848,77.64475,thabarahalli
+298-MV_REV,36,Sadahalli Gate,13.19051,77.64626,sadahalli gate
+298-MV_REV,37,Airport Trumpet,13.19905,77.6582,airport trumpet
+298-MV_REV,38,Navayuga Toll,13.201,77.66132,navayuga toll
+298-MV_REV,39,Kannamangala Gate,13.20729,77.66878,kannamangala gate
+298-MV_REV,40,Bachahalli Gate,13.21205,77.67332,bachahalli gate
+298-MV_REV,41,Palya Gate,13.22143,77.68249,palya gate
+298-MV_REV,42,Dhaba Gate,13.22638,77.68726,dhaba gate
+298-MV_REV,43,Chikka Sanne Gate,13.23031,77.69109,chikka sanne gate
+298-MV_REV,44,Sanna Amanikere,13.23411,77.69477,sanna amanikere
+298-MV_REV,45,Hiranandani Villas,13.23888,77.6997,hiranandani villas
+298-MV_REV,46,Devanahalli Bypass NH-7,13.24231,77.70399,devanahalli bypass nh-7
+298-MV_REV,47,Devanahalli Talluk Office,13.24358,77.70893,devanahalli talluk office
+298-MV_REV,48,Devanahalli New Bus Station,13.24528,77.71281,devanahalli new bus station
+298-MV_REV,49,Devanahalli Old Bus Stand,13.24845,77.7156,devanahalli old bus stand
+298-MV_REV,50,Vijayapura Cross,13.25686,77.7173,vijayapura cross
+298-MV_REV,51,Devanahalli Govt Hospital,13.25748,77.72655,devanahalli govt hospital
+298-MV_REV,52,Brigade Atmosphere,13.26541,77.73924,brigade atmosphere
+298-MV_REV,53,Kurubarakunte Cross (Narsari),13.26681,77.74152,kurubarakunte cross (narsari)
+298-MV_REV,54,Chatra (Yeliyuru Gate),13.27743,77.75846,chatra (yeliyuru gate)
+298-MV_REV,55,Chikka Tattamangala Gate,13.28015,77.76282,chikka tattamangala gate
+298-MV_REV,56,Guduvanahalli Gate,13.28069,77.76368,guduvanahalli gate
+298-MV_REV,57,Dargha,13.28742,77.77445,dargha
+298-MV_REV,58,Shivagiri Choultry Vijyapura,13.29465,77.79109,shivagiri choultry vijyapura
+298-MV_REV,59,Govt Hospital Vijayapura,13.29565,77.79391,govt hospital vijayapura
+298-MV_REV,60,Muncipal Office Vijayapura,13.296,77.80039,muncipal office vijayapura
+298-MV_REV,61,Vijayapura Bus Stand Jangamakote,13.29479,77.80199,vijayapura bus stand jangamakote
+298-P_REV,1,Devanahalli New Bus Station,13.24543,77.71274,devanahalli new bus station
+298-P_REV,2,Giriyamma Circle,13.24475,77.71315,giriyamma circle
+298-P_REV,3,Rayasandra Gate,13.23351,77.72712,rayasandra gate
+298-P_REV,4,Sowthegowdanahalli,13.23103,77.7304,sowthegowdanahalli
+298-P_REV,5,Budihal Gate,13.22417,77.73861,budihal gate
+298-P_REV,6,Air Lines Dhaba Gate,13.2225,77.74086,air lines dhaba gate
+298-P_REV,7,Thellahalli Gate,13.22041,77.74816,thellahalli gate
+298-P_REV,8,Haraluru Gate,13.2188,77.75166,haraluru gate
+298-P_REV,9,Channahalli Gate,13.21278,77.75462,channahalli gate
+298-P_REV,10,STRR Devanahalli Toll,13.20732,77.76248,strr devanahalli toll
+298-P_REV,11,Chikkahosahalli Gate,13.20711,77.76307,chikkahosahalli gate
+298-P_REV,12,Nallur Cross,13.20214,77.77149,nallur cross
+298-P_REV,13,Arishinakunte,13.20051,77.77355,arishinakunte
+298-P_REV,14,Balepura Gate,13.19764,77.77686,balepura gate
+298-P_REV,15,Bidalapura Cross,13.19664,77.77773,bidalapura cross
+298-P_REV,16,Papanahalli Gate,13.18862,77.79465,papanahalli gate
+298-P_REV,17,Devanahalli Cross Sulibele,13.18495,77.79797,devanahalli cross sulibele
+298-P_REV,18,Sulibele KEB,13.18552,77.80023,sulibele keb
 298-P_REV,19,Sulibele,13.18673,77.80293,sulibele
-298-P_REV,20,Sulibele KEB,13.18552,77.80023,sulibele keb
-298-P_REV,21,Devanahalli Cross Sulibele,13.18495,77.79797,devanahalli cross sulibele
-298-P_REV,22,Papanahalli Gate,13.18862,77.79465,papanahalli gate
-298-P_REV,23,Bidalapura Cross,13.19664,77.77773,bidalapura cross
-298-P_REV,24,Balepura Gate,13.19764,77.77686,balepura gate
-298-P_REV,25,Arishinakunte,13.20051,77.77355,arishinakunte
-298-P_REV,26,Nallur Cross,13.20214,77.77149,nallur cross
-298-P_REV,27,Chikkahosahalli Gate,13.20711,77.76307,chikkahosahalli gate
-298-P_REV,28,STRR Devanahalli Toll,13.20732,77.76248,strr devanahalli toll
-298-P_REV,29,Channahalli Gate,13.21278,77.75462,channahalli gate
-298-P_REV,30,Haraluru Gate,13.2188,77.75166,haraluru gate
-298-P_REV,31,Thellahalli Gate,13.22041,77.74816,thellahalli gate
-298-P_REV,32,Air Lines Dhaba Gate,13.2225,77.74086,air lines dhaba gate
-298-P_REV,33,Budihal Gate,13.22417,77.73861,budihal gate
-298-P_REV,34,Sowthegowdanahalli,13.23103,77.7304,sowthegowdanahalli
-298-P_REV,35,Rayasandra Gate,13.23351,77.72712,rayasandra gate
-298-P_REV,36,Giriyamma Circle,13.24475,77.71315,giriyamma circle
-298-P_REV,37,Devanahalli New Bus Station,13.24543,77.71274,devanahalli new bus station
-298-PB_REV,1,Vijayapura Bus Stand Jangamakote,13.29499,77.80215,vijayapura bus stand jangamakote
-298-PB_REV,2,Vijayapura Toll Gate,13.29156,77.80606,vijayapura toll gate
-298-PB_REV,3,Venkatapura,13.2798,77.82075,venkatapura
-298-PB_REV,4,Hosapete,13.27191,77.84476,hosapete
-298-PB_REV,5,Jangamakote Cross,13.27051,77.84879,jangamakote cross
-298-PB_REV,6,Jangamakote,13.26136,77.84691,jangamakote
-298-PB_REV,7,Sugaturu,13.25697,77.83283,sugaturu
-298-PB_REV,8,I Basapura,13.2427,77.82258,i basapura
-298-PB_REV,9,Gopasandra Cross,13.22841,77.81029,gopasandra cross
-298-PB_REV,10,Dodda Kurabarahalli,13.22553,77.8092,dodda kurabarahalli
-298-PB_REV,11,Varadenahalli,13.21643,77.80343,varadenahalli
-298-PB_REV,12,Papanahalli,13.21389,77.80222,papanahalli
-298-PB_REV,13,Ankanahalli,13.20433,77.79846,ankanahalli
-298-PB_REV,14,Arasanahalli,13.20148,77.79737,arasanahalli
-298-PB_REV,15,Ramapura,13.19126,77.79511,ramapura
-298-PB_REV,16,Papanahalli Gate,13.18865,77.79454,papanahalli gate
-298-PB_REV,17,Devanahalli Cross Sulibele,13.18487,77.79804,devanahalli cross sulibele
-298-PB_REV,18,Sulibele KEB,13.18568,77.80048,sulibele keb
-298-PB_REV,19,Sulibele,13.18673,77.80311,sulibele
-298-PB_REV,20,Sulibele KEB,13.18552,77.80023,sulibele keb
-298-PB_REV,21,Devanahalli Cross Sulibele,13.18482,77.79795,devanahalli cross sulibele
-298-PB_REV,22,Attibele Sulibele,13.16987,77.79388,attibele sulibele
-298-PB_REV,23,Sadhapanalli Gate,13.16299,77.79286,sadhapanalli gate
-298-PB_REV,24,Yanagunte,13.15781,77.79075,yanagunte
-298-PB_REV,25,Kammasandra,13.14985,77.78102,kammasandra
-298-PB_REV,26,Hasigaala,13.13523,77.77493,hasigaala
-298-PB_REV,27,Sun Valley Public School Thimmsandra,13.12852,77.77387,sun valley public school thimmsandra
-298-PB_REV,28,Thimmasandra Gate,13.12419,77.77335,thimmasandra gate
-298-PB_REV,29,Lakkondahalli Gate,13.11721,77.77346,lakkondahalli gate
-298-PB_REV,30,Venkatapura Gate Lakkondahalli,13.1146,77.77366,venkatapura gate lakkondahalli
-298-PB_REV,31,Lakkondahalli Temple,13.11071,77.77428,lakkondahalli temple
-298-PB_REV,32,Shankanipura Gate,13.10695,77.7762,shankanipura gate
-298-PB_REV,33,Halappanahalli,13.10211,77.77789,halappanahalli
-298-PB_REV,34,Kaateramma Devasthana,13.09304,77.77907,kaateramma devasthana
-298-PB_REV,35,Raghavendra Tent,13.07959,77.78215,raghavendra tent
-298-PB_REV,36,Hosakote BEO office,13.07339,77.78294,hosakote beo office
-298-PB_REV,37,Hosakote Flower Market,13.07531,77.78637,hosakote flower market
-298-PB_REV,38,Hosakote Bus Stand (Old),13.0787,77.78774,hosakote bus stand (old)
+298-P_REV,20,Sulibele KEB,13.18568,77.80048,sulibele keb
+298-P_REV,21,Devanahalli Cross Sulibele,13.18487,77.79804,devanahalli cross sulibele
+298-P_REV,22,Attibele Sulibele,13.1698,77.79387,attibele sulibele
+298-P_REV,23,Sadhapanalli Gate,13.16294,77.7928,sadhapanalli gate
+298-P_REV,24,Yanagunte,13.15781,77.79075,yanagunte
+298-P_REV,25,Kammasandra,13.14985,77.78102,kammasandra
+298-P_REV,26,Hasigaala,13.13525,77.77485,hasigaala
+298-P_REV,27,Sun Valley Public School Thimmsandra,13.12839,77.77382,sun valley public school thimmsandra
+298-P_REV,28,Thimmasandra Gate,13.12414,77.77332,thimmasandra gate
+298-P_REV,29,Lakkondahalli Gate,13.11712,77.77344,lakkondahalli gate
+298-P_REV,30,Venkatapura Gate Lakkondahalli,13.11453,77.77365,venkatapura gate lakkondahalli
+298-P_REV,31,Lakkondahalli Temple,13.11064,77.77428,lakkondahalli temple
+298-P_REV,32,Shankanipura Gate,13.1069,77.77621,shankanipura gate
+298-P_REV,33,Halappanahalli,13.10203,77.77788,halappanahalli
+298-P_REV,34,Kaateramma Devasthana,13.09309,77.77893,kaateramma devasthana
+298-P_REV,35,Upparahalli (Kumbalahalli Gate),13.08851,77.78079,upparahalli (kumbalahalli gate)
+298-P_REV,36,Raghavendra Tent,13.07952,77.78213,raghavendra tent
+298-P_REV,37,Hosakote Bus Stand (Old),13.07877,77.78704,hosakote bus stand (old)
+298-PB_REV,1,Hosakote Bus Stand (Old),13.0787,77.78774,hosakote bus stand (old)
+298-PB_REV,2,Hosakote Flower Market,13.07531,77.78637,hosakote flower market
+298-PB_REV,3,Hosakote BEO office,13.07339,77.78294,hosakote beo office
+298-PB_REV,4,Raghavendra Tent,13.07959,77.78215,raghavendra tent
+298-PB_REV,5,Kaateramma Devasthana,13.09304,77.77907,kaateramma devasthana
+298-PB_REV,6,Halappanahalli,13.10211,77.77789,halappanahalli
+298-PB_REV,7,Shankanipura Gate,13.10695,77.7762,shankanipura gate
+298-PB_REV,8,Lakkondahalli Temple,13.11071,77.77428,lakkondahalli temple
+298-PB_REV,9,Venkatapura Gate Lakkondahalli,13.1146,77.77366,venkatapura gate lakkondahalli
+298-PB_REV,10,Lakkondahalli Gate,13.11721,77.77346,lakkondahalli gate
+298-PB_REV,11,Thimmasandra Gate,13.12419,77.77335,thimmasandra gate
+298-PB_REV,12,Sun Valley Public School Thimmsandra,13.12852,77.77387,sun valley public school thimmsandra
+298-PB_REV,13,Hasigaala,13.13523,77.77493,hasigaala
+298-PB_REV,14,Kammasandra,13.14985,77.78102,kammasandra
+298-PB_REV,15,Yanagunte,13.15781,77.79075,yanagunte
+298-PB_REV,16,Sadhapanalli Gate,13.16299,77.79286,sadhapanalli gate
+298-PB_REV,17,Attibele Sulibele,13.16987,77.79388,attibele sulibele
+298-PB_REV,18,Devanahalli Cross Sulibele,13.18482,77.79795,devanahalli cross sulibele
+298-PB_REV,19,Sulibele KEB,13.18552,77.80023,sulibele keb
+298-PB_REV,20,Sulibele,13.18673,77.80311,sulibele
+298-PB_REV,21,Sulibele KEB,13.18568,77.80048,sulibele keb
+298-PB_REV,22,Devanahalli Cross Sulibele,13.18487,77.79804,devanahalli cross sulibele
+298-PB_REV,23,Papanahalli Gate,13.18865,77.79454,papanahalli gate
+298-PB_REV,24,Ramapura,13.19126,77.79511,ramapura
+298-PB_REV,25,Arasanahalli,13.20148,77.79737,arasanahalli
+298-PB_REV,26,Ankanahalli,13.20433,77.79846,ankanahalli
+298-PB_REV,27,Papanahalli,13.21389,77.80222,papanahalli
+298-PB_REV,28,Varadenahalli,13.21643,77.80343,varadenahalli
+298-PB_REV,29,Dodda Kurabarahalli,13.22553,77.8092,dodda kurabarahalli
+298-PB_REV,30,Gopasandra Cross,13.22841,77.81029,gopasandra cross
+298-PB_REV,31,I Basapura,13.2427,77.82258,i basapura
+298-PB_REV,32,Sugaturu,13.25697,77.83283,sugaturu
+298-PB_REV,33,Jangamakote,13.26136,77.84691,jangamakote
+298-PB_REV,34,Jangamakote Cross,13.27051,77.84879,jangamakote cross
+298-PB_REV,35,Hosapete,13.27191,77.84476,hosapete
+298-PB_REV,36,Venkatapura,13.2798,77.82075,venkatapura
+298-PB_REV,37,Vijayapura Toll Gate,13.29156,77.80606,vijayapura toll gate
+298-PB_REV,38,Vijayapura Bus Stand Jangamakote,13.29499,77.80215,vijayapura bus stand jangamakote
 300-E_REV,1,Krishnaraja Pura Govt Hospital,13.00798,77.69271,krishnaraja pura govt hospital
 300-E_REV,2,ITI Colony Gate,13.00503,77.68506,iti colony gate
 300-E_REV,3,Depot-24 Gate,13.00341,77.6825,depot-24 gate
@@ -1414,50 +1414,50 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 300-E_REV,26,CSI Hospital,12.98983,77.59938,csi hospital
 300-E_REV,27,Indian Express,12.98408,77.59827,indian express
 300-E_REV,28,Shivajinagara Bus Station,12.98328,77.60304,shivajinagara bus station
-300-H_REV,1,Krishnaraja Pura Govt Hospital,13.00798,77.69271,krishnaraja pura govt hospital
-300-H_REV,2,ITI Colony Gate,13.00503,77.68506,iti colony gate
-300-H_REV,3,KR Pura Railway Station,13.00133,77.67814,kr pura railway station
-300-H_REV,4,ITI Colony Gate,13.00516,77.6849,iti colony gate
-300-H_REV,5,ITI Circle,13.00782,77.68335,iti circle
-300-H_REV,6,Ramamurthy Nagara Church,13.01169,77.67891,ramamurthy nagara church
-300-H_REV,7,Ramamurthy Nagara Alada Mara,13.01139,77.67668,ramamurthy nagara alada mara
-300-H_REV,8,Yarayyanapalya,13.01149,77.67342,yarayyanapalya
-300-H_REV,9,Ramamurthy Nagara Manipal,13.01164,77.67054,ramamurthy nagara manipal
-300-H_REV,10,Ramamurthy Nagara Police Station,13.01205,77.66778,ramamurthy nagara police station
-300-H_REV,11,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01329,77.66193,b channasandra bridge(ramamurthy nagara ring road)
-300-H_REV,12,New Baldwin School,13.01433,77.65818,new baldwin school
-300-H_REV,13,Banasawadi,13.01441,77.65102,banasawadi
-300-H_REV,14,Steel Factory Banasawadi,13.01306,77.64934,steel factory banasawadi
-300-H_REV,15,Maruthi School,13.00961,77.64413,maruthi school
-300-H_REV,16,Subbayyanapalya/Ayyappa Temple,13.00755,77.64093,subbayyanapalya/ayyappa temple
-300-H_REV,17,Indian Oil,13.00548,77.63871,indian oil
-300-H_REV,18,Maruthi Sevanagara,13.00241,77.63435,maruthi sevanagara
-300-H_REV,19,Jai Bharath Nagara,13.00158,77.63079,jai bharath nagara
-300-H_REV,20,ITC Factory,12.9986,77.62211,itc factory
-300-H_REV,21,Mosque Road,13.00032,77.61609,mosque road
-300-H_REV,22,Coles Road,12.99632,77.61247,coles road
-300-H_REV,23,Coles Park,12.99534,77.60829,coles park
-300-H_REV,24,Bamboo Bazaar,12.99208,77.60402,bamboo bazaar
-300-H_REV,25,CSI Hospital,12.98983,77.59938,csi hospital
-300-H_REV,26,Indian Express,12.98362,77.59646,indian express
-300-H_REV,27,Vidhana Soudha Karnataka High Court,12.97821,77.59135,vidhana soudha karnataka high court
-300-H_REV,28,Maharani College,12.97697,77.58567,maharani college
-300-H_REV,29,Cauvery Bhavana,12.97372,77.58157,cauvery bhavana
-300-H_REV,30,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-300-MV_REV,1,Sir M Vishweshwaraiah Railway Station,12.99966,77.64099,sir m vishweshwaraiah railway station
-300-MV_REV,2,Maruthi Sevanagara,13.00241,77.63435,maruthi sevanagara
-300-MV_REV,3,Jai Bharath Nagara,13.00158,77.63079,jai bharath nagara
-300-MV_REV,4,ITC Factory,12.9986,77.62211,itc factory
-300-MV_REV,5,Mosque Road,13.00032,77.61609,mosque road
-300-MV_REV,6,Coles Road,12.99632,77.61247,coles road
-300-MV_REV,7,Coles Park,12.99534,77.60829,coles park
-300-MV_REV,8,Bamboo Bazaar,12.99208,77.60402,bamboo bazaar
-300-MV_REV,9,CSI Hospital,12.98983,77.59938,csi hospital
-300-MV_REV,10,Indian Express,12.98362,77.59646,indian express
-300-MV_REV,11,Vidhana Soudha Karnataka High Court,12.97821,77.59135,vidhana soudha karnataka high court
-300-MV_REV,12,Maharani College,12.97697,77.58567,maharani college
-300-MV_REV,13,Cauvery Bhavana,12.97372,77.58157,cauvery bhavana
-300-MV_REV,14,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+300-H_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+300-H_REV,2,Cauvery Bhavana,12.97372,77.58157,cauvery bhavana
+300-H_REV,3,Maharani College,12.97697,77.58567,maharani college
+300-H_REV,4,Vidhana Soudha Karnataka High Court,12.97821,77.59135,vidhana soudha karnataka high court
+300-H_REV,5,Indian Express,12.98362,77.59646,indian express
+300-H_REV,6,CSI Hospital,12.98983,77.59938,csi hospital
+300-H_REV,7,Bamboo Bazaar,12.99208,77.60402,bamboo bazaar
+300-H_REV,8,Coles Park,12.99534,77.60829,coles park
+300-H_REV,9,Coles Road,12.99632,77.61247,coles road
+300-H_REV,10,Mosque Road,13.00032,77.61609,mosque road
+300-H_REV,11,ITC Factory,12.9986,77.62211,itc factory
+300-H_REV,12,Jai Bharath Nagara,13.00158,77.63079,jai bharath nagara
+300-H_REV,13,Maruthi Sevanagara,13.00241,77.63435,maruthi sevanagara
+300-H_REV,14,Indian Oil,13.00548,77.63871,indian oil
+300-H_REV,15,Subbayyanapalya/Ayyappa Temple,13.00755,77.64093,subbayyanapalya/ayyappa temple
+300-H_REV,16,Maruthi School,13.00961,77.64413,maruthi school
+300-H_REV,17,Steel Factory Banasawadi,13.01306,77.64934,steel factory banasawadi
+300-H_REV,18,Banasawadi,13.01441,77.65102,banasawadi
+300-H_REV,19,New Baldwin School,13.01433,77.65818,new baldwin school
+300-H_REV,20,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01329,77.66193,b channasandra bridge(ramamurthy nagara ring road)
+300-H_REV,21,Ramamurthy Nagara Police Station,13.01205,77.66778,ramamurthy nagara police station
+300-H_REV,22,Ramamurthy Nagara Manipal,13.01164,77.67054,ramamurthy nagara manipal
+300-H_REV,23,Yarayyanapalya,13.01149,77.67342,yarayyanapalya
+300-H_REV,24,Ramamurthy Nagara Alada Mara,13.01139,77.67668,ramamurthy nagara alada mara
+300-H_REV,25,Ramamurthy Nagara Church,13.01169,77.67891,ramamurthy nagara church
+300-H_REV,26,ITI Circle,13.00782,77.68335,iti circle
+300-H_REV,27,ITI Colony Gate,13.00516,77.6849,iti colony gate
+300-H_REV,28,KR Pura Railway Station,13.00133,77.67814,kr pura railway station
+300-H_REV,29,ITI Colony Gate,13.00503,77.68506,iti colony gate
+300-H_REV,30,Krishnaraja Pura Govt Hospital,13.00798,77.69271,krishnaraja pura govt hospital
+300-MV_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+300-MV_REV,2,Cauvery Bhavana,12.97372,77.58157,cauvery bhavana
+300-MV_REV,3,Maharani College,12.97697,77.58567,maharani college
+300-MV_REV,4,Vidhana Soudha Karnataka High Court,12.97821,77.59135,vidhana soudha karnataka high court
+300-MV_REV,5,Indian Express,12.98362,77.59646,indian express
+300-MV_REV,6,CSI Hospital,12.98983,77.59938,csi hospital
+300-MV_REV,7,Bamboo Bazaar,12.99208,77.60402,bamboo bazaar
+300-MV_REV,8,Coles Park,12.99534,77.60829,coles park
+300-MV_REV,9,Coles Road,12.99632,77.61247,coles road
+300-MV_REV,10,Mosque Road,13.00032,77.61609,mosque road
+300-MV_REV,11,ITC Factory,12.9986,77.62211,itc factory
+300-MV_REV,12,Jai Bharath Nagara,13.00158,77.63079,jai bharath nagara
+300-MV_REV,13,Maruthi Sevanagara,13.00241,77.63435,maruthi sevanagara
+300-MV_REV,14,Sir M Vishweshwaraiah Railway Station,12.99966,77.64099,sir m vishweshwaraiah railway station
 306_REV,1,Devanagondi,12.97407,77.83869,devanagondi
 306_REV,2,Shrunga School Devangondi,12.97406,77.83262,shrunga school devangondi
 306_REV,3,Hosahalli Cross Devanagondi,12.9747,77.82951,hosahalli cross devanagondi
@@ -1813,80 +1813,80 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 45-D_REV,23,Corporation,12.96839,77.58675,corporation
 45-D_REV,24,Mysore Bank,12.97253,77.58199,mysore bank
 45-D_REV,25,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-500-CF_REV,1,Chikka Thirupathi,12.89532,77.867,chikka thirupathi
-500-CF_REV,2,Ganagaluru Circle,12.89332,77.85016,ganagaluru circle
-500-CF_REV,3,Baguru Colony,12.89457,77.8465,baguru colony
-500-CF_REV,4,Baguru,12.89645,77.84275,baguru
-500-CF_REV,5,Thiruvaranga Gate,12.89583,77.82879,thiruvaranga gate
-500-CF_REV,6,Mugaluru,12.89478,77.82101,mugaluru
-500-CF_REV,7,Pandithana Agrahara Junction,12.88486,77.81578,pandithana agrahara junction
-500-CF_REV,8,Dodda Thimmasandra Gate,12.87879,77.81277,dodda thimmasandra gate
-500-CF_REV,9,Mahal Chowdadenahalli,12.87219,77.80876,mahal chowdadenahalli
-500-CF_REV,10,Thindlu Gate,12.86044,77.79885,thindlu gate
-500-CF_REV,11,Abbaiah Circle Sarjapura,12.85974,77.79402,abbaiah circle sarjapura
-500-CF_REV,12,Rama Devasthana Sarjapur,12.85983,77.78929,rama devasthana sarjapur
-500-CF_REV,13,Sarjapura,12.86125,77.78568,sarjapura
-500-CF_REV,14,Sarjapura Circle,12.86089,77.78331,sarjapura circle
-500-CF_REV,15,Sompura Gate,12.86202,77.772,sompura gate
-500-CF_REV,16,Crystal Apartment Sarjapura Road,12.8677,77.76709,crystal apartment sarjapura road
-500-CF_REV,17,Yamare,12.87198,77.76652,yamare
-500-CF_REV,18,Chambenahalli,12.87932,77.7616,chambenahalli
-500-CF_REV,19,Thigalara Chowdenahalli Cross,12.88176,77.75687,thigalara chowdenahalli cross
-500-CF_REV,20,Dommasandra,12.87953,77.75375,dommasandra
-500-CF_REV,21,Dommasandra Circle,12.88311,77.75246,dommasandra circle
-500-CF_REV,22,Muttanalluru Cross,12.88733,77.73836,muttanalluru cross
-500-CF_REV,23,Sulikunte,12.89228,77.72851,sulikunte
-500-CF_REV,24,Kodathi Gate,12.89653,77.7203,kodathi gate
-500-CF_REV,25,Sarjapura Wipro Campus,12.89886,77.71369,sarjapura wipro campus
-500-CF_REV,26,Ambedkar Nagara,12.89914,77.71286,ambedkar nagara
-500-CF_REV,27,Carmelram Gate,12.90343,77.70399,carmelram gate
-500-CF_REV,28,Doddakannalli,12.90719,77.69557,doddakannalli
-500-CF_REV,29,Radhareddy Layout,12.90869,77.68985,radhareddy layout
-500-CF_REV,30,Junnasandra Gate Wipro Regional Office,12.91068,77.68451,junnasandra gate wipro regional office
-500-CF_REV,31,Kaikondrahalli,12.91392,77.67761,kaikondrahalli
-500-CF_REV,32,Bellanduru Gate SJP Road,12.91864,77.66931,bellanduru gate sjp road
-500-CF_REV,33,Ibbaluru,12.92129,77.66217,ibbaluru
-500-CF_REV,34,Agara Junction,12.92433,77.65073,agara junction
-500-CF_REV,35,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
-500-CF_REV,36,14th Main HSR Layout,12.91619,77.63521,14th main hsr layout
-500-CF_REV,37,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
-500-CF_REV,38,Central Silk Board,12.91689,77.62177,central silk board
-500-CH_REV,1,Tin Factory,12.99698,77.66937,tin factory
-500-CH_REV,2,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
-500-CH_REV,3,B Narayanapura Ring Road,12.99583,77.68417,b narayanapura ring road
-500-CH_REV,4,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
-500-CH_REV,5,EMC2,12.98256,77.69301,emc2
-500-CH_REV,6,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
-500-CH_REV,7,Karthik Nagara,12.96821,77.7017,karthik nagara
-500-CH_REV,8,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
-500-CH_REV,9,Multiplex Marathahalli,12.95227,77.70002,multiplex marathahalli
-500-CH_REV,10,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
-500-CH_REV,11,New Horizon College,12.93544,77.69123,new horizon college
-500-CH_REV,12,Devarabisanahalli Ring Road,12.93145,77.68686,devarabisanahalli ring road
-500-CH_REV,13,Eco Space,12.92776,77.68049,eco space
-500-CH_REV,14,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
-500-CH_REV,15,Bellanduru Petrol Bunk,12.92309,77.6705,bellanduru petrol bunk
-500-CH_REV,16,Sarjapura Road Ibbaluru Junction,12.9204,77.66585,sarjapura road ibbaluru junction
-500-CH_REV,17,Bellanduru Gate SJP Road,12.91858,77.66991,bellanduru gate sjp road
-500-CH_REV,18,Kaikondrahalli,12.91404,77.67756,kaikondrahalli
-500-CH_REV,19,Junnasandra Gate Wipro Regional Office,12.91086,77.68439,junnasandra gate wipro regional office
-500-CH_REV,20,Radhareddy Layout,12.90883,77.6897,radhareddy layout
-500-CH_REV,21,Doddakannalli,12.90731,77.69556,doddakannalli
-500-CH_REV,22,Carmelram Gate,12.90352,77.70401,carmelram gate
-500-CH_REV,23,Ambedkar Nagara,12.89929,77.71273,ambedkar nagara
-500-CH_REV,24,Sarjapura Wipro Campus,12.89903,77.71354,sarjapura wipro campus
-500-CH_REV,25,Kodathi Gate,12.8966,77.72037,kodathi gate
-500-CH_REV,26,Sulikunte,12.89246,77.72846,sulikunte
-500-CH_REV,27,Muttanalluru Cross,12.88744,77.73839,muttanalluru cross
-500-CH_REV,28,Dommasandra Circle,12.88322,77.75241,dommasandra circle
-500-CH_REV,29,Dommasandra,12.8796,77.75371,dommasandra
-500-CH_REV,30,Thigalara Chowdenahalli Cross,12.88172,77.75677,thigalara chowdenahalli cross
-500-CH_REV,31,Chambenahalli,12.8793,77.7617,chambenahalli
-500-CH_REV,32,Yamare,12.87227,77.76646,yamare
-500-CH_REV,33,Crystal Apartment Sarjapura Road,12.86759,77.76725,crystal apartment sarjapura road
-500-CH_REV,34,Sompura Gate,12.86207,77.77213,sompura gate
-500-CH_REV,35,Sarjapura Circle,12.86102,77.78352,sarjapura circle
-500-CH_REV,36,Sarjapura,12.86136,77.7856,sarjapura
+500-CF_REV,1,Central Silk Board,12.91689,77.62177,central silk board
+500-CF_REV,2,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
+500-CF_REV,3,14th Main HSR Layout,12.91619,77.63521,14th main hsr layout
+500-CF_REV,4,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
+500-CF_REV,5,Agara Junction,12.92433,77.65073,agara junction
+500-CF_REV,6,Ibbaluru,12.92129,77.66217,ibbaluru
+500-CF_REV,7,Bellanduru Gate SJP Road,12.91864,77.66931,bellanduru gate sjp road
+500-CF_REV,8,Kaikondrahalli,12.91392,77.67761,kaikondrahalli
+500-CF_REV,9,Junnasandra Gate Wipro Regional Office,12.91068,77.68451,junnasandra gate wipro regional office
+500-CF_REV,10,Radhareddy Layout,12.90869,77.68985,radhareddy layout
+500-CF_REV,11,Doddakannalli,12.90719,77.69557,doddakannalli
+500-CF_REV,12,Carmelram Gate,12.90343,77.70399,carmelram gate
+500-CF_REV,13,Ambedkar Nagara,12.89914,77.71286,ambedkar nagara
+500-CF_REV,14,Sarjapura Wipro Campus,12.89886,77.71369,sarjapura wipro campus
+500-CF_REV,15,Kodathi Gate,12.89653,77.7203,kodathi gate
+500-CF_REV,16,Sulikunte,12.89228,77.72851,sulikunte
+500-CF_REV,17,Muttanalluru Cross,12.88733,77.73836,muttanalluru cross
+500-CF_REV,18,Dommasandra Circle,12.88311,77.75246,dommasandra circle
+500-CF_REV,19,Dommasandra,12.87953,77.75375,dommasandra
+500-CF_REV,20,Thigalara Chowdenahalli Cross,12.88176,77.75687,thigalara chowdenahalli cross
+500-CF_REV,21,Chambenahalli,12.87932,77.7616,chambenahalli
+500-CF_REV,22,Yamare,12.87198,77.76652,yamare
+500-CF_REV,23,Crystal Apartment Sarjapura Road,12.8677,77.76709,crystal apartment sarjapura road
+500-CF_REV,24,Sompura Gate,12.86202,77.772,sompura gate
+500-CF_REV,25,Sarjapura Circle,12.86089,77.78331,sarjapura circle
+500-CF_REV,26,Sarjapura,12.86125,77.78568,sarjapura
+500-CF_REV,27,Rama Devasthana Sarjapur,12.85983,77.78929,rama devasthana sarjapur
+500-CF_REV,28,Abbaiah Circle Sarjapura,12.85974,77.79402,abbaiah circle sarjapura
+500-CF_REV,29,Thindlu Gate,12.86044,77.79885,thindlu gate
+500-CF_REV,30,Mahal Chowdadenahalli,12.87219,77.80876,mahal chowdadenahalli
+500-CF_REV,31,Dodda Thimmasandra Gate,12.87879,77.81277,dodda thimmasandra gate
+500-CF_REV,32,Pandithana Agrahara Junction,12.88486,77.81578,pandithana agrahara junction
+500-CF_REV,33,Mugaluru,12.89478,77.82101,mugaluru
+500-CF_REV,34,Thiruvaranga Gate,12.89583,77.82879,thiruvaranga gate
+500-CF_REV,35,Baguru,12.89645,77.84275,baguru
+500-CF_REV,36,Baguru Colony,12.89457,77.8465,baguru colony
+500-CF_REV,37,Ganagaluru Circle,12.89332,77.85016,ganagaluru circle
+500-CF_REV,38,Chikka Thirupathi,12.89532,77.867,chikka thirupathi
+500-CH_REV,1,Sarjapura,12.86136,77.7856,sarjapura
+500-CH_REV,2,Sarjapura Circle,12.86102,77.78352,sarjapura circle
+500-CH_REV,3,Sompura Gate,12.86207,77.77213,sompura gate
+500-CH_REV,4,Crystal Apartment Sarjapura Road,12.86759,77.76725,crystal apartment sarjapura road
+500-CH_REV,5,Yamare,12.87227,77.76646,yamare
+500-CH_REV,6,Chambenahalli,12.8793,77.7617,chambenahalli
+500-CH_REV,7,Thigalara Chowdenahalli Cross,12.88172,77.75677,thigalara chowdenahalli cross
+500-CH_REV,8,Dommasandra,12.8796,77.75371,dommasandra
+500-CH_REV,9,Dommasandra Circle,12.88322,77.75241,dommasandra circle
+500-CH_REV,10,Muttanalluru Cross,12.88744,77.73839,muttanalluru cross
+500-CH_REV,11,Sulikunte,12.89246,77.72846,sulikunte
+500-CH_REV,12,Kodathi Gate,12.8966,77.72037,kodathi gate
+500-CH_REV,13,Sarjapura Wipro Campus,12.89903,77.71354,sarjapura wipro campus
+500-CH_REV,14,Ambedkar Nagara,12.89929,77.71273,ambedkar nagara
+500-CH_REV,15,Carmelram Gate,12.90352,77.70401,carmelram gate
+500-CH_REV,16,Doddakannalli,12.90731,77.69556,doddakannalli
+500-CH_REV,17,Radhareddy Layout,12.90883,77.6897,radhareddy layout
+500-CH_REV,18,Junnasandra Gate Wipro Regional Office,12.91086,77.68439,junnasandra gate wipro regional office
+500-CH_REV,19,Kaikondrahalli,12.91404,77.67756,kaikondrahalli
+500-CH_REV,20,Bellanduru Gate SJP Road,12.91858,77.66991,bellanduru gate sjp road
+500-CH_REV,21,Sarjapura Road Ibbaluru Junction,12.9204,77.66585,sarjapura road ibbaluru junction
+500-CH_REV,22,Bellanduru Petrol Bunk,12.92309,77.6705,bellanduru petrol bunk
+500-CH_REV,23,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
+500-CH_REV,24,Eco Space,12.92776,77.68049,eco space
+500-CH_REV,25,Devarabisanahalli Ring Road,12.93145,77.68686,devarabisanahalli ring road
+500-CH_REV,26,New Horizon College,12.93544,77.69123,new horizon college
+500-CH_REV,27,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
+500-CH_REV,28,Multiplex Marathahalli,12.95227,77.70002,multiplex marathahalli
+500-CH_REV,29,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
+500-CH_REV,30,Karthik Nagara,12.96821,77.7017,karthik nagara
+500-CH_REV,31,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
+500-CH_REV,32,EMC2,12.98256,77.69301,emc2
+500-CH_REV,33,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
+500-CH_REV,34,B Narayanapura Ring Road,12.99583,77.68417,b narayanapura ring road
+500-CH_REV,35,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
+500-CH_REV,36,Tin Factory,12.99698,77.66937,tin factory
 501-A_REV,1,Hebbala Bridge,13.04274,77.58967,hebbala bridge
 501-A_REV,2,Bhadrappa Layout,13.0472,77.57339,bhadrappa layout
 501-A_REV,3,Devinagara Cross,13.04692,77.5692,devinagara cross
@@ -2040,24 +2040,24 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 60-A_REV,24,Attiguppe,12.95789,77.53385,attiguppe
 60-A_REV,25,Income Tax Layout Cross 1,12.96001,77.5329,income tax layout cross 1
 60-A_REV,26,Vijayanagara Garage,12.96558,77.53492,vijayanagara garage
-80-A_REV,1,Nandini Layout Bus Stand,13.01183,77.53574,nandini layout bus stand
-80-A_REV,2,Saraswathipuram,13.00915,77.53824,saraswathipuram
-80-A_REV,3,Ganesha Temple Mahalakshmi Layout,13.00868,77.54313,ganesha temple mahalakshmi layout
-80-A_REV,4,Srinivasa Temple,13.00835,77.54499,srinivasa temple
-80-A_REV,5,Mahalakshmi Layout Entrance,13.00779,77.548,mahalakshmi layout entrance
-80-A_REV,6,Rajajinagara 1st Block,13.00476,77.54923,rajajinagara 1st block
-80-A_REV,7,Diacon Hospital,13.00398,77.55002,diacon hospital
-80-A_REV,8,Canara Bank Rajajinagara 1st Block,13.00089,77.55044,canara bank rajajinagara 1st block
-80-A_REV,9,Navarang Theatre,12.99825,77.55096,navarang theatre
-80-A_REV,10,Rajajinagara 2nd Block,12.99607,77.55144,rajajinagara 2nd block
-80-A_REV,11,Basaveshwara College,12.99439,77.5528,basaveshwara college
-80-A_REV,12,ESI Hospital Rajajinagara,12.99069,77.55258,esi hospital rajajinagara
-80-A_REV,13,Rajajinagara Old Police Station,12.98992,77.55545,rajajinagara old police station
-80-A_REV,14,Rama Mandira Rajajinagara,12.98623,77.55636,rama mandira rajajinagara
-80-A_REV,15,Rajajinagara Entrance,12.98445,77.55716,rajajinagara entrance
-80-A_REV,16,Sujatha Talkies,12.98262,77.56234,sujatha talkies
-80-A_REV,17,Okalipura,12.98267,77.56837,okalipura
-80-A_REV,18,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+80-A_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+80-A_REV,2,Okalipura,12.98267,77.56837,okalipura
+80-A_REV,3,Sujatha Talkies,12.98262,77.56234,sujatha talkies
+80-A_REV,4,Rajajinagara Entrance,12.98445,77.55716,rajajinagara entrance
+80-A_REV,5,Rama Mandira Rajajinagara,12.98623,77.55636,rama mandira rajajinagara
+80-A_REV,6,Rajajinagara Old Police Station,12.98992,77.55545,rajajinagara old police station
+80-A_REV,7,ESI Hospital Rajajinagara,12.99069,77.55258,esi hospital rajajinagara
+80-A_REV,8,Basaveshwara College,12.99439,77.5528,basaveshwara college
+80-A_REV,9,Rajajinagara 2nd Block,12.99607,77.55144,rajajinagara 2nd block
+80-A_REV,10,Navarang Theatre,12.99825,77.55096,navarang theatre
+80-A_REV,11,Canara Bank Rajajinagara 1st Block,13.00089,77.55044,canara bank rajajinagara 1st block
+80-A_REV,12,Diacon Hospital,13.00398,77.55002,diacon hospital
+80-A_REV,13,Rajajinagara 1st Block,13.00476,77.54923,rajajinagara 1st block
+80-A_REV,14,Mahalakshmi Layout Entrance,13.00779,77.548,mahalakshmi layout entrance
+80-A_REV,15,Srinivasa Temple,13.00835,77.54499,srinivasa temple
+80-A_REV,16,Ganesha Temple Mahalakshmi Layout,13.00868,77.54313,ganesha temple mahalakshmi layout
+80-A_REV,17,Saraswathipuram,13.00915,77.53824,saraswathipuram
+80-A_REV,18,Nandini Layout Bus Stand,13.01183,77.53574,nandini layout bus stand
 89-C_REV,1,Cauvery Nagara,12.99965,77.53048,cauvery nagara
 89-C_REV,2,Kurubarahalli,13.00085,77.53586,kurubarahalli
 89-C_REV,3,Shankar Mutt,12.99915,77.54161,shankar mutt
@@ -2070,17 +2070,17 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 89-C_REV,10,Link Road,12.99426,77.57388,link road
 89-C_REV,11,Central,12.9898,77.57204,central
 89-C_REV,12,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-94_REV,1,Yeshawanthapura Bus Station,13.01771,77.55657,yeshawanthapura bus station
-94_REV,2,Tata Institute,13.01437,77.56803,tata institute
-94_REV,3,CPRI,13.01484,77.57489,cpri
-94_REV,4,Mekhri Circle,13.01458,77.58502,mekhri circle
-94_REV,5,TV Tower,13.00978,77.59078,tv tower
+94_REV,1,Shivajinagara Bus Station,12.98328,77.60304,shivajinagara bus station
+94_REV,2,Indian Express,12.98408,77.59827,indian express
+94_REV,3,CSI Hospital,12.98983,77.59938,csi hospital
+94_REV,4,Cantonment Railway Station,12.99384,77.59712,cantonment railway station
+94_REV,5,Jayamahal,13.00189,77.59448,jayamahal
 94_REV,6,Munireddy Palya J C Nagara,13.00676,77.59276,munireddy palya j c nagara
-94_REV,7,Jayamahal,13.00189,77.59448,jayamahal
-94_REV,8,Cantonment Railway Station,12.99384,77.59712,cantonment railway station
-94_REV,9,CSI Hospital,12.98983,77.59938,csi hospital
-94_REV,10,Indian Express,12.98408,77.59827,indian express
-94_REV,11,Shivajinagara Bus Station,12.98328,77.60304,shivajinagara bus station
+94_REV,7,TV Tower,13.00978,77.59078,tv tower
+94_REV,8,Mekhri Circle,13.01458,77.58502,mekhri circle
+94_REV,9,CPRI,13.01484,77.57489,cpri
+94_REV,10,Tata Institute,13.01437,77.56803,tata institute
+94_REV,11,Yeshawanthapura Bus Station,13.01771,77.55657,yeshawanthapura bus station
 95_REV,1,Kamalanagara,12.99272,77.53063,kamalanagara
 95_REV,2,Sharada Colony,12.9922,77.53454,sharada colony
 95_REV,3,8th Main Kamalanagara,12.99163,77.53839,8th main kamalanagara
@@ -2103,22 +2103,22 @@ route_no,stop_sequence,stop_name,latitude,longitude,stop_norm
 95_REV,20,CSI Hospital,12.98983,77.59938,csi hospital
 95_REV,21,Indian Express,12.98408,77.59827,indian express
 95_REV,22,Shivajinagara Bus Station,12.98328,77.60304,shivajinagara bus station
-96-G_REV,1,Shankarnagh Bus Stand,12.99472,77.52677,shankarnagh bus stand
-96-G_REV,2,Kamalanagara,12.99675,77.52732,kamalanagara
-96-G_REV,3,Kamalanagara Market,12.99608,77.53079,kamalanagara market
-96-G_REV,4,Gudde Devastana Kamalanagara,12.99533,77.53324,gudde devastana kamalanagara
-96-G_REV,5,Maruthi Temple Kamalanagara,12.99497,77.53545,maruthi temple kamalanagara
-96-G_REV,6,Water Tank Kamalanagara,12.99546,77.53977,water tank kamalanagara
-96-G_REV,7,Shankar Mutt,12.99915,77.54161,shankar mutt
-96-G_REV,8,Modi Hospital,12.99749,77.54586,modi hospital
-96-G_REV,9,Navarang Theatre,12.99791,77.55159,navarang theatre
-96-G_REV,10,Mariyappanapalya,12.99862,77.55652,mariyappanapalya
-96-G_REV,11,Harishchandra Ghat,12.99729,77.56047,harishchandra ghat
-96-G_REV,12,Devaiah Park,12.99642,77.56419,devaiah park
-96-G_REV,13,Malleshwara Circle,12.9969,77.56866,malleshwara circle
-96-G_REV,14,Link Road,12.99426,77.57388,link road
-96-G_REV,15,Central,12.9898,77.57204,central
-96-G_REV,16,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+96-G_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+96-G_REV,2,Central,12.9898,77.57204,central
+96-G_REV,3,Link Road,12.99426,77.57388,link road
+96-G_REV,4,Malleshwara Circle,12.9969,77.56866,malleshwara circle
+96-G_REV,5,Devaiah Park,12.99642,77.56419,devaiah park
+96-G_REV,6,Harishchandra Ghat,12.99729,77.56047,harishchandra ghat
+96-G_REV,7,Mariyappanapalya,12.99862,77.55652,mariyappanapalya
+96-G_REV,8,Navarang Theatre,12.99791,77.55159,navarang theatre
+96-G_REV,9,Modi Hospital,12.99749,77.54586,modi hospital
+96-G_REV,10,Shankar Mutt,12.99915,77.54161,shankar mutt
+96-G_REV,11,Water Tank Kamalanagara,12.99546,77.53977,water tank kamalanagara
+96-G_REV,12,Maruthi Temple Kamalanagara,12.99497,77.53545,maruthi temple kamalanagara
+96-G_REV,13,Gudde Devastana Kamalanagara,12.99533,77.53324,gudde devastana kamalanagara
+96-G_REV,14,Kamalanagara Market,12.99608,77.53079,kamalanagara market
+96-G_REV,15,Kamalanagara,12.99675,77.52732,kamalanagara
+96-G_REV,16,Shankarnagh Bus Stand,12.99472,77.52677,shankarnagh bus stand
 BC-7B_REV,1,Byadarahalli,12.9852,77.48196,byadarahalli
 BC-7B_REV,2,Thunganagara Cross,12.9856,77.485,thunganagara cross
 BC-7B_REV,3,Thunga Nagara,12.99192,77.48526,thunga nagara
@@ -2141,28 +2141,28 @@ BC-7B_REV,19,HMT Layout 8th Mile,13.03364,77.50412,hmt layout 8th mile
 BC-7B_REV,20,Nagasandra Cross,13.03849,77.50451,nagasandra cross
 BC-7B_REV,21,Rukmini Nagara,13.04099,77.50482,rukmini nagara
 BC-7B_REV,22,8th Mile Dasarahalli,13.04544,77.50547,8th mile dasarahalli
-BC-7H_REV,1,Herohalli Cross,12.98749,77.49262,herohalli cross
-BC-7H_REV,2,Herohalli Sunkadakatte,12.99051,77.4876,herohalli sunkadakatte
-BC-7H_REV,3,Venkateshwara Layout,12.99331,77.48856,venkateshwara layout
-BC-7H_REV,4,Syndicate Bank Layout,12.99796,77.48947,syndicate bank layout
-BC-7H_REV,5,Arch Lingadeeranahalli,12.99962,77.48869,arch lingadeeranahalli
-BC-7H_REV,6,Acharya College,13.00234,77.48822,acharya college
-BC-7H_REV,7,Vidyamanyanagara,13.00461,77.48742,vidyamanyanagara
-BC-7H_REV,8,Andhrahalli,13.00802,77.48484,andhrahalli
-BC-7H_REV,9,Andhrahalli Govt School,13.00952,77.48294,andhrahalli govt school
-BC-7H_REV,10,Anjaneya Temple Thigalarapalya,13.01371,77.48343,anjaneya temple thigalarapalya
-BC-7H_REV,11,Garudappa Circle Thigalarapalya,13.01568,77.48413,garudappa circle thigalarapalya
-BC-7H_REV,12,Thigalarapalya,13.01683,77.48306,thigalarapalya
-BC-7H_REV,13,Kari Obanahalli,13.02495,77.48656,kari obanahalli
-BC-7H_REV,14,Siddartha School Cross,13.02607,77.48893,siddartha school cross
-BC-7H_REV,15,Indiranagara,13.02772,77.4937,indiranagara
-BC-7H_REV,16,Ganga International School,13.02831,77.49627,ganga international school
-BC-7H_REV,17,Gruhalakshmi Layout,13.02992,77.50026,gruhalakshmi layout
-BC-7H_REV,18,Nelagadarenahalli,13.03149,77.50346,nelagadarenahalli
-BC-7H_REV,19,HMT Layout 8th Mile,13.03364,77.50412,hmt layout 8th mile
-BC-7H_REV,20,Nagasandra Cross,13.03849,77.50451,nagasandra cross
-BC-7H_REV,21,Rukmini Nagara,13.04099,77.50482,rukmini nagara
-BC-7H_REV,22,8th Mile Dasarahalli,13.04544,77.50547,8th mile dasarahalli
+BC-7H_REV,1,8th Mile Dasarahalli,13.04544,77.50547,8th mile dasarahalli
+BC-7H_REV,2,Rukmini Nagara,13.04099,77.50482,rukmini nagara
+BC-7H_REV,3,Nagasandra Cross,13.03849,77.50451,nagasandra cross
+BC-7H_REV,4,HMT Layout 8th Mile,13.03364,77.50412,hmt layout 8th mile
+BC-7H_REV,5,Nelagadarenahalli,13.03149,77.50346,nelagadarenahalli
+BC-7H_REV,6,Gruhalakshmi Layout,13.02992,77.50026,gruhalakshmi layout
+BC-7H_REV,7,Ganga International School,13.02831,77.49627,ganga international school
+BC-7H_REV,8,Indiranagara,13.02772,77.4937,indiranagara
+BC-7H_REV,9,Siddartha School Cross,13.02607,77.48893,siddartha school cross
+BC-7H_REV,10,Kari Obanahalli,13.02495,77.48656,kari obanahalli
+BC-7H_REV,11,Thigalarapalya,13.01683,77.48306,thigalarapalya
+BC-7H_REV,12,Garudappa Circle Thigalarapalya,13.01568,77.48413,garudappa circle thigalarapalya
+BC-7H_REV,13,Anjaneya Temple Thigalarapalya,13.01371,77.48343,anjaneya temple thigalarapalya
+BC-7H_REV,14,Andhrahalli Govt School,13.00952,77.48294,andhrahalli govt school
+BC-7H_REV,15,Andhrahalli,13.00802,77.48484,andhrahalli
+BC-7H_REV,16,Vidyamanyanagara,13.00461,77.48742,vidyamanyanagara
+BC-7H_REV,17,Acharya College,13.00234,77.48822,acharya college
+BC-7H_REV,18,Arch Lingadeeranahalli,12.99962,77.48869,arch lingadeeranahalli
+BC-7H_REV,19,Syndicate Bank Layout,12.99796,77.48947,syndicate bank layout
+BC-7H_REV,20,Venkateshwara Layout,12.99331,77.48856,venkateshwara layout
+BC-7H_REV,21,Herohalli Sunkadakatte,12.99051,77.4876,herohalli sunkadakatte
+BC-7H_REV,22,Herohalli Cross,12.98749,77.49262,herohalli cross
 BC-8_REV,1,Summanahalli,12.98739,77.51914,summanahalli
 BC-8_REV,2,Kottigepalya,12.98787,77.51509,kottigepalya
 BC-8_REV,3,Sunkadakatte,12.99018,77.5038,sunkadakatte
@@ -2398,63 +2398,63 @@ KIA-14_REV,25,Trumpet (KIA),13.19762,77.65547,trumpet (kia)
 KIA-14_REV,26,Cargo Village,13.19967,77.68231,cargo village
 KIA-14_REV,27,DHFL,13.19963,77.69561,dhfl
 KIA-14_REV,28,Kempegowda International Airport,13.19916,77.70774,kempegowda international airport
-KIA-17_REV,1,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
-KIA-17_REV,2,KIA Terminal 2,13.19877,77.71539,kia terminal 2
-KIA-17_REV,3,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
-KIA-17_REV,4,Navayuga Toll (KIA),13.19332,77.65018,navayuga toll (kia)
-KIA-17_REV,5,Sadahalli Gate,13.19051,77.64626,sadahalli gate
-KIA-17_REV,6,Chikkajala,13.17273,77.63369,chikkajala
-KIA-17_REV,7,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
-KIA-17_REV,8,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
-KIA-17_REV,9,Indian Air Force,13.13092,77.6153,indian air force
-KIA-17_REV,10,Venkatala,13.1111,77.60498,venkatala
-KIA-17_REV,11,Kogilu Cross,13.10398,77.60084,kogilu cross
-KIA-17_REV,12,Allalasandra Gate,13.08737,77.59557,allalasandra gate
-KIA-17_REV,13,Byatarayanapura,13.06693,77.59337,byatarayanapura
-KIA-17_REV,14,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
-KIA-17_REV,15,Hebbala Bridge,13.04274,77.58967,hebbala bridge
-KIA-17_REV,16,Devinagara Cross,13.04692,77.5692,devinagara cross
-KIA-17_REV,17,BEL Circle,13.04339,77.55713,bel circle
-KIA-17_REV,18,Mathikere,13.03467,77.55748,mathikere
-KIA-17_REV,19,MS Ramaiah College,13.02871,77.56159,ms ramaiah college
-KIA-17_REV,20,Yeshawanthapura Tollgate,13.01797,77.56097,yeshawanthapura tollgate
-KIA-17_REV,21,Yeshawanthapura Bus Station,13.01771,77.55657,yeshawanthapura bus station
-KIA-17_REV,22,RMC Yard (Yashawanthapura New Railway Station),13.02366,77.54877,rmc yard (yashawanthapura new railway station)
-KIA-17_REV,23,Goraguntepalya,13.02895,77.5395,goraguntepalya
-KIA-17_REV,24,Nandini Layout Ring Road,13.01159,77.52872,nandini layout ring road
-KIA-17_REV,25,Lurdubayi Samudaya Bhavana,12.99723,77.52339,lurdubayi samudaya bhavana
-KIA-17_REV,26,Summanahalli,12.98631,77.51934,summanahalli
-KIA-17_REV,27,Malagala,12.97863,77.51525,malagala
-KIA-17_REV,28,Nagarabhavi Circle,12.95907,77.51686,nagarabhavi circle
-KIA-17_REV,29,Nayandahalli,12.94268,77.52589,nayandahalli
-KIA-17_REV,30,RR Temple,12.92681,77.51112,rr temple
-KIA-17_REV,31,BEML Complex,12.91973,77.52028,beml complex
-KIA-17_REV,32,BEML Layout 5th stage,12.90685,77.52137,beml layout 5th stage
-KIA-4_REV,1,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
-KIA-4_REV,2,KIA Terminal 2,13.19877,77.71539,kia terminal 2
-KIA-4_REV,3,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
-KIA-4_REV,4,Navayuga Toll (KIA),13.19332,77.65018,navayuga toll (kia)
-KIA-4_REV,5,Sadahalli Gate,13.19051,77.64626,sadahalli gate
-KIA-4_REV,6,Chikkajala,13.17273,77.63369,chikkajala
-KIA-4_REV,7,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
-KIA-4_REV,8,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
-KIA-4_REV,9,Indian Air Force,13.13092,77.6153,indian air force
-KIA-4_REV,10,Venkatala,13.1111,77.60498,venkatala
-KIA-4_REV,11,Kogilu Cross,13.10398,77.60084,kogilu cross
-KIA-4_REV,12,Allalasandra Gate,13.08737,77.59557,allalasandra gate
+KIA-17_REV,1,BEML Layout 5th stage,12.90685,77.52137,beml layout 5th stage
+KIA-17_REV,2,BEML Complex,12.91973,77.52028,beml complex
+KIA-17_REV,3,RR Temple,12.92681,77.51112,rr temple
+KIA-17_REV,4,Nayandahalli,12.94268,77.52589,nayandahalli
+KIA-17_REV,5,Nagarabhavi Circle,12.95907,77.51686,nagarabhavi circle
+KIA-17_REV,6,Malagala,12.97863,77.51525,malagala
+KIA-17_REV,7,Summanahalli,12.98631,77.51934,summanahalli
+KIA-17_REV,8,Lurdubayi Samudaya Bhavana,12.99723,77.52339,lurdubayi samudaya bhavana
+KIA-17_REV,9,Nandini Layout Ring Road,13.01159,77.52872,nandini layout ring road
+KIA-17_REV,10,Goraguntepalya,13.02895,77.5395,goraguntepalya
+KIA-17_REV,11,RMC Yard (Yashawanthapura New Railway Station),13.02366,77.54877,rmc yard (yashawanthapura new railway station)
+KIA-17_REV,12,Yeshawanthapura Bus Station,13.01771,77.55657,yeshawanthapura bus station
+KIA-17_REV,13,Yeshawanthapura Tollgate,13.01797,77.56097,yeshawanthapura tollgate
+KIA-17_REV,14,MS Ramaiah College,13.02871,77.56159,ms ramaiah college
+KIA-17_REV,15,Mathikere,13.03467,77.55748,mathikere
+KIA-17_REV,16,BEL Circle,13.04339,77.55713,bel circle
+KIA-17_REV,17,Devinagara Cross,13.04692,77.5692,devinagara cross
+KIA-17_REV,18,Hebbala Bridge,13.04274,77.58967,hebbala bridge
+KIA-17_REV,19,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
+KIA-17_REV,20,Byatarayanapura,13.06693,77.59337,byatarayanapura
+KIA-17_REV,21,Allalasandra Gate,13.08737,77.59557,allalasandra gate
+KIA-17_REV,22,Kogilu Cross,13.10398,77.60084,kogilu cross
+KIA-17_REV,23,Venkatala,13.1111,77.60498,venkatala
+KIA-17_REV,24,Indian Air Force,13.13092,77.6153,indian air force
+KIA-17_REV,25,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
+KIA-17_REV,26,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
+KIA-17_REV,27,Chikkajala,13.17273,77.63369,chikkajala
+KIA-17_REV,28,Sadahalli Gate,13.19051,77.64626,sadahalli gate
+KIA-17_REV,29,Navayuga Toll (KIA),13.19332,77.65018,navayuga toll (kia)
+KIA-17_REV,30,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
+KIA-17_REV,31,KIA Terminal 2,13.19877,77.71539,kia terminal 2
+KIA-17_REV,32,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
+KIA-4_REV,1,HAL Main Gate,12.95862,77.6664,hal main gate
+KIA-4_REV,2,Jeevanbheema Nagara,12.96576,77.65763,jeevanbheema nagara
+KIA-4_REV,3,Thippasandra,12.97371,77.6469,thippasandra
+KIA-4_REV,4,Indiranagara Police Station/KFC,12.97844,77.64125,indiranagara police station/kfc
+KIA-4_REV,5,Halasuru,12.97849,77.62922,halasuru
+KIA-4_REV,6,MEG Centre,12.98736,77.62262,meg centre
+KIA-4_REV,7,Coles Park,12.99308,77.60928,coles park
+KIA-4_REV,8,Millers Road,12.99545,77.60216,millers road
+KIA-4_REV,9,Munireddy Palya J C Nagara,13.00676,77.59276,munireddy palya j c nagara
+KIA-4_REV,10,Mekhri Circle,13.01458,77.58502,mekhri circle
+KIA-4_REV,11,Hebbala,13.03917,77.58951,hebbala
+KIA-4_REV,12,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
 KIA-4_REV,13,Byatarayanapura,13.06693,77.59337,byatarayanapura
-KIA-4_REV,14,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
-KIA-4_REV,15,Hebbala,13.03917,77.58951,hebbala
-KIA-4_REV,16,Mekhri Circle,13.01458,77.58502,mekhri circle
-KIA-4_REV,17,Munireddy Palya J C Nagara,13.00676,77.59276,munireddy palya j c nagara
-KIA-4_REV,18,Millers Road,12.99545,77.60216,millers road
-KIA-4_REV,19,Coles Park,12.99308,77.60928,coles park
-KIA-4_REV,20,MEG Centre,12.98736,77.62262,meg centre
-KIA-4_REV,21,Halasuru,12.97849,77.62922,halasuru
-KIA-4_REV,22,Indiranagara Police Station/KFC,12.97844,77.64125,indiranagara police station/kfc
-KIA-4_REV,23,Thippasandra,12.97371,77.6469,thippasandra
-KIA-4_REV,24,Jeevanbheema Nagara,12.96576,77.65763,jeevanbheema nagara
-KIA-4_REV,25,HAL Main Gate,12.95862,77.6664,hal main gate
+KIA-4_REV,14,Allalasandra Gate,13.08737,77.59557,allalasandra gate
+KIA-4_REV,15,Kogilu Cross,13.10398,77.60084,kogilu cross
+KIA-4_REV,16,Venkatala,13.1111,77.60498,venkatala
+KIA-4_REV,17,Indian Air Force,13.13092,77.6153,indian air force
+KIA-4_REV,18,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
+KIA-4_REV,19,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
+KIA-4_REV,20,Chikkajala,13.17273,77.63369,chikkajala
+KIA-4_REV,21,Sadahalli Gate,13.19051,77.64626,sadahalli gate
+KIA-4_REV,22,Navayuga Toll (KIA),13.19332,77.65018,navayuga toll (kia)
+KIA-4_REV,23,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
+KIA-4_REV,24,KIA Terminal 2,13.19877,77.71539,kia terminal 2
+KIA-4_REV,25,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
 KIA-5_REV,1,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
 KIA-5_REV,2,KIA Terminal 2,13.19877,77.71539,kia terminal 2
 KIA-5_REV,3,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
@@ -2525,109 +2525,109 @@ KIA-5D_REV,38,Chinnayyanapalya Silk Farm,12.85347,77.52329,chinnayyanapalya silk
 KIA-5D_REV,39,Shanimahathma Temple,12.83723,77.51612,shanimahathma temple
 KIA-5D_REV,40,Udipalya,12.82044,77.5142,udipalya
 KIA-5D_REV,41,Brigade Meadows Kanakapura Road,12.81432,77.50684,brigade meadows kanakapura road
-KIA-6_REV,1,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
-KIA-6_REV,2,KIA Terminal 2,13.19877,77.71539,kia terminal 2
-KIA-6_REV,3,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
-KIA-6_REV,4,Navayuga Toll (KIA),13.19332,77.65018,navayuga toll (kia)
-KIA-6_REV,5,Sadahalli Gate,13.19051,77.64626,sadahalli gate
-KIA-6_REV,6,Chikkajala,13.17273,77.63369,chikkajala
-KIA-6_REV,7,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
-KIA-6_REV,8,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
-KIA-6_REV,9,Indian Air Force,13.13092,77.6153,indian air force
-KIA-6_REV,10,Venkatala,13.1111,77.60498,venkatala
-KIA-6_REV,11,Kogilu Cross,13.10398,77.60084,kogilu cross
-KIA-6_REV,12,Allalasandra Gate,13.08737,77.59557,allalasandra gate
-KIA-6_REV,13,Byatarayanapura,13.06693,77.59337,byatarayanapura
-KIA-6_REV,14,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
-KIA-6_REV,15,Hebbala,13.03917,77.58951,hebbala
-KIA-6_REV,16,Mekhri Circle,13.01458,77.58502,mekhri circle
-KIA-6_REV,17,Munireddy Palya J C Nagara,13.00676,77.59276,munireddy palya j c nagara
-KIA-6_REV,18,Nandidurga Road,13.00075,77.59959,nandidurga road
-KIA-6_REV,19,Millers Road,12.99545,77.60216,millers road
-KIA-6_REV,20,Coles Park,12.99308,77.60928,coles park
-KIA-6_REV,21,MEG Centre (KIA),12.98847,77.6172,meg centre (kia)
-KIA-6_REV,22,Trinity Circle,12.97093,77.6197,trinity circle
-KIA-6_REV,23,Military Accounts Office,12.96694,77.62089,military accounts office
-KIA-6_REV,24,Commando Hospital,12.96364,77.62641,commando hospital
-KIA-6_REV,25,Domlur,12.96111,77.63809,domlur
-KIA-6_REV,26,NAL/Manipal Hospital,12.95964,77.65076,nal/manipal hospital
-KIA-6_REV,27,HAL Main Gate,12.95821,77.66821,hal main gate
-KIA-6_REV,28,HAL Kalyana Mantap,12.9546,77.68215,hal kalyana mantap
-KIA-6_REV,29,Marathahalli,12.95626,77.69409,marathahalli
-KIA-6_REV,30,Marathahalli Bridge,12.9569,77.70215,marathahalli bridge
-KIA-6_REV,31,Kundalahalli Gate,12.95593,77.71574,kundalahalli gate
-KIA-6_REV,32,Siddapura,12.95634,77.73191,siddapura
-KIA-6_REV,33,Varthur kodi,12.95897,77.74642,varthur kodi
-KIA-6_REV,34,White Field Post Office,12.97056,77.75,white field post office
-KIA-6_REV,35,Hope Farm,12.98429,77.75261,hope farm
-KIA-6_REV,36,Kadugodi Bus Station,12.99563,77.75855,kadugodi bus station
-KIA-7A_REV,1,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
-KIA-7A_REV,2,KIA Terminal 2,13.19877,77.71539,kia terminal 2
-KIA-7A_REV,3,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
-KIA-7A_REV,4,Sadahalli Gate,13.19051,77.64626,sadahalli gate
-KIA-7A_REV,5,Chikkajala,13.17273,77.63369,chikkajala
-KIA-7A_REV,6,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
-KIA-7A_REV,7,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
-KIA-7A_REV,8,Indian Air Force,13.13092,77.6153,indian air force
-KIA-7A_REV,9,Venkatala,13.1111,77.60498,venkatala
-KIA-7A_REV,10,Kogilu Cross,13.10398,77.60084,kogilu cross
-KIA-7A_REV,11,Allalasandra Gate,13.08737,77.59557,allalasandra gate
-KIA-7A_REV,12,Byatarayanapura,13.06693,77.59337,byatarayanapura
-KIA-7A_REV,13,Navayuga Toll (Military Dairy Farm),13.05037,77.593,navayuga toll (military dairy farm)
+KIA-6_REV,1,Kadugodi Bus Station,12.99563,77.75855,kadugodi bus station
+KIA-6_REV,2,Hope Farm,12.98429,77.75261,hope farm
+KIA-6_REV,3,White Field Post Office,12.97056,77.75,white field post office
+KIA-6_REV,4,Varthur kodi,12.95897,77.74642,varthur kodi
+KIA-6_REV,5,Siddapura,12.95634,77.73191,siddapura
+KIA-6_REV,6,Kundalahalli Gate,12.95593,77.71574,kundalahalli gate
+KIA-6_REV,7,Marathahalli Bridge,12.9569,77.70215,marathahalli bridge
+KIA-6_REV,8,Marathahalli,12.95626,77.69409,marathahalli
+KIA-6_REV,9,HAL Kalyana Mantap,12.9546,77.68215,hal kalyana mantap
+KIA-6_REV,10,HAL Main Gate,12.95821,77.66821,hal main gate
+KIA-6_REV,11,NAL/Manipal Hospital,12.95964,77.65076,nal/manipal hospital
+KIA-6_REV,12,Domlur,12.96111,77.63809,domlur
+KIA-6_REV,13,Commando Hospital,12.96364,77.62641,commando hospital
+KIA-6_REV,14,Military Accounts Office,12.96694,77.62089,military accounts office
+KIA-6_REV,15,Trinity Circle,12.97093,77.6197,trinity circle
+KIA-6_REV,16,MEG Centre (KIA),12.98847,77.6172,meg centre (kia)
+KIA-6_REV,17,Coles Park,12.99308,77.60928,coles park
+KIA-6_REV,18,Millers Road,12.99545,77.60216,millers road
+KIA-6_REV,19,Nandidurga Road,13.00075,77.59959,nandidurga road
+KIA-6_REV,20,Munireddy Palya J C Nagara,13.00676,77.59276,munireddy palya j c nagara
+KIA-6_REV,21,Mekhri Circle,13.01458,77.58502,mekhri circle
+KIA-6_REV,22,Hebbala,13.03917,77.58951,hebbala
+KIA-6_REV,23,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
+KIA-6_REV,24,Byatarayanapura,13.06693,77.59337,byatarayanapura
+KIA-6_REV,25,Allalasandra Gate,13.08737,77.59557,allalasandra gate
+KIA-6_REV,26,Kogilu Cross,13.10398,77.60084,kogilu cross
+KIA-6_REV,27,Venkatala,13.1111,77.60498,venkatala
+KIA-6_REV,28,Indian Air Force,13.13092,77.6153,indian air force
+KIA-6_REV,29,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
+KIA-6_REV,30,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
+KIA-6_REV,31,Chikkajala,13.17273,77.63369,chikkajala
+KIA-6_REV,32,Sadahalli Gate,13.19051,77.64626,sadahalli gate
+KIA-6_REV,33,Navayuga Toll (KIA),13.19332,77.65018,navayuga toll (kia)
+KIA-6_REV,34,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
+KIA-6_REV,35,KIA Terminal 2,13.19877,77.71539,kia terminal 2
+KIA-6_REV,36,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
+KIA-7A_REV,1,BDA Complex HSR Layout,12.91296,77.63807,bda complex hsr layout
+KIA-7A_REV,2,Jakkasandra,12.92481,77.63802,jakkasandra
+KIA-7A_REV,3,Sony World 80ft Road Koramangala,12.93694,77.62734,sony world 80ft road koramangala
+KIA-7A_REV,4,Military Bridge,12.94599,77.64015,military bridge
+KIA-7A_REV,5,Domlur,12.96111,77.63809,domlur
+KIA-7A_REV,6,Military Accounts Office,12.96694,77.62089,military accounts office
+KIA-7A_REV,7,Manipal Centre MG Road,12.97571,77.61358,manipal centre mg road
+KIA-7A_REV,8,Shivajinagara Bus Station,12.98328,77.60341,shivajinagara bus station
+KIA-7A_REV,9,Indian Express,12.98408,77.59827,indian express
+KIA-7A_REV,10,Sophiya School (KIA),12.98586,77.58971,sophiya school (kia)
+KIA-7A_REV,11,RM Guttahalli,13.00009,77.58425,rm guttahalli
+KIA-7A_REV,12,Mekhri Circle,13.01756,77.584,mekhri circle
+KIA-7A_REV,13,Hebbala,13.03917,77.58951,hebbala
 KIA-7A_REV,14,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
-KIA-7A_REV,15,Hebbala,13.03917,77.58951,hebbala
-KIA-7A_REV,16,Mekhri Circle,13.01756,77.584,mekhri circle
-KIA-7A_REV,17,RM Guttahalli,13.00009,77.58425,rm guttahalli
-KIA-7A_REV,18,Sophiya School (KIA),12.98586,77.58971,sophiya school (kia)
-KIA-7A_REV,19,Indian Express,12.98408,77.59827,indian express
-KIA-7A_REV,20,Shivajinagara Bus Station,12.98328,77.60341,shivajinagara bus station
-KIA-7A_REV,21,Manipal Centre MG Road,12.97571,77.61358,manipal centre mg road
-KIA-7A_REV,22,Military Accounts Office,12.96694,77.62089,military accounts office
-KIA-7A_REV,23,Domlur,12.96111,77.63809,domlur
-KIA-7A_REV,24,Military Bridge,12.94599,77.64015,military bridge
-KIA-7A_REV,25,Sony World 80ft Road Koramangala,12.93694,77.62734,sony world 80ft road koramangala
-KIA-7A_REV,26,Jakkasandra,12.92481,77.63802,jakkasandra
-KIA-7A_REV,27,BDA Complex HSR Layout,12.91296,77.63807,bda complex hsr layout
-KIA-8_REV,1,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
-KIA-8_REV,2,KIA Terminal 2,13.19877,77.71539,kia terminal 2
-KIA-8_REV,3,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
-KIA-8_REV,4,Sadahalli Gate,13.19051,77.64626,sadahalli gate
-KIA-8_REV,5,Chikkajala,13.17273,77.63369,chikkajala
-KIA-8_REV,6,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
-KIA-8_REV,7,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
-KIA-8_REV,8,Indian Air Force,13.13092,77.6153,indian air force
-KIA-8_REV,9,Venkatala,13.1111,77.60498,venkatala
-KIA-8_REV,10,Kogilu Cross,13.10398,77.60084,kogilu cross
-KIA-8_REV,11,Allalasandra Gate,13.08737,77.59557,allalasandra gate
-KIA-8_REV,12,Byatarayanapura,13.06693,77.59337,byatarayanapura
-KIA-8_REV,13,Navayuga Toll (Military Dairy Farm),13.05037,77.593,navayuga toll (military dairy farm)
-KIA-8_REV,14,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
-KIA-8_REV,15,Hebbala Bridge,13.04259,77.5925,hebbala bridge
-KIA-8_REV,16,Veerannapalya,13.04231,77.61382,veerannapalya
-KIA-8_REV,17,Nagawara Junction,13.0402,77.62454,nagawara junction
-KIA-8_REV,18,Kalyananagara,13.02654,77.63688,kalyananagara
-KIA-8_REV,19,Babusabpalya,13.02274,77.64721,babusabpalya
-KIA-8_REV,20,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01128,77.66242,b channasandra bridge(ramamurthy nagara ring road)
-KIA-8_REV,21,Kasthurinagara,13.004,77.66328,kasthurinagara
-KIA-8_REV,22,Tin Factory,12.99698,77.66937,tin factory
-KIA-8_REV,23,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
-KIA-8_REV,24,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
-KIA-8_REV,25,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
-KIA-8_REV,26,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
-KIA-8_REV,27,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
-KIA-8_REV,28,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
-KIA-8_REV,29,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
-KIA-8_REV,30,Agara Junction,12.92433,77.65073,agara junction
-KIA-8_REV,31,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
-KIA-8_REV,32,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
-KIA-8_REV,33,Central Silk Board,12.91472,77.62452,central silk board
-KIA-8_REV,34,Bommanahalli,12.90559,77.63003,bommanahalli
-KIA-8_REV,35,Kudlu Gate,12.88985,77.63969,kudlu gate
-KIA-8_REV,36,Singasandra,12.87886,77.64651,singasandra
-KIA-8_REV,37,Hosa Road,12.87074,77.65298,hosa road
-KIA-8_REV,38,Konappana Agarhara,12.85577,77.66411,konappana agarhara
-KIA-8_REV,39,Crown Plaza,12.85082,77.66023,crown plaza
-KIA-8_REV,40,Electronic City KIA,12.85049,77.66201,electronic city kia
+KIA-7A_REV,15,Navayuga Toll (Military Dairy Farm),13.05037,77.593,navayuga toll (military dairy farm)
+KIA-7A_REV,16,Byatarayanapura,13.06693,77.59337,byatarayanapura
+KIA-7A_REV,17,Allalasandra Gate,13.08737,77.59557,allalasandra gate
+KIA-7A_REV,18,Kogilu Cross,13.10398,77.60084,kogilu cross
+KIA-7A_REV,19,Venkatala,13.1111,77.60498,venkatala
+KIA-7A_REV,20,Indian Air Force,13.13092,77.6153,indian air force
+KIA-7A_REV,21,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
+KIA-7A_REV,22,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
+KIA-7A_REV,23,Chikkajala,13.17273,77.63369,chikkajala
+KIA-7A_REV,24,Sadahalli Gate,13.19051,77.64626,sadahalli gate
+KIA-7A_REV,25,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
+KIA-7A_REV,26,KIA Terminal 2,13.19877,77.71539,kia terminal 2
+KIA-7A_REV,27,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
+KIA-8_REV,1,Electronic City KIA,12.85049,77.66201,electronic city kia
+KIA-8_REV,2,Crown Plaza,12.85082,77.66023,crown plaza
+KIA-8_REV,3,Konappana Agarhara,12.85577,77.66411,konappana agarhara
+KIA-8_REV,4,Hosa Road,12.87074,77.65298,hosa road
+KIA-8_REV,5,Singasandra,12.87886,77.64651,singasandra
+KIA-8_REV,6,Kudlu Gate,12.88985,77.63969,kudlu gate
+KIA-8_REV,7,Bommanahalli,12.90559,77.63003,bommanahalli
+KIA-8_REV,8,Central Silk Board,12.91472,77.62452,central silk board
+KIA-8_REV,9,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
+KIA-8_REV,10,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
+KIA-8_REV,11,Agara Junction,12.92433,77.65073,agara junction
+KIA-8_REV,12,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
+KIA-8_REV,13,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
+KIA-8_REV,14,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
+KIA-8_REV,15,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
+KIA-8_REV,16,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
+KIA-8_REV,17,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
+KIA-8_REV,18,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
+KIA-8_REV,19,Tin Factory,12.99698,77.66937,tin factory
+KIA-8_REV,20,Kasthurinagara,13.004,77.66328,kasthurinagara
+KIA-8_REV,21,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01128,77.66242,b channasandra bridge(ramamurthy nagara ring road)
+KIA-8_REV,22,Babusabpalya,13.02274,77.64721,babusabpalya
+KIA-8_REV,23,Kalyananagara,13.02654,77.63688,kalyananagara
+KIA-8_REV,24,Nagawara Junction,13.0402,77.62454,nagawara junction
+KIA-8_REV,25,Veerannapalya,13.04231,77.61382,veerannapalya
+KIA-8_REV,26,Hebbala Bridge,13.04259,77.5925,hebbala bridge
+KIA-8_REV,27,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
+KIA-8_REV,28,Navayuga Toll (Military Dairy Farm),13.05037,77.593,navayuga toll (military dairy farm)
+KIA-8_REV,29,Byatarayanapura,13.06693,77.59337,byatarayanapura
+KIA-8_REV,30,Allalasandra Gate,13.08737,77.59557,allalasandra gate
+KIA-8_REV,31,Kogilu Cross,13.10398,77.60084,kogilu cross
+KIA-8_REV,32,Venkatala,13.1111,77.60498,venkatala
+KIA-8_REV,33,Indian Air Force,13.13092,77.6153,indian air force
+KIA-8_REV,34,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
+KIA-8_REV,35,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
+KIA-8_REV,36,Chikkajala,13.17273,77.63369,chikkajala
+KIA-8_REV,37,Sadahalli Gate,13.19051,77.64626,sadahalli gate
+KIA-8_REV,38,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
+KIA-8_REV,39,KIA Terminal 2,13.19877,77.71539,kia terminal 2
+KIA-8_REV,40,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
 KIA-8A_REV,1,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
 KIA-8A_REV,2,KIA Terminal 2,13.19877,77.71539,kia terminal 2
 KIA-8A_REV,3,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
@@ -2662,48 +2662,48 @@ KIA-8A_REV,31,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate
 KIA-8A_REV,32,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
 KIA-8A_REV,33,Central Silk Board,12.91689,77.62177,central silk board
 KIA-8A_REV,34,Kuvempunagara Bus Station(BTM Layout),12.91597,77.61623,kuvempunagara bus station(btm layout)
-KIA-8C_REV,1,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
-KIA-8C_REV,2,KIA Terminal 2,13.19877,77.71539,kia terminal 2
-KIA-8C_REV,3,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
-KIA-8C_REV,4,Navayuga Toll (KIA),13.19332,77.65018,navayuga toll (kia)
-KIA-8C_REV,5,Sadahalli Gate,13.19051,77.64626,sadahalli gate
-KIA-8C_REV,6,Chikkajala,13.17273,77.63369,chikkajala
-KIA-8C_REV,7,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
-KIA-8C_REV,8,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
-KIA-8C_REV,9,Indian Air Force,13.13092,77.6153,indian air force
-KIA-8C_REV,10,Venkatala,13.1111,77.60498,venkatala
-KIA-8C_REV,11,Kogilu Cross,13.10398,77.60084,kogilu cross
-KIA-8C_REV,12,Allalasandra Gate,13.08737,77.59557,allalasandra gate
-KIA-8C_REV,13,Byatarayanapura,13.06693,77.59337,byatarayanapura
-KIA-8C_REV,14,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
-KIA-8C_REV,15,Hebbala Bridge,13.04259,77.5925,hebbala bridge
-KIA-8C_REV,16,Veerannapalya,13.04231,77.61382,veerannapalya
-KIA-8C_REV,17,Nagawara Junction,13.0402,77.62454,nagawara junction
-KIA-8C_REV,18,Kalyananagara,13.02654,77.63688,kalyananagara
-KIA-8C_REV,19,Babusabpalya,13.02274,77.64721,babusabpalya
-KIA-8C_REV,20,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01128,77.66242,b channasandra bridge(ramamurthy nagara ring road)
-KIA-8C_REV,21,Kasthurinagara,13.004,77.66328,kasthurinagara
-KIA-8C_REV,22,Tin Factory,12.99698,77.66937,tin factory
-KIA-8C_REV,23,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
-KIA-8C_REV,24,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
-KIA-8C_REV,25,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
-KIA-8C_REV,26,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
-KIA-8C_REV,27,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
-KIA-8C_REV,28,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
-KIA-8C_REV,29,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
-KIA-8C_REV,30,Agara Junction,12.92433,77.65073,agara junction
-KIA-8C_REV,31,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
-KIA-8C_REV,32,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
-KIA-8C_REV,33,Central Silk Board,12.91472,77.62452,central silk board
-KIA-8C_REV,34,Bommanahalli,12.90559,77.63003,bommanahalli
-KIA-8C_REV,35,Kudlu Gate,12.88985,77.63969,kudlu gate
-KIA-8C_REV,36,Singasandra,12.87886,77.64651,singasandra
-KIA-8C_REV,37,Hosa Road,12.87074,77.65298,hosa road
-KIA-8C_REV,38,Konappana Agarhara,12.85611,77.66454,konappana agarhara
-KIA-8C_REV,39,Electronic City,12.84815,77.67083,electronic city
-KIA-8C_REV,40,Hebbagodi,12.82752,77.68224,hebbagodi
-KIA-8C_REV,41,BTL College,12.81185,77.69485,btl college
-KIA-8C_REV,42,Chandapura,12.80258,77.70457,chandapura
+KIA-8C_REV,1,Chandapura,12.80258,77.70457,chandapura
+KIA-8C_REV,2,BTL College,12.81185,77.69485,btl college
+KIA-8C_REV,3,Hebbagodi,12.82752,77.68224,hebbagodi
+KIA-8C_REV,4,Electronic City,12.84815,77.67083,electronic city
+KIA-8C_REV,5,Konappana Agarhara,12.85611,77.66454,konappana agarhara
+KIA-8C_REV,6,Hosa Road,12.87074,77.65298,hosa road
+KIA-8C_REV,7,Singasandra,12.87886,77.64651,singasandra
+KIA-8C_REV,8,Kudlu Gate,12.88985,77.63969,kudlu gate
+KIA-8C_REV,9,Bommanahalli,12.90559,77.63003,bommanahalli
+KIA-8C_REV,10,Central Silk Board,12.91472,77.62452,central silk board
+KIA-8C_REV,11,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
+KIA-8C_REV,12,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
+KIA-8C_REV,13,Agara Junction,12.92433,77.65073,agara junction
+KIA-8C_REV,14,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
+KIA-8C_REV,15,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
+KIA-8C_REV,16,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
+KIA-8C_REV,17,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
+KIA-8C_REV,18,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
+KIA-8C_REV,19,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
+KIA-8C_REV,20,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
+KIA-8C_REV,21,Tin Factory,12.99698,77.66937,tin factory
+KIA-8C_REV,22,Kasthurinagara,13.004,77.66328,kasthurinagara
+KIA-8C_REV,23,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01128,77.66242,b channasandra bridge(ramamurthy nagara ring road)
+KIA-8C_REV,24,Babusabpalya,13.02274,77.64721,babusabpalya
+KIA-8C_REV,25,Kalyananagara,13.02654,77.63688,kalyananagara
+KIA-8C_REV,26,Nagawara Junction,13.0402,77.62454,nagawara junction
+KIA-8C_REV,27,Veerannapalya,13.04231,77.61382,veerannapalya
+KIA-8C_REV,28,Hebbala Bridge,13.04259,77.5925,hebbala bridge
+KIA-8C_REV,29,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
+KIA-8C_REV,30,Byatarayanapura,13.06693,77.59337,byatarayanapura
+KIA-8C_REV,31,Allalasandra Gate,13.08737,77.59557,allalasandra gate
+KIA-8C_REV,32,Kogilu Cross,13.10398,77.60084,kogilu cross
+KIA-8C_REV,33,Venkatala,13.1111,77.60498,venkatala
+KIA-8C_REV,34,Indian Air Force,13.13092,77.6153,indian air force
+KIA-8C_REV,35,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
+KIA-8C_REV,36,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
+KIA-8C_REV,37,Chikkajala,13.17273,77.63369,chikkajala
+KIA-8C_REV,38,Sadahalli Gate,13.19051,77.64626,sadahalli gate
+KIA-8C_REV,39,Navayuga Toll (KIA),13.19332,77.65018,navayuga toll (kia)
+KIA-8C_REV,40,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
+KIA-8C_REV,41,KIA Terminal 2,13.19877,77.71539,kia terminal 2
+KIA-8C_REV,42,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
 KIA-8D_REV,1,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
 KIA-8D_REV,2,KIA Terminal 2,13.19877,77.71539,kia terminal 2
 KIA-8D_REV,3,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
@@ -2776,94 +2776,94 @@ KIA-8D_REV,69,Crystal Apartment Sarjapura Road,12.86759,77.76725,crystal apartme
 KIA-8D_REV,70,Sompura Gate,12.86207,77.77213,sompura gate
 KIA-8D_REV,71,Sarjapura Circle,12.86102,77.78352,sarjapura circle
 KIA-8D_REV,72,Sarjapura,12.86136,77.7856,sarjapura
-KIA-8E_REV,1,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
-KIA-8E_REV,2,KIA Terminal 2,13.19877,77.71539,kia terminal 2
-KIA-8E_REV,3,Kempegowda International Airport Back Gate,13.19806,77.68058,kempegowda international airport back gate
-KIA-8E_REV,4,Beguru,13.18356,77.67974,beguru
-KIA-8E_REV,5,Mylanahalli,13.18411,77.69597,mylanahalli
-KIA-8E_REV,6,Bande Kodigehallipalya Cross,13.17283,77.69107,bande kodigehallipalya cross
-KIA-8E_REV,7,KIADB Hoovinayakanahalli Gate,13.15589,77.68108,kiadb hoovinayakanahalli gate
-KIA-8E_REV,8,Bagalur,13.13453,77.66797,bagalur
-KIA-8E_REV,9,Bagalur Santhe,13.13334,77.6668,bagalur santhe
-KIA-8E_REV,10,Bagluru Old police Station,13.12977,77.6667,bagluru old police station
-KIA-8E_REV,11,Mary Immaculate School,13.12589,77.66795,mary immaculate school
-KIA-8E_REV,12,Chakkalatti,13.12256,77.66836,chakkalatti
-KIA-8E_REV,13,Hosuru Bande,13.10601,77.66086,hosuru bande
-KIA-8E_REV,14,Kannuru,13.09321,77.65432,kannuru
-KIA-8E_REV,15,Byrathi Bande,13.07788,77.65345,byrathi bande
-KIA-8E_REV,16,Kothanuru,13.06182,77.64893,kothanuru
-KIA-8E_REV,17,Geddalahalli,13.04838,77.6454,geddalahalli
-KIA-8E_REV,18,Hennur Cross,13.03157,77.63592,hennur cross
-KIA-8E_REV,19,Kalyananagara,13.02654,77.63688,kalyananagara
-KIA-8E_REV,20,Babusabpalya,13.02274,77.64721,babusabpalya
-KIA-8E_REV,21,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01128,77.66242,b channasandra bridge(ramamurthy nagara ring road)
-KIA-8E_REV,22,Kasthurinagara,13.004,77.66328,kasthurinagara
-KIA-8E_REV,23,Tin Factory,12.99698,77.66937,tin factory
-KIA-8E_REV,24,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
-KIA-8E_REV,25,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
-KIA-8E_REV,26,EMC2,12.98256,77.69301,emc2
-KIA-8E_REV,27,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
-KIA-8E_REV,28,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
-KIA-8E_REV,29,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
-KIA-8E_REV,30,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
-KIA-8E_REV,31,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
-KIA-8E_REV,32,Agara Junction,12.92433,77.65073,agara junction
-KIA-8E_REV,33,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
-KIA-8E_REV,34,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
-KIA-8E_REV,35,Central Silk Board,12.91472,77.62452,central silk board
-KIA-8E_REV,36,Bommanahalli,12.90559,77.63003,bommanahalli
-KIA-8E_REV,37,Kudlu Gate,12.88985,77.63969,kudlu gate
-KIA-8E_REV,38,Singasandra,12.87886,77.64651,singasandra
-KIA-8E_REV,39,Hosa Road,12.87074,77.65298,hosa road
-KIA-8E_REV,40,Konappana Agarhara,12.85577,77.66411,konappana agarhara
-KIA-8E_REV,41,Infosys Parking Lot,12.84993,77.66299,infosys parking lot
-KIA-8E_REV,42,Electronic City Wipro Main Gate,12.83594,77.65742,electronic city wipro main gate
-KIA-9_REV,1,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
-KIA-9_REV,2,KIA Terminal 2,13.19877,77.71539,kia terminal 2
-KIA-9_REV,3,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
-KIA-9_REV,4,Navayuga Toll (KIA),13.19332,77.65018,navayuga toll (kia)
-KIA-9_REV,5,Sadahalli Gate,13.19051,77.64626,sadahalli gate
-KIA-9_REV,6,Chikkajala,13.17273,77.63369,chikkajala
-KIA-9_REV,7,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
-KIA-9_REV,8,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
-KIA-9_REV,9,Indian Air Force,13.13092,77.6153,indian air force
+KIA-8E_REV,1,Electronic City Wipro Main Gate,12.83594,77.65742,electronic city wipro main gate
+KIA-8E_REV,2,Infosys Parking Lot,12.84993,77.66299,infosys parking lot
+KIA-8E_REV,3,Konappana Agarhara,12.85577,77.66411,konappana agarhara
+KIA-8E_REV,4,Hosa Road,12.87074,77.65298,hosa road
+KIA-8E_REV,5,Singasandra,12.87886,77.64651,singasandra
+KIA-8E_REV,6,Kudlu Gate,12.88985,77.63969,kudlu gate
+KIA-8E_REV,7,Bommanahalli,12.90559,77.63003,bommanahalli
+KIA-8E_REV,8,Central Silk Board,12.91472,77.62452,central silk board
+KIA-8E_REV,9,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
+KIA-8E_REV,10,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
+KIA-8E_REV,11,Agara Junction,12.92433,77.65073,agara junction
+KIA-8E_REV,12,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
+KIA-8E_REV,13,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
+KIA-8E_REV,14,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
+KIA-8E_REV,15,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
+KIA-8E_REV,16,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
+KIA-8E_REV,17,EMC2,12.98256,77.69301,emc2
+KIA-8E_REV,18,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
+KIA-8E_REV,19,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
+KIA-8E_REV,20,Tin Factory,12.99698,77.66937,tin factory
+KIA-8E_REV,21,Kasthurinagara,13.004,77.66328,kasthurinagara
+KIA-8E_REV,22,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01128,77.66242,b channasandra bridge(ramamurthy nagara ring road)
+KIA-8E_REV,23,Babusabpalya,13.02274,77.64721,babusabpalya
+KIA-8E_REV,24,Kalyananagara,13.02654,77.63688,kalyananagara
+KIA-8E_REV,25,Hennur Cross,13.03157,77.63592,hennur cross
+KIA-8E_REV,26,Geddalahalli,13.04838,77.6454,geddalahalli
+KIA-8E_REV,27,Kothanuru,13.06182,77.64893,kothanuru
+KIA-8E_REV,28,Byrathi Bande,13.07788,77.65345,byrathi bande
+KIA-8E_REV,29,Kannuru,13.09321,77.65432,kannuru
+KIA-8E_REV,30,Hosuru Bande,13.10601,77.66086,hosuru bande
+KIA-8E_REV,31,Chakkalatti,13.12256,77.66836,chakkalatti
+KIA-8E_REV,32,Mary Immaculate School,13.12589,77.66795,mary immaculate school
+KIA-8E_REV,33,Bagluru Old police Station,13.12977,77.6667,bagluru old police station
+KIA-8E_REV,34,Bagalur Santhe,13.13334,77.6668,bagalur santhe
+KIA-8E_REV,35,Bagalur,13.13453,77.66797,bagalur
+KIA-8E_REV,36,KIADB Hoovinayakanahalli Gate,13.15589,77.68108,kiadb hoovinayakanahalli gate
+KIA-8E_REV,37,Bande Kodigehallipalya Cross,13.17283,77.69107,bande kodigehallipalya cross
+KIA-8E_REV,38,Mylanahalli,13.18411,77.69597,mylanahalli
+KIA-8E_REV,39,Beguru,13.18356,77.67974,beguru
+KIA-8E_REV,40,Kempegowda International Airport Back Gate,13.19806,77.68058,kempegowda international airport back gate
+KIA-8E_REV,41,KIA Terminal 2,13.19877,77.71539,kia terminal 2
+KIA-8E_REV,42,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
+KIA-9_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+KIA-9_REV,2,Shivananda Store,12.98666,77.57938,shivananda store
+KIA-9_REV,3,RM Guttahalli,13.00009,77.58425,rm guttahalli
+KIA-9_REV,4,Mekhri Circle,13.01756,77.584,mekhri circle
+KIA-9_REV,5,Hebbala,13.03917,77.58951,hebbala
+KIA-9_REV,6,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
+KIA-9_REV,7,Byatarayanapura,13.06693,77.59337,byatarayanapura
+KIA-9_REV,8,Allalasandra Gate,13.08737,77.59557,allalasandra gate
+KIA-9_REV,9,Kogilu Cross,13.10398,77.60084,kogilu cross
 KIA-9_REV,10,Venkatala,13.1111,77.60498,venkatala
-KIA-9_REV,11,Kogilu Cross,13.10398,77.60084,kogilu cross
-KIA-9_REV,12,Allalasandra Gate,13.08737,77.59557,allalasandra gate
-KIA-9_REV,13,Byatarayanapura,13.06693,77.59337,byatarayanapura
-KIA-9_REV,14,Military Dairy Farm (Esteem Mall),13.04974,77.59287,military dairy farm (esteem mall)
-KIA-9_REV,15,Hebbala,13.03917,77.58951,hebbala
-KIA-9_REV,16,Mekhri Circle,13.01756,77.584,mekhri circle
-KIA-9_REV,17,RM Guttahalli,13.00009,77.58425,rm guttahalli
-KIA-9_REV,18,Shivananda Store,12.98666,77.57938,shivananda store
-KIA-9_REV,19,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-MF-23B_REV,1,Jalahalli Cross,13.03991,77.51823,jalahalli cross
-MF-23B_REV,2,T Dasarahalli,13.04283,77.51276,t dasarahalli
-MF-23B_REV,3,8th Mile Dasarahalli,13.04622,77.50755,8th mile dasarahalli
-MF-23B_REV,4,Widia School,13.0511,77.50773,widia school
-MF-23B_REV,5,Bagalagunte,13.05657,77.50728,bagalagunte
-MF-23B_REV,6,Bone Mill,13.06385,77.50503,bone mill
-MF-23B_REV,7,Sapthagiri College,13.06685,77.50328,sapthagiri college
-MF-23B_REV,8,Sapthagiri Hospital,13.07067,77.50387,sapthagiri hospital
-MF-23B_REV,9,Janapriya Apartment,13.07349,77.50307,janapriya apartment
-MF-23B_REV,10,Chikkabanavara Railway Station,13.07562,77.50465,chikkabanavara railway station
-MF-23B_REV,11,Chikka Banavara,13.08053,77.50255,chikka banavara
-MF-23B_REV,12,Dasappanapalya,13.07935,77.50591,dasappanapalya
-MF-23B_REV,13,Gangadhara Kalyana Mantapa,13.08,77.51137,gangadhara kalyana mantapa
+KIA-9_REV,11,Indian Air Force,13.13092,77.6153,indian air force
+KIA-9_REV,12,Hunasamaranahalli,13.14427,77.61777,hunasamaranahalli
+KIA-9_REV,13,Bettahalasuru Cross,13.15656,77.62358,bettahalasuru cross
+KIA-9_REV,14,Chikkajala,13.17273,77.63369,chikkajala
+KIA-9_REV,15,Sadahalli Gate,13.19051,77.64626,sadahalli gate
+KIA-9_REV,16,Navayuga Toll (KIA),13.19332,77.65018,navayuga toll (kia)
+KIA-9_REV,17,Trumpet (KIA),13.19655,77.65464,trumpet (kia)
+KIA-9_REV,18,KIA Terminal 2,13.19877,77.71539,kia terminal 2
+KIA-9_REV,19,Kempegowda International Airport,13.19904,77.70871,kempegowda international airport
+MF-23B_REV,1,BEL Circle,13.0452,77.55669,bel circle
+MF-23B_REV,2,BEL Market 1,13.05192,77.55193,bel market 1
+MF-23B_REV,3,HMT Club House,13.0535,77.55068,hmt club house
+MF-23B_REV,4,Gangamma Circle,13.05663,77.54654,gangamma circle
+MF-23B_REV,5,Fathima Church,13.05478,77.54137,fathima church
+MF-23B_REV,6,Kammagonda‌nahalli Bridge,13.05491,77.53475,kammagonda‌nahalli bridge
+MF-23B_REV,7,KG Halli Post Office,13.05693,77.53272,kg halli post office
+MF-23B_REV,8,S R S Mathikere,13.06145,77.53112,s r s mathikere
+MF-23B_REV,9,Kammagondanahalli Rama Temple,13.06377,77.53068,kammagondanahalli rama temple
+MF-23B_REV,10,WIMAC Junction,13.06876,77.52998,wimac junction
+MF-23B_REV,11,Abbigere Dinne,13.07106,77.52803,abbigere dinne
+MF-23B_REV,12,Abbigere Gate,13.07248,77.52353,abbigere gate
+MF-23B_REV,13,RMG Factory,13.07601,77.51712,rmg factory
 MF-23B_REV,14,Kere Guddadahalli,13.0792,77.51599,kere guddadahalli
-MF-23B_REV,15,RMG Factory,13.07601,77.51712,rmg factory
-MF-23B_REV,16,Abbigere Gate,13.07248,77.52353,abbigere gate
-MF-23B_REV,17,Abbigere Dinne,13.07106,77.52803,abbigere dinne
-MF-23B_REV,18,WIMAC Junction,13.06876,77.52998,wimac junction
-MF-23B_REV,19,Kammagondanahalli Rama Temple,13.06377,77.53068,kammagondanahalli rama temple
-MF-23B_REV,20,S R S Mathikere,13.06145,77.53112,s r s mathikere
-MF-23B_REV,21,KG Halli Post Office,13.05693,77.53272,kg halli post office
-MF-23B_REV,22,Kammagonda‌nahalli Bridge,13.05491,77.53475,kammagonda‌nahalli bridge
-MF-23B_REV,23,Fathima Church,13.05478,77.54137,fathima church
-MF-23B_REV,24,Gangamma Circle,13.05663,77.54654,gangamma circle
-MF-23B_REV,25,HMT Club House,13.0535,77.55068,hmt club house
-MF-23B_REV,26,BEL Market 1,13.05192,77.55193,bel market 1
-MF-23B_REV,27,BEL Circle,13.0452,77.55669,bel circle
+MF-23B_REV,15,Gangadhara Kalyana Mantapa,13.08,77.51137,gangadhara kalyana mantapa
+MF-23B_REV,16,Dasappanapalya,13.07935,77.50591,dasappanapalya
+MF-23B_REV,17,Chikka Banavara,13.08053,77.50255,chikka banavara
+MF-23B_REV,18,Chikkabanavara Railway Station,13.07562,77.50465,chikkabanavara railway station
+MF-23B_REV,19,Janapriya Apartment,13.07349,77.50307,janapriya apartment
+MF-23B_REV,20,Sapthagiri Hospital,13.07067,77.50387,sapthagiri hospital
+MF-23B_REV,21,Sapthagiri College,13.06685,77.50328,sapthagiri college
+MF-23B_REV,22,Bone Mill,13.06385,77.50503,bone mill
+MF-23B_REV,23,Bagalagunte,13.05657,77.50728,bagalagunte
+MF-23B_REV,24,Widia School,13.0511,77.50773,widia school
+MF-23B_REV,25,8th Mile Dasarahalli,13.04622,77.50755,8th mile dasarahalli
+MF-23B_REV,26,T Dasarahalli,13.04283,77.51276,t dasarahalli
+MF-23B_REV,27,Jalahalli Cross,13.03991,77.51823,jalahalli cross
 MF-253HE_REV,1,Hesaraghatta,13.13784,77.47944,hesaraghatta
 MF-253HE_REV,2,Hesaraghatta TB Cross,13.13047,77.48437,hesaraghatta tb cross
 MF-253HE_REV,3,Thirumalapura,13.12538,77.48362,thirumalapura
@@ -2988,31 +2988,31 @@ MF-401_REV,28,Diwanarapalya,13.02679,77.56182,diwanarapalya
 MF-401_REV,29,Ayyappa Temple Yashawanthapura,13.02167,77.56321,ayyappa temple yashawanthapura
 MF-401_REV,30,Yeshawanthapura Tollgate,13.01797,77.56097,yeshawanthapura tollgate
 MF-401_REV,31,Yeshawanthapura Bus Station,13.01801,77.55662,yeshawanthapura bus station
-MF-42_REV,1,Tavarekere,12.96567,77.4001,tavarekere
-MF-42_REV,2,Manjunatha Nagara,12.96436,77.40374,manjunatha nagara
-MF-42_REV,3,Dodda Aladamara Cross,12.96391,77.40741,dodda aladamara cross
-MF-42_REV,4,Yalachaguppe,12.95933,77.42103,yalachaguppe
-MF-42_REV,5,Chikkammanapalya,12.95049,77.42292,chikkammanapalya
-MF-42_REV,6,Gulaganjahalli Cross,12.94152,77.42525,gulaganjahalli cross
-MF-42_REV,7,Krishnasagara,12.93612,77.42869,krishnasagara
-MF-42_REV,8,Maragondanahalli Cross,12.93493,77.4314,maragondanahalli cross
-MF-42_REV,9,Nursery Maragondanahalli,12.93632,77.43844,nursery maragondanahalli
-MF-42_REV,10,Balaji Badavane Sulikere,12.93569,77.44328,balaji badavane sulikere
-MF-42_REV,11,Sulikere Cross,12.93484,77.44647,sulikere cross
-MF-42_REV,12,Sulikere,12.93906,77.44804,sulikere
+MF-42_REV,1,Kengeri Bus Station,12.91379,77.4871,kengeri bus station
+MF-42_REV,2,Kengeri Police Station,12.91044,77.48206,kengeri police station
+MF-42_REV,3,Kengeri Ganesha Temple,12.91143,77.48037,kengeri ganesha temple
+MF-42_REV,4,Kommaghatta Junction,12.91448,77.48149,kommaghatta junction
+MF-42_REV,5,Robin Theatre,12.91602,77.47986,robin theatre
+MF-42_REV,6,Bande Mutt Gate Kengeri,12.91916,77.47743,bande mutt gate kengeri
+MF-42_REV,7,Beedi Karmikara Colony Gate,12.92237,77.47478,beedi karmikara colony gate
+MF-42_REV,8,Kengeri Club,12.92355,77.47297,kengeri club
+MF-42_REV,9,Kommaghatta,12.93007,77.46502,kommaghatta
+MF-42_REV,10,Ramasandra Cross,12.93259,77.46163,ramasandra cross
+MF-42_REV,11,Banglow Sulikere,12.93304,77.45183,banglow sulikere
+MF-42_REV,12,Byrohalli Gate,12.93438,77.44817,byrohalli gate
 MF-42_REV,13,Sulikere Cross,12.93479,77.44652,sulikere cross
-MF-42_REV,14,Byrohalli Gate,12.93438,77.44817,byrohalli gate
-MF-42_REV,15,Banglow Sulikere,12.93304,77.45183,banglow sulikere
-MF-42_REV,16,Ramasandra Cross,12.93259,77.46163,ramasandra cross
-MF-42_REV,17,Kommaghatta,12.93007,77.46502,kommaghatta
-MF-42_REV,18,Kengeri Club,12.92355,77.47297,kengeri club
-MF-42_REV,19,Beedi Karmikara Colony Gate,12.92237,77.47478,beedi karmikara colony gate
-MF-42_REV,20,Bande Mutt Gate Kengeri,12.91916,77.47743,bande mutt gate kengeri
-MF-42_REV,21,Robin Theatre,12.91602,77.47986,robin theatre
-MF-42_REV,22,Kommaghatta Junction,12.91448,77.48149,kommaghatta junction
-MF-42_REV,23,Kengeri Ganesha Temple,12.91143,77.48037,kengeri ganesha temple
-MF-42_REV,24,Kengeri Police Station,12.91044,77.48206,kengeri police station
-MF-42_REV,25,Kengeri Bus Station,12.91379,77.4871,kengeri bus station
+MF-42_REV,14,Sulikere,12.93906,77.44804,sulikere
+MF-42_REV,15,Sulikere Cross,12.93484,77.44647,sulikere cross
+MF-42_REV,16,Balaji Badavane Sulikere,12.93569,77.44328,balaji badavane sulikere
+MF-42_REV,17,Nursery Maragondanahalli,12.93632,77.43844,nursery maragondanahalli
+MF-42_REV,18,Maragondanahalli Cross,12.93493,77.4314,maragondanahalli cross
+MF-42_REV,19,Krishnasagara,12.93612,77.42869,krishnasagara
+MF-42_REV,20,Gulaganjahalli Cross,12.94152,77.42525,gulaganjahalli cross
+MF-42_REV,21,Chikkammanapalya,12.95049,77.42292,chikkammanapalya
+MF-42_REV,22,Yalachaguppe,12.95933,77.42103,yalachaguppe
+MF-42_REV,23,Dodda Aladamara Cross,12.96391,77.40741,dodda aladamara cross
+MF-42_REV,24,Manjunatha Nagara,12.96436,77.40374,manjunatha nagara
+MF-42_REV,25,Tavarekere,12.96567,77.4001,tavarekere
 MF-5_REV,1,Sir M Vishweshwaraiah Railway Station,12.99966,77.64099,sir m vishweshwaraiah railway station
 MF-5_REV,2,Old Baiyappanahalli,12.99431,77.64424,old baiyappanahalli
 MF-5_REV,3,Bayyappanahalli Cross,12.98559,77.64255,bayyappanahalli cross
@@ -3173,20 +3173,20 @@ V-285M_REV,43,Shivananda Store,12.98666,77.57938,shivananda store
 V-285M_REV,44,Swastik Sheshadripuram College,12.98798,77.57422,swastik sheshadripuram college
 V-285M_REV,45,Central,12.9898,77.57204,central
 V-285M_REV,46,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-V-300MV_REV,1,Sir M Vishweshwaraiah Railway Station,12.99966,77.64099,sir m vishweshwaraiah railway station
-V-300MV_REV,2,Maruthi Sevanagara,13.00241,77.63435,maruthi sevanagara
-V-300MV_REV,3,Jai Bharath Nagara,13.00158,77.63079,jai bharath nagara
-V-300MV_REV,4,ITC Factory,12.9986,77.62211,itc factory
-V-300MV_REV,5,Mosque Road,13.00032,77.61609,mosque road
-V-300MV_REV,6,Coles Road,12.99632,77.61247,coles road
-V-300MV_REV,7,Coles Park,12.99534,77.60829,coles park
-V-300MV_REV,8,Bamboo Bazaar,12.99208,77.60402,bamboo bazaar
-V-300MV_REV,9,CSI Hospital,12.98983,77.59938,csi hospital
-V-300MV_REV,10,Indian Express,12.98362,77.59646,indian express
-V-300MV_REV,11,Vidhana Soudha Karnataka High Court,12.97821,77.59135,vidhana soudha karnataka high court
-V-300MV_REV,12,Maharani College,12.97697,77.58567,maharani college
-V-300MV_REV,13,Cauvery Bhavana,12.97372,77.58157,cauvery bhavana
-V-300MV_REV,14,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+V-300MV_REV,1,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
+V-300MV_REV,2,Cauvery Bhavana,12.97372,77.58157,cauvery bhavana
+V-300MV_REV,3,Maharani College,12.97697,77.58567,maharani college
+V-300MV_REV,4,Vidhana Soudha Karnataka High Court,12.97821,77.59135,vidhana soudha karnataka high court
+V-300MV_REV,5,Indian Express,12.98362,77.59646,indian express
+V-300MV_REV,6,CSI Hospital,12.98983,77.59938,csi hospital
+V-300MV_REV,7,Bamboo Bazaar,12.99208,77.60402,bamboo bazaar
+V-300MV_REV,8,Coles Park,12.99534,77.60829,coles park
+V-300MV_REV,9,Coles Road,12.99632,77.61247,coles road
+V-300MV_REV,10,Mosque Road,13.00032,77.61609,mosque road
+V-300MV_REV,11,ITC Factory,12.9986,77.62211,itc factory
+V-300MV_REV,12,Jai Bharath Nagara,13.00158,77.63079,jai bharath nagara
+V-300MV_REV,13,Maruthi Sevanagara,13.00241,77.63435,maruthi sevanagara
+V-300MV_REV,14,Sir M Vishweshwaraiah Railway Station,12.99966,77.64099,sir m vishweshwaraiah railway station
 V-331A_REV,1,Kadugodi Bus Station,12.99563,77.75855,kadugodi bus station
 V-331A_REV,2,Kadugodi Bridge,12.99439,77.75775,kadugodi bridge
 V-331A_REV,3,Hope Farm,12.9839,77.75189,hope farm
@@ -3354,51 +3354,51 @@ V-360B_REV,36,Pallavi Talkies,12.9679,77.59102,pallavi talkies
 V-360B_REV,37,Corporation,12.96839,77.58675,corporation
 V-360B_REV,38,Mysore Bank,12.97253,77.58199,mysore bank
 V-360B_REV,39,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-V-500A_REV,1,Hebbala Bridge,13.04259,77.5925,hebbala bridge
-V-500A_REV,2,Kempapura,13.04379,77.6005,kempapura
-V-500A_REV,3,Veerannapalya,13.04231,77.61382,veerannapalya
-V-500A_REV,4,Manyatha Tech Park,13.0412,77.62095,manyatha tech park
-V-500A_REV,5,Nagawara Junction,13.0402,77.62454,nagawara junction
-V-500A_REV,6,HBR Layout,13.03517,77.62857,hbr layout
-V-500A_REV,7,Hennur Junction,13.02964,77.63134,hennur junction
-V-500A_REV,8,Kalyananagara,13.02654,77.63688,kalyananagara
-V-500A_REV,9,Babusabpalya,13.02274,77.64721,babusabpalya
-V-500A_REV,10,Horamavu Signal,13.01966,77.65437,horamavu signal
-V-500A_REV,11,Vijaya Bank Colony Ring Road,13.01726,77.65992,vijaya bank colony ring road
-V-500A_REV,12,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01128,77.66242,b channasandra bridge(ramamurthy nagara ring road)
-V-500A_REV,13,Kasthurinagara,13.004,77.66328,kasthurinagara
-V-500A_REV,14,Tin Factory,12.99698,77.66937,tin factory
-V-500A_REV,15,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
-V-500A_REV,16,B Narayanapura Ring Road,12.99583,77.68417,b narayanapura ring road
-V-500A_REV,17,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
-V-500A_REV,18,EMC2,12.98256,77.69301,emc2
-V-500A_REV,19,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
-V-500A_REV,20,Karthik Nagara,12.96821,77.7017,karthik nagara
-V-500A_REV,21,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
-V-500A_REV,22,Multiplex Marathahalli,12.95227,77.70002,multiplex marathahalli
+V-500A_REV,1,Banashankari Bus Station,12.91736,77.5727,banashankari bus station
+V-500A_REV,2,Sangam Circle,12.91704,77.57875,sangam circle
+V-500A_REV,3,Jayanagara 5th Block,12.91701,77.58413,jayanagara 5th block
+V-500A_REV,4,Marenahalli (Marenahalli Metro Station),12.91688,77.58858,marenahalli (marenahalli metro station)
+V-500A_REV,5,Ragigudda Temple,12.91678,77.59349,ragigudda temple
+V-500A_REV,6,East End Jayanagara,12.91671,77.59629,east end jayanagara
+V-500A_REV,7,MICO Layout BTM,12.91657,77.60427,mico layout btm
+V-500A_REV,8,BTM Layout Water Tank,12.91654,77.60711,btm layout water tank
+V-500A_REV,9,BTM Layout 16th Main,12.9165,77.60932,btm layout 16th main
+V-500A_REV,10,Kuvempunagara Bus Station(BTM Layout),12.91597,77.61623,kuvempunagara bus station(btm layout)
+V-500A_REV,11,Central Silk Board,12.91689,77.62177,central silk board
+V-500A_REV,12,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
+V-500A_REV,13,14th Main HSR Layout,12.91619,77.63521,14th main hsr layout
+V-500A_REV,14,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
+V-500A_REV,15,Agara Junction,12.92433,77.65073,agara junction
+V-500A_REV,16,Ibbaluru,12.92129,77.66217,ibbaluru
+V-500A_REV,17,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
+V-500A_REV,18,Bellanduru Petrol Bunk,12.92309,77.6705,bellanduru petrol bunk
+V-500A_REV,19,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
+V-500A_REV,20,Eco Space,12.92776,77.68049,eco space
+V-500A_REV,21,Devarabisanahalli Ring Road,12.93145,77.68686,devarabisanahalli ring road
+V-500A_REV,22,New Horizon College,12.93544,77.69123,new horizon college
 V-500A_REV,23,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
-V-500A_REV,24,New Horizon College,12.93544,77.69123,new horizon college
-V-500A_REV,25,Devarabisanahalli Ring Road,12.93145,77.68686,devarabisanahalli ring road
-V-500A_REV,26,Eco Space,12.92776,77.68049,eco space
-V-500A_REV,27,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
-V-500A_REV,28,Bellanduru Petrol Bunk,12.92309,77.6705,bellanduru petrol bunk
-V-500A_REV,29,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
-V-500A_REV,30,Ibbaluru,12.92129,77.66217,ibbaluru
-V-500A_REV,31,Agara Junction,12.92433,77.65073,agara junction
-V-500A_REV,32,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
-V-500A_REV,33,14th Main HSR Layout,12.91619,77.63521,14th main hsr layout
-V-500A_REV,34,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
-V-500A_REV,35,Central Silk Board,12.91689,77.62177,central silk board
-V-500A_REV,36,Kuvempunagara Bus Station(BTM Layout),12.91597,77.61623,kuvempunagara bus station(btm layout)
-V-500A_REV,37,BTM Layout 16th Main,12.9165,77.60932,btm layout 16th main
-V-500A_REV,38,BTM Layout Water Tank,12.91654,77.60711,btm layout water tank
-V-500A_REV,39,MICO Layout BTM,12.91657,77.60427,mico layout btm
-V-500A_REV,40,East End Jayanagara,12.91671,77.59629,east end jayanagara
-V-500A_REV,41,Ragigudda Temple,12.91678,77.59349,ragigudda temple
-V-500A_REV,42,Marenahalli (Marenahalli Metro Station),12.91688,77.58858,marenahalli (marenahalli metro station)
-V-500A_REV,43,Jayanagara 5th Block,12.91701,77.58413,jayanagara 5th block
-V-500A_REV,44,Sangam Circle,12.91704,77.57875,sangam circle
-V-500A_REV,45,Banashankari Bus Station,12.91736,77.5727,banashankari bus station
+V-500A_REV,24,Multiplex Marathahalli,12.95227,77.70002,multiplex marathahalli
+V-500A_REV,25,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
+V-500A_REV,26,Karthik Nagara,12.96821,77.7017,karthik nagara
+V-500A_REV,27,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
+V-500A_REV,28,EMC2,12.98256,77.69301,emc2
+V-500A_REV,29,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
+V-500A_REV,30,B Narayanapura Ring Road,12.99583,77.68417,b narayanapura ring road
+V-500A_REV,31,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
+V-500A_REV,32,Tin Factory,12.99698,77.66937,tin factory
+V-500A_REV,33,Kasthurinagara,13.004,77.66328,kasthurinagara
+V-500A_REV,34,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01128,77.66242,b channasandra bridge(ramamurthy nagara ring road)
+V-500A_REV,35,Vijaya Bank Colony Ring Road,13.01726,77.65992,vijaya bank colony ring road
+V-500A_REV,36,Horamavu Signal,13.01966,77.65437,horamavu signal
+V-500A_REV,37,Babusabpalya,13.02274,77.64721,babusabpalya
+V-500A_REV,38,Kalyananagara,13.02654,77.63688,kalyananagara
+V-500A_REV,39,Hennur Junction,13.02964,77.63134,hennur junction
+V-500A_REV,40,HBR Layout,13.03517,77.62857,hbr layout
+V-500A_REV,41,Nagawara Junction,13.0402,77.62454,nagawara junction
+V-500A_REV,42,Manyatha Tech Park,13.0412,77.62095,manyatha tech park
+V-500A_REV,43,Veerannapalya,13.04231,77.61382,veerannapalya
+V-500A_REV,44,Kempapura,13.04379,77.6005,kempapura
+V-500A_REV,45,Hebbala Bridge,13.04259,77.5925,hebbala bridge
 V-500CA_REV,1,ITPL,12.98754,77.73636,itpl
 V-500CA_REV,2,Pattandur Agrahara Gate,12.9878,77.73366,pattandur agrahara gate
 V-500CA_REV,3,Big Bazzar  ITPL,12.98795,77.7318,big bazzar  itpl
@@ -3442,88 +3442,88 @@ V-500CA_REV,40,Marenahalli (Marenahalli Metro Station),12.91688,77.58858,marenah
 V-500CA_REV,41,Jayanagara 5th Block,12.91701,77.58413,jayanagara 5th block
 V-500CA_REV,42,Sangam Circle,12.91704,77.57875,sangam circle
 V-500CA_REV,43,Banashankari Bus Station,12.91736,77.5727,banashankari bus station
-V-500CK_REV,1,Kadugodi Bus Station,12.99563,77.75855,kadugodi bus station
-V-500CK_REV,2,Kadugodi Bridge,12.99439,77.75775,kadugodi bridge
-V-500CK_REV,3,Hope Farm,12.9839,77.75189,hope farm
-V-500CK_REV,4,BPL,12.98531,77.74768,bpl
-V-500CK_REV,5,GR Tech Park ITPL,12.98666,77.74351,gr tech park itpl
-V-500CK_REV,6,ITPL,12.98754,77.73636,itpl
-V-500CK_REV,7,Pattandur Agrahara Gate,12.9878,77.73366,pattandur agrahara gate
-V-500CK_REV,8,ITPL Back Gate Big Bazzar,12.9863,77.73171,itpl back gate big bazzar
-V-500CK_REV,9,Sathya Sai Hospital,12.98263,77.72823,sathya sai hospital
-V-500CK_REV,10,White Field Bus Station (Vydehi Hospital),12.97642,77.72684,white field bus station (vydehi hospital)
-V-500CK_REV,11,KTPO,12.9768,77.72242,ktpo
-V-500CK_REV,12,I Gate,12.97717,77.71882,i gate
-V-500CK_REV,13,Kundalahalli Metro Station,12.97737,77.71639,kundalahalli metro station
-V-500CK_REV,14,SAP Labs,12.97765,77.71448,sap labs
-V-500CK_REV,15,Graphite India,12.97705,77.71005,graphite india
-V-500CK_REV,16,Kundalahalli Colony,12.97052,77.71245,kundalahalli colony
-V-500CK_REV,17,CMRIT College,12.96763,77.71447,cmrit college
-V-500CK_REV,18,AECS Layout Cross,12.96495,77.71832,aecs layout cross
-V-500CK_REV,19,BEML Layout Gate,12.96054,77.7165,beml layout gate
-V-500CK_REV,20,Kundalahalli,12.95815,77.71571,kundalahalli
-V-500CK_REV,21,Kundalahalli Gate,12.95592,77.71378,kundalahalli gate
-V-500CK_REV,22,Munnekolalu Cross (Spice Garden),12.95634,77.70878,munnekolalu cross (spice garden)
-V-500CK_REV,23,Marathahalli Bridge,12.95671,77.70131,marathahalli bridge
+V-500CK_REV,1,Banashankari Bus Station,12.91736,77.5727,banashankari bus station
+V-500CK_REV,2,Sangam Circle,12.91704,77.57875,sangam circle
+V-500CK_REV,3,Jayanagara 5th Block,12.91701,77.58413,jayanagara 5th block
+V-500CK_REV,4,Marenahalli (Marenahalli Metro Station),12.91688,77.58858,marenahalli (marenahalli metro station)
+V-500CK_REV,5,Ragigudda Temple,12.91678,77.59349,ragigudda temple
+V-500CK_REV,6,East End Jayanagara,12.91671,77.59629,east end jayanagara
+V-500CK_REV,7,MICO Layout BTM,12.91657,77.60427,mico layout btm
+V-500CK_REV,8,BTM Layout Water Tank,12.91654,77.60711,btm layout water tank
+V-500CK_REV,9,Kuvempunagara Bus Station(BTM Layout),12.91597,77.61623,kuvempunagara bus station(btm layout)
+V-500CK_REV,10,BTM Layout 16th Main,12.9165,77.60932,btm layout 16th main
+V-500CK_REV,11,Central Silk Board,12.91689,77.62177,central silk board
+V-500CK_REV,12,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
+V-500CK_REV,13,14th Main HSR Layout,12.91619,77.63521,14th main hsr layout
+V-500CK_REV,14,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
+V-500CK_REV,15,Agara Junction,12.92433,77.65073,agara junction
+V-500CK_REV,16,Ibbaluru,12.92129,77.66217,ibbaluru
+V-500CK_REV,17,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
+V-500CK_REV,18,Bellanduru Petrol Bunk,12.92309,77.6705,bellanduru petrol bunk
+V-500CK_REV,19,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
+V-500CK_REV,20,Eco Space,12.92776,77.68049,eco space
+V-500CK_REV,21,Devarabisanahalli Ring Road,12.93145,77.68686,devarabisanahalli ring road
+V-500CK_REV,22,New Horizon College,12.93544,77.69123,new horizon college
+V-500CK_REV,23,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
 V-500CK_REV,24,Multiplex Marathahalli,12.95227,77.70002,multiplex marathahalli
-V-500CK_REV,25,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
-V-500CK_REV,26,New Horizon College,12.93544,77.69123,new horizon college
-V-500CK_REV,27,Devarabisanahalli Ring Road,12.93145,77.68686,devarabisanahalli ring road
-V-500CK_REV,28,Eco Space,12.92776,77.68049,eco space
-V-500CK_REV,29,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
-V-500CK_REV,30,Bellanduru Petrol Bunk,12.92309,77.6705,bellanduru petrol bunk
-V-500CK_REV,31,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
-V-500CK_REV,32,Ibbaluru,12.92129,77.66217,ibbaluru
-V-500CK_REV,33,Agara Junction,12.92433,77.65073,agara junction
-V-500CK_REV,34,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
-V-500CK_REV,35,14th Main HSR Layout,12.91619,77.63521,14th main hsr layout
-V-500CK_REV,36,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
-V-500CK_REV,37,Central Silk Board,12.91689,77.62177,central silk board
-V-500CK_REV,38,BTM Layout 16th Main,12.9165,77.60932,btm layout 16th main
-V-500CK_REV,39,Kuvempunagara Bus Station(BTM Layout),12.91597,77.61623,kuvempunagara bus station(btm layout)
-V-500CK_REV,40,BTM Layout Water Tank,12.91654,77.60711,btm layout water tank
-V-500CK_REV,41,MICO Layout BTM,12.91657,77.60427,mico layout btm
-V-500CK_REV,42,East End Jayanagara,12.91671,77.59629,east end jayanagara
-V-500CK_REV,43,Ragigudda Temple,12.91678,77.59349,ragigudda temple
-V-500CK_REV,44,Marenahalli (Marenahalli Metro Station),12.91688,77.58858,marenahalli (marenahalli metro station)
-V-500CK_REV,45,Jayanagara 5th Block,12.91701,77.58413,jayanagara 5th block
-V-500CK_REV,46,Sangam Circle,12.91704,77.57875,sangam circle
-V-500CK_REV,47,Banashankari Bus Station,12.91736,77.5727,banashankari bus station
-V-500D_REV,1,Hebbala Bridge,13.04259,77.5925,hebbala bridge
-V-500D_REV,2,Kempapura,13.04379,77.6005,kempapura
-V-500D_REV,3,Veerannapalya,13.04231,77.61382,veerannapalya
-V-500D_REV,4,Manyatha Tech Park,13.0412,77.62095,manyatha tech park
-V-500D_REV,5,Nagawara Junction,13.0402,77.62454,nagawara junction
-V-500D_REV,6,HBR Layout,13.03517,77.62857,hbr layout
-V-500D_REV,7,Hennur Junction,13.02964,77.63134,hennur junction
-V-500D_REV,8,Kalyananagara,13.02654,77.63688,kalyananagara
-V-500D_REV,9,Babusabpalya,13.02274,77.64721,babusabpalya
-V-500D_REV,10,Horamavu Signal,13.01966,77.65437,horamavu signal
-V-500D_REV,11,Vijaya Bank Colony Ring Road,13.01726,77.65992,vijaya bank colony ring road
-V-500D_REV,12,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01128,77.66242,b channasandra bridge(ramamurthy nagara ring road)
-V-500D_REV,13,Kasthurinagara,13.004,77.66328,kasthurinagara
-V-500D_REV,14,Tin Factory,12.99698,77.66937,tin factory
-V-500D_REV,15,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
-V-500D_REV,16,B Narayanapura Ring Road,12.99583,77.68417,b narayanapura ring road
-V-500D_REV,17,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
+V-500CK_REV,25,Marathahalli Bridge,12.95671,77.70131,marathahalli bridge
+V-500CK_REV,26,Munnekolalu Cross (Spice Garden),12.95634,77.70878,munnekolalu cross (spice garden)
+V-500CK_REV,27,Kundalahalli Gate,12.95592,77.71378,kundalahalli gate
+V-500CK_REV,28,Kundalahalli,12.95815,77.71571,kundalahalli
+V-500CK_REV,29,BEML Layout Gate,12.96054,77.7165,beml layout gate
+V-500CK_REV,30,AECS Layout Cross,12.96495,77.71832,aecs layout cross
+V-500CK_REV,31,CMRIT College,12.96763,77.71447,cmrit college
+V-500CK_REV,32,Kundalahalli Colony,12.97052,77.71245,kundalahalli colony
+V-500CK_REV,33,Graphite India,12.97705,77.71005,graphite india
+V-500CK_REV,34,SAP Labs,12.97765,77.71448,sap labs
+V-500CK_REV,35,Kundalahalli Metro Station,12.97737,77.71639,kundalahalli metro station
+V-500CK_REV,36,I Gate,12.97717,77.71882,i gate
+V-500CK_REV,37,KTPO,12.9768,77.72242,ktpo
+V-500CK_REV,38,White Field Bus Station (Vydehi Hospital),12.97642,77.72684,white field bus station (vydehi hospital)
+V-500CK_REV,39,Sathya Sai Hospital,12.98263,77.72823,sathya sai hospital
+V-500CK_REV,40,ITPL Back Gate Big Bazzar,12.9863,77.73171,itpl back gate big bazzar
+V-500CK_REV,41,Pattandur Agrahara Gate,12.9878,77.73366,pattandur agrahara gate
+V-500CK_REV,42,ITPL,12.98754,77.73636,itpl
+V-500CK_REV,43,GR Tech Park ITPL,12.98666,77.74351,gr tech park itpl
+V-500CK_REV,44,BPL,12.98531,77.74768,bpl
+V-500CK_REV,45,Hope Farm,12.9839,77.75189,hope farm
+V-500CK_REV,46,Kadugodi Bridge,12.99439,77.75775,kadugodi bridge
+V-500CK_REV,47,Kadugodi Bus Station,12.99563,77.75855,kadugodi bus station
+V-500D_REV,1,Central Silk Board,12.91736,77.6236,central silk board
+V-500D_REV,2,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
+V-500D_REV,3,14th Main HSR Layout,12.91619,77.63521,14th main hsr layout
+V-500D_REV,4,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
+V-500D_REV,5,Agara Junction,12.92433,77.65073,agara junction
+V-500D_REV,6,Ibbaluru,12.92129,77.66217,ibbaluru
+V-500D_REV,7,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
+V-500D_REV,8,Bellanduru Petrol Bunk,12.92309,77.6705,bellanduru petrol bunk
+V-500D_REV,9,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
+V-500D_REV,10,Eco Space,12.92776,77.68049,eco space
+V-500D_REV,11,Devarabisanahalli Ring Road,12.93145,77.68686,devarabisanahalli ring road
+V-500D_REV,12,New Horizon College,12.93544,77.69123,new horizon college
+V-500D_REV,13,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
+V-500D_REV,14,Multiplex Marathahalli,12.95227,77.70002,multiplex marathahalli
+V-500D_REV,15,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
+V-500D_REV,16,Karthik Nagara,12.96821,77.7017,karthik nagara
+V-500D_REV,17,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
 V-500D_REV,18,EMC2,12.98256,77.69301,emc2
-V-500D_REV,19,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
-V-500D_REV,20,Karthik Nagara,12.96821,77.7017,karthik nagara
-V-500D_REV,21,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
-V-500D_REV,22,Multiplex Marathahalli,12.95227,77.70002,multiplex marathahalli
-V-500D_REV,23,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
-V-500D_REV,24,New Horizon College,12.93544,77.69123,new horizon college
-V-500D_REV,25,Devarabisanahalli Ring Road,12.93145,77.68686,devarabisanahalli ring road
-V-500D_REV,26,Eco Space,12.92776,77.68049,eco space
-V-500D_REV,27,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
-V-500D_REV,28,Bellanduru Petrol Bunk,12.92309,77.6705,bellanduru petrol bunk
-V-500D_REV,29,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
-V-500D_REV,30,Ibbaluru,12.92129,77.66217,ibbaluru
-V-500D_REV,31,Agara Junction,12.92433,77.65073,agara junction
-V-500D_REV,32,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
-V-500D_REV,33,14th Main HSR Layout,12.91619,77.63521,14th main hsr layout
-V-500D_REV,34,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
-V-500D_REV,35,Central Silk Board,12.91736,77.6236,central silk board
+V-500D_REV,19,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
+V-500D_REV,20,B Narayanapura Ring Road,12.99583,77.68417,b narayanapura ring road
+V-500D_REV,21,KR Pura Railway Station,13.00022,77.67597,kr pura railway station
+V-500D_REV,22,Tin Factory,12.99698,77.66937,tin factory
+V-500D_REV,23,Kasthurinagara,13.004,77.66328,kasthurinagara
+V-500D_REV,24,B Channasandra Bridge(Ramamurthy Nagara Ring Road),13.01128,77.66242,b channasandra bridge(ramamurthy nagara ring road)
+V-500D_REV,25,Vijaya Bank Colony Ring Road,13.01726,77.65992,vijaya bank colony ring road
+V-500D_REV,26,Horamavu Signal,13.01966,77.65437,horamavu signal
+V-500D_REV,27,Babusabpalya,13.02274,77.64721,babusabpalya
+V-500D_REV,28,Kalyananagara,13.02654,77.63688,kalyananagara
+V-500D_REV,29,Hennur Junction,13.02964,77.63134,hennur junction
+V-500D_REV,30,HBR Layout,13.03517,77.62857,hbr layout
+V-500D_REV,31,Nagawara Junction,13.0402,77.62454,nagawara junction
+V-500D_REV,32,Manyatha Tech Park,13.0412,77.62095,manyatha tech park
+V-500D_REV,33,Veerannapalya,13.04231,77.61382,veerannapalya
+V-500D_REV,34,Kempapura,13.04379,77.6005,kempapura
+V-500D_REV,35,Hebbala Bridge,13.04259,77.5925,hebbala bridge
 V-500F_REV,1,Kadugodi Bus Station,12.99563,77.75855,kadugodi bus station
 V-500F_REV,2,Kadugodi Bridge,12.99439,77.75775,kadugodi bridge
 V-500F_REV,3,Hope Farm,12.9839,77.75189,hope farm
@@ -3636,24 +3636,24 @@ V-G7_REV,24,Gopalapura,12.98063,77.55789,gopalapura
 V-G7_REV,25,Sujatha Talkies,12.98262,77.56234,sujatha talkies
 V-G7_REV,26,Okalipura,12.98267,77.56837,okalipura
 V-G7_REV,27,Kempegowda Bus Station,12.97749,77.57327,kempegowda bus station
-V-MF1C_REV,1,KR Pura Metro Station,13.00014,77.67664,kr pura metro station
-V-MF1C_REV,2,B Narayanapura Ring Road,12.99583,77.68417,b narayanapura ring road
-V-MF1C_REV,3,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
-V-MF1C_REV,4,EMC2,12.98256,77.69301,emc2
-V-MF1C_REV,5,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
-V-MF1C_REV,6,Karthik Nagara,12.96821,77.7017,karthik nagara
-V-MF1C_REV,7,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
-V-MF1C_REV,8,Multiplex Marathahalli,12.95227,77.70002,multiplex marathahalli
-V-MF1C_REV,9,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
-V-MF1C_REV,10,New Horizon College,12.93544,77.69123,new horizon college
+V-MF1C_REV,1,Central Silk Board,12.91803,77.62355,central silk board
+V-MF1C_REV,2,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
+V-MF1C_REV,3,14th Main HSR Layout,12.91619,77.63521,14th main hsr layout
+V-MF1C_REV,4,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
+V-MF1C_REV,5,Agara Junction,12.92433,77.65073,agara junction
+V-MF1C_REV,6,Ibbaluru,12.92129,77.66217,ibbaluru
+V-MF1C_REV,7,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
+V-MF1C_REV,8,Bellanduru Petrol Bunk,12.92309,77.6705,bellanduru petrol bunk
+V-MF1C_REV,9,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
+V-MF1C_REV,10,Eco Space,12.92776,77.68049,eco space
 V-MF1C_REV,11,Devarabisanahalli Ring Road,12.93145,77.68686,devarabisanahalli ring road
-V-MF1C_REV,12,Eco Space,12.92776,77.68049,eco space
-V-MF1C_REV,13,Bellanduru City Light Appartment,12.92412,77.67278,bellanduru city light appartment
-V-MF1C_REV,14,Bellanduru Petrol Bunk,12.92309,77.6705,bellanduru petrol bunk
-V-MF1C_REV,15,Sarjapura Ring Road Junction,12.92203,77.66825,sarjapura ring road junction
-V-MF1C_REV,16,Ibbaluru,12.92129,77.66217,ibbaluru
-V-MF1C_REV,17,Agara Junction,12.92433,77.65073,agara junction
-V-MF1C_REV,18,Depot-25 Gate (Central Silk Board),12.91952,77.64294,depot-25 gate (central silk board)
-V-MF1C_REV,19,14th Main HSR Layout,12.91619,77.63521,14th main hsr layout
-V-MF1C_REV,20,SI Apartment HSR Layout,12.91668,77.6294,si apartment hsr layout
-V-MF1C_REV,21,Central Silk Board,12.91803,77.62355,central silk board
+V-MF1C_REV,12,New Horizon College,12.93544,77.69123,new horizon college
+V-MF1C_REV,13,Kadubisanahalli,12.94259,77.69717,kadubisanahalli
+V-MF1C_REV,14,Multiplex Marathahalli,12.95227,77.70002,multiplex marathahalli
+V-MF1C_REV,15,Kalamandira Marathahalli Bridge,12.95993,77.70143,kalamandira marathahalli bridge
+V-MF1C_REV,16,Karthik Nagara,12.96821,77.7017,karthik nagara
+V-MF1C_REV,17,Dodda Nekkundi Bridge/Rainbow Hospital,12.97499,77.69764,dodda nekkundi bridge/rainbow hospital
+V-MF1C_REV,18,EMC2,12.98256,77.69301,emc2
+V-MF1C_REV,19,Mahadevapura Ring Road,12.98823,77.6895,mahadevapura ring road
+V-MF1C_REV,20,B Narayanapura Ring Road,12.99583,77.68417,b narayanapura ring road
+V-MF1C_REV,21,KR Pura Metro Station,13.00014,77.67664,kr pura metro station
