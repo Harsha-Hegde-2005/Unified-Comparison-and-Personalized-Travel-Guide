@@ -8,6 +8,21 @@ const getGoogleMapsKey = () => {
   return localStorage.getItem("gmaps_api_key") || window._backendGmapsKey || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY";
 };
 
+const originalFetch = window.fetch;
+window.fetch = async (url, options = {}) => {
+  const urlStr = String(url);
+  if (urlStr.startsWith(API_BASE) || urlStr.startsWith("/")) {
+    const key = getGoogleMapsKey();
+    if (key && key !== "YOUR_GOOGLE_MAPS_API_KEY") {
+      options.headers = {
+        ...options.headers,
+        "X-Google-Maps-Key": key
+      };
+    }
+  }
+  return originalFetch(url, options);
+};
+
 /* ─────────────────────────────────────────────────────────────
    DESIGN TOKENS
 ───────────────────────────────────────────────────────────── */
@@ -510,17 +525,11 @@ function getSegmentIndexForGuideStep(step, guide, segments) {
   return null;
 }
 
-function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegmentIndex = null, setActiveSegmentIndex = () => { } }) {
+function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegmentIndex = null, setActiveSegmentIndex = () => { }, useOsm, setUseOsm }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
   const osmMapRef = useRef(null);
   const [loaded, setLoaded] = useState(false);
-  const [useOsm, setUseOsm] = useState(() => {
-    if (localStorage.getItem("force_osm") === "true") return true;
-    if (localStorage.getItem("force_osm") === "false") return false;
-    const key = getGoogleMapsKey();
-    return !!window._osmActive || !key || key === "YOUR_GOOGLE_MAPS_API_KEY";
-  });
   const [osmLoaded, setOsmLoaded] = useState(false);
   const coordsCacheRef = useRef({});
   const [userCoords, setUserCoords] = useState(null);
@@ -531,7 +540,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
     };
     window.addEventListener("osm_fallback", handleFallback);
     return () => window.removeEventListener("osm_fallback", handleFallback);
-  }, []);
+  }, [setUseOsm]);
 
   useEffect(() => {
     window.gm_authFailure = () => {
@@ -4777,6 +4786,11 @@ export default function App() {
 
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [useOsm, setUseOsm] = useState(() => {
+    if (localStorage.getItem("force_osm") === "true") return true;
+    if (localStorage.getItem("force_osm") === "false") return false;
+    return true; // Default to OSM until config is loaded
+  });
 
   useEffect(() => {
     const initGmaps = (key) => {
@@ -4812,18 +4826,37 @@ export default function App() {
       document.head.appendChild(s);
     };
 
+    const handleFallback = () => {
+      setUseOsm(true);
+    };
+    window.addEventListener("osm_fallback", handleFallback);
+
     fetch(`${API_BASE}/api/config`)
       .then(r => r.json())
       .then(data => {
         if (data.google_maps_api_key) {
           window._backendGmapsKey = data.google_maps_api_key;
         }
-        initGmaps(getGoogleMapsKey());
+        const key = getGoogleMapsKey();
+        if (key && key !== "YOUR_GOOGLE_MAPS_API_KEY" && localStorage.getItem("force_osm") !== "true") {
+          setUseOsm(false);
+          initGmaps(key);
+        } else {
+          setUseOsm(true);
+        }
       })
       .catch(err => {
         console.warn("Could not fetch API config:", err);
-        initGmaps(getGoogleMapsKey());
+        const key = getGoogleMapsKey();
+        if (key && key !== "YOUR_GOOGLE_MAPS_API_KEY" && localStorage.getItem("force_osm") !== "true") {
+          setUseOsm(false);
+          initGmaps(key);
+        } else {
+          setUseOsm(true);
+        }
       });
+
+    return () => window.removeEventListener("osm_fallback", handleFallback);
   }, []);
 
   // Reset active segment navigation index when selected plan or vehicle changes
@@ -5133,7 +5166,7 @@ export default function App() {
 
             {/* Map */}
             <div style={{ height: "calc(100vh - 120px)", position: "sticky", top: 72 }}>
-              <GoogleMap src={src} dst={dst} segments={null} activeMode={null} activeSegmentIndex={null} setActiveSegmentIndex={() => { }} />
+              <GoogleMap src={src} dst={dst} segments={null} activeMode={null} activeSegmentIndex={null} setActiveSegmentIndex={() => { }} useOsm={useOsm} setUseOsm={setUseOsm} />
             </div>
           </div>
         )}
@@ -5298,6 +5331,8 @@ export default function App() {
                   guide={selectedData?.guide}
                   activeSegmentIndex={activeSegmentIndex}
                   setActiveSegmentIndex={setActiveSegmentIndex}
+                  useOsm={useOsm}
+                  setUseOsm={setUseOsm}
                 />
               )}
               {selectedData?.available && (
@@ -5343,18 +5378,24 @@ export default function App() {
               <div style={{ display: "flex", gap: 8, background: C.bg, padding: 4, borderRadius: 12, border: `1px solid ${C.border2}` }}>
                 <button onClick={() => {
                   localStorage.setItem("force_osm", "true");
+                  setUseOsm(true);
                 }} style={{
                   flex: 1, padding: "8px 0", borderRadius: 8, border: "none",
-                  background: localStorage.getItem("force_osm") === "true" ? C.card : "transparent",
-                  color: localStorage.getItem("force_osm") === "true" ? C.accent : C.muted,
+                  background: useOsm ? C.card : "transparent",
+                  color: useOsm ? C.accent : C.muted,
                   fontWeight: 700, fontSize: 12, cursor: "pointer"
                 }}>OpenStreetMap (Leaflet)</button>
                 <button onClick={() => {
                   localStorage.setItem("force_osm", "false");
+                  setUseOsm(false);
+                  const key = getGoogleMapsKey();
+                  if (key && key !== "YOUR_GOOGLE_MAPS_API_KEY") {
+                    window.dispatchEvent(new Event("osm_fallback"));
+                  }
                 }} style={{
                   flex: 1, padding: "8px 0", borderRadius: 8, border: "none",
-                  background: localStorage.getItem("force_osm") !== "true" ? C.card : "transparent",
-                  color: localStorage.getItem("force_osm") !== "true" ? C.accent : C.muted,
+                  background: !useOsm ? C.card : "transparent",
+                  color: !useOsm ? C.accent : C.muted,
                   fontWeight: 700, fontSize: 12, cursor: "pointer"
                 }}>Google Maps</button>
               </div>

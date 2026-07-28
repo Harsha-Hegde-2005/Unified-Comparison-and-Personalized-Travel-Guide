@@ -69,6 +69,15 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def add_gmaps_key_middleware(request, call_next):
+    gmaps_key = request.headers.get("x-google-maps-key")
+    if gmaps_key:
+        os.environ["GOOGLE_MAPS_API_KEY"] = gmaps_key
+    response = await call_next(request)
+    return response
+
+
 @app.on_event("startup")
 async def _startup_preload_gtfs():
     """Kick off GTFS loading in a background thread and initialize database tables."""

@@ -37,7 +37,27 @@ class GeocodingEngine:
 
         Raises:
             ValueError: if the place cannot be found after all attempts
-        """
+        gmaps_key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
+        if gmaps_key:
+            try:
+                url = "https://maps.googleapis.com/maps/api/geocode/json"
+                params = {"address": place, "key": gmaps_key}
+                r = requests.get(url, params=params)
+                r.raise_for_status()
+                data = r.json()
+                if data.get("status") == "OK" and data.get("results"):
+                    result = data["results"][0]
+                    return {
+                        "place":     place,
+                        "display":   result["formatted_address"],
+                        "latitude":  float(result["geometry"]["location"]["lat"]),
+                        "longitude": float(result["geometry"]["location"]["lng"])
+                    }
+                else:
+                    print(f"Google Geocoding failed with status {data.get('status')}. Falling back to Nominatim.")
+            except Exception as e:
+                print(f"Google Geocoding error: {e}. Falling back to Nominatim.")
+
         queries = self._build_queries(place)
 
         for query in queries:

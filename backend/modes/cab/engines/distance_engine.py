@@ -44,9 +44,10 @@ class DistanceEngine:
         return result
 
     def _get_distance_raw(self, source_coords: dict, destination_coords: dict) -> dict:
-        if GOOGLE_MAPS_KEY and not DistanceEngine.google_maps_disabled:
+        key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
+        if key and not DistanceEngine.google_maps_disabled:
             try:
-                return self._google(source_coords, destination_coords)
+                return self._google(source_coords, destination_coords, key)
             except Exception as e:
                 print(f"Google Maps API failed: {e}. Falling back to OSRM.")
                 if "REQUEST_DENIED" in str(e) or "API key" in str(e) or "OVER_QUERY_LIMIT" in str(e):
@@ -59,7 +60,7 @@ class DistanceEngine:
             print(f"OSRM API failed: {e}. Falling back to Haversine × 1.3 road factor.")
             return self._haversine(source_coords, destination_coords)
 
-    def _google(self, src: dict, dst: dict) -> dict:
+    def _google(self, src: dict, dst: dict, key: str) -> dict:
         resp = requests.get(
             GOOGLE_DIST_URL,
             params={
@@ -67,7 +68,7 @@ class DistanceEngine:
                 "destinations": f"{dst['latitude']},{dst['longitude']}",
                 "mode": "driving",
                 "units": "metric",
-                "key": GOOGLE_MAPS_KEY,
+                "key": key,
             },
             timeout=8,
         )
