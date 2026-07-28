@@ -44,6 +44,8 @@ class DistanceEngine:
         return result
 
     def _get_distance_raw(self, source_coords: dict, destination_coords: dict) -> dict:
+        from dotenv import load_dotenv
+        load_dotenv(override=True)
         key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
         if key and not DistanceEngine.google_maps_disabled:
             try:

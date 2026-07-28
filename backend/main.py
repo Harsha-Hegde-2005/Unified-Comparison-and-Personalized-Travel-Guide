@@ -2539,6 +2539,8 @@ def health():
 
 @app.get("/api/config")
 def get_api_config():
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
     return {
         "google_maps_api_key": os.environ.get("GOOGLE_MAPS_API_KEY", "")
     }

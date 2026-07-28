@@ -37,6 +37,8 @@ class GeocodingEngine:
 
         Raises:
             ValueError: if the place cannot be found after all attempts
+        from dotenv import load_dotenv
+        load_dotenv(override=True)
         gmaps_key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
         if gmaps_key:
             try:
