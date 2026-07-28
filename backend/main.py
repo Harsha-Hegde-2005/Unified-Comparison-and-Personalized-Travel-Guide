@@ -2528,6 +2528,13 @@ def health():
     }
 
 
+@app.get("/api/config")
+def get_api_config():
+    return {
+        "google_maps_api_key": os.environ.get("GOOGLE_MAPS_API_KEY", "")
+    }
+
+
 # ── Chatbot Endpoint ────────────────────────────────────────────────────────
 from chatbot_engine import ChatbotEngine
 

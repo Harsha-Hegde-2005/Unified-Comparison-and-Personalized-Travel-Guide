@@ -4,7 +4,9 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
    CONFIG
 ───────────────────────────────────────────────────────────── */
 const API_BASE = "http://localhost:8000";
-const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY"; // replace with your key
+const getGoogleMapsKey = () => {
+  return localStorage.getItem("gmaps_api_key") || window._backendGmapsKey || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY";
+};
 
 /* ─────────────────────────────────────────────────────────────
    DESIGN TOKENS
@@ -513,7 +515,12 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
   const mapRef = useRef(null);
   const osmMapRef = useRef(null);
   const [loaded, setLoaded] = useState(false);
-  const [useOsm, setUseOsm] = useState(!!window._osmActive || !GOOGLE_MAPS_KEY || GOOGLE_MAPS_KEY === "YOUR_GOOGLE_MAPS_API_KEY");
+  const [useOsm, setUseOsm] = useState(() => {
+    if (localStorage.getItem("force_osm") === "true") return true;
+    if (localStorage.getItem("force_osm") === "false") return false;
+    const key = getGoogleMapsKey();
+    return !!window._osmActive || !key || key === "YOUR_GOOGLE_MAPS_API_KEY";
+  });
   const [osmLoaded, setOsmLoaded] = useState(false);
   const coordsCacheRef = useRef({});
   const [userCoords, setUserCoords] = useState(null);
@@ -533,7 +540,8 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
       window.dispatchEvent(new Event("osm_fallback"));
     };
 
-    if (!GOOGLE_MAPS_KEY || GOOGLE_MAPS_KEY === "YOUR_GOOGLE_MAPS_API_KEY") {
+    const key = getGoogleMapsKey();
+    if (!key || key === "YOUR_GOOGLE_MAPS_API_KEY") {
       console.warn("No Google Maps API Key provided. Falling back to OpenStreetMap.");
       window._osmActive = true;
       window.dispatchEvent(new Event("osm_fallback"));
@@ -549,7 +557,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
     }
     const s = document.createElement("script");
     s.id = "gmaps-script";
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
     s.async = true;
     s.onload = () => setLoaded(true);
     s.onerror = () => {
@@ -1295,7 +1303,11 @@ function StopInput({ value, onChange, placeholder, dot, options, showGps }) {
   const [locLoading, setLocLoading] = useState(false);
   const [googlePredictions, setGooglePredictions] = useState([]);
   const [osmPredictions, setOsmPredictions] = useState([]);
-  const [useOsm, setUseOsm] = useState(!!window._osmActive || !window.google);
+  const [useOsm, setUseOsm] = useState(() => {
+    if (localStorage.getItem("force_osm") === "true") return true;
+    if (localStorage.getItem("force_osm") === "false") return false;
+    return !!window._osmActive || !window.google;
+  });
   const serviceRef = useRef(null);
 
   useEffect(() => {
@@ -4764,32 +4776,54 @@ export default function App() {
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
 
   const [mapsLoaded, setMapsLoaded] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    window.gm_authFailure = () => {
-      console.warn("Google Maps authentication failed globally. Falling back to OpenStreetMap.");
-      window._osmActive = true;
-      window.dispatchEvent(new Event("osm_fallback"));
+    const initGmaps = (key) => {
+      window.gm_authFailure = () => {
+        console.warn("Google Maps authentication failed globally. Falling back to OpenStreetMap.");
+        window._osmActive = true;
+        window.dispatchEvent(new Event("osm_fallback"));
+      };
+
+      if (window.google) { setMapsLoaded(true); return; }
+      if (document.getElementById("gmaps-script")) {
+        const s = document.getElementById("gmaps-script");
+        const handleLoad = () => setMapsLoaded(true);
+        s.addEventListener("load", handleLoad);
+        return () => s.removeEventListener("load", handleLoad);
+      }
+      if (!key || key === "YOUR_GOOGLE_MAPS_API_KEY") {
+        console.warn("No Google Maps API Key provided globally. Falling back to OpenStreetMap.");
+        window._osmActive = true;
+        window.dispatchEvent(new Event("osm_fallback"));
+        return;
+      }
+      const s = document.createElement("script");
+      s.id = "gmaps-script";
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+      s.async = true;
+      s.onload = () => setMapsLoaded(true);
+      s.onerror = () => {
+        console.warn("Google Maps script load failed. Falling back to OpenStreetMap.");
+        window._osmActive = true;
+        window.dispatchEvent(new Event("osm_fallback"));
+      };
+      document.head.appendChild(s);
     };
 
-    if (window.google) { setMapsLoaded(true); return; }
-    if (document.getElementById("gmaps-script")) {
-      const s = document.getElementById("gmaps-script");
-      const handleLoad = () => setMapsLoaded(true);
-      s.addEventListener("load", handleLoad);
-      return () => s.removeEventListener("load", handleLoad);
-    }
-    const s = document.createElement("script");
-    s.id = "gmaps-script";
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places`;
-    s.async = true;
-    s.onload = () => setMapsLoaded(true);
-    s.onerror = () => {
-      console.warn("Google Maps script load failed. Falling back to OpenStreetMap.");
-      window._osmActive = true;
-      window.dispatchEvent(new Event("osm_fallback"));
-    };
-    document.head.appendChild(s);
+    fetch(`${API_BASE}/api/config`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.google_maps_api_key) {
+          window._backendGmapsKey = data.google_maps_api_key;
+        }
+        initGmaps(getGoogleMapsKey());
+      })
+      .catch(err => {
+        console.warn("Could not fetch API config:", err);
+        initGmaps(getGoogleMapsKey());
+      });
   }, []);
 
   // Reset active segment navigation index when selected plan or vehicle changes
@@ -4970,6 +5004,9 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 12, padding: "6px 12px", fontSize: 12, fontWeight: 700, color: C.text }}>
               👤 {user}
             </div>
+            <button onClick={() => setShowSettings(true)} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 10, padding: "6px 10px", color: C.muted, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} title="Map Settings">
+              ⚙️
+            </button>
             <button onClick={onLogout} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 10, padding: "6px 14px", color: C.muted, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               Logout
             </button>
@@ -5281,6 +5318,81 @@ export default function App() {
         )}
       </div>
       <ChatbotWidget triggerSearch={triggerSearch} setSelected={setSelected} />
+
+      {/* SETTINGS MODAL */}
+      {showSettings && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(8, 9, 15, 0.75)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 1000
+        }} onClick={() => setShowSettings(false)}>
+          <div style={{
+            background: C.surface, border: `1px solid ${C.border}`,
+            borderRadius: 20, width: 440, padding: 28,
+            boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+            display: "flex", flexDirection: "column", gap: 20
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>Map Configuration</div>
+              <button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16 }}>✕</button>
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted }}>MAP ENGINE PREFERENCE</label>
+              <div style={{ display: "flex", gap: 8, background: C.bg, padding: 4, borderRadius: 12, border: `1px solid ${C.border2}` }}>
+                <button onClick={() => {
+                  localStorage.setItem("force_osm", "true");
+                }} style={{
+                  flex: 1, padding: "8px 0", borderRadius: 8, border: "none",
+                  background: localStorage.getItem("force_osm") === "true" ? C.card : "transparent",
+                  color: localStorage.getItem("force_osm") === "true" ? C.accent : C.muted,
+                  fontWeight: 700, fontSize: 12, cursor: "pointer"
+                }}>OpenStreetMap (Leaflet)</button>
+                <button onClick={() => {
+                  localStorage.setItem("force_osm", "false");
+                }} style={{
+                  flex: 1, padding: "8px 0", borderRadius: 8, border: "none",
+                  background: localStorage.getItem("force_osm") !== "true" ? C.card : "transparent",
+                  color: localStorage.getItem("force_osm") !== "true" ? C.accent : C.muted,
+                  fontWeight: 700, fontSize: 12, cursor: "pointer"
+                }}>Google Maps</button>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted }}>GOOGLE MAPS API KEY</label>
+              <input
+                type="password"
+                placeholder="AIzaSy..."
+                defaultValue={localStorage.getItem("gmaps_api_key") || ""}
+                onChange={(e) => {
+                  const val = e.target.value.trim();
+                  if (val) {
+                    localStorage.setItem("gmaps_api_key", val);
+                  } else {
+                    localStorage.removeItem("gmaps_api_key");
+                  }
+                }}
+                style={{
+                  background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 10,
+                  padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit"
+                }}
+              />
+              <div style={{ fontSize: 10, color: C.muted }}>
+                Leave empty to use environment variables or backend default key.
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+              <button onClick={() => setShowSettings(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, background: "none", border: `1px solid ${C.border2}`, color: C.muted, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
+              <button onClick={() => {
+                window.location.reload();
+              }} style={{ flex: 1, padding: "10px 0", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Save & Reload</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
