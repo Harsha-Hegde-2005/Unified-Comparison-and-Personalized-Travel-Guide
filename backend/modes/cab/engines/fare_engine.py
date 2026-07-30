@@ -1,4 +1,4 @@
-﻿import json
+import json
 import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -208,7 +208,16 @@ class FareEngine:
             raise ValueError(f"Unknown provider '{provider_key}'")
 
         vehicles = self.providers[provider_key]["vehicles"]
-        return sorted(
-            [self.get_fare(provider_key, v, distance_km, duration_min, current_time, weather) for v in vehicles],
-            key=lambda x: x["fare_min"]
-        )
+        results = []
+        for v in vehicles:
+            v_lower = v.lower()
+            if ("bike" in v_lower or "scooty" in v_lower or "moto" in v_lower) and distance_km > 15.0:
+                continue
+            if "auto" in v_lower and distance_km > 25.0:
+                continue
+            try:
+                results.append(self.get_fare(provider_key, v, distance_km, duration_min, current_time, weather))
+            except Exception:
+                pass
+
+        return sorted(results, key=lambda x: x["fare_min"])

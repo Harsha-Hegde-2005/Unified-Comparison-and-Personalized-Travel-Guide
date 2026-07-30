@@ -291,3 +291,4 @@ def test_chatbot_landmark_and_mode_preference():
     assert data["parameters"]["source"].lower() == "current location"
     assert data["embedded_data"] is not None
 
+

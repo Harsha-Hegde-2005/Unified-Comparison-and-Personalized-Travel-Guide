@@ -1,0 +1,110 @@
+{
+  "BIKE DIRECT": {
+    "base_fare": 2.1,
+    "base_dist": 2.6,
+    "per_km": 6.25,
+    "per_min": 0.47,
+    "min_fare": 40.0,
+    "booking_fee": 16.5,
+    "accuracy": 88.06361416590492
+  },
+  "SCOOTY DIRECT": {
+    "base_fare": 1.4,
+    "base_dist": 2.4,
+    "per_km": 8.18,
+    "per_min": 0.04,
+    "min_fare": 49.5,
+    "booking_fee": 31.5,
+    "accuracy": 85.06908385156632
+  },
+  "BIKE RATED BY WOMEN": {
+    "base_fare": 3.0,
+    "base_dist": 3.2,
+    "per_km": 6.75,
+    "per_min": 0.26,
+    "min_fare": 36.6,
+    "booking_fee": 27.2,
+    "accuracy": 87.97233728311087
+  },
+  "AUTO LITE": {
+    "base_fare": 19.5,
+    "base_dist": 4.2,
+    "per_km": 8.6,
+    "per_min": 0.66,
+    "min_fare": 55.1,
+    "booking_fee": 32.7,
+    "accuracy": 88.67550887904423
+  },
+  "AUTO": {
+    "base_fare": 39.8,
+    "base_dist": 4.2,
+    "per_km": 12.22,
+    "per_min": 0.68,
+    "min_fare": 76.2,
+    "booking_fee": 7.5,
+    "accuracy": 83.3930224986898
+  },
+  "AUTO PRIORITY": {
+    "base_fare": 30.9,
+    "base_dist": 4.5,
+    "per_km": 12.83,
+    "per_min": 0.99,
+    "min_fare": 109.4,
+    "booking_fee": 40.8,
+    "accuracy": 83.75089823529923
+  },
+  "CAB NON AC": {
+    "base_fare": 45.2,
+    "base_dist": 3.7,
+    "per_km": 8.97,
+    "per_min": 0.84,
+    "min_fare": 123.4,
+    "booking_fee": 27.3,
+    "accuracy": 84.25865459791257
+  },
+  "CAB AC": {
+    "base_fare": 47.3,
+    "base_dist": 4.6,
+    "per_km": 9.32,
+    "per_min": 0.91,
+    "min_fare": 59.4,
+    "booking_fee": 45.4,
+    "accuracy": 83.47592026127845
+  },
+  "CAB AC PRIORITY": {
+    "base_fare": 41.4,
+    "base_dist": 3.2,
+    "per_km": 10.48,
+    "per_min": 0.77,
+    "min_fare": 59.0,
+    "booking_fee": 48.5,
+    "accuracy": 83.31649814598977
+  },
+  "AUTO PET": {
+    "base_fare": 45.8,
+    "base_dist": 3.3,
+    "per_km": 10.02,
+    "per_min": 0.82,
+    "min_fare": 59.0,
+    "booking_fee": 45.5,
+    "accuracy": 78.35077518724204
+  },
+  "CAB PREMIUM": {
+    "base_fare": 87.5,
+    "base_dist": 4.7,
+    "per_km": 11.97,
+    "per_min": 0.93,
+    "min_fare": 161.6,
+    "booking_fee": 11.9,
+    "accuracy": 84.75860938432017
+  },
+  "CAB XL": {
+    "base_fare": 106.2,
+    "base_dist": 4.7,
+    "per_km": 15.28,
+    "per_min": 0.76,
+    "min_fare": 181.5,
+    "booking_fee": 10.6,
+    "accuracy": 83.2004540352994
+  }
+}

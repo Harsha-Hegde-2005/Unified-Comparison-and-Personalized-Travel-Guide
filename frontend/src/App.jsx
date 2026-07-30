@@ -1,20 +1,38 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import heroImg from "./assets/hero.jpg";
 
 /* ─────────────────────────────────────────────────────────────
    CONFIG
 ───────────────────────────────────────────────────────────── */
 const API_BASE = "http://localhost:8000";
-const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY"; // replace with your key
+const getGoogleMapsKey = () => {
+  return localStorage.getItem("gmaps_api_key") || window._backendGmapsKey || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY";
+};
+
+const originalFetch = window.fetch;
+window.fetch = async (url, options = {}) => {
+  const urlStr = String(url);
+  if (urlStr.startsWith(API_BASE) || urlStr.startsWith("/")) {
+    const key = getGoogleMapsKey();
+    if (key && key !== "YOUR_GOOGLE_MAPS_API_KEY") {
+      options.headers = {
+        ...options.headers,
+        "X-Google-Maps-Key": key
+      };
+    }
+  }
+  return originalFetch(url, options);
+};
 
 /* ─────────────────────────────────────────────────────────────
    DESIGN TOKENS
 ───────────────────────────────────────────────────────────── */
 const C = {
-  bg: "#08090f", surface: "#0f1120", card: "#151929",
-  border: "#1e2440", border2: "#252d4a",
-  text: "#e8ecf5", muted: "#6b7a99", dim: "#2a3250",
-  accent: "#f97316", metro: "#8b5cf6",
-  green: "#22c55e", red: "#ef4444", yellow: "#f59e0b",
+  bg: "#f4f5fa", surface: "#ffffff", card: "#ffffff",
+  border: "#eef0f6", border2: "#e2e4ed",
+  text: "#1a1625", muted: "#7d788a", dim: "#f3f1f7",
+  accent: "#7c3aed", metro: "#8b5cf6",
+  green: "#10b981", red: "#ef4444", yellow: "#f59e0b",
 };
 
 const MC = {
@@ -55,13 +73,30 @@ const P = {
   list: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",
   route: "M3 12h18M3 6h18M3 18h18",
   chat: "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z",
+  bolt: "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+  compass: "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-15l3.8 8.3-8.3-3.8z",
   gps: "M12 2v3m0 14v3m-10-10h3m14 0h3M12 21a9 9 0 110-18 9 9 0 010 18zm0-5a4 4 0 100-8 4 4 0 000 8z",
+  star: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.907c.969 0 1.371 1.24.588 1.81l-3.97 2.88a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.97-2.88a1 1 0 00-1.176 0l-3.97 2.88c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.97-2.88c-.784-.57-.381-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
+  folder: "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z",
+  bell: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
+  rocket: "M15.59 14.37a6 6 0 01-5.84-5.84l4.25-4.25a2 2 0 012.83 0l2.83 2.83a2 2 0 010 2.83l-4.07 4.43zm-7.66.86A11.08 11.08 0 001.5 22.5a.5.5 0 00.5.5h7.13a11.08 11.08 0 007.27-6.43l-4.93-2.34-3.04 1z",
+  doc: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+  logout: "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
+  users: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m16-10a4 4 0 10-8 0 4 4 0 008 0z",
+  bot: "M9 3h6M12 3v3M4 11a2 2 0 012-2h12a2 2 0 012 2v7a2 2 0 01-2 2H6a2 2 0 01-2-2v-7zm5 3h.01M15 14h.01M9 17h6",
+  user: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+  sparkles: "M9.663 17h4.673M12 3v1m6.364.364l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z",
+  facebook: "M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z",
+  twitter: "M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z",
+  instagram: "M17 2H7a5 5 0 00-5 5v10a5 5 0 005 5h10a5 5 0 005-5V7a5 5 0 00-5-5z M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z M17.5 6.5h.01",
+  youtube: "M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 00-1.95 1.96A29 29 0 001 11.54a29 29 0 00.46 5.12 2.78 2.78 0 001.95 1.96C5.12 19.08 12 19.08 12 19.08s6.88 0 8.59 0a2.78 2.78 0 001.95-1.96 29 29 0 00.46-5.12 29 29 0 00-.46-5.12z M9.54 15.08V8l6 3.54-6 3.54z",
 };
 
-function Ic({ n, s = 16, c = "currentColor", sw = 1.8 }) {
+
+function Ic({ n, s = 16, c = "currentColor", sw = 1.8, style }) {
   return (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none"
-      stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+      stroke={c} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" style={style}>
       <path d={P[n] || P.info} />
     </svg>
   );
@@ -508,12 +543,11 @@ function getSegmentIndexForGuideStep(step, guide, segments) {
   return null;
 }
 
-function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegmentIndex = null, setActiveSegmentIndex = () => { } }) {
+function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegmentIndex = null, setActiveSegmentIndex = () => { }, useOsm, setUseOsm }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
   const osmMapRef = useRef(null);
   const [loaded, setLoaded] = useState(false);
-  const [useOsm, setUseOsm] = useState(!!window._osmActive || !GOOGLE_MAPS_KEY || GOOGLE_MAPS_KEY === "YOUR_GOOGLE_MAPS_API_KEY");
   const [osmLoaded, setOsmLoaded] = useState(false);
   const coordsCacheRef = useRef({});
   const [userCoords, setUserCoords] = useState(null);
@@ -524,7 +558,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
     };
     window.addEventListener("osm_fallback", handleFallback);
     return () => window.removeEventListener("osm_fallback", handleFallback);
-  }, []);
+  }, [setUseOsm]);
 
   useEffect(() => {
     window.gm_authFailure = () => {
@@ -533,7 +567,8 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
       window.dispatchEvent(new Event("osm_fallback"));
     };
 
-    if (!GOOGLE_MAPS_KEY || GOOGLE_MAPS_KEY === "YOUR_GOOGLE_MAPS_API_KEY") {
+    const key = getGoogleMapsKey();
+    if (!key || key === "YOUR_GOOGLE_MAPS_API_KEY") {
       console.warn("No Google Maps API Key provided. Falling back to OpenStreetMap.");
       window._osmActive = true;
       window.dispatchEvent(new Event("osm_fallback"));
@@ -549,7 +584,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
     }
     const s = document.createElement("script");
     s.id = "gmaps-script";
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
     s.async = true;
     s.onload = () => setLoaded(true);
     s.onerror = () => {
@@ -1295,7 +1330,11 @@ function StopInput({ value, onChange, placeholder, dot, options, showGps }) {
   const [locLoading, setLocLoading] = useState(false);
   const [googlePredictions, setGooglePredictions] = useState([]);
   const [osmPredictions, setOsmPredictions] = useState([]);
-  const [useOsm, setUseOsm] = useState(!!window._osmActive || !window.google);
+  const [useOsm, setUseOsm] = useState(() => {
+    if (localStorage.getItem("force_osm") === "true") return true;
+    if (localStorage.getItem("force_osm") === "false") return false;
+    return !!window._osmActive || !window.google;
+  });
   const serviceRef = useRef(null);
 
   useEffect(() => {
@@ -2998,8 +3037,11 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
       border: `2px solid ${isSelected ? m.color : data.recommended ? m.color + "55" : C.border}`,
       boxShadow: isSelected ? `0 0 0 4px ${m.color}14, 0 12px 40px ${m.color}14` : "none",
       cursor: "pointer", transition: "all 0.18s", overflow: "hidden", position: "relative",
+      display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%",
+      gridColumn: modeKey === "multimodal" ? "1 / -1" : "auto"
     }}>
-      {data.tag && (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {data.tag && (
         <div style={{ position: "absolute", top: 0, right: 0, background: m.color, color: "white", fontSize: 10, fontWeight: 800, padding: "4px 14px 4px 10px", borderBottomLeftRadius: 10 }}>
           {data.tag.toUpperCase()}
         </div>
@@ -3497,6 +3539,7 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
           </div>
         )}
       </div>
+      </div>
 
       {/* Select bar */}
       <div style={{ background: isSelected ? m.color : m.bg, padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.18s" }}>
@@ -3721,246 +3764,763 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout }) {
     );
   }
 
-  const defaultStats = [
-    { label: "Journeys", val: "0", icon: "mappin", color: MC.bmtc.color },
-    { label: "Saved", val: "₹0", icon: "trend", color: MC.metro.color },
-    { label: "Time saved", val: "0 hr", icon: "clock", color: MC.cab.color },
-    { label: "Avg cost", val: "₹0", icon: "now", color: MC.car.color },
-  ];
-
-  const displayStats = data.stats && data.stats.length > 0 ? data.stats : defaultStats;
+  const displayStats = (() => {
+    const raw = data.stats && data.stats.length >= 4 ? data.stats : [
+      { label: "Journeys", val: "0" },
+      { label: "Saved", val: "₹0" },
+      { label: "Time saved", val: "0 hr" },
+      { label: "Avg cost", val: "₹0" }
+    ];
+    return [
+      { label: "Journeys", val: raw[0]?.val || "0", sub: "This month", icon: "mappin", color: "#7c3aed", bg: "rgba(124, 58, 237, 0.08)" },
+      { label: "Time saved", val: raw[2]?.val || "0 hr", sub: "This month", icon: "check", color: "#10b981", bg: "rgba(16, 185, 129, 0.08)" },
+      { label: "Avg cost", val: raw[3]?.val || "₹0", sub: "Per journey", icon: "bolt", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
+      { label: "CO₂ saved", val: "0", sub: "This month", icon: "compass", color: "#ef4444", bg: "rgba(239, 68, 68, 0.08)" }
+    ];
+  })();
 
   return (
-    <div>
-      {/* Welcome back */}
-      <div style={{ background: `linear-gradient(135deg, ${MC.bmtc.color}22, ${MC.metro.color}22)`, border: `1px solid ${C.border2}`, borderRadius: 16, padding: "24px 28px", marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: C.text, marginBottom: 4 }}>Welcome back, {username} 👋</div>
-          <div style={{ color: C.muted, fontSize: 13 }}>Unified transit travel dashboard, garage, and document library.</div>
+    <div style={{ fontFamily: "inherit" }}>
+      {/* Visual Welcome Banner */}
+      <div style={{
+        background: "linear-gradient(135deg, #eae8ff 0%, #f5e8ff 100%)",
+        border: "1px solid rgba(124, 58, 237, 0.12)",
+        borderRadius: 24,
+        padding: "36px 40px",
+        marginBottom: 32,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        position: "relative",
+        overflow: "hidden",
+        minHeight: 140
+      }}>
+        {/* Background Vidhana Soudha Cityscape blending on the right */}
+        <div style={{
+          position: "absolute",
+          right: 0,
+          bottom: 0,
+          height: "100%",
+          width: "50%",
+          pointerEvents: "none",
+          zIndex: 1
+        }}>
+          <img src={heroImg} alt="Bengaluru Landmarks" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "right bottom" }} />
         </div>
-        <button onClick={onPlan} style={{ background: `linear-gradient(135deg, ${C.accent}, #ea580c)`, border: "none", color: "white", borderRadius: 12, padding: "12px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: `0 4px 20px ${C.accent}44`, display: "flex", alignItems: "center", gap: 8 }}>
-          <Ic n="arrow" s={16} c="white" /> Plan Journey
-        </button>
+
+        <div style={{ zIndex: 2, position: "relative" }}>
+          <h1 style={{ fontSize: 32, fontWeight: 900, color: "#1e1b24", margin: "0 0 8px 0", letterSpacing: "-0.03em" }}>Good Morning, {username}! 👋</h1>
+          <p style={{ color: C.muted, fontSize: 14, fontWeight: 600, margin: 0 }}>Let's make your journey easy and efficient.</p>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
-        {displayStats.map(s => (
-          <div key={s.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: "18px 16px" }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: s.color + "18", border: `1px solid ${s.color}33`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
-              <Ic n={s.icon} s={18} c={s.color} />
+      {/* Stats Cards Row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 32 }}>
+        {displayStats.map((s) => (
+          <div 
+            key={s.label} 
+            style={{ 
+              background: "#ffffff", 
+              border: `1px solid ${C.border}`, 
+              borderRadius: 20, 
+              padding: "20px 24px", 
+              boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
+              transition: "all 0.25s ease",
+              cursor: "default"
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.04) 0 12px 24px";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = "none";
+              e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.01) 0 10px 30px";
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ 
+                width: 44, 
+                height: 44, 
+                borderRadius: "50%", 
+                background: s.bg,
+                display: "flex", 
+                alignItems: "center", 
+                justifyContent: "center",
+                flexShrink: 0
+              }}>
+                <Ic n={s.icon} s={18} c={s.color} sw={2.2} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: "#1e1b24", lineHeight: "1.2" }}>{s.val}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#1e1b24", marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 1 }}>{s.sub}</div>
+              </div>
             </div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: C.text }}>{s.val}</div>
-            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Primary panels (Recent Journeys & Saved Routes) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
-        {/* Recent Journeys */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 16 }}>Recent Journeys</div>
-          {data.recent && data.recent.length > 0 ? (
-            data.recent.map((r, i) => (
-              <div key={r.id || i}
-                onClick={() => onSelectRoute(r.from, r.to)}
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, cursor: "pointer", transition: "background 0.2s", borderBottom: i < data.recent.length - 1 ? `1px solid ${C.border}` : "none" }}
-                onMouseEnter={e => e.currentTarget.style.background = C.surface}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-              >
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: C.surface, border: `1px solid ${C.border2}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Ic n="search" s={14} c={C.muted} />
+      {/* Row 1: Recent Searches (left) & Saved Places (right) */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
+        
+        {/* Recent Searches */}
+        <div style={{ 
+          background: "#ffffff", 
+          border: `1px solid ${C.border}`, 
+          borderRadius: 24, 
+          padding: "28px 24px",
+          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
+          display: "flex",
+          flexDirection: "column"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+              <Ic n="clock" s={16} c={C.text} sw={2.2} /> Recent Searches
+            </h2>
+            {data.recent?.length > 0 && (
+              <span style={{ fontSize: 11, background: "rgba(124, 58, 237, 0.08)", color: C.accent, padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>
+                {data.recent.length} searches
+              </span>
+            )}
+          </div>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+            {data.recent && data.recent.length > 0 ? (
+              data.recent.slice(0, 3).map((r, i) => (
+                <div 
+                  key={r.id || i}
+                  onClick={() => onSelectRoute(r.from, r.to)}
+                  style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: 14, 
+                    padding: "12px 14px", 
+                    borderRadius: 16, 
+                    cursor: "pointer", 
+                    background: "#f9f9fc",
+                    border: "1px solid #f1f1f5",
+                    transition: "all 0.2s" 
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = "#f1efff";
+                    e.currentTarget.style.borderColor = "rgba(124, 58, 237, 0.2)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = "#f9f9fc";
+                    e.currentTarget.style.borderColor = "#f1f1f5";
+                  }}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(124, 58, 237, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Ic n="search" s={14} c={C.accent} sw={2.2} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1e1b24", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.from} → {r.to}</div>
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500 }}>{r.date}</div>
+                  </div>
+                  <div style={{ fontSize: 11, color: C.accent, fontWeight: 700 }}>Search →</div>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{r.from} → {r.to}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{r.date}</div>
+              ))
+            ) : (
+              <div style={{ textAlign: "center", padding: "40px 0", color: C.muted, fontSize: 13, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Ic n="search" s={18} c={C.muted} sw={2.2} />
                 </div>
-                <div style={{ fontSize: 11, color: C.accent, fontWeight: 700, opacity: 0.8 }}>Search →</div>
+                No recent searches. Start planning to view routes!
               </div>
-            ))
-          ) : (
-            <div style={{ textAlign: "center", padding: "40px 0", color: C.muted, fontSize: 13 }}>
-              No recent journeys. Start planning to save options!
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* Saved Routes */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: C.text, marginBottom: 16 }}>Saved Routes</div>
-          {data.saved && data.saved.length > 0 ? (
-            data.saved.map((r, i) => (
-              <div key={r.id || i}
-                onClick={() => onSelectRoute(r.from, r.to)}
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, cursor: "pointer", transition: "background 0.2s", borderBottom: i < data.saved.length - 1 ? `1px solid ${C.border}` : "none" }}
-                onMouseEnter={e => e.currentTarget.style.background = C.surface}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-              >
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: MC[r.mode]?.bg || C.surface, border: `1px solid ${MC[r.mode]?.color || C.border}44`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Ic n={MC[r.mode]?.icon || "mappin"} s={15} c={MC[r.mode]?.color || C.text} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
-                      {r.custom_name ? r.custom_name : `${r.from} → ${r.to}`}
-                    </span>
-                    {r.custom_name && <Pill color={MC[r.mode]?.color || C.accent} small>{MC[r.mode]?.short || "SAVED"}</Pill>}
+        {/* Saved Places */}
+        <div id="saved-places-card" style={{ 
+          background: "#ffffff", 
+          border: `1px solid ${C.border}`, 
+          borderRadius: 24, 
+          padding: "28px 24px",
+          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
+          display: "flex",
+          flexDirection: "column"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+              <Ic n="star" s={16} c="#f59e0b" sw={2.2} /> Saved Places
+            </h2>
+            <button 
+              onClick={onPlan} 
+              style={{ background: "none", border: "none", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", padding: 0 }}
+            >
+              View all
+            </button>
+          </div>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, justifyContent: "center" }}>
+            {data.saved && data.saved.length > 0 ? (
+              data.saved.slice(0, 3).map((r, i) => {
+                const modeColor = MC[r.mode]?.color || C.accent;
+                const modeBg = MC[r.mode]?.bg || "rgba(124, 58, 237, 0.05)";
+                return (
+                  <div 
+                    key={r.id || i}
+                    onClick={() => onSelectRoute(r.from, r.to)}
+                    style={{ 
+                      display: "flex", 
+                      alignItems: "center", 
+                      gap: 14, 
+                      padding: "12px 14px", 
+                      borderRadius: 16, 
+                      cursor: "pointer", 
+                      background: "#f9f9fc",
+                      border: "1px solid #f1f5f9",
+                      transition: "all 0.2s" 
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = "#f1efff";
+                      e.currentTarget.style.borderColor = "rgba(124, 58, 237, 0.2)";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = "#f9f9fc";
+                      e.currentTarget.style.borderColor = "#f1f5f9";
+                    }}
+                  >
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: modeBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Ic n={MC[r.mode]?.icon || "mappin"} s={15} c={modeColor} sw={2} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "#1e1b24", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {r.custom_name ? r.custom_name : `${r.from} → ${r.to}`}
+                        </span>
+                        {r.custom_name && <Pill color={modeColor} small>{MC[r.mode]?.short || "SAVED"}</Pill>}
+                      </div>
+                      {r.custom_name && <div style={{ fontSize: 11, color: C.muted, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.from} → {r.to}</div>}
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500 }}>{r.date} · Est. Cost: ₹{r.cost}</div>
+                    </div>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleDeleteSavedRoute(r.id); }} 
+                      style={{ 
+                        background: "none", 
+                        border: "none", 
+                        color: C.red, 
+                        cursor: "pointer", 
+                        padding: "6px",
+                        borderRadius: 8,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "background 0.2s"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
+                      onMouseLeave={e => e.currentTarget.style.background = "none"}
+                    >
+                      <Ic n="x" s={14} c={C.red} />
+                    </button>
                   </div>
-                  {r.custom_name && <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{r.from} → {r.to}</div>}
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{r.date} · ₹{r.cost}</div>
+                );
+              })
+            ) : (
+              <div style={{ textAlign: "center", padding: "16px 0", color: C.muted, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
+                <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Ic n="star" s={18} c={C.muted} sw={2.2} />
                 </div>
-                <div style={{ display: "flex", gap: 4, alignItems: "center" }} onClick={e => e.stopPropagation()}>
-                  <button onClick={() => handleDeleteSavedRoute(r.id)} style={{ background: "none", border: "none", color: C.red, cursor: "pointer", padding: "4px" }} title="Delete Saved Route">
-                    <Ic n="x" s={14} c={C.red} />
-                  </button>
-                </div>
+                <div style={{ fontWeight: 800, color: C.text }}>No saved Places yet</div>
+                <div style={{ fontSize: 11, color: C.muted }}>Bookmark your favourite locations and routes</div>
+                <button 
+                  onClick={onPlan} 
+                  style={{
+                    marginTop: 8,
+                    background: "none",
+                    border: `1.5px solid ${C.accent}`,
+                    borderRadius: 10,
+                    padding: "8px 20px",
+                    color: C.accent,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = C.accent; e.currentTarget.style.color = "#ffffff"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.accent; }}
+                >
+                  + Add Place
+                </button>
               </div>
-            ))
-          ) : (
-            <div style={{ textAlign: "center", padding: "40px 0", color: C.muted, fontSize: 13 }}>
-              No saved routes yet. Bookmark routes from planning results!
-            </div>
-          )}
+            )}
+          </div>
         </div>
+
       </div>
 
-      {/* Secondary Panels (Garage & Documents Library) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      {/* Row 2: My Garage (left) & Digital Glovebox (center) & Quick Actions (right) */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.1fr", gap: 24, marginBottom: 24 }}>
+        
         {/* My Garage */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: C.text, display: "flex", alignItems: "center", gap: 6 }}>
-              🏎️ My Garage <span style={{ fontSize: 11, color: C.muted }}>({vehicles.length} vehicles)</span>
-            </div>
-            <button onClick={() => setGarageOpen(!garageOpen)} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, padding: "4px 10px", fontSize: 11, color: C.accent, cursor: "pointer", fontFamily: "inherit" }}>
-              {garageOpen ? "Close Form" : "+ Add Vehicle"}
+        <div id="my-garage-card" style={{ 
+          background: "#ffffff", 
+          border: `1px solid ${C.border}`, 
+          borderRadius: 24, 
+          padding: "28px 24px",
+          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
+          display: "flex",
+          flexDirection: "column"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+              <Ic n="car" s={16} c={C.text} sw={2.2} /> My Garage
+            </h2>
+            <button 
+              onClick={() => setGarageOpen(!garageOpen)} 
+              style={{ 
+                background: "none", 
+                border: `1.5px solid ${garageOpen ? C.border2 : C.accent}`, 
+                borderRadius: 10, 
+                padding: "6px 14px", 
+                fontSize: 11, 
+                fontWeight: 700,
+                color: garageOpen ? C.muted : C.accent, 
+                cursor: "pointer", 
+                fontFamily: "inherit",
+                transition: "all 0.2s"
+              }}
+            >
+              {garageOpen ? "Close" : "+ Add"}
             </button>
           </div>
 
           {garageOpen && (
-            <form onSubmit={handleAddVehicle} style={{ background: C.surface, borderRadius: 10, padding: 14, marginBottom: 14, border: `1px solid ${C.border2}` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 10 }}>NEW VEHICLE</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <input value={vname} onChange={e => setVname(e.target.value)} placeholder="Vehicle name, e.g. Tata Nexon EV" required style={{ width: "100%", background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <select value={vfuel} onChange={e => setVfuel(e.target.value)} style={{ flex: 1, background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }}>
+            <form onSubmit={handleAddVehicle} style={{ background: "#f9f9fc", borderRadius: 16, padding: 16, marginBottom: 16, border: "1px solid #f1f1f5" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 12, textTransform: "uppercase" }}>New Vehicle Specs</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <input 
+                  value={vname} 
+                  onChange={e => setVname(e.target.value)} 
+                  placeholder="Vehicle Model, e.g. Tesla Model Y" 
+                  required 
+                  style={{ width: "100%", background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
+                />
+                <div style={{ display: "flex", gap: 10 }}>
+                  <select 
+                    value={vfuel} 
+                    onChange={e => setVfuel(e.target.value)} 
+                    style={{ flex: 1, background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+                  >
                     <option value="Petrol">Petrol</option>
                     <option value="Diesel">Diesel</option>
-                    <option value="EV">EV (Electric)</option>
+                    <option value="EV">EV</option>
                     <option value="CNG">CNG</option>
                   </select>
-                  <input type="number" step="0.1" value={veff} onChange={e => setVeff(e.target.value)} placeholder="Mileage (km/L or km/kWh)" required style={{ flex: 1.2, background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    value={veff} 
+                    onChange={e => setVeff(e.target.value)} 
+                    placeholder={vfuel === "EV" ? "km/kWh" : "km/L"} 
+                    required 
+                    style={{ flex: 1.2, background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
+                  />
                 </div>
-                <button type="submit" style={{ background: C.accent, border: "none", color: "white", borderRadius: 8, padding: "8px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                <button 
+                  type="submit" 
+                  style={{ 
+                    background: "linear-gradient(135deg, #7c3aed, #a855f7)", 
+                    border: "none", 
+                    color: "white", 
+                    borderRadius: 12, 
+                    padding: "11px", 
+                    fontSize: 13, 
+                    fontWeight: 700, 
+                    cursor: "pointer", 
+                    fontFamily: "inherit"
+                  }}
+                >
                   Save to Garage
                 </button>
               </div>
             </form>
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 280, overflowY: "auto" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
             {vehicles.length > 0 ? (
-              vehicles.map(v => (
-                <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: MC.car.bg, border: `1px solid ${MC.car.color}44`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 12 }}>{v.fuel_type === "EV" || v.fuel_type === "electric" ? "⚡" : "🚗"}</span>
+              vehicles.slice(0, 3).map(v => (
+                <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#f9f9fc", border: "1px solid #f1f1f5", borderRadius: 16 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(16, 185, 129, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontSize: 14 }}>{v.fuel_type === "EV" ? "⚡" : "🚗"}</span>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{v.name}</div>
-                    <div style={{ fontSize: 11, color: C.muted }}>Type: {v.fuel_type} · Efficiency: {v.efficiency} {v.fuel_type === "EV" ? "km/kWh" : "km/L"}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1e1b24", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</div>
+                    <div style={{ fontSize: 10, color: C.muted, marginTop: 2, fontWeight: 500 }}>
+                      Type: {v.fuel_type} - Efficiency: {v.efficiency} {v.fuel_type === "EV" ? "km/kWh" : "km/L"}
+                    </div>
                   </div>
-                  <button onClick={() => handleDeleteVehicle(v.id)} style={{ background: "none", border: "none", color: C.red, cursor: "pointer", padding: "4px" }} title="Delete Vehicle">
+                  <button 
+                    onClick={() => handleDeleteVehicle(v.id)} 
+                    style={{ 
+                      background: "none", 
+                      border: "none", 
+                      color: C.red, 
+                      cursor: "pointer", 
+                      padding: "6px",
+                      borderRadius: 8,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "background 0.2s"
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
+                    onMouseLeave={e => e.currentTarget.style.background = "none"}
+                  >
                     <Ic n="x" s={14} c={C.red} />
                   </button>
                 </div>
               ))
             ) : (
-              <div style={{ textAlign: "center", padding: "30px 0", color: C.muted, fontSize: 12 }}>
-                No personal vehicles added yet. Add vehicles to calculate journey driving costs!
+              <div style={{ textAlign: "center", padding: "30px 0", color: C.muted, fontSize: 12, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Ic n="car" s={18} c={C.muted} sw={2.2} />
+                </div>
+                No vehicles added yet. Add vehicles to calculate journey driving costs!
               </div>
             )}
           </div>
         </div>
 
         {/* Digital Glovebox */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: C.text, display: "flex", alignItems: "center", gap: 6 }}>
-              📁 Digital Glovebox <span style={{ fontSize: 11, color: C.muted }}>({documents.length} documents)</span>
-            </div>
-            <button onClick={() => setGloveboxOpen(!gloveboxOpen)} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, padding: "4px 10px", fontSize: 11, color: C.accent, cursor: "pointer", fontFamily: "inherit" }}>
-              {gloveboxOpen ? "Close Form" : "+ Add Document"}
+        <div id="digital-glovebox-card" style={{ 
+          background: "#ffffff", 
+          border: `1px solid ${C.border}`, 
+          borderRadius: 24, 
+          padding: "28px 24px",
+          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
+          display: "flex",
+          flexDirection: "column"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+              <Ic n="folder" s={16} c={C.text} sw={2.2} /> Digital Glovebox
+            </h2>
+            <button 
+              onClick={() => setGloveboxOpen(!gloveboxOpen)} 
+              style={{ 
+                background: "none", 
+                border: `1.5px solid ${gloveboxOpen ? C.border2 : C.accent}`, 
+                borderRadius: 10, 
+                padding: "6px 14px", 
+                fontSize: 11, 
+                fontWeight: 700,
+                color: gloveboxOpen ? C.muted : C.accent, 
+                cursor: "pointer", 
+                fontFamily: "inherit",
+                transition: "all 0.2s"
+              }}
+            >
+              {gloveboxOpen ? "Close" : "+ Add"}
             </button>
           </div>
 
           {gloveboxOpen && (
-            <form onSubmit={handleAddDocument} style={{ background: C.surface, borderRadius: 10, padding: 14, marginBottom: 14, border: `1px solid ${C.border2}` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 10 }}>NEW DOCUMENT</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <select value={docType} onChange={e => setDocType(e.target.value)} style={{ width: "100%", background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }}>
+            <form onSubmit={handleAddDocument} style={{ background: "#f9f9fc", borderRadius: 16, padding: 16, marginBottom: 16, border: "1px solid #f1f1f5" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 12, textTransform: "uppercase" }}>New Document Upload</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <select 
+                  value={docType} 
+                  onChange={e => setDocType(e.target.value)} 
+                  style={{ width: "100%", background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+                >
                   <option value="Driving License">Driving License</option>
                   <option value="Registration Certificate (RC)">Registration Certificate (RC)</option>
                   <option value="Insurance Policy">Insurance Policy</option>
                   <option value="Pollution Under Control (PUC)">Pollution Under Control (PUC)</option>
                 </select>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input value={docNum} onChange={e => setDocNum(e.target.value)} placeholder="Document Number" required style={{ flex: 1, background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
-                  <input type="date" value={docExpiry} onChange={e => setDocExpiry(e.target.value)} required style={{ flex: 1, background: C.card, border: `1.5px solid ${C.border2}`, borderRadius: 8, color: C.text, padding: "8px 10px", fontSize: 12, outline: "none", fontFamily: "inherit" }} />
+                <div style={{ display: "flex", gap: 10 }}>
+                  <input 
+                    value={docNum} 
+                    onChange={e => setDocNum(e.target.value)} 
+                    placeholder="Doc No." 
+                    required 
+                    style={{ flex: 1, background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
+                  />
+                  <input 
+                    type="date" 
+                    value={docExpiry} 
+                    onChange={e => setDocExpiry(e.target.value)} 
+                    required 
+                    style={{ flex: 1, background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
+                  />
                 </div>
                 <div>
-                  <div style={{ fontSize: 9, color: C.muted, marginBottom: 4 }}>UPLOAD SCAN (PDF/IMAGE)</div>
                   <input id="doc-file-input" type="file" onChange={e => setDocFile(e.target.files[0])} required style={{ fontSize: 11, color: C.text }} />
                 </div>
-                <button type="submit" style={{ background: C.accent, border: "none", color: "white", borderRadius: 8, padding: "8px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                  Upload Document
+                <button 
+                  type="submit" 
+                  style={{ 
+                    background: "linear-gradient(135deg, #7c3aed, #a855f7)", 
+                    border: "none", 
+                    color: "white", 
+                    borderRadius: 12, 
+                    padding: "11px", 
+                    fontSize: 13, 
+                    fontWeight: 700, 
+                    cursor: "pointer", 
+                    fontFamily: "inherit"
+                  }}
+                >
+                  Upload & Secure
                 </button>
               </div>
             </form>
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 280, overflowY: "auto" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
             {documents.length > 0 ? (
-              documents.map(d => {
+              documents.slice(0, 3).map(d => {
                 const status = getDocExpiryStatus(d.expiry_date);
                 return (
-                  <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{d.doc_type}</span>
+                  <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#f9f9fc", border: "1px solid #f1f1f5", borderRadius: 16 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "#1e1b24" }}>{d.doc_type}</span>
                         <Pill color={status.color} small>{status.label}</Pill>
                       </div>
-                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>No: {d.doc_number} · Expires: {d.expiry_date}</div>
+                      <div style={{ fontSize: 10, color: C.muted, marginTop: 4, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>No: {d.doc_number}</div>
                     </div>
-                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                      <a href={`${API_BASE}${d.file_path}`} target="_blank" rel="noreferrer" style={{ background: C.accent + "18", color: C.accent, border: `1px solid ${C.accent}44`, borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, textDecoration: "none" }}>
-                        View file
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <a 
+                        href={`${API_BASE}${d.file_path}`} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        style={{ 
+                          background: "rgba(124, 58, 237, 0.08)", 
+                          color: C.accent, 
+                          border: `1px solid rgba(124, 58, 237, 0.2)`, 
+                          borderRadius: 8, 
+                          padding: "4px 8px", 
+                          fontSize: 11, 
+                          fontWeight: 700, 
+                          textDecoration: "none"
+                        }}
+                      >
+                        View
                       </a>
-                      <button onClick={() => handleDeleteDocument(d.id)} style={{ background: "none", border: "none", color: C.red, cursor: "pointer", padding: "4px" }} title="Delete Document">
-                        <Ic n="x" s={14} c={C.red} />
+                      <button 
+                        onClick={() => handleDeleteDocument(d.id)} 
+                        style={{ 
+                          background: "none", 
+                          border: "none", 
+                          color: C.red, 
+                          cursor: "pointer", 
+                          padding: "6px",
+                          borderRadius: 8,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}
+                      >
+                        <Ic n="x" s={12} c={C.red} />
                       </button>
                     </div>
                   </div>
                 );
               })
             ) : (
-              <div style={{ textAlign: "center", padding: "30px 0", color: C.muted, fontSize: 12 }}>
-                No documents uploaded yet. Save driving license, RC, and insurance details for easy access.
+              <div style={{ textAlign: "center", padding: "30px 0", color: C.muted, fontSize: 12, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Ic n="doc" s={18} c={C.muted} sw={2.2} />
+                </div>
+                <div style={{ fontWeight: 800, color: C.text }}>No documents uploaded yet</div>
+                <div style={{ fontSize: 11, color: C.muted }}>Secure DL, insurance & RC here.</div>
               </div>
             )}
           </div>
         </div>
+
+        {/* Quick Actions */}
+        <div style={{ 
+          background: "#ffffff", 
+          border: `1px solid ${C.border}`, 
+          borderRadius: 24, 
+          padding: "28px 24px",
+          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
+          display: "flex",
+          flexDirection: "column"
+        }}>
+          <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+            <Ic n="now" s={16} c="#f59e0b" sw={2.2} /> Quick Actions
+          </h2>
+          
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, flex: 1 }}>
+            {[
+              { label: "Live Map", sub: "Track vehicles", icon: "gps", color: "#10b981", bg: "rgba(16, 185, 129, 0.08)" },
+              { label: "Fare Guide", sub: "Check fares", icon: "table", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.08)" },
+              { label: "Alerts", sub: "Stay updated", icon: "bell", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
+              { label: "Search Routes", sub: "Find routes", icon: "search", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
+            ].map(act => (
+              <div 
+                key={act.label}
+                onClick={onPlan}
+                style={{ 
+                  border: "1px solid #f1f1f5", 
+                  borderRadius: 16, 
+                  padding: "12px 14px", 
+                  display: "flex", 
+                  flexDirection: "column", 
+                  gap: 8,
+                  background: "#f9f9fc",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "scale(1.02)";
+                  e.currentTarget.style.background = "#ffffff";
+                  e.currentTarget.style.borderColor = act.color + "30";
+                  e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.04) 0 8px 16px";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "none";
+                  e.currentTarget.style.background = "#f9f9fc";
+                  e.currentTarget.style.borderColor = "#f1f1f5";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: act.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Ic n={act.icon} s={14} c={act.color} sw={2.2} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#1e1b24" }}>{act.label}</div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2, fontWeight: 500 }}>{act.sub}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Row 3: Commute Suggestions (left) & Travel Alerts (right) */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        
+        {/* Commute Suggestions */}
+        <div style={{ 
+          background: "#ffffff", 
+          border: `1px solid ${C.border}`, 
+          borderRadius: 24, 
+          padding: "28px 24px",
+          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
+          display: "flex",
+          flexDirection: "column"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+              <Ic n="rocket" s={16} c={C.accent} sw={2.2} /> Commute Suggestions
+            </h2>
+            <button 
+              onClick={onPlan} 
+              style={{ background: "none", border: "none", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", padding: 0 }}
+            >
+              See all
+            </button>
+          </div>
+
+          <div style={{
+            background: "rgba(124, 58, 237, 0.04)",
+            border: "1px solid rgba(124, 58, 237, 0.1)",
+            borderRadius: 16,
+            padding: "16px 20px",
+            display: "flex",
+            alignItems: "center",
+            gap: 16
+          }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(124, 58, 237, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Ic n="rocket" s={16} c={C.accent} sw={2.2} />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#1e1b24" }}>Beat the traffic!</div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontWeight: 500, lineHeight: 1.4 }}>Travel before 9:00 AM to save up to 25% time on your commute.</div>
+            </div>
+          </div>
+
+          {/* Dots Pagination */}
+          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 16 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.accent }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#e2e8f0" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#e2e8f0" }} />
+          </div>
+        </div>
+
+        {/* Travel Alerts */}
+        <div id="travel-alerts-card" style={{ 
+          background: "#ffffff", 
+          border: `1px solid ${C.border}`, 
+          borderRadius: 24, 
+          padding: "28px 24px",
+          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
+          display: "flex",
+          flexDirection: "column"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+              <Ic n="bell" s={16} c={C.red} sw={2.2} /> Travel Alerts
+            </h2>
+            <button 
+              onClick={onPlan} 
+              style={{ background: "none", border: "none", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", padding: 0 }}
+            >
+              View all
+            </button>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Transit Alert */}
+            <div style={{
+              background: "rgba(239, 68, 68, 0.03)",
+              border: "1px solid rgba(239, 68, 68, 0.08)",
+              borderRadius: 16,
+              padding: "12px 16px",
+              display: "flex",
+              alignItems: "center",
+              gap: 12
+            }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(239, 68, 68, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Ic n="alert" s={14} c={C.red} sw={2.2} />
+              </div>
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 800, color: "#1e1b24" }}>Transit: No active alerts</div>
+                <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2, fontWeight: 500 }}>No disruptions on your saved routes.</div>
+              </div>
+            </div>
+
+            {/* Weather Alert */}
+            <div style={{
+              background: "rgba(59, 130, 246, 0.03)",
+              border: "1px solid rgba(59, 130, 246, 0.08)",
+              borderRadius: 16,
+              padding: "12px 16px",
+              display: "flex",
+              alignItems: "center",
+              gap: 12
+            }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(59, 130, 246, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 14 }}>☀️</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 800, color: "#1e1b24" }}>Weather: 27°C Partly Cloudy</div>
+                <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2, fontWeight: 500 }}>Perfect commute weather. No rain expected today.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
 }
 
-function AuthScreen({ onLoginSuccess }) {
-  const [isLogin, setIsLogin] = useState(true);
+function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
+  const [isLogin, setIsLogin] = useState(initialMode !== "signup");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [userFocused, setUserFocused] = useState(false);
+  const [passFocused, setPassFocused] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -3982,20 +4542,72 @@ function AuthScreen({ onLoginSuccess }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#08090f", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'DM Sans','Segoe UI',sans-serif" }}>
-      <div style={{ background: "#0f1120", border: "1px solid #1e2440", borderRadius: 24, width: 420, padding: 36, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", position: "relative" }}>
+    <div style={{
+      minHeight: "100vh",
+      background: `linear-gradient(135deg, ${C.bg} 0%, #eef0f6 100%)`,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+      fontFamily: "'Plus Jakarta Sans', 'Outfit', 'Segoe UI', sans-serif"
+    }}>
+      {onBackToHome && (
+        <button
+          onClick={onBackToHome}
+          style={{
+            background: "none",
+            border: "none",
+            color: C.accent,
+            fontWeight: 800,
+            cursor: "pointer",
+            fontSize: 14,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 20,
+            transition: "all 0.2s ease",
+            padding: "8px 16px",
+            borderRadius: 10
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = "translateX(-4px)"}
+          onMouseLeave={e => e.currentTarget.style.transform = "none"}
+        >
+          <Ic n="arrow" s={14} c={C.accent} sw={2.5} style={{ transform: "rotate(180deg)" }} />
+          Back to Home
+        </button>
+      )}
+      <div style={{
+        background: C.surface,
+        border: `1px solid ${C.border2}`,
+        borderRadius: 24,
+        width: 420,
+        padding: 36,
+        boxShadow: "0 20px 50px rgba(26, 22, 37, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02)",
+        position: "relative"
+      }}>
 
         {/* Header */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 28 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 14, background: `linear-gradient(135deg, #f97316, #ea580c)`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+          <div style={{
+            width: 48,
+            height: 48,
+            borderRadius: 14,
+            background: "linear-gradient(135deg, #7c3aed, #ec4899)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 14,
+            boxShadow: "rgba(124, 58, 237, 0.2) 0 8px 16px"
+          }}>
             <Ic n="bus" s={24} c="white" sw={2.2} />
           </div>
-          <div style={{ fontWeight: 900, fontSize: 22, color: "#e8ecf5", letterSpacing: "-0.04em" }}>UTRS Bengaluru</div>
-          <div style={{ fontSize: 10, color: "#6b7a99", letterSpacing: "0.15em", marginTop: 4, fontWeight: 700 }}>UNIFIED TRANSIT REGISTER</div>
+          <div style={{ fontWeight: 900, fontSize: 22, color: C.text, letterSpacing: "-0.04em" }}>UTRS Bengaluru</div>
+          <div style={{ fontSize: 10, color: C.muted, letterSpacing: "0.15em", marginTop: 4, fontWeight: 700 }}>UNIFIED TRANSIT REGISTER</div>
         </div>
 
         {/* Title */}
-        <div style={{ fontSize: 16, fontWeight: 800, color: "#e8ecf5", marginBottom: 18, textAlign: "center" }}>
+        <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginBottom: 18, textAlign: "center" }}>
           {isLogin ? "Sign In to your Account" : "Create your Account"}
         </div>
 
@@ -4006,8 +4618,22 @@ function AuthScreen({ onLoginSuccess }) {
               placeholder="Username"
               value={username}
               onChange={e => setUsername(e.target.value)}
+              onFocus={() => setUserFocused(true)}
+              onBlur={() => setUserFocused(false)}
               required
-              style={{ width: "100%", background: "#151929", border: "1.5px solid #252d4a", borderRadius: 12, color: "#e8ecf5", padding: "12px 14px", fontSize: 14, outline: "none", fontFamily: "inherit" }}
+              style={{
+                width: "100%",
+                background: C.surface,
+                border: `1.5px solid ${userFocused ? C.accent : C.border2}`,
+                borderRadius: 12,
+                color: C.text,
+                padding: "12px 14px",
+                fontSize: 14,
+                outline: "none",
+                fontFamily: "inherit",
+                transition: "all 0.15s ease",
+                boxShadow: userFocused ? `0 0 0 3px ${C.accent}20` : "none"
+              }}
             />
           </div>
           <div>
@@ -4016,21 +4642,67 @@ function AuthScreen({ onLoginSuccess }) {
               placeholder="Password"
               value={password}
               onChange={e => setPassword(e.target.value)}
+              onFocus={() => setPassFocused(true)}
+              onBlur={() => setPassFocused(false)}
               required
-              style={{ width: "100%", background: "#151929", border: "1.5px solid #252d4a", borderRadius: 12, color: "#e8ecf5", padding: "12px 14px", fontSize: 14, outline: "none", fontFamily: "inherit" }}
+              style={{
+                width: "100%",
+                background: C.surface,
+                border: `1.5px solid ${passFocused ? C.accent : C.border2}`,
+                borderRadius: 12,
+                color: C.text,
+                padding: "12px 14px",
+                fontSize: 14,
+                outline: "none",
+                fontFamily: "inherit",
+                transition: "all 0.15s ease",
+                boxShadow: passFocused ? `0 0 0 3px ${C.accent}20` : "none"
+              }}
             />
           </div>
 
           {error && (
-            <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 10, padding: "10px 12px", fontSize: 12, color: "#ef4444" }}>
-              ⚠️ {error}
+            <div style={{
+              background: `${C.red}15`,
+              border: `1px solid ${C.red}30`,
+              borderRadius: 10,
+              padding: "10px 12px",
+              fontSize: 12,
+              color: C.red,
+              display: "flex",
+              alignItems: "center",
+              gap: 6
+            }}>
+              <span>⚠️</span>
+              <span>{error}</span>
             </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            style={{ width: "100%", background: "linear-gradient(135deg, #f97316, #ea580c)", border: "none", color: "white", borderRadius: 12, padding: "13px", fontSize: 14, fontWeight: 800, cursor: loading ? "wait" : "pointer", boxShadow: "0 4px 24px rgba(249, 115, 22, 0.3)", marginTop: 6 }}
+            style={{
+              width: "100%",
+              background: `linear-gradient(135deg, ${C.accent}, #a855f7)`,
+              border: "none",
+              color: "white",
+              borderRadius: 12,
+              padding: "13px",
+              fontSize: 14,
+              fontWeight: 800,
+              cursor: loading ? "wait" : "pointer",
+              boxShadow: `0 4px 20px ${C.accent}30`,
+              marginTop: 6,
+              transition: "all 0.15s ease"
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.opacity = "0.95";
+              e.currentTarget.style.transform = "translateY(-1px)";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.opacity = "1";
+              e.currentTarget.style.transform = "none";
+            }}
           >
             {loading ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
@@ -4044,11 +4716,20 @@ function AuthScreen({ onLoginSuccess }) {
         </form>
 
         {/* Switcher */}
-        <div style={{ marginTop: 24, fontSize: 13, textAlign: "center", color: "#6b7a99" }}>
+        <div style={{ marginTop: 24, fontSize: 13, textAlign: "center", color: C.muted }}>
           {isLogin ? "New to UTRS? " : "Already have an account? "}
           <button
             onClick={() => { setIsLogin(!isLogin); setError(null); }}
-            style={{ background: "none", border: "none", color: "#f97316", fontWeight: 700, cursor: "pointer", padding: "0 4px", fontSize: 13, textDecoration: "underline" }}
+            style={{
+              background: "none",
+              border: "none",
+              color: C.accent,
+              fontWeight: 700,
+              cursor: "pointer",
+              padding: "0 4px",
+              fontSize: 13,
+              textDecoration: "underline"
+            }}
           >
             {isLogin ? "Create Account" : "Sign In"}
           </button>
@@ -4552,44 +5233,129 @@ function ChatbotWidget({ triggerSearch, setSelected }) {
 /* ─────────────────────────────────────────────────────────────
    MAIN APP
 ───────────────────────────────────────────────────────────── */
-function AIRecommendationsPanel({ recommendations, results, selected, setSelected, mc }) {
+function AIRecommendationsPanel({
+  recommendations,
+  results,
+  selected,
+  setSelected,
+  mc,
+  selectedCabVehicle,
+  setSelectedCabVehicle,
+  selectedMultimodalOption,
+  setSelectedMultimodalOption
+}) {
   const [expandedIndex, setExpandedIndex] = useState(null);
+  const [cabFilter, setCabFilter] = useState("all");
+  const [cabProviderFilter, setCabProviderFilter] = useState("all");
 
   if (!recommendations || recommendations.length === 0) return null;
 
+  const modeColors = {
+    bmtc: { color: "#7c3aed", bg: "rgba(124, 58, 237, 0.08)", icon: "bus", label: "BMTC Bus" },
+    metro: { color: "#3b82f6", bg: "rgba(59, 130, 246, 0.08)", icon: "metro", label: "Namma Metro" },
+    cab: { color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)", icon: "cab", label: "Cab / Auto" },
+    car: { color: "#10b981", bg: "rgba(16, 185, 129, 0.08)", icon: "car", label: "Own Vehicle" },
+    multimodal: { color: "#ec4899", bg: "rgba(236, 72, 153, 0.08)", icon: "transfer", label: "Multimodal Transit" }
+  };
+
+  const getVehicleCategory = (est) => {
+    const key = (est.vehicle_key || "").toLowerCase();
+    const name = (est.vehicle_name || "").toLowerCase();
+    if (est.parcel || est.vtype === "parcel" || key.includes("parcel")) return "parcel";
+    if (est.rental || est.vtype === "rental" || key.includes("hourly") || key.includes("rental")) return "rental";
+    if (est.pet || est.vtype === "pet") return "pet";
+    if (est.book_any || est.vtype === "book_any" || name === "book any") return "book_any";
+    if (key.includes("auto") || name.includes("auto")) return "auto";
+    if (est.vtype === "scooty" || key.includes("scooty") || name.includes("scooty")) return "scooty";
+    if (est.saver || est.vtype === "saver" || key.includes("saver")) return "saver";
+    if (key.includes("bike") || name.includes("bike") || key.includes("moto") || name.includes("moto")) return "bike";
+    if (est.vtype === "priority" || key.includes("priority")) return "priority";
+    if (est.black || est.vtype === "black") return "black";
+    if (
+      key.includes("ac_cab") || name.includes("cab (ac)") ||
+      key.includes("premier") || name.includes("premier") ||
+      key.includes("prime") || name.includes("prime") ||
+      key.includes("prime_plus") || name.includes("prime plus") ||
+      key.includes("green") || name.includes("green") ||
+      key.includes("lux") || name.includes("lux") ||
+      key.includes("sedan") || name.includes("sedan") ||
+      key.includes("go_ac") || name.includes("go ac") ||
+      name.includes("ac cab") || name.includes("ac,")
+    ) return "ac_cab";
+    if (key.includes("xl") || name.includes("xl") || key.includes("suv") || name.includes("suv")) return "other";
+    return "cab";
+  };
+
+  const PROVIDER_STYLES = {
+    namma_yatri: { bg: "#eab308", text: "#000", label: "Namma Yatri" },
+    uber: { bg: "#374151", text: "#fff", label: "Uber" },
+    ola: { bg: "#84cc16", text: "#000", label: "Ola" },
+    rapido: { bg: "#ea580c", text: "#fff", label: "Rapido" },
+  };
+
+  const SPECIAL_BADGES = {
+    parcel: { label: "PARCEL", color: "#f59e0b", icon: "📦" },
+    rental: { label: "HOURLY", color: "#8b5cf6", icon: "⏱️" },
+    priority: { label: "PRIORITY", color: "#06b6d4", icon: "⚡" },
+    pet: { label: "PET", color: "#f472b6", icon: "🐾" },
+    saver: { label: "SAVER", color: "#22c55e", icon: "💰" },
+    black: { label: "BLACK", color: "#a3a3a3", icon: "💎" },
+    scooty: { label: "SCOOTY", color: "#fb923c", icon: "🛵" },
+    book_any: { label: "BOOK ANY", color: "#eab308", icon: "⚡🚗" },
+  };
+
+  const categories = [
+    { id: "all", label: "All Types", icon: "🌐" },
+    { id: "auto", label: "Auto", icon: "🛺" },
+    { id: "book_any", label: "Book Any", icon: "⚡🚗" },
+    { id: "cab", label: "Cab", icon: "🚗" },
+    { id: "ac_cab", label: "AC Cab", icon: "❄️" },
+    { id: "bike", label: "Bike", icon: "🏍️" },
+    { id: "scooty", label: "Scooty", icon: "🛵" },
+    { id: "priority", label: "Priority", icon: "⚡" },
+    { id: "black", label: "Black", icon: "💎" },
+    { id: "pet", label: "Pet", icon: "🐾" },
+    { id: "saver", label: "Saver", icon: "💰" },
+    { id: "rental", label: "Hourly", icon: "⏱️" },
+    { id: "parcel", label: "Parcel", icon: "📦" },
+    { id: "other", label: "Other", icon: "🚙" },
+  ];
+
   return (
     <div style={{
-      background: "linear-gradient(145deg, #111424, #181d33)",
-      border: "1.5px solid #202b4d",
-      borderRadius: 20,
+      background: "#ffffff",
+      border: `1.5px solid #ede9fe`,
+      borderRadius: 24,
       padding: 24,
       marginBottom: 24,
-      boxShadow: "0 10px 30px rgba(0,0,0,0.4)"
+      boxShadow: "rgba(124, 58, 237, 0.04) 0 10px 30px",
+      animation: "fadeIn 0.5s ease-out both"
     }}>
       {/* Title */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-            display: "flex", alignItems: "center", justifyContent: "center"
+            width: 38, height: 38, borderRadius: 10,
+            background: "linear-gradient(135deg, #7c3aed, #ec4899)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "rgba(124, 58, 237, 0.2) 0 4px 10px"
           }}>
-            <span style={{ fontSize: 16 }}>🤖</span>
+            <span style={{ fontSize: 18 }}>🤖</span>
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.01em" }}>U-Transit AI Smart Ranker</div>
-            <div style={{ fontSize: 10, color: "#6b7a99", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Explainable AI & Top-K Routing</div>
+            <div style={{ fontWeight: 900, fontSize: 16, color: "#1e1b24", letterSpacing: "-0.02em", lineHeight: "1.1" }}>U-Transit AI Smart Ranker</div>
+            <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, marginTop: 3 }}>Explainable AI & Top-K Routing</div>
           </div>
         </div>
-        <div style={{ background: "#202b4d", color: "#60a5fa", padding: "4px 10px", borderRadius: 8, fontSize: 10, fontWeight: 700 }}>
-          ⚡ Gemini Powered
+        <div style={{ background: "rgba(124, 58, 237, 0.08)", color: "#7c3aed", padding: "6px 12px", borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
+          ✨ Gemini Powered
         </div>
       </div>
 
       {/* List of recommendations */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {recommendations.slice(0, 3).map((rec, idx) => {
-          const modeInfo = mc[rec.mode] || {};
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {recommendations.slice(0, 4).map((rec, idx) => {
+          const config = modeColors[rec.mode] || { color: C.accent, bg: "rgba(124, 58, 237, 0.08)", icon: "bus", label: rec.mode };
           const isSelected = selected === rec.mode;
           const isExpanded = expandedIndex === idx;
 
@@ -4599,118 +5365,424 @@ function AIRecommendationsPanel({ recommendations, results, selected, setSelecte
           const cost = actualData.cost || 0;
           const transfers = actualData.transfers || 0;
 
+          const providerOptions = [
+            { id: "all", label: "All Providers", icon: "🌐", color: config.color },
+            { id: "namma_yatri", label: "Namma Yatri", icon: "🛺", color: "#eab308" },
+            { id: "ola", label: "Ola", icon: "🚗", color: "#84cc16" },
+            { id: "uber", label: "Uber", icon: "🚗", color: "#e2e8f0" },
+            { id: "rapido", label: "Rapido", icon: "🏍️", color: "#ea580c" },
+          ];
+
           return (
             <div
               key={rec.mode}
               style={{
-                background: isSelected ? "#1b213b" : "#13182b",
-                border: `1px solid ${isSelected ? "#3b82f6" : "#1e2440"}`,
-                borderRadius: 14,
-                padding: 16,
-                transition: "all 0.2s ease-in-out",
-                cursor: "pointer"
+                background: "#ffffff",
+                border: `1.5px solid ${isSelected ? "#7c3aed" : "#eef0f6"}`,
+                borderRadius: 20,
+                padding: "16px 20px",
+                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                cursor: "pointer",
+                boxShadow: isSelected ? "0 10px 25px -5px rgba(124, 58, 237, 0.08), 0 8px 10px -6px rgba(124, 58, 237, 0.08)" : "none",
+                animation: "fadeIn 0.5s ease-out both",
+                animationDelay: `${idx * 0.08}s`
               }}
               onClick={() => setSelected(rec.mode)}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.borderColor = isSelected ? "#7c3aed" : "rgba(124, 58, 237, 0.3)";
+                e.currentTarget.style.boxShadow = "0 12px 24px -10px rgba(124, 58, 237, 0.15)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.borderColor = isSelected ? "#7c3aed" : "#eef0f6";
+                e.currentTarget.style.boxShadow = isSelected ? "0 10px 25px -5px rgba(124, 58, 237, 0.08)" : "none";
+              }}
             >
               {/* Main row */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                   {/* Rank badge */}
                   <div style={{
-                    width: 26, height: 26, borderRadius: "50%",
-                    background: idx === 0 ? "#eab30822" : "#ffffff11",
-                    color: idx === 0 ? "#facc15" : "#a3a3a3",
-                    border: `1px solid ${idx === 0 ? "#eab30855" : "#ffffff22"}`,
+                    width: 28, height: 28, borderRadius: "50%",
+                    background: idx === 0 ? "linear-gradient(135deg, #fef08a, #fef9c3)" : "#f3f4f6",
+                    color: idx === 0 ? "#ca8a04" : "#4b5563",
+                    border: `1px solid ${idx === 0 ? "#fde047" : "#e5e7eb"}`,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontWeight: 800, fontSize: 12
+                    fontWeight: 900, fontSize: 12, flexShrink: 0
                   }}>
                     #{idx + 1}
                   </div>
-                  {/* Mode Badge & Details */}
+
+                  {/* Mode Icon Container */}
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: config.bg,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0
+                  }}>
+                    <Ic n={config.icon} s={22} c={config.color} sw={2} />
+                  </div>
+
+                  {/* Details Block */}
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontWeight: 800, fontSize: 14, color: isSelected ? "#3b82f6" : "#ffffff" }}>
-                        {modeInfo.label}
+                      <span style={{ fontWeight: 900, fontSize: 15, color: "#1e1b24" }}>
+                        {config.label}
                       </span>
                       <span style={{
-                        background: `${modeInfo.color}22`,
-                        color: modeInfo.color,
-                        padding: "2px 6px",
+                        background: `${config.color}15`,
+                        color: config.color,
+                        padding: "3px 8px",
                         borderRadius: 6,
-                        fontSize: 9,
-                        fontWeight: 700,
-                        textTransform: "uppercase"
+                        fontSize: 9.5,
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.02em"
                       }}>
-                        {rec.score}% Match
+                        {rec.score}% MATCH
                       </span>
                     </div>
-                    <div style={{ fontSize: 12, color: "#6b7a99", marginTop: 4 }}>
-                      💰 ₹{cost} • ⚡ {time} mins • 🎯 {transfers} transfer(s) • 🌿 {rec.emissions}g CO₂
+
+                    {/* Stats List */}
+                    <div style={{ display: "flex", gap: 16, color: "#64748b", fontSize: 12, marginTop: 6, fontWeight: 600, alignItems: "center" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>💰 ₹{cost}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>🕒 {time} mins</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>🎯 {transfers} transfer(s)</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>🌿 {rec.emissions || 0}g CO₂</span>
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setExpandedIndex(isExpanded ? null : idx);
                     }}
                     style={{
-                      background: "none", border: "none", color: "#6b7a99",
-                      fontSize: 11, fontWeight: 700, cursor: "pointer",
+                      background: "none", border: "none", color: C.muted,
+                      fontSize: 12, fontWeight: 700, cursor: "pointer",
                       padding: "4px 8px", borderRadius: 6, display: "flex",
-                      alignItems: "center", gap: 4, fontFamily: "inherit"
+                      alignItems: "center", gap: 4, fontFamily: "inherit",
+                      transition: "color 0.2s"
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = "#1e1b24"}
+                    onMouseLeave={e => e.currentTarget.style.color = C.muted}
+                  >
+                    <span>Show Details</span>
+                    <span style={{ 
+                      display: "inline-block", 
+                      transition: "transform 0.2s ease",
+                      transform: isExpanded ? "rotate(180deg)" : "none" 
+                    }}>▾</span>
+                  </button>
+
+                  {/* Circular selection button */}
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelected(rec.mode);
+                    }}
+                    style={{
+                      width: 26, height: 26, borderRadius: "50%",
+                      background: isSelected ? "#7c3aed" : "#ffffff",
+                      border: `2px solid ${isSelected ? "#7c3aed" : "#d1d5db"}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", transition: "all 0.2s"
                     }}
                   >
-                    {isExpanded ? "Hide Details ▴" : "Show Details ▾"}
-                  </button>
-                  <div style={{
-                    width: 18, height: 18, borderRadius: "50%",
-                    border: `2px solid ${isSelected ? "#3b82f6" : "#1e2440"}`,
-                    background: isSelected ? "#3b82f6" : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center"
-                  }}>
-                    {isSelected && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ffffff" }} />}
+                    {isSelected ? (
+                      <Ic n="arrow" s={10} c="white" sw={3} />
+                    ) : (
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "transparent" }} />
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Explanation Text */}
+              {/* Explanation Card */}
               <div style={{
-                marginTop: 10,
+                marginTop: 12,
                 fontSize: 12.5,
-                lineHeight: "17px",
-                color: "#9ca3af",
-                background: "#0c0f1d",
-                padding: "8px 12px",
-                borderRadius: 8,
-                borderLeft: `3px solid ${modeInfo.color || "#3b82f6"}`
+                lineHeight: "18px",
+                color: "#4b5563",
+                background: "#ffffff",
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "1px solid #f1f1f5",
+                borderLeft: `4px solid ${config.color || C.accent}`,
+                fontWeight: 500
               }}>
                 <strong>Why recommended:</strong> {rec.explanation}
               </div>
+
+              {/* Inline cab option details (rendered inside ranker card if expanded and mode is cab) */}
+              {isExpanded && rec.mode === "cab" && actualData.all_estimates && (
+                <div onClick={e => e.stopPropagation()} style={{
+                  marginTop: 14,
+                  padding: "14px 16px",
+                  borderTop: `1px solid ${C.border}`,
+                  background: C.bg + "33",
+                  borderRadius: 14
+                }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, marginBottom: 10, letterSpacing: "0.05em" }}>
+                    AVAILABLE VEHICLES & PROVIDERS
+                  </div>
+
+                  {/* Category Filter Pills */}
+                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 8, scrollbarWidth: "none" }}>
+                    {categories.map(cat => {
+                      const count = actualData.all_estimates.filter(est =>
+                        (cat.id === "all" || getVehicleCategory(est) === cat.id) &&
+                        (cabProviderFilter === "all" || est.provider_key === cabProviderFilter)
+                      ).length;
+
+                      if (count === 0 && cat.id !== "all") return null;
+
+                      const isCatActive = cabFilter === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => setCabFilter(cat.id)}
+                          style={{
+                            background: isCatActive ? config.color + "22" : C.surface,
+                            border: `1.5px solid ${isCatActive ? config.color : C.border2}`,
+                            borderRadius: 20,
+                            padding: "6px 12px",
+                            color: isCatActive ? config.color : C.muted,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            transition: "all 0.15s",
+                            fontFamily: "inherit"
+                          }}
+                        >
+                          <span>{cat.icon}</span>
+                          <span>{cat.label}</span>
+                          <span style={{
+                            fontSize: 9,
+                            background: isCatActive ? config.color + "44" : C.border2,
+                            color: isCatActive ? config.color : C.muted,
+                            borderRadius: 10,
+                            padding: "1px 5px",
+                            marginLeft: 2
+                          }}>{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Provider Filter Pills */}
+                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, marginBottom: 12, scrollbarWidth: "none" }}>
+                    {providerOptions.map(prov => {
+                      const count = actualData.all_estimates.filter(est =>
+                        (prov.id === "all" || est.provider_key === prov.id) &&
+                        (cabFilter === "all" || getVehicleCategory(est) === cabFilter)
+                      ).length;
+
+                      if (count === 0 && prov.id !== "all") return null;
+
+                      const isProvActive = cabProviderFilter === prov.id;
+                      const activeColor = prov.color;
+                      return (
+                        <button
+                          key={prov.id}
+                          onClick={() => setCabProviderFilter(prov.id)}
+                          style={{
+                            background: isProvActive ? activeColor + "22" : C.surface,
+                            border: `1.5px solid ${isProvActive ? activeColor : C.border2}`,
+                            borderRadius: 20,
+                            padding: "6px 12px",
+                            color: isProvActive ? activeColor : C.muted,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            transition: "all 0.15s",
+                            fontFamily: "inherit"
+                          }}
+                        >
+                          <span>{prov.icon}</span>
+                          <span>{prov.label}</span>
+                          <span style={{
+                            fontSize: 9,
+                            background: isProvActive ? activeColor + "44" : C.border2,
+                            color: isProvActive ? activeColor : C.muted,
+                            borderRadius: 10,
+                            padding: "1px 5px",
+                            marginLeft: 2
+                          }}>{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Vehicle list */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
+                    {actualData.all_estimates.filter(est => {
+                      const matchesType = cabFilter === "all" || getVehicleCategory(est) === cabFilter;
+                      const matchesProvider = cabProviderFilter === "all" || est.provider_key === cabProviderFilter;
+                      return matchesType && matchesProvider;
+                    }).map((est, eIdx) => {
+                      const isVehSelected = selectedCabVehicle &&
+                        selectedCabVehicle.provider_key === est.provider_key &&
+                        selectedCabVehicle.vehicle_key === est.vehicle_key;
+
+                      const pStyle = PROVIDER_STYLES[est.provider_key] || { bg: C.surface, text: C.text, label: est.provider };
+                      const isUnavailable = est.is_vehicle_available === false;
+                      const specialBadge = SPECIAL_BADGES[getVehicleCategory(est)] || null;
+
+                      return (
+                        <button
+                          key={eIdx}
+                          onClick={() => {
+                            if (isUnavailable) return;
+                            setSelectedCabVehicle(est);
+                            setSelected("cab");
+                          }}
+                          style={{
+                            background: isUnavailable ? C.surface + "88" : isVehSelected ? C.surface : C.card,
+                            border: `1.5px solid ${isUnavailable ? C.border : isVehSelected ? config.color : C.border}`,
+                            borderRadius: 12,
+                            padding: "10px 14px",
+                            cursor: isUnavailable ? "not-allowed" : "pointer",
+                            width: "100%",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            transition: "all 0.15s",
+                            opacity: isUnavailable ? 0.55 : 1,
+                            boxShadow: isVehSelected ? `0 4px 16px ${config.color}15` : "none",
+                            fontFamily: "inherit"
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div style={{ fontSize: 22 }}>{est.icon || "🚗"}</div>
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                <span style={{ fontSize: 13, fontWeight: 800 }}>{est.vehicle_name}</span>
+                                <span style={{
+                                  fontSize: 8,
+                                  background: pStyle.bg,
+                                  color: pStyle.text,
+                                  padding: "1px 5px",
+                                  borderRadius: 4,
+                                  fontWeight: 700
+                                }}>{pStyle.label.toUpperCase()}</span>
+                                {specialBadge && (
+                                  <span style={{
+                                    fontSize: 8,
+                                    background: specialBadge.color + "18",
+                                    color: specialBadge.color,
+                                    padding: "1px 5px",
+                                    borderRadius: 4,
+                                    fontWeight: 700
+                                  }}>{specialBadge.icon} {specialBadge.label}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 14, fontWeight: 900, color: isVehSelected ? config.color : C.text }}>
+                              ₹{est.cost}
+                            </div>
+                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                              ⏱ {est.time} min
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Inline multimodal option details (rendered inside ranker card if expanded and mode is multimodal) */}
+              {isExpanded && rec.mode === "multimodal" && actualData.all_options && (
+                <div onClick={e => e.stopPropagation()} style={{
+                  marginTop: 14,
+                  padding: "14px 16px",
+                  borderTop: `1px solid ${C.border}`,
+                  background: C.bg + "33",
+                  borderRadius: 14
+                }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, marginBottom: 10, letterSpacing: "0.05em" }}>
+                    SELECT MULTIMODAL COMBINATION
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
+                    {actualData.all_options.map((opt, oidx) => {
+                      const isOptSelected = selectedMultimodalOption && selectedMultimodalOption.combination_type === opt.combination_type;
+                      return (
+                        <button
+                          key={oidx}
+                          onClick={() => {
+                            setSelectedMultimodalOption(opt);
+                            setSelected("multimodal");
+                          }}
+                          style={{
+                            background: isOptSelected ? config.color + "14" : C.surface,
+                            border: `1.5px solid ${isOptSelected ? config.color : C.border2}`,
+                            borderRadius: 10,
+                            padding: "10px 14px",
+                            width: "100%",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            transition: "all 0.15s",
+                            boxShadow: isOptSelected ? `0 4px 16px ${config.color}15` : "none",
+                            fontFamily: "inherit",
+                            cursor: "pointer"
+                          }}
+                        >
+                          <div style={{ textAlign: "left" }}>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: isOptSelected ? config.color : C.text }}>
+                              {opt.combination_label}
+                            </div>
+                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                              {opt.route_summary}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 14, fontWeight: 900, color: isOptSelected ? config.color : C.text }}>₹{opt.cost}</div>
+                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>⏱ {opt.time} min</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Collapsible Utility score breakdown */}
               {isExpanded && (
                 <div style={{
                   marginTop: 14,
                   paddingTop: 12,
-                  borderTop: "1px solid #1e2440",
+                  borderTop: "1px solid #eef0f6",
                   display: "flex",
                   flexDirection: "column",
-                  gap: 8
+                  gap: 8,
+                  animation: "fadeIn 0.2s ease-out"
                 }} onClick={(e) => e.stopPropagation()}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7a99", marginBottom: 4 }}>RECOMMENDATION CRITERIA BREAKDOWN</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4, letterSpacing: "0.05em" }}>RECOMMENDATION CRITERIA BREAKDOWN</div>
                   {[
-                    { label: "⚡ Speed suitability", score: rec.details.time_score, color: "#3b82f6" },
-                    { label: "💰 Cost / Economy", score: rec.details.cost_score, color: "#22c55e" },
-                    { label: "🎯 Comfort & Transfers", score: rec.details.comfort_score, color: "#a855f7" },
-                    { label: "🌿 Carbon footprint rating", score: rec.details.eco_score, color: "#10b981" },
-                    { label: "⛈️ Weather resilience", score: rec.details.weather_score, color: "#f59e0b" }
+                    { label: "⚡ Speed suitability", score: rec.details?.time_score || 0, color: "#3b82f6" },
+                    { label: "💰 Cost / Economy", score: rec.details?.cost_score || 0, color: "#10b981" },
+                    { label: "🎯 Comfort & Transfers", score: rec.details?.comfort_score || 0, color: "#8b5cf6" },
+                    { label: "🌿 Carbon footprint rating", score: rec.details?.eco_score || 0, color: "#059669" },
+                    { label: "⛈️ Weather resilience", score: rec.details?.weather_score || 0, color: "#ea580c" }
                   ].map(item => (
                     <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 140, fontSize: 11, color: "#9ca3af" }}>{item.label}</div>
-                      <div style={{ flex: 1, height: 6, background: "#111424", borderRadius: 3, position: "relative" }}>
+                      <div style={{ width: 150, fontSize: 11, color: "#4b5563", fontWeight: 600 }}>{item.label}</div>
+                      <div style={{ flex: 1, height: 6, background: "#f3f4f6", borderRadius: 3, position: "relative" }}>
                         <div style={{
                           width: `${item.score}%`,
                           height: "100%",
@@ -4719,7 +5791,7 @@ function AIRecommendationsPanel({ recommendations, results, selected, setSelecte
                           transition: "width 0.4s ease-out"
                         }} />
                       </div>
-                      <div style={{ width: 30, fontSize: 11, color: "#ffffff", fontWeight: 700, textAlign: "right" }}>{item.score}%</div>
+                      <div style={{ width: 30, fontSize: 11, color: "#1e1b24", fontWeight: 700, textAlign: "right" }}>{item.score}%</div>
                     </div>
                   ))}
                 </div>
@@ -4732,9 +5804,596 @@ function AIRecommendationsPanel({ recommendations, results, selected, setSelecte
   );
 }
 
+function LandingPage({ onLoginClick, onSignUpClick }) {
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const services = [
+    { name: "Bus", desc: "Best coverage", price: "₹ 25 - 50", icon: "bus", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.08)" },
+    { name: "Metro", desc: "Fast & reliable", price: "₹ 30 - 60", icon: "metro", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
+    { name: "Cabs", desc: "Door to door", price: "₹ 200 - 450", icon: "cab", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
+    { name: "Personal Vehicle", desc: "Drive your way", price: "₹ 120 - 250*", note: "Toll & Fuel", icon: "car", color: "#10b981", bg: "rgba(16, 185, 129, 0.08)" },
+    { name: "Multi-Modal", desc: "Best of all", price: "Save time & money", icon: "transfer", color: "#ec4899", bg: "rgba(236, 72, 153, 0.08)" },
+  ];
+
+  const whyChooseUs = [
+    { title: "Real-time Updates", desc: "Live tracking of buses, metros and traffic conditions.", icon: "clock", color: "#8b5cf6", bg: "#f5f3ff" },
+    { title: "Smart Suggestions", desc: "AI-powered route suggestions for time & cost savings.", icon: "sparkles", color: "#ec4899", bg: "#fdf2f8" },
+    { title: "Multi-Modal Options", desc: "Compare and choose the best from multiple transport modes.", icon: "transfer", color: "#10b981", bg: "#ecfdf5" },
+    { title: "Fare Estimation", desc: "Get accurate fare estimates across all transport options.", icon: "now", color: "#f59e0b", bg: "#fffbeb" },
+    { title: "Easy & Accessible", desc: "User-friendly interface for a seamless travel experience.", icon: "user", color: "#3b82f6", bg: "#eff6ff" },
+  ];
+
+  const stats = [
+    { val: "10M+", label: "Happy Travelers", icon: "users" },
+    { val: "5000+", label: "BMTC Buses", icon: "bus" },
+    { val: "2", label: "Metro Lines", icon: "metro" },
+    { val: "1000+", label: "Daily Routes", icon: "route" },
+    { val: "24/7", label: "AI Support", icon: "chat" },
+  ];
+
+  return (
+    <div style={{ background: "#f8fafc", color: "#1e293b", fontFamily: "'Plus Jakarta Sans', 'Outfit', sans-serif", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      
+      {/* Header */}
+      <header style={{
+        background: "#ffffff",
+        borderBottom: "1px solid #f1f5f9",
+        padding: "0 40px",
+        height: 76,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        position: "sticky",
+        top: 0,
+        zIndex: 100,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
+      }}>
+        {/* Logo */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => scrollToSection("home")}>
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: 14,
+            background: "linear-gradient(135deg, #7c3aed, #ec4899)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "rgba(124, 58, 237, 0.25) 0 8px 16px"
+          }}>
+            <Ic n="bus" s={20} c="white" sw={2.2} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#1e1b24", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Bengaluru</div>
+            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Transport Navigator</div>
+            <div style={{ fontSize: 9, color: "#7c3aed", fontWeight: 700, letterSpacing: "0.05em", marginTop: 2 }}>SMART. CONNECTED.</div>
+          </div>
+        </div>
+
+        {/* Navigation Links */}
+        <nav style={{ display: "flex", alignItems: "center", gap: 28, marginLeft: "auto", marginRight: 40 }}>
+          {["Home", "Features", "Routes", "Services", "About Us", "Contact"].map((item) => {
+            const sectionMap = {
+              "Home": "home",
+              "Features": "features",
+              "Routes": "services",
+              "Services": "services",
+              "About Us": "about",
+              "Contact": "footer"
+            };
+            const id = sectionMap[item];
+            return (
+              <button
+                key={item}
+                onClick={() => scrollToSection(id)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: item === "Home" ? "#7c3aed" : "#64748b",
+                  cursor: "pointer",
+                  padding: "8px 4px",
+                  borderBottom: item === "Home" ? "2px solid #7c3aed" : "2px solid transparent",
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = "#7c3aed"; }}
+                onMouseLeave={e => { if (item !== "Home") e.currentTarget.style.color = "#64748b"; }}
+              >
+                {item}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Authentication Buttons */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            onClick={onLoginClick}
+            style={{
+              background: "none",
+              border: "1.5px solid #e2e8f0",
+              borderRadius: 12,
+              padding: "10px 20px",
+              color: "#1e293b",
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#7c3aed"; e.currentTarget.style.color = "#7c3aed"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#1e293b"; }}
+          >
+            <Ic n="user" s={14} c="currentColor" /> Login
+          </button>
+          <button
+            onClick={onSignUpClick}
+            style={{
+              background: "#7c3aed",
+              border: "none",
+              borderRadius: 12,
+              padding: "11px 22px",
+              color: "#ffffff",
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              boxShadow: "rgba(124, 58, 237, 0.25) 0 4px 12px",
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = 0.95; e.currentTarget.style.transform = "translateY(-1px)"; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = "none"; }}
+          >
+            <Ic n="users" s={14} c="#ffffff" /> Sign Up
+          </button>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section id="home" style={{
+        background: "linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%)",
+        padding: "60px 40px",
+        position: "relative",
+        overflow: "hidden",
+        borderBottom: "1px solid #f1f5f9"
+      }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.2fr", gap: 40, maxWidth: 1300, margin: "0 auto", alignItems: "center" }}>
+          
+          {/* Left Text and Buttons */}
+          <div style={{ zIndex: 2 }}>
+            <h1 style={{
+              fontSize: 48,
+              fontWeight: 900,
+              color: "#1e1b24",
+              lineHeight: 1.15,
+              margin: 0,
+              letterSpacing: "-0.04em",
+              fontFamily: "'Outfit', sans-serif"
+            }}>
+              Smart Routes.<br />
+              <span style={{ color: "#7c3aed", background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Better Journeys.</span>
+            </h1>
+            <p style={{
+              color: "#64748b",
+              fontSize: 16,
+              lineHeight: 1.6,
+              margin: "24px 0 32px 0",
+              fontWeight: 500
+            }}>
+              Your all-in-one solution for navigating Bengaluru.<br />
+              Find the best routes across bus, metro, cabs and more.
+            </p>
+            <div style={{ display: "flex", gap: 16 }}>
+              <button
+                onClick={onSignUpClick}
+                style={{
+                  background: "#7c3aed",
+                  border: "none",
+                  color: "#ffffff",
+                  borderRadius: 14,
+                  padding: "16px 28px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  boxShadow: "rgba(124, 58, 237, 0.35) 0 10px 20px",
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = 0.95; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = "none"; }}
+              >
+                Explore Services <Ic n="grid" s={14} c="#ffffff" />
+              </button>
+              <button
+                onClick={onLoginClick}
+                style={{
+                  background: "#ffffff",
+                  border: "2px solid #7c3aed",
+                  color: "#7c3aed",
+                  borderRadius: 14,
+                  padding: "14px 28px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(124, 58, 237, 0.04)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#ffffff"; e.currentTarget.style.transform = "none"; }}
+              >
+                View All Routes <Ic n="route" s={14} c="#7c3aed" />
+              </button>
+            </div>
+          </div>
+
+          {/* Right Image Graphic & Overlay Card */}
+          <div style={{ position: "relative", height: 420, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {/* The Cityscape Hero Image */}
+            <div style={{
+              width: "100%",
+              height: "100%",
+              borderRadius: 24,
+              overflow: "hidden",
+              position: "relative",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.06)",
+              border: "1px solid #ede9fe"
+            }}>
+              <img src={heroImg} alt="Bengaluru Cityscape" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
+
+            {/* Floating Info Card */}
+            <div style={{
+              position: "absolute",
+              right: -30,
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "#ffffff",
+              borderRadius: 20,
+              width: 240,
+              padding: "24px 20px",
+              boxShadow: "0 20px 50px rgba(26,22,37,0.1), 0 1px 3px rgba(0,0,0,0.02)",
+              border: "1px solid #ede9fe",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+              zIndex: 3
+            }}>
+              {[
+                { label: "Live Tracking", sub: "Real-time vehicle updates", icon: "gps", color: "#3b82f6", bg: "#eff6ff" },
+                { label: "Best Routes", sub: "Fastest & economical", icon: "route", color: "#8b5cf6", bg: "#f5f3ff" },
+                { label: "Multiple Modes", sub: "All transport in one place", icon: "grid", color: "#ec4899", bg: "#fdf2f8" },
+                { label: "AI Assistant", sub: "24/7 travel support", icon: "chat", color: "#10b981", bg: "#ecfdf5" },
+              ].map(item => (
+                <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Ic n={item.icon} s={15} c={item.color} sw={2.2} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#1e293b" }}>{item.label}</div>
+                    <div style={{ fontSize: 10, color: "#64748b", marginTop: 2, fontWeight: 500 }}>{item.sub}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Transit Services Section */}
+      <section id="services" style={{ padding: "80px 40px", background: "#ffffff" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          
+          <h2 style={{ fontSize: 24, fontWeight: 900, color: "#1e1b24", textAlign: "center", marginBottom: 40, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
+            Explore Transit Options
+          </h2>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 20 }}>
+            {services.map(s => (
+              <div
+                key={s.name}
+                onClick={onLoginClick}
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #f1f5f9",
+                  borderRadius: 20,
+                  padding: "24px 20px",
+                  boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
+                  transition: "all 0.25s ease",
+                  cursor: "pointer",
+                  position: "relative",
+                  display: "flex",
+                  flexDirection: "column"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "translateY(-4px)";
+                  e.currentTarget.style.borderColor = s.color + "40";
+                  e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.05) 0 15px 35px";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "none";
+                  e.currentTarget.style.borderColor = "#f1f5f9";
+                  e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.01) 0 10px 30px";
+                }}
+              >
+                <div style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: s.bg,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 16
+                }}>
+                  <Ic n={s.icon} s={20} c={s.color} sw={2.2} />
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#1e1b24" }}>{s.name}</div>
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, fontWeight: 500 }}>{s.desc}</div>
+                
+                <div style={{ marginTop: 24, fontSize: 13, fontWeight: 800, color: "#1e1b24" }}>
+                  {s.price}
+                  {s.note && <span style={{ fontSize: 10, color: "#64748b", fontWeight: 500, display: "block", marginTop: 2 }}>{s.note}</span>}
+                </div>
+
+                <div style={{
+                  position: "absolute",
+                  bottom: 20,
+                  right: 20,
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  background: "#f8fafc",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}>
+                  <Ic n="arrow" s={10} c={s.color} sw={2.5} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Stats Bar Ribbon */}
+          <div style={{
+            marginTop: 60,
+            background: "linear-gradient(135deg, rgba(124, 58, 237, 0.03) 0%, rgba(236, 72, 153, 0.03) 100%)",
+            border: "1px solid rgba(124, 58, 237, 0.08)",
+            borderRadius: 24,
+            padding: "24px 40px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 20
+          }}>
+            {stats.map(item => (
+              <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <Ic n={item.icon} s={16} c="#7c3aed" sw={2.2} />
+                <span style={{ fontSize: 14, fontWeight: 500, color: "#475569" }}>
+                  <strong style={{ fontSize: 16, fontWeight: 800, color: "#1e1b24", marginRight: 4 }}>{item.val}</strong> {item.label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* Why Choose Us Features Section */}
+      <section id="features" style={{ padding: "80px 40px", background: "#f8fafc", borderTop: "1px solid #f1f5f9" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          
+          <h2 style={{ fontSize: 24, fontWeight: 900, color: "#1e1b24", textAlign: "center", marginBottom: 40, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
+            Why Choose Us?
+          </h2>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 20 }}>
+            {whyChooseUs.map(f => (
+              <div key={f.title} style={{
+                background: "#ffffff",
+                border: "1px solid #ede9fe",
+                borderRadius: 20,
+                padding: "24px 20px",
+                boxShadow: "rgba(0,0,0,0.01) 0 10px 30px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 12
+              }}>
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  background: f.bg,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}>
+                  <Ic n={f.icon} s={18} c={f.color} sw={2.2} />
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#1e1b24" }}>{f.title}</div>
+                <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.5, fontWeight: 500 }}>{f.desc}</div>
+              </div>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* About Us & Move Bengaluru Forward Section */}
+      <section id="about" style={{ padding: "80px 40px", background: "#ffffff", borderTop: "1px solid #f1f5f9" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 30 }}>
+          
+          {/* Card 1: About Us */}
+          <div style={{
+            background: "#ffffff",
+            border: "1px solid #ede9fe",
+            borderRadius: 24,
+            padding: "36px",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.01)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between"
+          }}>
+            <div>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e1b24", margin: "0 0 16px 0" }}>About Us</h2>
+              <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, fontWeight: 500, margin: 0 }}>
+                Bengaluru Transport Navigator is an initiative to make public transportation simple, smart and accessible for everyone.
+                Our mission is to connect Bengaluru, one journey at a time.
+              </p>
+            </div>
+            <button
+              onClick={onSignUpClick}
+              style={{
+                marginTop: 28,
+                background: "none",
+                border: "1.5px solid #7c3aed",
+                borderRadius: 12,
+                padding: "10px 20px",
+                color: "#7c3aed",
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                alignSelf: "start",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                transition: "all 0.2s"
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(124, 58, 237, 0.04)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+            >
+              Learn More About Us <Ic n="arrow" s={12} c="#7c3aed" sw={2.5} />
+            </button>
+          </div>
+
+          {/* Card 2: Move Bengaluru Forward */}
+          <div style={{
+            background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)",
+            borderRadius: 24,
+            padding: "36px",
+            color: "#ffffff",
+            position: "relative",
+            overflow: "hidden",
+            boxShadow: "rgba(124, 58, 237, 0.2) 0 10px 30px"
+          }}>
+            <div style={{ maxWidth: "60%", zIndex: 2, position: "relative" }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", margin: "0 0 8px 0" }}>Move Bengaluru Forward</h2>
+              <p style={{ fontSize: 12, opacity: 0.9, lineHeight: 1.5, fontWeight: 500, margin: 0 }}>
+                Smart choices. Better cities. Join us in making commutes efficient.
+              </p>
+            </div>
+            {/* Landscape background clip */}
+            <div style={{
+              position: "absolute",
+              bottom: 0,
+              right: 0,
+              width: "50%",
+              height: "70%",
+              opacity: 0.8,
+              pointerEvents: "none",
+              overflow: "hidden",
+              borderBottomRightRadius: 24
+            }}>
+              <img src={heroImg} alt="Bengaluru" style={{ width: "100%", height: "100%", objectFit: "contain", transform: "scale(1.3)", transformOrigin: "bottom right" }} />
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer id="footer" style={{
+        background: "#0f172a",
+        color: "#94a3b8",
+        padding: "48px 40px 32px 40px",
+        borderTop: "1px solid #1e293b",
+        marginTop: "auto"
+      }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 24, paddingBottom: 28, borderBottom: "1px solid #1e293b" }}>
+            
+            {/* Logo */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                background: "linear-gradient(135deg, #7c3aed, #ec4899)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                <Ic n="bus" s={18} c="white" sw={2.2} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: "#ffffff", letterSpacing: "-0.01em", lineHeight: "1.2" }}>Bengaluru</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600 }}>Transport Navigator</div>
+              </div>
+            </div>
+
+            {/* Links */}
+            <div style={{ display: "flex", gap: 24 }}>
+              {["Privacy Policy", "Terms of Use", "FAQs", "Help Center"].map(link => (
+                <a key={link} href="#" onClick={e => e.preventDefault()} style={{ fontSize: 12, color: "#94a3b8", textDecoration: "none", fontWeight: 600, transition: "color 0.2s" }} onMouseEnter={e => { e.currentTarget.style.color = "#ffffff"; }} onMouseLeave={e => { e.currentTarget.style.color = "#94a3b8"; }}>
+                  {link}
+                </a>
+              ))}
+            </div>
+
+            {/* Social Links */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#475569" }}>Follow Us</span>
+              {["facebook", "twitter", "instagram", "youtube"].map(s => (
+                <a key={s} href="#" onClick={e => e.preventDefault()} style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: "#1e293b",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#7c3aed"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#1e293b"; e.currentTarget.style.transform = "none"; }}
+                >
+                  <Ic n={s} s={13} c="#ffffff" sw={2.2} />
+                </a>
+              ))}
+            </div>
+
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24, fontSize: 11, color: "#475569", fontWeight: 600 }}>
+            <span>© {new Date().getFullYear()} Bengaluru Transport Navigator. All rights reserved.</span>
+            <span>Made with ❤️ for Bengaluru</span>
+          </div>
+
+        </div>
+      </footer>
+
+    </div>
+  );
+}
+
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem("token") || null);
   const [user, setUser] = useState(localStorage.getItem("username") || null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState("login");
 
   const [page, setPage] = useState("dashboard");
   const [src, setSrc] = useState("");
@@ -4764,32 +6423,78 @@ export default function App() {
   const [saveSuccessMsg, setSaveSuccessMsg] = useState("");
 
   const [mapsLoaded, setMapsLoaded] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [useOsm, setUseOsm] = useState(() => {
+    if (localStorage.getItem("force_osm") === "true") return true;
+    if (localStorage.getItem("force_osm") === "false") return false;
+    return true; // Default to OSM until config is loaded
+  });
 
   useEffect(() => {
-    window.gm_authFailure = () => {
-      console.warn("Google Maps authentication failed globally. Falling back to OpenStreetMap.");
-      window._osmActive = true;
-      window.dispatchEvent(new Event("osm_fallback"));
+    const initGmaps = (key) => {
+      window.gm_authFailure = () => {
+        console.warn("Google Maps authentication failed globally. Falling back to OpenStreetMap.");
+        window._osmActive = true;
+        window.dispatchEvent(new Event("osm_fallback"));
+      };
+
+      if (window.google) { setMapsLoaded(true); return; }
+      if (document.getElementById("gmaps-script")) {
+        const s = document.getElementById("gmaps-script");
+        const handleLoad = () => setMapsLoaded(true);
+        s.addEventListener("load", handleLoad);
+        return () => s.removeEventListener("load", handleLoad);
+      }
+      if (!key || key === "YOUR_GOOGLE_MAPS_API_KEY") {
+        console.warn("No Google Maps API Key provided globally. Falling back to OpenStreetMap.");
+        window._osmActive = true;
+        window.dispatchEvent(new Event("osm_fallback"));
+        return;
+      }
+      const s = document.createElement("script");
+      s.id = "gmaps-script";
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+      s.async = true;
+      s.onload = () => setMapsLoaded(true);
+      s.onerror = () => {
+        console.warn("Google Maps script load failed. Falling back to OpenStreetMap.");
+        window._osmActive = true;
+        window.dispatchEvent(new Event("osm_fallback"));
+      };
+      document.head.appendChild(s);
     };
 
-    if (window.google) { setMapsLoaded(true); return; }
-    if (document.getElementById("gmaps-script")) {
-      const s = document.getElementById("gmaps-script");
-      const handleLoad = () => setMapsLoaded(true);
-      s.addEventListener("load", handleLoad);
-      return () => s.removeEventListener("load", handleLoad);
-    }
-    const s = document.createElement("script");
-    s.id = "gmaps-script";
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places`;
-    s.async = true;
-    s.onload = () => setMapsLoaded(true);
-    s.onerror = () => {
-      console.warn("Google Maps script load failed. Falling back to OpenStreetMap.");
-      window._osmActive = true;
-      window.dispatchEvent(new Event("osm_fallback"));
+    const handleFallback = () => {
+      setUseOsm(true);
     };
-    document.head.appendChild(s);
+    window.addEventListener("osm_fallback", handleFallback);
+
+    fetch(`${API_BASE}/api/config`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.google_maps_api_key) {
+          window._backendGmapsKey = data.google_maps_api_key;
+        }
+        const key = getGoogleMapsKey();
+        if (key && key !== "YOUR_GOOGLE_MAPS_API_KEY" && localStorage.getItem("force_osm") !== "true") {
+          setUseOsm(false);
+          initGmaps(key);
+        } else {
+          setUseOsm(true);
+        }
+      })
+      .catch(err => {
+        console.warn("Could not fetch API config:", err);
+        const key = getGoogleMapsKey();
+        if (key && key !== "YOUR_GOOGLE_MAPS_API_KEY" && localStorage.getItem("force_osm") !== "true") {
+          setUseOsm(false);
+          initGmaps(key);
+        } else {
+          setUseOsm(true);
+        }
+      });
+
+    return () => window.removeEventListener("osm_fallback", handleFallback);
   }, []);
 
   // Reset active segment navigation index when selected plan or vehicle changes
@@ -4892,6 +6597,7 @@ export default function App() {
     setUser(username);
     setToken(userToken);
     setPage("dashboard");
+    setShowAuth(false);
   };
 
   const onLogout = () => {
@@ -4902,6 +6608,7 @@ export default function App() {
     setResults(null);
     setRecommendations([]);
     setPage("dashboard");
+    setShowAuth(false);
   };
 
   const selectedData = (() => {
@@ -4937,47 +6644,457 @@ export default function App() {
   ];
 
   if (!token) {
-    return <AuthScreen onLoginSuccess={onLoginSuccess} />;
+    if (showAuth) {
+      return (
+        <AuthScreen 
+          onLoginSuccess={onLoginSuccess} 
+          onBackToHome={() => setShowAuth(false)} 
+          initialMode={authMode} 
+        />
+      );
+    }
+    return (
+      <LandingPage 
+        onLoginClick={() => { setAuthMode("login"); setShowAuth(true); }} 
+        onSignUpClick={() => { setAuthMode("signup"); setShowAuth(true); }} 
+      />
+    );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'DM Sans','Segoe UI',sans-serif", color: C.text }}>
-
-      {/* NAV */}
-      <nav style={{ borderBottom: `1px solid ${C.border}`, background: C.surface + "ee", backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", height: 60, gap: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginRight: 4 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: `linear-gradient(135deg, ${C.accent}, #ea580c)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Ic n="bus" s={17} c="white" sw={2.2} />
-            </div>
-            <div>
-              <div style={{ fontWeight: 900, fontSize: 15, letterSpacing: "-0.03em" }}>UTRS U-Transit</div>
-              <div style={{ fontSize: 9, color: C.muted, letterSpacing: "0.1em" }}>BENGALURU</div>
-            </div>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Plus Jakarta Sans', 'Outfit', sans-serif", color: C.text, display: "flex" }}>
+      {/* SIDEBAR */}
+      <aside style={{
+        width: 280,
+        background: "#252238",
+        borderRight: "1px solid rgba(255, 255, 255, 0.06)",
+        display: "flex",
+        flexDirection: "column",
+        position: "fixed",
+        top: 0,
+        bottom: 0,
+        left: 0,
+        zIndex: 100,
+        boxShadow: "rgba(0, 0, 0, 0.15) 2px 0 12px 0"
+      }}>
+        {/* Brand/Logo */}
+        <div style={{ padding: "24px 28px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: 14,
+            background: "linear-gradient(135deg, #7c3aed, #ec4899)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "rgba(124, 58, 237, 0.25) 0 8px 16px"
+          }}>
+            <Ic n="bus" s={20} c="white" sw={2.2} />
           </div>
-          {[
-            { id: "dashboard", icon: "home", label: "Dashboard" },
-            { id: "plan", icon: "mappin", label: "Plan Journey" },
-            ...(results ? [{ id: "results", icon: "grid", label: "Results" }] : []),
-          ].map(n => (
-            <button key={n.id} onClick={() => setPage(n.id)} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: page === n.id ? C.accent : C.muted, fontWeight: page === n.id ? 700 : 500, fontSize: 13, padding: "4px 2px", fontFamily: "inherit", borderBottom: page === n.id ? `2px solid ${C.accent}` : "2px solid transparent" }}>
-              <Ic n={n.icon} s={14} c={page === n.id ? C.accent : C.muted} />{n.label}
-            </button>
-          ))}
-
-          {/* User Signout Button */}
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 12, padding: "6px 12px", fontSize: 12, fontWeight: 700, color: C.text }}>
-              👤 {user}
-            </div>
-            <button onClick={onLogout} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 10, padding: "6px 14px", color: C.muted, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-              Logout
-            </button>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#ffffff", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Bengaluru</div>
+            <div style={{ fontSize: 11, color: "#8e8a9f", fontWeight: 600 }}>Transport Navigator</div>
+            <div style={{ fontSize: 9, color: "#a855f7", fontWeight: 700, letterSpacing: "0.05em", marginTop: 2 }}>SMART. CONNECTED.</div>
           </div>
         </div>
-      </nav>
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px" }}>
+        {/* Sidebar Nav Categories */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 12px 20px", display: "flex", flexDirection: "column", gap: 16, scrollbarWidth: "none" }}>
+          
+          {/* MAIN */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#534f6d", textTransform: "uppercase", letterSpacing: "0.08em", padding: "10px 16px 6px" }}>Main</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {[
+                { id: "dashboard", icon: "home", label: "Home" },
+                { id: "plan", icon: "mappin", label: "Plan Journey" },
+                { id: "search_routes", icon: "route", label: "Search Routes" },
+                { id: "timetable", icon: "clock", label: "Timetable" },
+                { id: "map_settings", icon: "sparkles", label: "Map Settings" }
+              ].map(n => {
+                const isActive = (n.id === "dashboard" && page === "dashboard") || (n.id === "plan" && page === "plan" && !showRouteSearch && !showTimetable);
+                const isRouteSearchActive = n.id === "search_routes" && page === "plan" && showRouteSearch;
+                const isTimetableActive = n.id === "timetable" && page === "plan" && showTimetable;
+                const isItemActive = isActive || isRouteSearchActive || isTimetableActive;
+
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => {
+                      if (n.id === "dashboard") { setPage("dashboard"); }
+                      else if (n.id === "plan") { setPage("plan"); setShowRouteSearch(false); setShowTimetable(false); }
+                      else if (n.id === "search_routes") { setPage("plan"); setShowRouteSearch(true); setShowAllBuses(false); setShowTimetable(false); }
+                      else if (n.id === "timetable") { setPage("plan"); setShowTimetable(true); setShowAllBuses(false); setShowRouteSearch(false); }
+                      else if (n.id === "map_settings") { setShowSettings(true); }
+                    }}
+                    style={{
+                      background: isItemActive ? "linear-gradient(90deg, rgba(124, 58, 237, 0.16) 0%, rgba(124, 58, 237, 0.04) 100%)" : "none",
+                      border: "none",
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      color: isItemActive ? "#ffffff" : "#8e8a9f",
+                      fontWeight: isItemActive ? 700 : 600,
+                      fontSize: 13.5,
+                      padding: "10px 16px",
+                      width: "100%",
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                      borderLeft: isItemActive ? "4px solid #a855f7" : "4px solid transparent",
+                      transition: "all 0.15s ease"
+                    }}
+                    onMouseEnter={e => {
+                      if (!isItemActive) {
+                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
+                        e.currentTarget.style.color = "#ffffff";
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (!isItemActive) {
+                        e.currentTarget.style.background = "none";
+                        e.currentTarget.style.color = "#8e8a9f";
+                      }
+                    }}
+                  >
+                    <Ic n={n.icon} s={15} c={isItemActive ? "#a855f7" : "#8e8a9f"} />
+                    <span>{n.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* TOOLS & SERVICES */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#534f6d", textTransform: "uppercase", letterSpacing: "0.08em", padding: "10px 16px 6px" }}>Tools & Services</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {[
+                { id: "favourites", icon: "star", label: "Favourites", right: <span style={{ background: "#7c3aed", color: "#ffffff", borderRadius: 10, fontSize: 9, fontWeight: 800, padding: "2px 6px", marginLeft: "auto" }}>3</span> },
+                { id: "fare_calculator", icon: "table", label: "Fare Calculator" },
+                { id: "stops_info", icon: "gps", label: "Stops Info", sub: "Nearest bus stops" },
+                { id: "route_lookup", icon: "route", label: "Route Lookup" },
+                { id: "alerts_updates", icon: "bell", label: "Alerts & Updates", sub: "Service & traffic alerts" },
+                { id: "weather_alerts", icon: "sparkles", label: "Weather Alerts", sub: "Rain & forecast alerts" }
+              ].map(n => {
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => {
+                      if (n.id === "favourites") {
+                        setPage("dashboard");
+                        setTimeout(() => {
+                          const el = document.getElementById("saved-places-card");
+                          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }, 100);
+                      } else if (n.id === "fare_calculator") {
+                        setPage("plan");
+                      } else if (n.id === "stops_info") {
+                        setPage("plan");
+                      } else if (n.id === "route_lookup") {
+                        setPage("plan");
+                        setShowRouteSearch(true);
+                      } else if (n.id === "alerts_updates" || n.id === "weather_alerts") {
+                        setPage("dashboard");
+                        setTimeout(() => {
+                          const el = document.getElementById("travel-alerts-card");
+                          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }, 100);
+                      }
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      color: "#8e8a9f",
+                      fontWeight: 600,
+                      fontSize: 13.5,
+                      padding: "8px 16px",
+                      width: "100%",
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                      borderLeft: "4px solid transparent",
+                      transition: "all 0.15s ease"
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
+                      e.currentTarget.style.color = "#ffffff";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = "none";
+                      e.currentTarget.style.color = "#8e8a9f";
+                    }}
+                  >
+                    <Ic n={n.icon} s={15} c="#8e8a9f" />
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.label}</span>
+                        {n.right || null}
+                      </div>
+                      {n.sub && <span style={{ fontSize: 9.5, color: "#534f6d", fontWeight: 500, marginTop: 2 }}>{n.sub}</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* MY SPACE */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#534f6d", textTransform: "uppercase", letterSpacing: "0.08em", padding: "10px 16px 6px" }}>My Space</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {[
+                { id: "my_garage", icon: "car", label: "My Garage", onAdd: () => setGarageOpen(true) },
+                { id: "digital_glovebox", icon: "folder", label: "Digital Glovebox", onAdd: () => setGloveboxOpen(true) }
+              ].map(n => {
+                return (
+                  <div
+                    key={n.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "4px 8px 4px 16px",
+                      borderRadius: 12,
+                      transition: "all 0.15s ease"
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = "none";
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, cursor: "pointer" }} onClick={() => {
+                      setPage("dashboard");
+                      setTimeout(() => {
+                        const el = document.getElementById(n.id === "my_garage" ? "my-garage-card" : "digital-glovebox-card");
+                        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }, 100);
+                    }}>
+                      <Ic n={n.icon} s={15} c="#8e8a9f" />
+                      <span style={{ fontSize: 13.5, color: "#8e8a9f", fontWeight: 600 }}>{n.label}</span>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); n.onAdd(); }}
+                      style={{
+                        background: "none",
+                        border: "1px solid #c084fc",
+                        borderRadius: 6,
+                        color: "#c084fc",
+                        fontSize: 9.5,
+                        fontWeight: 800,
+                        padding: "3px 6px",
+                        cursor: "pointer",
+                        transition: "all 0.15s"
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = "#a855f7";
+                        e.currentTarget.style.color = "#ffffff";
+                        e.currentTarget.style.borderColor = "#a855f7";
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = "none";
+                        e.currentTarget.style.color = "#c084fc";
+                        e.currentTarget.style.borderColor = "#c084fc";
+                      }}
+                    >
+                      + Add
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* OTHER */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#534f6d", textTransform: "uppercase", letterSpacing: "0.08em", padding: "10px 16px 6px" }}>Other</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {[
+                { id: "help_support", icon: "chat", label: "Help & Support", sub: "FAQs & contact" },
+                { id: "settings", icon: "logout", label: "Settings" }
+              ].map(n => {
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => {
+                      if (n.id === "help_support") {
+                        // Open Chatbot
+                        const widget = document.getElementById("chatbot-toggle-btn");
+                        if (widget) widget.click();
+                      } else if (n.id === "settings") {
+                        setShowSettings(true);
+                      }
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      color: C.muted,
+                      fontWeight: 600,
+                      fontSize: 13.5,
+                      padding: "8px 16px",
+                      width: "100%",
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                      borderLeft: "4px solid transparent",
+                      transition: "all 0.15s ease"
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = "#f9f9fc";
+                      e.currentTarget.style.color = "#1e1b24";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = "none";
+                      e.currentTarget.style.color = C.muted;
+                    }}
+                  >
+                    <Ic n={n.icon} s={15} c={C.muted} />
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+                      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.label}</span>
+                      {n.sub && <span style={{ fontSize: 9.5, color: "#94a3b8", fontWeight: 500, marginTop: 2 }}>{n.sub}</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Cityscape graphic at bottom of sidebar */}
+        <div style={{
+          margin: "16px",
+          padding: "20px 16px 16px 16px",
+          background: "linear-gradient(135deg, #302b47 0%, #1f1c2e 100%)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          borderRadius: 20,
+          color: "#ffffff",
+          position: "relative",
+          overflow: "hidden",
+          boxShadow: "rgba(0, 0, 0, 0.2) 0 4px 12px",
+          height: 110,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between"
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 900, color: "#ffffff", lineHeight: "1.2" }}>Move Bengaluru</div>
+            <div style={{ fontSize: 13, fontWeight: 900, color: "#c084fc", lineHeight: "1.2", marginTop: 2 }}>Forward</div>
+          </div>
+          
+          <div style={{ fontSize: 10, color: "#b3afcb", fontWeight: 600, maxWidth: "60%", lineHeight: "1.3" }}>
+            Plan smart. Save time. Reduce carbon footprint.
+          </div>
+
+          <div style={{
+            position: "absolute",
+            bottom: 0,
+            right: 0,
+            width: "45%",
+            height: "80%",
+            opacity: 0.7,
+            pointerEvents: "none",
+            overflow: "hidden"
+          }}>
+            <img src={heroImg} alt="Bengaluru Cityscape" style={{ width: "100%", height: "100%", objectFit: "contain", transform: "scale(1.2)", transformOrigin: "bottom right" }} />
+          </div>
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT CONTAINER */}
+      <div style={{ flex: 1, marginLeft: 280, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {/* TOP HEADER */}
+        <header style={{
+          height: 70,
+          background: "#ffffff",
+          borderBottom: `1px solid ${C.border}`,
+          padding: "0 40px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          position: "sticky",
+          top: 0,
+          zIndex: 90
+        }}>
+          {/* Greeting depending on page */}
+          <div>
+            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Welcome Back</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#1e1b24", marginTop: 2 }}>{user} 👋</div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {/* Weather Card */}
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: 12, 
+              background: "#f8fafc", 
+              border: "1px solid #f1f5f9", 
+              padding: "8px 16px", 
+              borderRadius: 16 
+            }}>
+              <span style={{ fontSize: 18 }}>☀️</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#1e1b24", lineHeight: 1.1 }}>27°C</div>
+                <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>Partly Cloudy</div>
+              </div>
+            </div>
+
+            {/* Date/Time Card */}
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: 12, 
+              background: "#f8fafc", 
+              border: "1px solid #f1f5f9", 
+              padding: "8px 16px", 
+              borderRadius: 16 
+            }}>
+              <span style={{ fontSize: 18 }}>🕒</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#1e1b24", lineHeight: 1.1 }}>{nowTime()}</div>
+                <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>
+                  {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                </div>
+              </div>
+            </div>
+            
+            {/* Logout Button */}
+            <button
+              onClick={onLogout}
+              style={{
+                background: "rgba(239, 68, 68, 0.08)",
+                border: "none",
+                borderRadius: 14,
+                width: 42,
+                height: 42,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "all 0.2s"
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#fee2e2"; e.currentTarget.style.transform = "scale(1.04)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(239, 68, 68, 0.08)"; e.currentTarget.style.transform = "none"; }}
+              title="Logout"
+            >
+              <Ic n="logout" s={16} c={C.red} sw={2.2} />
+            </button>
+          </div>
+        </header>
+
+        {/* MAIN BODY AREA */}
+        <main style={{ padding: "40px", flex: 1, minHeight: "calc(100vh - 70px)", boxSizing: "border-box" }}>
 
         {/* DASHBOARD */}
         {page === "dashboard" && (
@@ -5096,7 +7213,7 @@ export default function App() {
 
             {/* Map */}
             <div style={{ height: "calc(100vh - 120px)", position: "sticky", top: 72 }}>
-              <GoogleMap src={src} dst={dst} segments={null} activeMode={null} activeSegmentIndex={null} setActiveSegmentIndex={() => { }} />
+              <GoogleMap src={src} dst={dst} segments={null} activeMode={null} activeSegmentIndex={null} setActiveSegmentIndex={() => { }} useOsm={useOsm} setUseOsm={setUseOsm} />
             </div>
           </div>
         )}
@@ -5136,50 +7253,54 @@ export default function App() {
               {showRouteSearch && <div style={{ marginBottom: 16 }}><RouteSearchPanel /></div>}
               {showTimetable && <TimetablePanel results={results} onClose={() => setShowTimetable(false)} stops={stops} src={src} dst={dst} time={time} />}
 
-              {/* AI smart recommendations Top-K list */}
-              <AIRecommendationsPanel
-                recommendations={recommendations}
-                results={results}
-                selected={selected}
-                setSelected={setSelected}
-                mc={MC}
-              />
-
               {view === "cards" ? (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                  {Object.keys(results).map(m => {
-                    const cardData = (m === "cab" && selectedCabVehicle) ? {
-                      ...results.cab,
-                      ...selectedCabVehicle,
-                      segments: selectedCabVehicle.segments,
-                      guide: selectedCabVehicle.guide,
-                      cost: selectedCabVehicle.cost,
-                      time: selectedCabVehicle.time,
-                      distance: selectedCabVehicle.distance,
-                    } : (m === "multimodal" && selectedMultimodalOption) ? {
-                      ...results.multimodal,
-                      ...selectedMultimodalOption,
-                      segments: selectedMultimodalOption.segments,
-                      guide: selectedMultimodalOption.guide,
-                      cost: selectedMultimodalOption.cost,
-                      time: selectedMultimodalOption.time,
-                      distance: selectedMultimodalOption.distance,
-                    } : results[m];
-                    return (
-                      <ResultCard
-                        key={m}
-                        modeKey={m}
-                        data={cardData}
-                        selected={selected}
-                        onSelect={setSelected}
-                        selectedCabVehicle={selectedCabVehicle}
-                        setSelectedCabVehicle={setSelectedCabVehicle}
-                        selectedMultimodalOption={selectedMultimodalOption}
-                        setSelectedMultimodalOption={setSelectedMultimodalOption}
-                      />
-                    );
-                  })}
-                </div>
+                <>
+                  <AIRecommendationsPanel
+                    recommendations={recommendations}
+                    results={results}
+                    selected={selected}
+                    setSelected={setSelected}
+                    mc={MC}
+                    selectedCabVehicle={selectedCabVehicle}
+                    setSelectedCabVehicle={setSelectedCabVehicle}
+                    selectedMultimodalOption={selectedMultimodalOption}
+                    setSelectedMultimodalOption={setSelectedMultimodalOption}
+                  />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 20 }}>
+                    {Object.keys(results).map(m => {
+                      const cardData = (m === "cab" && selectedCabVehicle) ? {
+                        ...results.cab,
+                        ...selectedCabVehicle,
+                        segments: selectedCabVehicle.segments,
+                        guide: selectedCabVehicle.guide,
+                        cost: selectedCabVehicle.cost,
+                        time: selectedCabVehicle.time,
+                        distance: selectedCabVehicle.distance,
+                      } : (m === "multimodal" && selectedMultimodalOption) ? {
+                        ...results.multimodal,
+                        ...selectedMultimodalOption,
+                        segments: selectedMultimodalOption.segments,
+                        guide: selectedMultimodalOption.guide,
+                        cost: selectedMultimodalOption.cost,
+                        time: selectedMultimodalOption.time,
+                        distance: selectedMultimodalOption.distance,
+                      } : results[m];
+                      return (
+                        <ResultCard
+                          key={m}
+                          modeKey={m}
+                          data={cardData}
+                          selected={selected}
+                          onSelect={setSelected}
+                          selectedCabVehicle={selectedCabVehicle}
+                          setSelectedCabVehicle={setSelectedCabVehicle}
+                          selectedMultimodalOption={selectedMultimodalOption}
+                          setSelectedMultimodalOption={setSelectedMultimodalOption}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
               ) : (
                 <CompareTable results={{
                   ...results,
@@ -5261,6 +7382,8 @@ export default function App() {
                   guide={selectedData?.guide}
                   activeSegmentIndex={activeSegmentIndex}
                   setActiveSegmentIndex={setActiveSegmentIndex}
+                  useOsm={useOsm}
+                  setUseOsm={setUseOsm}
                 />
               )}
               {selectedData?.available && (
@@ -5279,8 +7402,90 @@ export default function App() {
             </div>
           </div>
         )}
+        </main>
       </div>
       <ChatbotWidget triggerSearch={triggerSearch} setSelected={setSelected} />
+
+      {/* SETTINGS MODAL */}
+      {showSettings && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(8, 9, 15, 0.75)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 1000
+        }} onClick={() => setShowSettings(false)}>
+          <div style={{
+            background: C.surface, border: `1px solid ${C.border}`,
+            borderRadius: 20, width: 440, padding: 28,
+            boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+            display: "flex", flexDirection: "column", gap: 20
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>Map Configuration</div>
+              <button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16 }}>✕</button>
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted }}>MAP ENGINE PREFERENCE</label>
+              <div style={{ display: "flex", gap: 8, background: C.bg, padding: 4, borderRadius: 12, border: `1px solid ${C.border2}` }}>
+                <button onClick={() => {
+                  localStorage.setItem("force_osm", "true");
+                  setUseOsm(true);
+                }} style={{
+                  flex: 1, padding: "8px 0", borderRadius: 8, border: "none",
+                  background: useOsm ? C.card : "transparent",
+                  color: useOsm ? C.accent : C.muted,
+                  fontWeight: 700, fontSize: 12, cursor: "pointer"
+                }}>OpenStreetMap (Leaflet)</button>
+                <button onClick={() => {
+                  localStorage.setItem("force_osm", "false");
+                  setUseOsm(false);
+                  const key = getGoogleMapsKey();
+                  if (key && key !== "YOUR_GOOGLE_MAPS_API_KEY") {
+                    window.dispatchEvent(new Event("osm_fallback"));
+                  }
+                }} style={{
+                  flex: 1, padding: "8px 0", borderRadius: 8, border: "none",
+                  background: !useOsm ? C.card : "transparent",
+                  color: !useOsm ? C.accent : C.muted,
+                  fontWeight: 700, fontSize: 12, cursor: "pointer"
+                }}>Google Maps</button>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted }}>GOOGLE MAPS API KEY</label>
+              <input
+                type="password"
+                placeholder="AIzaSy..."
+                defaultValue={localStorage.getItem("gmaps_api_key") || ""}
+                onChange={(e) => {
+                  const val = e.target.value.trim();
+                  if (val) {
+                    localStorage.setItem("gmaps_api_key", val);
+                  } else {
+                    localStorage.removeItem("gmaps_api_key");
+                  }
+                }}
+                style={{
+                  background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 10,
+                  padding: "10px 14px", color: C.text, fontSize: 13, outline: "none", fontFamily: "inherit"
+                }}
+              />
+              <div style={{ fontSize: 10, color: C.muted }}>
+                Leave empty to use environment variables or backend default key.
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+              <button onClick={() => setShowSettings(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, background: "none", border: `1px solid ${C.border2}`, color: C.muted, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Close</button>
+              <button onClick={() => {
+                window.location.reload();
+              }} style={{ flex: 1, padding: "10px 0", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Save & Reload</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -5293,11 +7498,11 @@ export default function App() {
           to { opacity: 1; transform: none; }
         }
         * { box-sizing: border-box; }
-        input::placeholder { color: #2a3250; }
-        input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
+        input::placeholder { color: #94a3b8; }
+        input[type="time"]::-webkit-calendar-picker-indicator { opacity: 0.6; }
         select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml;utf8,<svg fill='%236b7a99' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #252d4a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
       `}</style>
     </div>
   );

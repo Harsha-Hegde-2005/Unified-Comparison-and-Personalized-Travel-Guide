@@ -1,0 +1,182 @@
+{
+  "BIKE DIRECT": {
+    "base_fare": 2.0,
+    "base_dist": 2.2,
+    "per_km": 7.63,
+    "per_min": 0.21,
+    "min_fare": 35.7,
+    "booking_fee": 24.7,
+    "surges": {
+      "morning": 1.03,
+      "afternoon": 1.12,
+      "evening": 1.1,
+      "night": 1.31
+    },
+    "accuracy": 92.3221428181447
+  },
+  "SCOOTY DIRECT": {
+    "base_fare": 15.4,
+    "base_dist": 3.0,
+    "per_km": 8.44,
+    "per_min": 0.26,
+    "min_fare": 36.6,
+    "booking_fee": 20.8,
+    "surges": {
+      "morning": 1.03,
+      "afternoon": 1.12,
+      "evening": 1.04,
+      "night": 1.3
+    },
+    "accuracy": 93.10017939905512
+  },
+  "BIKE RATED BY WOMEN": {
+    "base_fare": 2.4,
+    "base_dist": 2.2,
+    "per_km": 7.7,
+    "per_min": 0.2,
+    "min_fare": 40.9,
+    "booking_fee": 23.6,
+    "surges": {
+      "morning": 1.03,
+      "afternoon": 1.1,
+      "evening": 1.05,
+      "night": 1.31
+    },
+    "accuracy": 92.81336140015462
+  },
+  "AUTO LITE": {
+    "base_fare": 36.4,
+    "base_dist": 2.1,
+    "per_km": 12.6,
+    "per_min": 0.01,
+    "min_fare": 58.4,
+    "booking_fee": 0.7,
+    "surges": {
+      "morning": 1.15,
+      "afternoon": 1.15,
+      "evening": 1.15,
+      "night": 2.49
+    },
+    "accuracy": 92.73018045110719
+  },
+  "AUTO": {
+    "base_fare": 52.5,
+    "base_dist": 2.1,
+    "per_km": 13.83,
+    "per_min": 0.03,
+    "min_fare": 59.0,
+    "booking_fee": 2.0,
+    "surges": {
+      "morning": 1.08,
+      "afternoon": 1.1,
+      "evening": 1.15,
+      "night": 1.55
+    },
+    "accuracy": 90.74989698023242
+  },
+  "AUTO PRIORITY": {
+    "base_fare": 75.1,
+    "base_dist": 2.3,
+    "per_km": 15.98,
+    "per_min": 0.08,
+    "min_fare": 52.9,
+    "booking_fee": 4.4,
+    "surges": {
+      "morning": 1.12,
+      "afternoon": 1.13,
+      "evening": 1.13,
+      "night": 1.42
+    },
+    "accuracy": 86.01804938120236
+  },
+  "CAB NON AC": {
+    "base_fare": 68.9,
+    "base_dist": 0.8,
+    "per_km": 11.64,
+    "per_min": 0.56,
+    "min_fare": 59.0,
+    "booking_fee": 8.2,
+    "surges": {
+      "morning": 1.03,
+      "afternoon": 1.09,
+      "evening": 1.19,
+      "night": 0.91
+    },
+    "accuracy": 87.75987922086959
+  },
+  "CAB AC": {
+    "base_fare": 93.7,
+    "base_dist": 2.0,
+    "per_km": 12.87,
+    "per_min": 0.22,
+    "min_fare": 59.0,
+    "booking_fee": 1.4,
+    "surges": {
+      "morning": 1.15,
+      "afternoon": 1.14,
+      "evening": 1.32,
+      "night": 1.01
+    },
+    "accuracy": 87.74322878888992
+  },
+  "CAB AC PRIORITY": {
+    "base_fare": 100.6,
+    "base_dist": 2.2,
+    "per_km": 13.64,
+    "per_min": 0.11,
+    "min_fare": 59.0,
+    "booking_fee": 2.4,
+    "surges": {
+      "morning": 1.2,
+      "afternoon": 1.17,
+      "evening": 1.35,
+      "night": 1.02
+    },
+    "accuracy": 87.59001599601234
+  },
+  "AUTO PET": {
+    "base_fare": 87.0,
+    "base_dist": 1.9,
+    "per_km": 12.49,
+    "per_min": 0.02,
+    "min_fare": 59.0,
+    "booking_fee": 1.2,
+    "surges": {
+      "morning": 1.27,
+      "afternoon": 1.29,
+      "evening": 1.32,
+      "night": 1.19
+    },
+    "accuracy": 80.78355078618677
+  },
+  "CAB PREMIUM": {
+    "base_fare": 108.3,
+    "base_dist": 1.9,
+    "per_km": 16.3,
+    "per_min": 0.32,
+    "min_fare": 150.0,
+    "booking_fee": 9.4,
+    "surges": {
+      "morning": 1.09,
+      "afternoon": 1.1,
+      "evening": 1.19,
+      "night": 0.95
+    },
+    "accuracy": 88.79663079875775
+  },
+  "CAB XL": {
+    "base_fare": 148.4,
+    "base_dist": 4.3,
+    "per_km": 19.01,
+    "per_min": 0.77,
+    "min_fare": 154.6,
+    "booking_fee": 1.1,
+    "surges": {
+      "morning": 1.06,
+      "afternoon": 1.12,
+      "evening": 1.22,
+      "night": 0.95
+    },
+    "accuracy": 87.37203340848389
+  }
+}

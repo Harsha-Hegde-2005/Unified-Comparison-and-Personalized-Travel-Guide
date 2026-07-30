@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "src": "CHRIST University, Hosur Road",
+    "dst": "Nexus Koramangala",
+    "src_coords": {
+      "latitude": 12.93574,
+      "longitude": 77.60595
+    },
+    "dst_coords": {
+      "latitude": 12.93483,
+      "longitude": 77.61134
+    },
+    "distance_km": 2.54,
+    "duration_min": 7.97
+  },
+  {
+    "id": 2,
+    "src": "Manyata Tech Park",
+    "dst": "Aster CMI Hospital, Hebbal",
+    "src_coords": {
+      "latitude": 13.045,
+      "longitude": 77.62
+    },
+    "dst_coords": {
+      "latitude": 13.036,
+      "longitude": 77.589
+    },
+    "distance_km": 6.71,
+    "duration_min": 14.33
+  },
+  {
+    "id": 3,
+    "src": "Bagmane Tech Park",
+    "dst": "Indiranagar Metro Station",
+    "src_coords": {
+      "latitude": 12.97877,
+      "longitude": 77.65886
+    },
+    "dst_coords": {
+      "latitude": 12.97829,
+      "longitude": 77.63865
+    },
+    "distance_km": 3.69,
+    "duration_min": 13.33
+  },
+  {
+    "id": 4,
+    "src": "Bangalore University, Jnana Bharathi",
+    "dst": "RV College of Engineering",
+    "src_coords": {
+      "latitude": 12.946,
+      "longitude": 77.509
+    },
+    "dst_coords": {
+      "latitude": 12.922,
+      "longitude": 77.498
+    },
+    "distance_km": 4.67,
+    "duration_min": 11.07
+  },
+  {
+    "id": 5,
+    "src": "PES University",
+    "dst": "MG Road Metro Station",
+    "src_coords": {
+      "latitude": 12.93424,
+      "longitude": 77.53432
+    },
+    "dst_coords": {
+      "latitude": 12.97539,
+      "longitude": 77.6065
+    },
+    "distance_km": 12.59,
+    "duration_min": 36.65
+  },
+  {
+    "id": 6,
+    "src": "Yelahanka New Town",
+    "dst": "Orion Mall, Rajajinagar",
+    "src_coords": {
+      "latitude": 13.0978,
+      "longitude": 77.58119
+    },
+    "dst_coords": {
+      "latitude": 13.011,
+      "longitude": 77.55518
+    },
+    "distance_km": 13.84,
+    "duration_min": 35.88
+  },
+  {
+    "id": 7,
+    "src": "Indiranagar Metro Station",
+    "dst": "Nexus Koramangala",
+    "src_coords": {
+      "latitude": 12.97829,
+      "longitude": 77.63865
+    },
+    "dst_coords": {
+      "latitude": 12.93483,
+      "longitude": 77.61134
+    },
+    "distance_km": 8.29,
+    "duration_min": 26.95
+  },
+  {
+    "id": 8,
+    "src": "RV College of Engineering",
+    "dst": "KSR Bengaluru City Junction",
+    "src_coords": {
+      "latitude": 12.922,
+      "longitude": 77.498
+    },
+    "dst_coords": {
+      "latitude": 12.9723,
+      "longitude": 77.56456
+    },
+    "distance_km": 10.61,
+    "duration_min": 27.92
+  },
+  {
+    "id": 9,
+    "src": "Kempegowda International Airport",
+    "dst": "Electronic City",
+    "src_coords": {
+      "latitude": 13.1976,
+      "longitude": 77.70749
+    },
+    "dst_coords": {
+      "latitude": 12.84876,
+      "longitude": 77.64825
+    },
+    "distance_km": 54.7,
+    "duration_min": 98.95
+  },
+  {
+    "id": 10,
+    "src": "ITPB, Whitefield",
+    "dst": "Kengeri Railway Station",
+    "src_coords": {
+      "latitude": 12.983,
+      "longitude": 77.733
+    },
+    "dst_coords": {
+      "latitude": 12.908,
+      "longitude": 77.478
+    },
+    "distance_km": 38.36,
+    "duration_min": 91.15
+  },
+  {
+    "id": 11,
+    "src": "Infosys, Electronic City",
+    "dst": "Manyata Tech Park",
+    "src_coords": {
+      "latitude": 12.85025,
+      "longitude": 77.66638
+    },
+    "dst_coords": {
+      "latitude": 13.045,
+      "longitude": 77.62
+    },
+    "distance_km": 38.38,
+    "duration_min": 66.73
+  },
+  {
+    "id": 12,
+    "src": "Kengeri Railway Station",
+    "dst": "ITPB, Whitefield",
+    "src_coords": {
+      "latitude": 12.908,
+      "longitude": 77.478
+    },
+    "dst_coords": {
+      "latitude": 12.983,
+      "longitude": 77.733
+    },
+    "distance_km": 43.19,
+    "duration_min": 87.62
+  }
+]

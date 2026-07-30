@@ -1,0 +1,113 @@
+{
+  "weather": {
+    "2026-07-15_morning": "clear",
+    "2026-07-15_afternoon": "clear",
+    "2026-07-15_evening": "heavy rain",
+    "2026-07-15_night": "light rain",
+    "2026-07-16_morning": "clear",
+    "2026-07-16_afternoon": "clear",
+    "2026-07-16_evening": "heavy rain",
+    "2026-07-16_night": "light rain",
+    "2026-07-17_morning": "light rain",
+    "2026-07-17_afternoon": "clear",
+    "2026-07-17_evening": "light rain"
+  },
+  "vehicles": {
+    "BIKE DIRECT": {
+      "base_fare": 3.2,
+      "base_dist": 3.5,
+      "per_km": 5.63,
+      "per_min": 0.49,
+      "min_fare": 39.8,
+      "booking_fee": 23.4
+    },
+    "SCOOTY DIRECT": {
+      "base_fare": 5.5,
+      "base_dist": 3.5,
+      "per_km": 6.38,
+      "per_min": 0.47,
+      "min_fare": 36.5,
+      "booking_fee": 27.4
+    },
+    "BIKE RATED BY WOMEN": {
+      "base_fare": 4.3,
+      "base_dist": 3.4,
+      "per_km": 5.4,
+      "per_min": 0.55,
+      "min_fare": 39.7,
+      "booking_fee": 20.0
+    },
+    "AUTO LITE": {
+      "base_fare": 2.6,
+      "base_dist": 3.5,
+      "per_km": 8.2,
+      "per_min": 0.69,
+      "min_fare": 40.1,
+      "booking_fee": 42.4
+    },
+    "AUTO": {
+      "base_fare": 23.1,
+      "base_dist": 4.0,
+      "per_km": 9.55,
+      "per_min": 0.89,
+      "min_fare": 59.0,
+      "booking_fee": 27.2
+    },
+    "AUTO PRIORITY": {
+      "base_fare": 19.7,
+      "base_dist": 4.4,
+      "per_km": 11.49,
+      "per_min": 1.26,
+      "min_fare": 108.9,
+      "booking_fee": 43.1
+    },
+    "CAB NON AC": {
+      "base_fare": 36.4,
+      "base_dist": 4.7,
+      "per_km": 8.92,
+      "per_min": 0.97,
+      "min_fare": 59.0,
+      "booking_fee": 48.9
+    },
+    "CAB AC": {
+      "base_fare": 44.2,
+      "base_dist": 2.2,
+      "per_km": 8.72,
+      "per_min": 0.98,
+      "min_fare": 59.0,
+      "booking_fee": 29.9
+    },
+    "CAB AC PRIORITY": {
+      "base_fare": 51.2,
+      "base_dist": 4.4,
+      "per_km": 9.62,
+      "per_min": 1.13,
+      "min_fare": 59.0,
+      "booking_fee": 41.3
+    },
+    "AUTO PET": {
+      "base_fare": 43.0,
+      "base_dist": 3.5,
+      "per_km": 8.93,
+      "per_min": 1.07,
+      "min_fare": 59.0,
+      "booking_fee": 46.8
+    },
+    "CAB PREMIUM": {
+      "base_fare": 80.9,
+      "base_dist": 4.6,
+      "per_km": 11.83,
+      "per_min": 1.15,
+      "min_fare": 161.0,
+      "booking_fee": 19.5
+    },
+    "CAB XL": {
+      "base_fare": 77.7,
+      "base_dist": 4.7,
+      "per_km": 14.46,
+      "per_min": 1.18,
+      "min_fare": 181.5,
+      "booking_fee": 42.7
+    }
+  }
+}
