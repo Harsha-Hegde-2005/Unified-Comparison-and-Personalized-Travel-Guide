@@ -300,7 +300,7 @@ def _route_priority(route_no: str, src_norm: str = "", dst_norm: str = "", prefe
         if preference.lower() in ("convenience", "comfort", "vajra"):
             score -= 50  # Give priority boost for AC/Vajra when comfort/convenience/vajra is selected
         else:
-            score += 0   # No artificial penalty for cost/time; fares handle cost ordering naturally
+            score += 2000  # Penalize Vajra under cost/time preference so ordinary buses are preferred
             
     if "NICE" in base:
         score += 20
