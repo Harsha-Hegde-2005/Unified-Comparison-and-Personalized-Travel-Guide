@@ -3612,7 +3612,7 @@ function CompareTable({ results }) {
 /* ─────────────────────────────────────────────────────────────
    DASHBOARD
 ───────────────────────────────────────────────────────────── */
-function Dashboard({ token, username, onPlan, onSelectRoute, onLogout }) {
+function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpen, setGarageOpen, gloveboxOpen, setGloveboxOpen }) {
   const [data, setData] = useState({ stats: [], recent: [], saved: [] });
   const [vehicles, setVehicles] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -3629,8 +3629,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout }) {
   const [docExpiry, setDocExpiry] = useState("");
   const [docFile, setDocFile] = useState(null);
 
-  const [garageOpen, setGarageOpen] = useState(false);
-  const [gloveboxOpen, setGloveboxOpen] = useState(false);
+
 
   const loadData = useCallback(async () => {
     try {
@@ -6669,6 +6668,8 @@ export default function App() {
   const [time, setTime] = useState("");
   const [pref, setPref] = useState("cost");
   const [results, setResults] = useState(null);
+  const [garageOpen, setGarageOpen] = useState(false);
+  const [gloveboxOpen, setGloveboxOpen] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
   const [selected, setSelected] = useState(null);
   const [selectedCabVehicle, setSelectedCabVehicle] = useState(null);
@@ -7376,6 +7377,10 @@ export default function App() {
               setPage("plan");
             }}
             onLogout={onLogout}
+            garageOpen={garageOpen}
+            setGarageOpen={setGarageOpen}
+            gloveboxOpen={gloveboxOpen}
+            setGloveboxOpen={setGloveboxOpen}
           />
         )}
 
