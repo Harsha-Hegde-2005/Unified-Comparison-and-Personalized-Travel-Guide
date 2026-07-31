@@ -3037,7 +3037,8 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
       border: `2px solid ${isSelected ? m.color : data.recommended ? m.color + "55" : C.border}`,
       boxShadow: isSelected ? `0 0 0 4px ${m.color}14, 0 12px 40px ${m.color}14` : "none",
       cursor: "pointer", transition: "all 0.18s", overflow: "hidden", position: "relative",
-      display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%"
+      display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%",
+      gridColumn: modeKey === "multimodal" ? "1 / -1" : "auto"
     }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         {data.tag && (
@@ -4738,6 +4739,255 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
   );
 }
 
+
+// Sub-components for chatbot multimodal routing comparisons & nearby POIs
+function ComparisonDashboard({ data, onSelectRoute }) {
+  const [expandedMode, setExpandedMode] = useState(null);
+  
+  if (!data || !data.options) return null;
+
+  const modeIcons = {
+    bmtc: "🚌",
+    metro: "🚇",
+    cab: "🚖",
+    car: "🚗",
+    multimodal: "🔀"
+  };
+
+  const modeLabels = {
+    bmtc: "BMTC Bus",
+    metro: "Namma Metro",
+    cab: "Cab / Auto",
+    car: "Personal Vehicle",
+    multimodal: "Multimodal"
+  };
+
+  const modeColors = {
+    bmtc: "#3b82f6",
+    metro: "#10b981",
+    cab: "#a855f7",
+    car: "#f97316",
+    multimodal: "#ec4899"
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8, width: "100%" }}>
+      {data.options.map((opt) => {
+        const isExpanded = expandedMode === opt.mode;
+        const color = modeColors[opt.mode] || "#64748b";
+        
+        return (
+          <div
+            key={opt.mode}
+            style={{
+              background: "#121420",
+              border: `1.5px solid ${isExpanded ? color : "#272a3d"}`,
+              borderRadius: 12,
+              padding: 12,
+              transition: "all 0.2s ease",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)"
+            }}
+          >
+            {/* Header row */}
+            <div 
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+              onClick={() => setExpandedMode(isExpanded ? null : opt.mode)}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 18 }}>{modeIcons[opt.mode]}</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: "#ffffff" }}>
+                  {modeLabels[opt.mode]}
+                </span>
+                {opt.score && (
+                  <span style={{
+                    fontSize: 9.5,
+                    fontWeight: 800,
+                    color: color,
+                    background: `${color}15`,
+                    padding: "2px 6px",
+                    borderRadius: 6
+                  }}>
+                    {Math.round(opt.score)}% Match
+                  </span>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 900, color: "#ffffff" }}>₹{opt.cost}</span>
+                <span style={{ fontSize: 11, color: "#64748b" }}>{isExpanded ? "▲" : "▼"}</span>
+              </div>
+            </div>
+
+            {/* Quick Stats Grid */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: 8,
+              marginTop: 10,
+              padding: "6px 8px",
+              background: "#08090f",
+              borderRadius: 8,
+              fontSize: 10.5,
+              color: "#94a3b8"
+            }}>
+              <div>🕒 <strong>{opt.time} min</strong></div>
+              <div>🔄 <strong>{opt.transfers} trans</strong></div>
+              <div>🚶 <strong>{opt.walking_distance} km</strong></div>
+              <div style={{ gridColumn: "span 3" }}>🌿 CO₂: <strong>{(opt.co2_kg * 1000).toFixed(0)}g CO₂</strong></div>
+            </div>
+
+            {/* Explanation and Buttons */}
+            {isExpanded && (
+              <div style={{ marginTop: 10, borderTop: "1px solid #272a3d", paddingTop: 10 }}>
+                <p style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4, margin: "0 0 10px 0" }}>
+                  {opt.explanation}
+                </p>
+
+                {/* Multi-stop leg breakdown */}
+                {opt.legs && opt.legs.length > 1 && (
+                  <div style={{ marginBottom: 12, padding: 8, background: "#08090f", borderRadius: 8 }}>
+                    <div style={{ fontSize: 9.5, fontWeight: 800, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>Itinerary Breakdown</div>
+                    {opt.legs.map((leg, lIdx) => (
+                      <div key={lIdx} style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "#94a3b8", marginBottom: 4 }}>
+                        <span>📍 Leg {lIdx+1}: {leg.from_stop || leg.source || `Stop ${lIdx+1}`} → {leg.to_stop || leg.destination || `Stop ${lIdx+2}`}</span>
+                        <span style={{ fontWeight: 700, color: "#ffffff" }}>₹{leg.cost} · {leg.time}m</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectRoute(opt.mode);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      background: `linear-gradient(135deg, ${color}, ${color}dd)`,
+                      border: "none",
+                      borderRadius: 8,
+                      color: "#ffffff",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontFamily: "inherit"
+                    }}
+                  >
+                    Select & Draw Route 🗺️
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function NearbyPlacesDashboard({ data }) {
+  const [activeTab, setActiveTab] = useState("restaurant");
+
+  if (!data || !data.places) return null;
+
+  const places = data.places;
+  const filteredPlaces = places.filter(p => {
+    const category = p.category.toLowerCase();
+    if (activeTab === "restaurant") {
+      return category.includes("restaurant") || category.includes("food") || category.includes("cafe") || category.includes("pub") || category.includes("bar");
+    } else {
+      return !(category.includes("restaurant") || category.includes("food") || category.includes("cafe") || category.includes("pub") || category.includes("bar"));
+    }
+  });
+
+  return (
+    <div style={{
+      background: "#121420",
+      border: "1.5px solid #3b82f644",
+      borderRadius: 12,
+      padding: 12,
+      marginTop: 8,
+      width: "100%"
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: "#3b82f6", textTransform: "uppercase", marginBottom: 8 }}>
+        📍 Nearby Recommendations ({data.location})
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 10, background: "#08090f", borderRadius: 8, padding: 2 }}>
+        <button
+          onClick={() => setActiveTab("restaurant")}
+          style={{
+            flex: 1,
+            padding: "6px 10px",
+            background: activeTab === "restaurant" ? "#272a3d" : "transparent",
+            border: "none",
+            borderRadius: 6,
+            color: activeTab === "restaurant" ? "#ffffff" : "#64748b",
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            transition: "all 0.2s"
+          }}
+        >
+          🍔 Food & Cafe
+        </button>
+        <button
+          onClick={() => setActiveTab("places")}
+          style={{
+            flex: 1,
+            padding: "6px 10px",
+            background: activeTab === "places" ? "#272a3d" : "transparent",
+            border: "none",
+            borderRadius: 6,
+            color: activeTab === "places" ? "#ffffff" : "#64748b",
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            transition: "all 0.2s"
+          }}
+        >
+          🏛️ Attractions & Malls
+        </button>
+      </div>
+
+      {/* Places List */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 180, overflowY: "auto", paddingRight: 4 }}>
+        {filteredPlaces.length === 0 ? (
+          <div style={{ fontSize: 11, color: "#64748b", textAlign: "center", padding: "10px 0" }}>
+            No nearby options found for this category.
+          </div>
+        ) : (
+          filteredPlaces.map((p, idx) => (
+            <div key={idx} style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: 8,
+              background: "#08090f",
+              borderRadius: 8,
+              fontSize: 11
+            }}>
+              <div style={{ paddingRight: 8 }}>
+                <div style={{ fontWeight: 800, color: "#ffffff" }}>{p.name}</div>
+                <div style={{ fontSize: 9.5, color: "#64748b", marginTop: 2 }}>
+                  {p.category} · {p.address}
+                </div>
+              </div>
+              <div style={{ fontWeight: 700, color: "#3b82f6", whiteSpace: "nowrap" }}>
+                🚶 {p.distance} km
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ChatbotWidget({ triggerSearch, setSelected }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -4792,6 +5042,17 @@ function ChatbotWidget({ triggerSearch, setSelected }) {
       }]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelectRoute = (mode, embedded_data) => {
+    const stops = embedded_data.stops;
+    if (stops && stops.length >= 2) {
+      const source = stops[0];
+      const destination = stops[stops.length - 1];
+      triggerSearch(source, destination).then(() => {
+        setSelected(mode);
+      });
     }
   };
 
@@ -4954,8 +5215,16 @@ function ChatbotWidget({ triggerSearch, setSelected }) {
                     {m.text}
                   </div>
 
+                  {m.sender === "bot" && m.embedded_data && m.embedded_data.type === "comparison" && (
+                    <ComparisonDashboard data={m.embedded_data} onSelectRoute={(mode) => handleSelectRoute(mode, m.embedded_data)} />
+                  )}
+
+                  {m.sender === "bot" && m.embedded_data && m.embedded_data.type === "nearby_places" && (
+                    <NearbyPlacesDashboard data={m.embedded_data} />
+                  )}
+
                   {/* Embedded cards for different intents */}
-                  {m.sender === "bot" && m.embedded_data && m.intent !== "ride_cost" && m.intent !== "fuel_cost" && m.intent !== "nearest_stops" && m.intent !== "traffic_query" && (
+                  {m.sender === "bot" && m.embedded_data && m.embedded_data.type !== "comparison" && m.embedded_data.type !== "nearby_places" && m.intent !== "ride_cost" && m.intent !== "fuel_cost" && m.intent !== "nearest_stops" && m.intent !== "traffic_query" && (
                     <div
                       onClick={() => handleCardClick(m)}
                       style={{
@@ -5017,7 +5286,7 @@ function ChatbotWidget({ triggerSearch, setSelected }) {
                         {m.parameters?.source} → {m.parameters?.destination}
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-                        {[("ola", "Ola", "#f5c518"), ("uber", "Uber", "#e0e0e0"), ("namma_yatri", "Namma Yatri", "#22c55e"), ("rapido", "Rapido", "#3b82f6")].map(([pkey, label, clr]) =>
+                        {[["ola", "Ola", "#f5c518"], ["uber", "Uber", "#e0e0e0"], ["namma_yatri", "Namma Yatri", "#22c55e"], ["rapido", "Rapido", "#3b82f6"]].map(([pkey, label, clr]) =>
                           m.embedded_data.providers?.[pkey] && (
                             <div key={pkey} style={{ background: clr + "18", borderRadius: 8, padding: "6px 8px", border: `1px solid ${clr}33` }}>
                               <div style={{ fontSize: 10, fontWeight: 800, color: clr }}>{label}</div>
@@ -7253,17 +7522,53 @@ export default function App() {
               {showTimetable && <TimetablePanel results={results} onClose={() => setShowTimetable(false)} stops={stops} src={src} dst={dst} time={time} />}
 
               {view === "cards" ? (
-                <AIRecommendationsPanel
-                  recommendations={recommendations}
-                  results={results}
-                  selected={selected}
-                  setSelected={setSelected}
-                  mc={MC}
-                  selectedCabVehicle={selectedCabVehicle}
-                  setSelectedCabVehicle={setSelectedCabVehicle}
-                  selectedMultimodalOption={selectedMultimodalOption}
-                  setSelectedMultimodalOption={setSelectedMultimodalOption}
-                />
+                <>
+                  <AIRecommendationsPanel
+                    recommendations={recommendations}
+                    results={results}
+                    selected={selected}
+                    setSelected={setSelected}
+                    mc={MC}
+                    selectedCabVehicle={selectedCabVehicle}
+                    setSelectedCabVehicle={setSelectedCabVehicle}
+                    selectedMultimodalOption={selectedMultimodalOption}
+                    setSelectedMultimodalOption={setSelectedMultimodalOption}
+                  />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 20 }}>
+                    {results && Object.keys(results).map(m => {
+                      const cardData = (m === "cab" && selectedCabVehicle) ? {
+                        ...results.cab,
+                        ...selectedCabVehicle,
+                        segments: selectedCabVehicle.segments,
+                        guide: selectedCabVehicle.guide,
+                        cost: selectedCabVehicle.cost,
+                        time: selectedCabVehicle.time,
+                        distance: selectedCabVehicle.distance,
+                      } : (m === "multimodal" && selectedMultimodalOption) ? {
+                        ...results.multimodal,
+                        ...selectedMultimodalOption,
+                        segments: selectedMultimodalOption.segments,
+                        guide: selectedMultimodalOption.guide,
+                        cost: selectedMultimodalOption.cost,
+                        time: selectedMultimodalOption.time,
+                        distance: selectedMultimodalOption.distance,
+                      } : results[m];
+                      return (
+                        <ResultCard
+                          key={m}
+                          modeKey={m}
+                          data={cardData}
+                          selected={selected}
+                          onSelect={setSelected}
+                          selectedCabVehicle={selectedCabVehicle}
+                          setSelectedCabVehicle={setSelectedCabVehicle}
+                          selectedMultimodalOption={selectedMultimodalOption}
+                          setSelectedMultimodalOption={setSelectedMultimodalOption}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
               ) : (
                 <CompareTable results={{
                   ...results,
