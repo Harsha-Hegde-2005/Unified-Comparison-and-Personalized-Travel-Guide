@@ -679,7 +679,7 @@ class ChatbotEngine:
             if stops and len(stops) >= 3:
                 journey_str = " → ".join(stops)
                 
-            reply = f"I've generated complete itineraries for your journey ({journey_str}) and compared Bus, Metro, Cab, Personal Vehicle, and Multimodal options.\n\n"
+            reply = f"I've generated all possible ways and complete itineraries for your journey ({journey_str}) and compared Bus, Metro, Cab, Personal Vehicle, and Multimodal options.\n\n"
             
             best = data.get("best_overall")
             if best and isinstance(best, dict):

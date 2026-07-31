@@ -3379,8 +3379,26 @@ def chatbot_query(req: ChatbotRequest):
                     if sc:
                         resolved_stops_coords.append({"name": s, "lat": sc[0], "lng": sc[1]})
                 
+                msg_lower = req.message.lower()
+                prefer_metro = any(k in msg_lower for k in ["metro", "train", "purple", "green line"])
+                prefer_bus = any(k in msg_lower for k in ["bus", "bmtc", "volvo", "vajra"])
+
+                best_mode = "multimodal"
+                if modes_data:
+                    if prefer_metro and any(o["mode"] == "metro" for o in modes_data):
+                        best_mode = "metro"
+                    elif prefer_bus and any(o["mode"] == "bmtc" for o in modes_data):
+                        best_mode = "bmtc"
+                    elif intent == "journey_time":
+                        best_mode = min(modes_data, key=lambda x: x.get("time", 999))["mode"]
+                    elif intent == "journey_cost":
+                        best_mode = min(modes_data, key=lambda x: x.get("cost", 999))["mode"]
+                    else:
+                        best_mode = modes_data[0]["mode"]
+
                 embedded_data = {
                     "type": "comparison",
+                    "mode": best_mode,
                     "source": stops[0],
                     "destination": stops[-1],
                     "stops": stops,
