@@ -6389,6 +6389,287 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
   );
 }
 
+/* ─────────────────────────────────────────────────────────────
+   FARE CALCULATOR PANEL
+───────────────────────────────────────────────────────────── */
+function FareCalculatorPanel({ stops, src: initialSrc, dst: initialDst }) {
+  const [calcSrc, setCalcSrc] = useState(initialSrc || "");
+  const [calcDst, setCalcDst] = useState(initialDst || "");
+  const [loading, setLoading] = useState(false);
+  const [fareData, setFareData] = useState(null);
+  const [error, setError] = useState(null);
+
+  const calculateFares = async () => {
+    if (!calcSrc || !calcDst) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/compare`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: calcSrc, destination: calcDst })
+      });
+      if (!res.ok) throw new Error("Failed to calculate fares");
+      const data = await res.json();
+      setFareData(data);
+    } catch (err) {
+      setError(err.message || "Failed to fetch fares");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (initialSrc && initialDst && !fareData) {
+      calculateFares();
+    }
+  }, []);
+
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(124, 58, 237, 0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Ic n="table" s={18} c={C.accent} />
+        </div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Fare Calculator</div>
+          <div style={{ fontSize: 12, color: C.muted }}>Compare exact fares across all transport options</div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+        <StopInput value={calcSrc} onChange={setCalcSrc} placeholder="From — stop or location…" dot={C.green} options={stops?.all || []} showGps={true} />
+        <StopInput value={calcDst} onChange={setCalcDst} placeholder="To — stop or location…" dot={C.red} options={stops?.all || []} />
+        <button
+          onClick={calculateFares}
+          disabled={loading || !calcSrc || !calcDst}
+          style={{
+            background: loading || !calcSrc || !calcDst ? C.dim : `linear-gradient(135deg, ${C.accent}, #ea580c)`,
+            border: "none", color: "white", borderRadius: 10, padding: "12px", fontSize: 14, fontWeight: 700,
+            cursor: loading || !calcSrc || !calcDst ? "not-allowed" : "pointer", fontFamily: "inherit"
+          }}
+        >
+          {loading ? "Calculating..." : "Calculate All Fares"}
+        </button>
+      </div>
+
+      {error && <div style={{ color: C.red, fontSize: 12, marginBottom: 12 }}>{error}</div>}
+
+      {fareData && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: C.muted, textTransform: "uppercase" }}>Estimated Fare Breakdown</div>
+
+          {/* BMTC */}
+          {fareData.bmtc && (
+            <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 18 }}>🚌</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>BMTC Bus</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>Duration: {fareData.bmtc.duration || fareData.bmtc.time || "N/A"}</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: C.green }}>₹{fareData.bmtc.cost ?? fareData.bmtc.fare ?? "15-30"}</div>
+            </div>
+          )}
+
+          {/* Metro */}
+          {fareData.metro && (
+            <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 18 }}>🚇</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>Namma Metro</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>Token / Smart Card</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: C.purple }}>₹{fareData.metro.cost ?? fareData.metro.fare ?? "20-60"}</div>
+            </div>
+          )}
+
+          {/* Cab / Auto */}
+          {fareData.cab && (
+            <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 18 }}>🛺</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>Namma Yatri / Auto</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>Estimated auto fare</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: C.orange }}>₹{fareData.cab.cost || "60-150"}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   STOPS INFO PANEL
+───────────────────────────────────────────────────────────── */
+function StopsInfoPanel({ bmtcStops = [] }) {
+  const [activeTab, setActiveTab] = useState("nearby"); // "nearby" | "arrivals"
+  const [locationQuery, setLocationQuery] = useState("");
+  const [nearbyStops, setNearbyStops] = useState([]);
+  const [loadingNearby, setLoadingNearby] = useState(false);
+
+  const [selectedStop, setSelectedStop] = useState("");
+  const [arrivals, setArrivals] = useState([]);
+  const [loadingArrivals, setLoadingArrivals] = useState(false);
+
+  const fetchNearby = async (lat, lng) => {
+    setLoadingNearby(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/stops/nearby?lat=${lat}&lng=${lng}&radius_m=1200`);
+      if (res.ok) {
+        const data = await res.json();
+        setNearbyStops(data.stops || []);
+      }
+    } catch { }
+    finally { setLoadingNearby(false); }
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (navigator.geolocation) {
+      setLoadingNearby(true);
+      navigator.geolocation.getCurrentPosition(pos => {
+        fetchNearby(pos.coords.latitude, pos.coords.longitude);
+      }, () => setLoadingNearby(false));
+    }
+  };
+
+  const fetchArrivals = async (stopName) => {
+    if (!stopName) return;
+    setLoadingArrivals(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/bmtc/stop-arrivals?stop=${encodeURIComponent(stopName)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setArrivals(data.arrivals || []);
+      }
+    } catch { }
+    finally { setLoadingArrivals(false); }
+  };
+
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(168, 85, 247, 0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Ic n="gps" s={18} c="#a855f7" />
+        </div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>Stops & Station Info</div>
+          <div style={{ fontSize: 12, color: C.muted }}>Nearby transit stops and upcoming bus/metro arrivals</div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, background: C.surface, padding: 4, borderRadius: 10, border: `1px solid ${C.border2}` }}>
+        <button
+          onClick={() => setActiveTab("nearby")}
+          style={{
+            flex: 1, padding: "8px", borderRadius: 8, border: "none",
+            background: activeTab === "nearby" ? C.accent : "transparent",
+            color: activeTab === "nearby" ? "white" : C.muted,
+            fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit"
+          }}
+        >
+          📍 1) Nearby Stops
+        </button>
+        <button
+          onClick={() => setActiveTab("arrivals")}
+          style={{
+            flex: 1, padding: "8px", borderRadius: 8, border: "none",
+            background: activeTab === "arrivals" ? C.accent : "transparent",
+            color: activeTab === "arrivals" ? "white" : C.muted,
+            fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit"
+          }}
+        >
+          🚏 2) Search Stop & Arrivals
+        </button>
+      </div>
+
+      {/* Tab 1: Nearby Stops */}
+      {activeTab === "nearby" && (
+        <div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <button
+              onClick={handleUseCurrentLocation}
+              style={{
+                flex: 1, background: "rgba(168, 85, 247, 0.15)", border: "1px solid rgba(168, 85, 247, 0.3)",
+                color: "#a855f7", borderRadius: 10, padding: "10px", fontSize: 13, fontWeight: 700,
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontFamily: "inherit"
+              }}
+            >
+              <Ic n="gps" s={14} c="#a855f7" /> Use My Location
+            </button>
+          </div>
+
+          {loadingNearby && <div style={{ fontSize: 13, color: C.muted, textAlign: "center", padding: 16 }}>Locating nearby stops…</div>}
+
+          {nearbyStops.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {nearbyStops.map((s, idx) => (
+                <div key={idx} style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 16 }}>{s.type === "metro" ? "🚇" : "🚌"}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{s.name}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>{s.type.toUpperCase()} {s.line ? `· ${s.line}` : ""}</div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.accent }}>{s.distance_m}m away</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 2: Stop Arrivals */}
+      {activeTab === "arrivals" && (
+        <div>
+          <div style={{ marginBottom: 14 }}>
+            <StopInput
+              value={selectedStop}
+              onChange={(val) => {
+                setSelectedStop(val);
+                fetchArrivals(val);
+              }}
+              placeholder="Search BMTC stop or Metro station…"
+              dot={C.purple}
+              options={bmtcStops}
+            />
+          </div>
+
+          {loadingArrivals && <div style={{ fontSize: 13, color: C.muted, textAlign: "center", padding: 16 }}>Loading upcoming arrivals…</div>}
+
+          {arrivals.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, textTransform: "uppercase" }}>Upcoming Arrivals at {selectedStop}</div>
+              {arrivals.map((arr, idx) => (
+                <div key={idx} style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ background: "rgba(124, 58, 237, 0.2)", color: C.accent, padding: "3px 8px", borderRadius: 6, fontSize: 12, fontWeight: 800 }}>
+                      {arr.route}
+                    </span>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>Arrival at {arr.arrival}</div>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.green }}>in {arr.wait_min} mins</div>
+                </div>
+              ))}
+            </div>
+          ) : selectedStop && !loadingArrivals ? (
+            <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: 12 }}>No upcoming departures found for this stop right now.</div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem("token") || null);
   const [user, setUser] = useState(localStorage.getItem("username") || null);
@@ -6412,6 +6693,7 @@ export default function App() {
   const [showAllBuses, setShowAllBuses] = useState(false);
   const [showRouteSearch, setShowRouteSearch] = useState(false);
   const [showTimetable, setShowTimetable] = useState(false);
+  const [activeTool, setActiveTool] = useState(null); // "timetable" | "fare_calculator" | "stops_info" | "all_buses" | "route_lookup"
   const [mapView, setMapView] = useState("gmap"); // "gmap" | "linear"
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(null);
 
@@ -6708,23 +6990,24 @@ export default function App() {
               {[
                 { id: "dashboard", icon: "home", label: "Home" },
                 { id: "plan", icon: "mappin", label: "Plan Journey" },
-                { id: "search_routes", icon: "route", label: "Search Routes" },
+                { id: "all_buses", icon: "list", label: "See All Buses" },
+                { id: "route_lookup", icon: "route", label: "Route Lookup" },
                 { id: "timetable", icon: "clock", label: "Timetable" },
                 { id: "map_settings", icon: "sparkles", label: "Map Settings" }
               ].map(n => {
-                const isActive = (n.id === "dashboard" && page === "dashboard") || (n.id === "plan" && page === "plan" && !showRouteSearch && !showTimetable);
-                const isRouteSearchActive = n.id === "search_routes" && page === "plan" && showRouteSearch;
-                const isTimetableActive = n.id === "timetable" && page === "plan" && showTimetable;
-                const isItemActive = isActive || isRouteSearchActive || isTimetableActive;
+                const isActive = (n.id === "dashboard" && page === "dashboard") || (n.id === "plan" && page === "plan" && !activeTool);
+                const isToolActive = activeTool && n.id === activeTool;
+                const isItemActive = isActive || isToolActive;
 
                 return (
                   <button
                     key={n.id}
                     onClick={() => {
-                      if (n.id === "dashboard") { setPage("dashboard"); }
-                      else if (n.id === "plan") { setPage("plan"); setShowRouteSearch(false); setShowTimetable(false); }
-                      else if (n.id === "search_routes") { setPage("plan"); setShowRouteSearch(true); setShowAllBuses(false); setShowTimetable(false); }
-                      else if (n.id === "timetable") { setPage("plan"); setShowTimetable(true); setShowAllBuses(false); setShowRouteSearch(false); }
+                      if (n.id === "dashboard") { setPage("dashboard"); setActiveTool(null); }
+                      else if (n.id === "plan") { setPage("plan"); setActiveTool(null); setShowRouteSearch(false); setShowTimetable(false); }
+                      else if (n.id === "all_buses") { setActiveTool("all_buses"); setPage("plan"); }
+                      else if (n.id === "route_lookup") { setActiveTool("route_lookup"); setPage("plan"); }
+                      else if (n.id === "timetable") { setActiveTool("timetable"); setPage("plan"); }
                       else if (n.id === "map_settings") { setShowSettings(true); }
                     }}
                     style={{
@@ -6773,30 +7056,31 @@ export default function App() {
               {[
                 { id: "favourites", icon: "star", label: "Favourites", right: <span style={{ background: "#7c3aed", color: "#ffffff", borderRadius: 10, fontSize: 9, fontWeight: 800, padding: "2px 6px", marginLeft: "auto" }}>3</span> },
                 { id: "fare_calculator", icon: "table", label: "Fare Calculator" },
-                { id: "stops_info", icon: "gps", label: "Stops Info", sub: "Nearest bus stops" },
-                { id: "route_lookup", icon: "route", label: "Route Lookup" },
+                { id: "stops_info", icon: "gps", label: "Stops Info", sub: "Nearby stops & arrivals" },
                 { id: "alerts_updates", icon: "bell", label: "Alerts & Updates", sub: "Service & traffic alerts" },
                 { id: "weather_alerts", icon: "sparkles", label: "Weather Alerts", sub: "Rain & forecast alerts" }
               ].map(n => {
+                const isToolActive = activeTool === n.id;
                 return (
                   <button
                     key={n.id}
                     onClick={() => {
                       if (n.id === "favourites") {
                         setPage("dashboard");
+                        setActiveTool(null);
                         setTimeout(() => {
                           const el = document.getElementById("saved-places-card");
                           if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
                         }, 100);
                       } else if (n.id === "fare_calculator") {
+                        setActiveTool("fare_calculator");
                         setPage("plan");
                       } else if (n.id === "stops_info") {
+                        setActiveTool("stops_info");
                         setPage("plan");
-                      } else if (n.id === "route_lookup") {
-                        setPage("plan");
-                        setShowRouteSearch(true);
                       } else if (n.id === "alerts_updates" || n.id === "weather_alerts") {
                         setPage("dashboard");
+                        setActiveTool(null);
                         setTimeout(() => {
                           const el = document.getElementById("travel-alerts-card");
                           if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -6804,21 +7088,21 @@ export default function App() {
                       }
                     }}
                     style={{
-                      background: "none",
+                      background: isToolActive ? "linear-gradient(90deg, rgba(124, 58, 237, 0.16) 0%, rgba(124, 58, 237, 0.04) 100%)" : "none",
                       border: "none",
                       borderRadius: 12,
                       cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
                       gap: 12,
-                      color: "#8e8a9f",
-                      fontWeight: 600,
+                      color: isToolActive ? "#ffffff" : "#8e8a9f",
+                      fontWeight: isToolActive ? 700 : 600,
                       fontSize: 13.5,
                       padding: "8px 16px",
                       width: "100%",
                       textAlign: "left",
                       fontFamily: "inherit",
-                      borderLeft: "4px solid transparent",
+                      borderLeft: isToolActive ? "4px solid #a855f7" : "4px solid transparent",
                       transition: "all 0.15s ease"
                     }}
                     onMouseEnter={e => {
@@ -6830,7 +7114,7 @@ export default function App() {
                       e.currentTarget.style.color = "#8e8a9f";
                     }}
                   >
-                    <Ic n={n.icon} s={15} c="#8e8a9f" />
+                    <Ic n={n.icon} s={15} c={isToolActive ? "#a855f7" : "#8e8a9f"} />
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                         <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.label}</span>
@@ -6912,9 +7196,44 @@ export default function App() {
             </div>
           </div>
 
+          {/* VEHICLE SELECTION */}
+          <div style={{ padding: "0 12px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#534f6d", textTransform: "uppercase", letterSpacing: "0.08em", padding: "10px 4px 8px" }}>My Vehicle</div>
+            <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "8px 10px", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <Ic n="car" s={13} c="#8e8a9f" />
+                <span style={{ fontSize: 11, color: "#8e8a9f", fontWeight: 600 }}>For cost estimates</span>
+              </div>
+              <select
+                value={selectedVehicle}
+                onChange={e => setSelectedVehicle(e.target.value)}
+                style={{
+                  width: "100%",
+                  background: "#1a1730",
+                  border: "1.5px solid rgba(168,85,247,0.25)",
+                  borderRadius: 8,
+                  color: selectedVehicle ? "#ffffff" : "#8e8a9f",
+                  padding: "7px 10px",
+                  fontSize: 12,
+                  outline: "none",
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="">Default (ICE Car)</option>
+                {userVehicles.map(v => (
+                  <option key={v.id} value={`custom: ${v.name} | ${v.fuel_type} | ${v.efficiency}`}>
+                    🚗 {v.name} ({v.fuel_type})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* OTHER */}
           <div>
             <div style={{ fontSize: 10, fontWeight: 800, color: "#534f6d", textTransform: "uppercase", letterSpacing: "0.08em", padding: "10px 16px 6px" }}>Other</div>
+
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {[
                 { id: "help_support", icon: "chat", label: "Help & Support", sub: "FAQs & contact" },
@@ -7155,18 +7474,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Vehicle Selection dropdown */}
-                <div style={{ marginTop: 14 }}>
-                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, marginBottom: 8, letterSpacing: "0.05em" }}>VEHICLE (FOR OWN VEHICLE COST ESTIMATE)</div>
-                  <select value={selectedVehicle} onChange={e => setSelectedVehicle(e.target.value)} style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}>
-                    <option value="">Default Vehicle (ICE Car)</option>
-                    {userVehicles.map(v => (
-                      <option key={v.id} value={`custom: ${v.name} | ${v.fuel_type} | ${v.efficiency}`}>
-                        🚗 {v.name} ({v.fuel_type} · {v.efficiency} {v.fuel_type === "EV" ? "km/kWh" : "km/L"})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+
 
                 {/* Error */}
                 {error && (
@@ -7185,30 +7493,43 @@ export default function App() {
                   )}
                 </button>
 
-                {/* Secondary BMTC actions */}
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button onClick={() => { if (!src || !dst) return; setShowAllBuses(!showAllBuses); setShowRouteSearch(false); setShowTimetable(false); }} style={{ flex: 1, background: showAllBuses ? MC.bmtc.color + "20" : C.surface, border: `1px solid ${showAllBuses ? MC.bmtc.color : C.border2}`, borderRadius: 10, padding: "9px 8px", fontSize: 12, fontWeight: 700, color: showAllBuses ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                    <Ic n="list" s={13} c={showAllBuses ? MC.bmtc.color : C.muted} /> See All Buses
-                  </button>
-                  <button onClick={() => { setShowRouteSearch(!showRouteSearch); setShowAllBuses(false); setShowTimetable(false); }} style={{ flex: 1, background: showRouteSearch ? MC.bmtc.color + "20" : C.surface, border: `1px solid ${showRouteSearch ? MC.bmtc.color : C.border2}`, borderRadius: 10, padding: "9px 8px", fontSize: 12, fontWeight: 700, color: showRouteSearch ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                    <Ic n="route" s={13} c={showRouteSearch ? MC.bmtc.color : C.muted} /> Route Lookup
-                  </button>
-                  <button onClick={() => { setShowTimetable(!showTimetable); setShowAllBuses(false); setShowRouteSearch(false); }} style={{ flex: 1, background: showTimetable ? C.accent + "20" : C.surface, border: `1px solid ${showTimetable ? C.accent : C.border2}`, borderRadius: 10, padding: "9px 8px", fontSize: 12, fontWeight: 700, color: showTimetable ? C.accent : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                    <Ic n="clock" s={13} c={showTimetable ? C.accent : C.muted} /> Timetable
-                  </button>
-                </div>
+
               </div>
 
-              {/* All Buses Panel */}
-              {showAllBuses && src && dst && (
-                <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} />
+              {/* ── Standalone Tool Panels (activated from sidebar) ── */}
+              {activeTool === "all_buses" && (
+                <div style={{ marginTop: 16 }}>
+                  {src && dst
+                    ? <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setActiveTool(null)} />
+                    : <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24, textAlign: "center", color: C.muted, fontSize: 13 }}>
+                        <Ic n="list" s={28} c={C.muted} />
+                        <div style={{ marginTop: 10, fontWeight: 700 }}>Enter Source & Destination above to browse all buses</div>
+                      </div>
+                  }
+                </div>
               )}
 
-              {/* Route Search Panel */}
-              {showRouteSearch && <RouteSearchPanel />}
+              {activeTool === "route_lookup" && (
+                <div style={{ marginTop: 16 }}><RouteSearchPanel /></div>
+              )}
 
-              {/* Timetable Panel */}
-              {showTimetable && <TimetablePanel results={results} onClose={() => setShowTimetable(false)} stops={stops} src={src} dst={dst} time={time} />}
+              {activeTool === "timetable" && (
+                <div style={{ marginTop: 16 }}>
+                  <TimetablePanel results={results} onClose={() => setActiveTool(null)} stops={stops} src={src} dst={dst} time={time} />
+                </div>
+              )}
+
+              {activeTool === "fare_calculator" && (
+                <div style={{ marginTop: 16 }}>
+                  <FareCalculatorPanel stops={stops} src={src} dst={dst} setSrc={setSrc} setDst={setDst} />
+                </div>
+              )}
+
+              {activeTool === "stops_info" && (
+                <div style={{ marginTop: 16 }}>
+                  <StopsInfoPanel bmtcStops={stops.bmtc} />
+                </div>
+              )}
             </div>
 
             {/* Map */}
@@ -7217,6 +7538,7 @@ export default function App() {
             </div>
           </div>
         )}
+
 
         {/* RESULTS */}
         {page === "results" && results && (
@@ -7231,15 +7553,7 @@ export default function App() {
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button onClick={() => setPage("plan")} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, color: C.muted, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>← Edit</button>
-                  <button onClick={() => { setShowAllBuses(!showAllBuses); setShowRouteSearch(false); setShowTimetable(false); }} style={{ background: showAllBuses ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showAllBuses ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: showAllBuses ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
-                    <Ic n="list" s={13} c={showAllBuses ? MC.bmtc.color : C.muted} /> See All Buses
-                  </button>
-                  <button onClick={() => { setShowRouteSearch(!showRouteSearch); setShowAllBuses(false); setShowTimetable(false); }} style={{ background: showRouteSearch ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showRouteSearch ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: showRouteSearch ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
-                    <Ic n="route" s={13} c={showRouteSearch ? MC.bmtc.color : C.muted} /> Route Lookup
-                  </button>
-                  <button onClick={() => { setShowTimetable(!showTimetable); setShowAllBuses(false); setShowRouteSearch(false); }} style={{ background: showTimetable ? C.accent + "20" : C.card, border: `1px solid ${showTimetable ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: showTimetable ? C.accent : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
-                    <Ic n="clock" s={13} c={showTimetable ? C.accent : C.muted} /> Timetable
-                  </button>
+
                   {[{ v: "cards", icon: "grid", label: "Cards" }, { v: "compare", icon: "table", label: "Compare" }].map(b => (
                     <button key={b.v} onClick={() => setView(b.v)} style={{ background: view === b.v ? C.accent : C.card, border: `1px solid ${view === b.v ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: view === b.v ? "white" : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
                       <Ic n={b.icon} s={13} c={view === b.v ? "white" : C.muted} /> {b.label}
@@ -7248,10 +7562,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* See All Buses inline */}
-              {showAllBuses && <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} />}
-              {showRouteSearch && <div style={{ marginBottom: 16 }}><RouteSearchPanel /></div>}
-              {showTimetable && <TimetablePanel results={results} onClose={() => setShowTimetable(false)} stops={stops} src={src} dst={dst} time={time} />}
 
               {view === "cards" ? (
                 <>

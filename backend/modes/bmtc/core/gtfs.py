@@ -355,3 +355,49 @@ def suggest_top_buses(src_stop: str, dst_stop: str, top_n: int = TOP_N_BUSES) ->
         -x["trips_per_day"],
     ))
     return result[:top_n]
+
+
+def get_route_stops(route_no: str) -> list:
+    """Return an ordered list of stop names along a given route number.
+
+    Uses the GTFS trip with the most stop-time entries for this route as the
+    canonical stop sequence. Returns an empty list if the route is not found.
+    """
+    gtfs, _ = _get_gtfs()
+    if not gtfs:
+        return []
+
+    trips    = gtfs["trips"]
+    routes   = gtfs["routes"]
+    stops    = gtfs["stops"]
+    st       = gtfs["stop_times"]
+
+    route_no_lower = route_no.strip().lower()
+
+    # Find matching route ids
+    matching_routes = routes[
+        routes["route_short_name"].str.lower().str.strip() == route_no_lower
+    ]
+    if matching_routes.empty:
+        return []
+
+    route_ids = matching_routes["route_id"].tolist()
+    route_trips = trips[trips["route_id"].isin(route_ids)]
+    if route_trips.empty:
+        return []
+
+    trip_ids = route_trips["trip_id"].tolist()
+    route_st = st[st["trip_id"].isin(trip_ids)].copy()
+    if route_st.empty:
+        return []
+
+    # Pick the trip with the most stops (most complete)
+    trip_counts = route_st.groupby("trip_id")["stop_sequence"].count()
+    best_trip = trip_counts.idxmax()
+
+    trip_stops = (
+        route_st[route_st["trip_id"] == best_trip]
+        .sort_values("stop_sequence")
+        .merge(stops[["stop_id", "stop_name"]], on="stop_id", how="left")
+    )
+    return trip_stops["stop_name"].dropna().tolist()

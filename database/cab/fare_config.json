@@ -13,55 +13,95 @@
           "min_fare": 15.0,
           "capacity": 1,
           "description": "Bike taxi for solo commute",
-          "icon": "🏍️"
+          "icon": "\ud83c\udfcd\ufe0f"
         },
         "auto": {
           "name": "Auto (Flat)",
-          "base_fare": 34.0,
-          "base_dist": 2.0,
-          "per_km": 18.5,
-          "per_min": 0.0,
-          "min_fare": 30.0,
+          "base_fare": 35,
+          "base_dist": 2,
+          "per_km": 14,
+          "per_min": 0,
+          "min_fare": 40,
           "capacity": 3,
           "description": "Flat rate direct auto",
-          "icon": "🛺",
-          "fare_range_buffer": 10
+          "icon": "\ud83d\udefa",
+          "fare_range_buffer": 10,
+          "waiting_charge_per_min": 0,
+          "free_waiting_mins": 0,
+          "booking_fee": 3,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": false,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1
+          }
         },
         "auto_priority": {
           "name": "Auto (Priority)",
-          "base_fare": 40.0,
-          "base_dist": 2.0,
-          "per_km": 21.5,
-          "per_min": 0.0,
-          "min_fare": 30.0,
+          "base_fare": 38,
+          "base_dist": 2,
+          "per_km": 15,
+          "per_min": 0,
+          "min_fare": 43,
           "capacity": 3,
           "description": "Priority auto booking",
-          "icon": "⚡🛺",
-          "fare_range_buffer": 10
+          "icon": "\u26a1\ud83d\udefa",
+          "fare_range_buffer": 10,
+          "waiting_charge_per_min": 0,
+          "free_waiting_mins": 0,
+          "booking_fee": 3,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": false,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1
+          }
         },
         "non_ac_cab": {
           "name": "Cab (Non-AC)",
-          "base_fare": 88.5,
-          "base_dist": 4.0,
-          "per_km": 14.0,
-          "per_min": 0.0,
-          "min_fare": 80.0,
+          "base_fare": 55,
+          "base_dist": 0,
+          "per_km": 10,
+          "per_min": 0.85,
+          "min_fare": 105,
           "capacity": 4,
           "description": "Budget non-AC cab",
-          "icon": "🚗",
-          "fare_range_buffer": 0
+          "icon": "\ud83d\ude97",
+          "fare_range_buffer": 0,
+          "waiting_charge_per_min": 1,
+          "free_waiting_mins": 3,
+          "booking_fee": 3,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": true,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1.15
+          }
         },
         "ac_cab": {
           "name": "Cab (AC)",
-          "base_fare": 102.0,
-          "base_dist": 4.0,
-          "per_km": 16.0,
-          "per_min": 0.0,
-          "min_fare": 100.0,
+          "base_fare": 65,
+          "base_dist": 0,
+          "per_km": 12,
+          "per_min": 1.05,
+          "min_fare": 115,
           "capacity": 4,
           "description": "Comfortable AC cab",
-          "icon": "❄️🚗",
-          "fare_range_buffer": 0
+          "icon": "\u2744\ufe0f\ud83d\ude97",
+          "fare_range_buffer": 0,
+          "waiting_charge_per_min": 1,
+          "free_waiting_mins": 3,
+          "booking_fee": 3,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": true,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1.15
+          }
         },
         "book_any": {
           "name": "Book Any",
@@ -72,45 +112,75 @@
           "min_fare": 30.0,
           "capacity": 4,
           "description": "Book Instantly",
-          "icon": "🚗",
+          "icon": "\ud83d\ude97",
           "book_any": true,
           "fare_range_buffer": 60
         },
         "sedan_prime": {
           "name": "Sedan (Premium)",
-          "base_fare": 124.0,
-          "base_dist": 4.0,
-          "per_km": 19.5,
-          "per_min": 0.0,
-          "min_fare": 120.0,
+          "base_fare": 80,
+          "base_dist": 0,
+          "per_km": 13,
+          "per_min": 1.25,
+          "min_fare": 140,
           "capacity": 4,
           "description": "AC, Premium Comfort",
-          "icon": "❄️⭐🚗",
-          "fare_range_buffer": 0
+          "icon": "\u2744\ufe0f\u2b50\ud83d\ude97",
+          "fare_range_buffer": 0,
+          "waiting_charge_per_min": 1.25,
+          "free_waiting_mins": 3,
+          "booking_fee": 3,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": true,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1.15
+          }
         },
         "xl_cab": {
           "name": "XL (Premium)",
-          "base_fare": 153.0,
-          "base_dist": 4.0,
-          "per_km": 24.0,
-          "per_min": 0.0,
-          "min_fare": 150.0,
+          "base_fare": 95,
+          "base_dist": 0,
+          "per_km": 15,
+          "per_min": 1.45,
+          "min_fare": 165,
           "capacity": 6,
           "description": "AC, Extra Spacious",
-          "icon": "❄️🚙",
-          "fare_range_buffer": 0
+          "icon": "\u2744\ufe0f\ud83d\ude99",
+          "fare_range_buffer": 0,
+          "waiting_charge_per_min": 1.25,
+          "free_waiting_mins": 3,
+          "booking_fee": 3,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": true,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1.15
+          }
         },
         "xl_premium": {
           "name": "XL Premium",
-          "base_fare": 179.0,
-          "base_dist": 4.0,
-          "per_km": 28.0,
-          "per_min": 0.0,
-          "min_fare": 170.0,
+          "base_fare": 110,
+          "base_dist": 0,
+          "per_km": 17,
+          "per_min": 1.65,
+          "min_fare": 185,
           "capacity": 6,
           "description": "AC, Comfortable Innova",
-          "icon": "❄️🚙",
-          "fare_range_buffer": 0
+          "icon": "\u2744\ufe0f\ud83d\ude99",
+          "fare_range_buffer": 0,
+          "waiting_charge_per_min": 1.5,
+          "free_waiting_mins": 3,
+          "booking_fee": 3,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": true,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1.15
+          }
         }
       }
     },
@@ -119,82 +189,162 @@
       "vehicles": {
         "uber_auto": {
           "name": "Uber Auto",
-          "base_fare": 35.0,
-          "base_dist": 1.5,
-          "per_km": 53.25,
-          "per_min": 0.0,
-          "min_fare": 35.0,
+          "base_fare": 30,
+          "base_dist": 2,
+          "per_km": 14,
+          "per_min": 0,
+          "min_fare": 40,
           "capacity": 3,
           "description": "Direct auto booking",
-          "icon": "🛺"
+          "icon": "\ud83d\udefa",
+          "waiting_charge_per_min": 0,
+          "free_waiting_mins": 0,
+          "booking_fee": 5,
+          "surge_multiplier": 1,
+          "rate_tiers": [
+            {
+              "upto_km": 1,
+              "rate": 28
+            },
+            {
+              "upto_km": 999999,
+              "rate": 14
+            }
+          ],
+          "night_charge": {
+            "enabled": false,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1
+          }
         },
         "uber_go_non_ac": {
           "name": "Go Non AC",
-          "base_fare": 85.0,
-          "base_dist": 3.0,
-          "per_km": 41.3,
-          "per_min": 0.0,
-          "min_fare": 85.0,
+          "base_fare": 30,
+          "base_dist": 0,
+          "per_km": 7,
+          "per_min": 0.9,
+          "min_fare": 45,
           "capacity": 4,
           "description": "Everyday affordable rides",
-          "icon": "🚗"
+          "icon": "\ud83d\ude97",
+          "waiting_charge_per_min": 1,
+          "free_waiting_mins": 3,
+          "booking_fee": 4,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": true,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1.25
+          }
         },
         "uber_bike_saver": {
           "name": "Bike Saver",
-          "base_fare": 35.0,
-          "base_dist": 1.0,
-          "per_km": 23.04,
-          "per_min": 0.0,
-          "min_fare": 30.0,
+          "base_fare": 12,
+          "base_dist": 0,
+          "per_km": 5,
+          "per_min": 0.8,
+          "min_fare": 22,
           "capacity": 1,
           "description": "Save more when not in rush",
-          "icon": "🏍️",
-          "saver": true
+          "icon": "\ud83c\udfcd\ufe0f",
+          "saver": true,
+          "waiting_charge_per_min": 1,
+          "free_waiting_mins": 3,
+          "booking_fee": 0,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": true,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1.1
+          }
         },
         "uber_xl": {
           "name": "UberXL",
-          "base_fare": 150.0,
-          "base_dist": 3.0,
-          "per_km": 58.5,
-          "per_min": 0.0,
-          "min_fare": 150.0,
+          "base_fare": 120,
+          "base_dist": 0,
+          "per_km": 20,
+          "per_min": 2.5,
+          "min_fare": 170,
           "capacity": 6,
           "description": "Comfortable SUVs",
-          "icon": "🚙"
+          "icon": "\ud83d\ude99",
+          "waiting_charge_per_min": 1.5,
+          "free_waiting_mins": 3,
+          "booking_fee": 8,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": true,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1.25
+          }
         },
         "uber_go_ac": {
           "name": "Uber Go AC",
-          "base_fare": 100.0,
-          "base_dist": 3.0,
-          "per_km": 46.5,
-          "per_min": 0.0,
-          "min_fare": 100.0,
+          "base_fare": 30,
+          "base_dist": 0,
+          "per_km": 7,
+          "per_min": 0.95,
+          "min_fare": 50,
           "capacity": 4,
           "description": "Affordable compact AC rides",
-          "icon": "❄️🚗"
+          "icon": "\u2744\ufe0f\ud83d\ude97",
+          "waiting_charge_per_min": 1,
+          "free_waiting_mins": 3,
+          "booking_fee": 3,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": true,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1.25
+          }
         },
         "uber_go_priority": {
           "name": "Go Priority",
-          "base_fare": 110.0,
-          "base_dist": 3.0,
-          "per_km": 54.7,
-          "per_min": 0.0,
-          "min_fare": 110.0,
+          "base_fare": 75,
+          "base_dist": 0,
+          "per_km": 14,
+          "per_min": 1.75,
+          "min_fare": 115,
           "capacity": 4,
           "description": "Priority pick-up",
-          "icon": "⚡🚗",
-          "vtype": "priority"
+          "icon": "\u26a1\ud83d\ude97",
+          "vtype": "priority",
+          "waiting_charge_per_min": 1.25,
+          "free_waiting_mins": 3,
+          "booking_fee": 6,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": true,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1.25
+          }
         },
         "uber_premier_ac": {
           "name": "Premier AC",
-          "base_fare": 110.0,
-          "base_dist": 3.0,
-          "per_km": 51.26,
-          "per_min": 0.0,
-          "min_fare": 110.0,
+          "base_fare": 90,
+          "base_dist": 0,
+          "per_km": 16,
+          "per_min": 2,
+          "min_fare": 130,
           "capacity": 4,
           "description": "Comfortable sedans, top-quality drivers",
-          "icon": "⭐🚗"
+          "icon": "\u2b50\ud83d\ude97",
+          "waiting_charge_per_min": 1.25,
+          "free_waiting_mins": 3,
+          "booking_fee": 6,
+          "surge_multiplier": 1,
+          "night_charge": {
+            "enabled": true,
+            "start_hour": 23,
+            "end_hour": 5,
+            "multiplier": 1.25
+          }
         },
         "uber_parcel_bike": {
           "name": "Parcel Bike",
@@ -205,7 +355,7 @@
           "min_fare": 30.0,
           "capacity": 1,
           "description": "Send packages to loved ones",
-          "icon": "📦🏍️",
+          "icon": "\ud83d\udce6\ud83c\udfcd\ufe0f",
           "parcel": true
         },
         "uber_scooty": {
@@ -217,7 +367,7 @@
           "min_fare": 30.0,
           "capacity": 1,
           "description": "Comfortable 2 wheeler rides",
-          "icon": "🛵",
+          "icon": "\ud83d\udef5",
           "vtype": "scooty"
         },
         "uber_black": {
@@ -229,7 +379,7 @@
           "min_fare": 532.0,
           "capacity": 4,
           "description": "Hire Hatchbacks by the hour",
-          "icon": "🚗",
+          "icon": "\ud83d\ude97",
           "rental": true,
           "black": true
         },
@@ -242,7 +392,7 @@
           "min_fare": 1166.92,
           "capacity": 6,
           "description": "Hire spacious, comfortable Innovas by the hour",
-          "icon": "🚙",
+          "icon": "\ud83d\ude99",
           "rental": true
         },
         "uber_premier_rentals": {
@@ -254,7 +404,7 @@
           "min_fare": 698.64,
           "capacity": 4,
           "description": "Hire Sedans by the hour",
-          "icon": "⭐🚗",
+          "icon": "\u2b50\ud83d\ude97",
           "rental": true
         },
         "uber_xl_rentals": {
@@ -266,7 +416,7 @@
           "min_fare": 886.6,
           "capacity": 6,
           "description": "Hire SUVs by the hour",
-          "icon": "🚙",
+          "icon": "\ud83d\ude99",
           "rental": true
         },
         "uber_black_rentals": {
@@ -278,7 +428,7 @@
           "min_fare": 820.2,
           "capacity": 4,
           "description": "Hire Hatchbacks by the hour",
-          "icon": "🚗",
+          "icon": "\ud83d\ude97",
           "rental": true,
           "black": true
         }
@@ -289,139 +439,155 @@
       "vehicles": {
         "ola_bike": {
           "name": "Ola Bike",
-          "base_fare": 57.0,
-          "base_dist": 3.0,
-          "per_km": 11.0,
-          "per_min": 0.0,
-          "min_fare": 57.0,
+          "base_fare": 15,
+          "base_dist": 0,
+          "per_km": 6,
+          "per_min": 1,
+          "min_fare": 25,
           "capacity": 1,
           "description": "Ola Bike taxi",
-          "icon": "🛍️",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "icon": "\ud83d\udecd\ufe0f",
+          "waiting_charge_per_min": 1,
+          "free_waiting_mins": 3,
+          "booking_fee": 0,
           "night_charge": {
-            "enabled": false,
+            "enabled": true,
             "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 1.0
-          }
+            "multiplier": 1.1
+          },
+          "surge_multiplier": 1
         },
         "ola_auto": {
           "name": "Auto",
-          "base_fare": 67.0,
-          "base_dist": 2.0,
-          "per_km": 26.0,
-          "per_min": 0.0,
-          "min_fare": 93.0,
+          "base_fare": 30,
+          "base_dist": 2,
+          "per_km": 15,
+          "per_min": 0,
+          "min_fare": 30,
           "capacity": 3,
           "description": "Auto ride at your doorstep",
-          "icon": "🛺",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "icon": "\ud83d\udefa",
+          "waiting_charge_per_min": 0,
+          "free_waiting_mins": 0,
+          "booking_fee": 0,
           "night_charge": {
             "enabled": false,
             "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 1.0
-          }
+            "multiplier": 1
+          },
+          "surge_multiplier": 1,
+          "rate_tiers": [
+            {
+              "upto_km": 1,
+              "rate": 30
+            },
+            {
+              "upto_km": 999999,
+              "rate": 15
+            }
+          ]
         },
         "ola_mini_non_ac": {
           "name": "Mini Non AC",
-          "base_fare": 119.0,
-          "base_dist": 4.0,
-          "per_km": 17.0,
-          "per_min": 0.0,
-          "min_fare": 119.0,
+          "base_fare": 25,
+          "base_dist": 0,
+          "per_km": 6,
+          "per_min": 0.95,
+          "min_fare": 45,
           "capacity": 4,
           "description": "Everyday affordable rides",
-          "icon": "🚗",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "icon": "\ud83d\ude97",
+          "waiting_charge_per_min": 1,
+          "free_waiting_mins": 3,
+          "booking_fee": 4,
           "long_distance": {
             "threshold_km": 40.0,
             "surcharge": 320.0
           },
           "night_charge": {
-            "enabled": false,
+            "enabled": true,
             "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 1.0
-          }
+            "multiplier": 1.25
+          },
+          "surge_multiplier": 1
         },
         "ola_mini": {
           "name": "Mini",
-          "base_fare": 125.0,
-          "base_dist": 4.0,
-          "per_km": 18.0,
-          "per_min": 0.0,
-          "min_fare": 125.0,
+          "base_fare": 55,
+          "base_dist": 0,
+          "per_km": 11,
+          "per_min": 1.5,
+          "min_fare": 85,
           "capacity": 4,
           "description": "Comfy, economical cars",
-          "icon": "🚗",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "icon": "\ud83d\ude97",
+          "waiting_charge_per_min": 1,
+          "free_waiting_mins": 3,
+          "booking_fee": 6,
           "long_distance": {
             "threshold_km": 40.0,
             "surcharge": 340.0
           },
           "night_charge": {
-            "enabled": false,
+            "enabled": true,
             "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 1.0
-          }
+            "multiplier": 1.25
+          },
+          "surge_multiplier": 1
         },
         "ola_prime": {
           "name": "Prime Sedan",
-          "base_fare": 131.0,
-          "base_dist": 4.0,
-          "per_km": 21.0,
-          "per_min": 0.0,
-          "min_fare": 131.0,
+          "base_fare": 60,
+          "base_dist": 0,
+          "per_km": 11,
+          "per_min": 1.5,
+          "min_fare": 95,
           "capacity": 4,
           "description": "Top sedans",
-          "icon": "🚗",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "icon": "\ud83d\ude97",
+          "waiting_charge_per_min": 1,
+          "free_waiting_mins": 3,
+          "booking_fee": 5,
           "long_distance": {
             "threshold_km": 40.0,
             "surcharge": 400.0
           },
           "night_charge": {
-            "enabled": false,
+            "enabled": true,
             "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 1.0
-          }
+            "multiplier": 1.25
+          },
+          "surge_multiplier": 1
         },
         "ola_prime_plus": {
           "name": "Prime SUV",
-          "base_fare": 213.0,
-          "base_dist": 4.0,
-          "per_km": 27.0,
-          "per_min": 0.0,
-          "min_fare": 213.0,
+          "base_fare": 160,
+          "base_dist": 0,
+          "per_km": 22,
+          "per_min": 2.75,
+          "min_fare": 205,
           "capacity": 6,
           "description": "Spacious SUVs",
-          "icon": "🚙",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "icon": "\ud83d\ude99",
+          "waiting_charge_per_min": 1.75,
+          "free_waiting_mins": 3,
+          "booking_fee": 10,
           "long_distance": {
             "threshold_km": 40.0,
             "surcharge": 550.0
           },
           "night_charge": {
-            "enabled": false,
+            "enabled": true,
             "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 1.0
-          }
+            "multiplier": 1.25
+          },
+          "surge_multiplier": 1
         },
         "ola_book_any": {
           "name": "Book Any",
@@ -432,7 +598,7 @@
           "min_fare": 125.0,
           "capacity": 4,
           "description": "Mini, Prime Sedan",
-          "icon": "🚗",
+          "icon": "\ud83d\ude97",
           "book_any": true,
           "waiting_charge_per_min": 0.0,
           "free_waiting_mins": 0.0,
@@ -450,18 +616,18 @@
         },
         "ola_priority": {
           "name": "Priority",
-          "base_fare": 130.0,
-          "base_dist": 4.0,
-          "per_km": 21.0,
-          "per_min": 0.0,
-          "min_fare": 130.0,
+          "base_fare": 35,
+          "base_dist": 2,
+          "per_km": 17,
+          "per_min": 0,
+          "min_fare": 45,
           "capacity": 4,
           "description": "Priority Pickup",
-          "icon": "⚡🚗",
+          "icon": "\u26a1\ud83d\ude97",
           "vtype": "priority",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "waiting_charge_per_min": 0,
+          "free_waiting_mins": 0,
+          "booking_fee": 5,
           "long_distance": {
             "threshold_km": 40.0,
             "surcharge": 400.0
@@ -470,8 +636,19 @@
             "enabled": false,
             "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 1.0
-          }
+            "multiplier": 1
+          },
+          "surge_multiplier": 1,
+          "rate_tiers": [
+            {
+              "upto_km": 1,
+              "rate": 33
+            },
+            {
+              "upto_km": 999999,
+              "rate": 17
+            }
+          ]
         }
       }
     },
@@ -480,55 +657,57 @@
       "vehicles": {
         "rapido_bike": {
           "name": "Bike Direct",
-          "base_fare": 38.42,
-          "base_dist": 3.63,
-          "per_km": 10.48,
-          "per_min": 0.0,
-          "min_fare": 44.20,
+          "base_fare": 20,
+          "base_dist": 0,
+          "per_km": 7,
+          "per_min": 0.6,
+          "min_fare": 45,
           "capacity": 1,
           "description": "Quick Bike rides",
-          "icon": "🛍️",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "icon": "\ud83d\udecd\ufe0f",
+          "waiting_charge_per_min": 0.5,
+          "free_waiting_mins": 3,
+          "booking_fee": 3,
           "night_charge": {
             "enabled": true,
-            "start_hour": 22,
+            "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 0.909
-          }
+            "multiplier": 1.1
+          },
+          "surge_multiplier": 1
         },
         "rapido_scooty": {
           "name": "Scooty Direct",
-          "base_fare": 40.91,
-          "base_dist": 3.14,
-          "per_km": 11.73,
-          "per_min": 0.0,
-          "min_fare": 48.90,
+          "base_fare": 25,
+          "base_dist": 0,
+          "per_km": 8.5,
+          "per_min": 0.7,
+          "min_fare": 50,
           "capacity": 1,
           "description": "Quick scooty rides",
-          "icon": "🛵",
+          "icon": "\ud83d\udef5",
           "vtype": "scooty",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "waiting_charge_per_min": 0.5,
+          "free_waiting_mins": 3,
+          "booking_fee": 3,
           "night_charge": {
             "enabled": true,
-            "start_hour": 22,
+            "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 0.500
-          }
+            "multiplier": 1.1
+          },
+          "surge_multiplier": 1
         },
         "rapido_bike_women": {
           "name": "Bike Rated by Women",
           "base_fare": 39.11,
           "base_dist": 3.53,
-          "per_km": 10.10,
+          "per_km": 10.1,
           "per_min": 0.0,
           "min_fare": 45.08,
           "capacity": 1,
           "description": "Captains Rated by Women",
-          "icon": "🛍️",
+          "icon": "\ud83d\udecd\ufe0f",
           "waiting_charge_per_min": 0.0,
           "free_waiting_mins": 0.0,
           "booking_fee": 0.0,
@@ -548,7 +727,7 @@
           "min_fare": 64.28,
           "capacity": 3,
           "description": "Affordable Auto Lite request",
-          "icon": "🛺",
+          "icon": "\ud83d\udefa",
           "waiting_charge_per_min": 0.0,
           "free_waiting_mins": 0.0,
           "booking_fee": 0.0,
@@ -556,109 +735,133 @@
             "enabled": true,
             "start_hour": 22,
             "end_hour": 5,
-            "multiplier": 0.940
+            "multiplier": 0.94
           }
         },
         "rapido_auto": {
           "name": "Auto",
-          "base_fare": 83.60,
-          "base_dist": 2.03,
-          "per_km": 16.82,
-          "per_min": 0.0,
-          "min_fare": 62.55,
+          "base_fare": 70,
+          "base_dist": 2,
+          "per_km": 30,
+          "per_min": 0,
+          "min_fare": 100,
           "capacity": 3,
           "description": "Direct auto request",
-          "icon": "🛺",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "icon": "\ud83d\udefa",
+          "waiting_charge_per_min": 0,
+          "free_waiting_mins": 0,
+          "booking_fee": 10,
           "night_charge": {
             "enabled": true,
-            "start_hour": 22,
+            "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 0.641
-          }
+            "multiplier": 1.2
+          },
+          "surge_multiplier": 1,
+          "rate_tiers": [
+            {
+              "upto_km": 1,
+              "rate": 60
+            },
+            {
+              "upto_km": 999999,
+              "rate": 30
+            }
+          ]
         },
         "rapido_auto_priority": {
           "name": "Auto Priority",
-          "base_fare": 106.93,
-          "base_dist": 3.66,
-          "per_km": 16.57,
-          "per_min": 0.0,
-          "min_fare": 14.00,
+          "base_fare": 55,
+          "base_dist": 2,
+          "per_km": 25,
+          "per_min": 0,
+          "min_fare": 80,
           "capacity": 3,
           "description": "Priority auto request",
-          "icon": "⚡🛺",
+          "icon": "\u26a1\ud83d\udefa",
           "vtype": "priority",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "waiting_charge_per_min": 0,
+          "free_waiting_mins": 0,
+          "booking_fee": 8,
           "night_charge": {
             "enabled": true,
-            "start_hour": 22,
+            "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 0.746
-          }
+            "multiplier": 1.2
+          },
+          "surge_multiplier": 1,
+          "rate_tiers": [
+            {
+              "upto_km": 1,
+              "rate": 50
+            },
+            {
+              "upto_km": 999999,
+              "rate": 25
+            }
+          ]
         },
         "rapido_cab": {
           "name": "Cab Non AC",
-          "base_fare": 117.79,
-          "base_dist": 3.50,
-          "per_km": 15.34,
-          "per_min": 0.0,
-          "min_fare": 106.02,
+          "base_fare": 120,
+          "base_dist": 0,
+          "per_km": 20,
+          "per_min": 2.1,
+          "min_fare": 180,
           "capacity": 4,
           "description": "Budget non-AC cab",
-          "icon": "🚗",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "icon": "\ud83d\ude97",
+          "waiting_charge_per_min": 1,
+          "free_waiting_mins": 3,
+          "booking_fee": 11,
           "long_distance": {
             "threshold_km": 40.0,
             "surcharge": 1.83
           },
           "night_charge": {
             "enabled": true,
-            "start_hour": 22,
+            "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 0.932
-          }
+            "multiplier": 1.2
+          },
+          "surge_multiplier": 1
         },
         "rapido_cab_ac": {
           "name": "Cab AC",
-          "base_fare": 137.98,
-          "base_dist": 3.38,
-          "per_km": 18.16,
-          "per_min": 0.0,
-          "min_fare": 145.66,
+          "base_fare": 130,
+          "base_dist": 0,
+          "per_km": 21,
+          "per_min": 2.2,
+          "min_fare": 195,
           "capacity": 4,
           "description": "Comfortable AC cab",
-          "icon": "❄️🚗",
+          "icon": "\u2744\ufe0f\ud83d\ude97",
           "vtype": "ac_cab",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "waiting_charge_per_min": 1,
+          "free_waiting_mins": 3,
+          "booking_fee": 11,
           "long_distance": {
             "threshold_km": 40.0,
             "surcharge": 65.98
           },
           "night_charge": {
             "enabled": true,
-            "start_hour": 22,
+            "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 0.514
-          }
+            "multiplier": 1.2
+          },
+          "surge_multiplier": 1
         },
         "rapido_cab_ac_priority": {
           "name": "Cab AC Priority",
           "base_fare": 105.55,
           "base_dist": 3.13,
-          "per_km": 16.30,
+          "per_km": 16.3,
           "per_min": 0.0,
           "min_fare": 13.61,
           "capacity": 4,
           "description": "Priority AC cab request",
-          "icon": "⚡🚗",
+          "icon": "\u26a1\ud83d\ude97",
           "vtype": "priority",
           "waiting_charge_per_min": 0.0,
           "free_waiting_mins": 0.0,
@@ -678,12 +881,12 @@
           "name": "Auto Pet",
           "base_fare": 109.54,
           "base_dist": 1.46,
-          "per_km": 16.00,
+          "per_km": 16.0,
           "per_min": 0.0,
           "min_fare": 83.23,
           "capacity": 3,
           "description": "Pet friendly auto request",
-          "icon": "🐾🛺",
+          "icon": "\ud83d\udc3e\ud83d\udefa",
           "pet": true,
           "waiting_charge_per_min": 0.0,
           "free_waiting_mins": 0.0,
@@ -701,51 +904,53 @@
         },
         "rapido_cab_premium": {
           "name": "Cab Premium",
-          "base_fare": 160.36,
-          "base_dist": 3.46,
-          "per_km": 21.74,
-          "per_min": 0.0,
-          "min_fare": 173.33,
+          "base_fare": 105,
+          "base_dist": 0,
+          "per_km": 17,
+          "per_min": 1.8,
+          "min_fare": 150,
           "capacity": 4,
           "description": "Premium Sedan cab",
-          "icon": "✨🚗",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "icon": "\u2728\ud83d\ude97",
+          "waiting_charge_per_min": 1.25,
+          "free_waiting_mins": 3,
+          "booking_fee": 8,
           "long_distance": {
             "threshold_km": 40.0,
             "surcharge": 146.26
           },
           "night_charge": {
             "enabled": true,
-            "start_hour": 22,
+            "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 0.781
-          }
+            "multiplier": 1.2
+          },
+          "surge_multiplier": 1
         },
         "rapido_cab_xl": {
           "name": "Cab XL",
-          "base_fare": 86.67,
-          "base_dist": 5.38,
-          "per_km": 37.64,
-          "per_min": 0.0,
-          "min_fare": 127.62,
+          "base_fare": 160,
+          "base_dist": 0,
+          "per_km": 26,
+          "per_min": 2.5,
+          "min_fare": 230,
           "capacity": 6,
           "description": "Spacious 6-seater SUV",
-          "icon": "🚙",
-          "waiting_charge_per_min": 0.0,
-          "free_waiting_mins": 0.0,
-          "booking_fee": 0.0,
+          "icon": "\ud83d\ude99",
+          "waiting_charge_per_min": 1.25,
+          "free_waiting_mins": 3,
+          "booking_fee": 11,
           "long_distance": {
             "threshold_km": 40.0,
             "surcharge": 417.69
           },
           "night_charge": {
             "enabled": true,
-            "start_hour": 22,
+            "start_hour": 23,
             "end_hour": 5,
-            "multiplier": 0.892
-          }
+            "multiplier": 1.2
+          },
+          "surge_multiplier": 1
         }
       }
     }

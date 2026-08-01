@@ -3,7 +3,7 @@ poi_data.py
 ===========
 Loads the curated Bengaluru points-of-interest dataset (colleges, hospitals,
 tech parks, malls, tourist attractions, hotels, railway stations, airport,
-landmarks) from database/poi/pois.json.
+landmarks, and restaurants) from database/poi/pois.json.
 
 This gives the chatbot city-wide location coverage beyond the raw BMTC stop /
 Metro station lists -- extract_stops() in chatbot_engine.py treats POI names
@@ -15,6 +15,7 @@ never a fare or duration.
 """
 
 import json
+import math
 import os
 from typing import Any, Dict, List, Optional
 
@@ -72,3 +73,47 @@ def get_pois_by_category(category: str) -> List[Dict[str, Any]]:
 
 def get_attractions() -> List[Dict[str, Any]]:
     return get_pois_by_category("attraction")
+
+
+def get_restaurants() -> List[Dict[str, Any]]:
+    """All restaurant-category POIs."""
+    return get_pois_by_category("restaurant")
+
+
+def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Haversine distance in km between two lat/lng points."""
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def get_restaurants_near(lat: float, lng: float, radius_km: float = 2.0, max_results: int = 4) -> List[Dict[str, Any]]:
+    """Return up to `max_results` restaurants within `radius_km` of the given coordinates,
+    sorted by distance ascending. Each result includes a 'distance_km' field."""
+    results = []
+    for r in get_restaurants():
+        d = _haversine_km(lat, lng, r["lat"], r["lng"])
+        if d <= radius_km:
+            entry = dict(r)
+            entry["distance_km"] = round(d, 2)
+            results.append(entry)
+    results.sort(key=lambda x: x["distance_km"])
+    return results[:max_results]
+
+
+def get_nearby_pois(lat: float, lng: float, radius_km: float = 2.0, categories: Optional[List[str]] = None, max_results: int = 5) -> List[Dict[str, Any]]:
+    """Return POIs within `radius_km`, optionally filtered by category list."""
+    results = []
+    for p in _pois:
+        if categories and p.get("category") not in categories:
+            continue
+        d = _haversine_km(lat, lng, p["lat"], p["lng"])
+        if d <= radius_km:
+            entry = dict(p)
+            entry["distance_km"] = round(d, 2)
+            results.append(entry)
+    results.sort(key=lambda x: x["distance_km"])
+    return results[:max_results]
+

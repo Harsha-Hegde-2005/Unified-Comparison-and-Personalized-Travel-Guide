@@ -77,11 +77,13 @@ class ChatbotEngine:
             "- \"journey_cost\": User wants to know fare/cost from A to B.\n"
             "- \"budget_constrained\": User wants to travel from A to B under a specific budget.\n"
             "- \"possible_ways\": User wants ALL modes/routes from A to B.\n"
+            "- \"multimodal_journey\": User asks for Bus+Metro combined/multimodal route.\n"
+            "- \"multi_stop_itinerary\": User wants to visit 2-5 places in a day (mentions multiple destinations, 'plan a trip', 'day trip', 'visit ... and ...', 'itinerary'). Extract waypoints list and start_time.\n"
+            "- \"bus_schedule_query\": User asks about a specific bus route number, stops on a route, bus timings, when does bus X come, how many stops. Extract route_number and/or source+destination.\n"
             "- \"ride_cost\": User asks for cab/ride cost (Ola, Uber, Namma Yatri, Rapido, auto, bike taxi). Extract source+destination.\n"
             "- \"fuel_cost\": User asks about fuel/petrol/diesel consumption or private vehicle cost. Extract source, destination, vehicle_type (car/bike).\n"
             "- \"nearest_stops\": User wants nearest bus stop or metro station. Extract the location name (ANY Bangalore landmark, address, area).\n"
             "- \"traffic_query\": User asks about traffic, congestion, road conditions, drive time.\n"
-            "- \"multimodal_journey\": User asks for Bus+Metro combined route, or says 'multimodal'.\n"
             "- \"weather_query\": User asks about weather or rain forecast.\n"
             "- \"vehicle_vs_transit\": User wants to compare driving vs public transit.\n"
             "- \"general\": General transit rules, Metro timings (5AM-11PM), greetings, help.\n"
@@ -92,7 +94,9 @@ class ChatbotEngine:
             "3. For nearest_stops: extract location from message. It can be ANY Bangalore place name.\n"
             "4. For traffic_query: extract source+destination if mentioned, else leave null.\n"
             "5. For general: answer directly about Metro/BMTC rules in the 'answer' field.\n"
-            "6. For clarification: write a polite question in 'clarification_question'.\n\n"
+            "6. For clarification: write a polite question in 'clarification_question'.\n"
+            "7. For multi_stop_itinerary: extract 'waypoints' as a JSON array of place name strings, and 'start_time' as a string like '9 AM'.\n"
+            "8. For bus_schedule_query: extract 'route_number' (e.g. '500D', 'V1') if mentioned. Also extract source and destination if mentioned.\n\n"
             "Output MUST be a single JSON object:\n"
             "{\n"
             "  \"intent\": \"intent_name\",\n"
@@ -101,8 +105,11 @@ class ChatbotEngine:
             "    \"destination\": \"string or null\",\n"
             "    \"location\": \"string or null\",\n"
             "    \"time\": \"string or null\",\n"
+            "    \"start_time\": \"string or null\",\n"
             "    \"budget\": 0,\n"
             "    \"vehicle_type\": \"string or null\",\n"
+            "    \"waypoints\": [],\n"
+            "    \"route_number\": \"string or null\",\n"
             "    \"clarification_question\": \"string or null\"\n"
             "  },\n"
             "  \"answer\": \"string or null\"\n"
@@ -533,7 +540,43 @@ class ChatbotEngine:
                     params["suggestions"] = suggestions
                     return "clarify_location", params
 
-        # 1. AC Bus Check
+        # 1. Multi-stop day itinerary detection (3+ places, day trip, plan a trip)
+        itinerary_cues = ["plan a trip", "day trip", "visit.*and", "itinerary", "in a day",
+                          "today i want to", "schedule for", "places to visit", "sightseeing"]
+        has_itinerary_cue = any(k in text_lower for k in ["plan a trip", "day trip", "itinerary",
+                                                           "in a day", "today i want", "schedule for",
+                                                           "places to visit", "sightseeing"])
+        # Also detect if 3+ stops are found OR if text contains "and" between stops
+        if has_itinerary_cue or len(matched_stops) >= 3:
+            params["waypoints"] = matched_stops if matched_stops else []
+            params["start_time"] = self.extract_time(text)
+            params["source"] = src
+            return "multi_stop_itinerary", params
+
+        # 2. Multimodal Journey (must be before bus_schedule_query to avoid
+        #    "multimodal route" accidentally matching the bus-schedule branch)
+        if any(k in text_lower for k in ["multimodal", "combined route", "bus and metro",
+                                          "metro and bus", "mix of", "combination"]):
+            if src and dst:
+                params["source"] = src
+                params["destination"] = dst
+                return "multimodal_journey", params
+
+        # 3. Bus schedule / route info (route number + explicit schedule keywords)
+        _bus_sched_cues = ["bus route", "bus number", "stops on", "timings of",
+                           "bus timing", "schedule of", "when does bus", "stops in route",
+                           "list of stops", "how many stops", "which buses"]
+        route_num_match = re.search(r'\b([0-9]{1,4}[A-Za-z]{0,3})\b', raw_text)
+        _has_route_num = bool(route_num_match and any(
+            k in text_lower for k in ["route", "bus", "stop", "timing", "schedule"]
+        ))
+        if any(k in text_lower for k in _bus_sched_cues) or _has_route_num:
+            params["route_number"] = route_num_match.group(1) if route_num_match else None
+            params["source"] = src
+            params["destination"] = dst
+            return "bus_schedule_query", params
+
+        # 4. AC Bus Check
         if any(k in text_lower for k in ["ac bus", "ac buses", "vajra", "volvo", "ac available"]):
             if src and dst:
                 params["source"] = src
@@ -544,7 +587,7 @@ class ChatbotEngine:
                 params["destination"] = dst
                 return "clarification", params
 
-        # 2. Possible Ways Check
+        # 5. Possible Ways Check
         if any(k in text_lower for k in ["possible ways", "all ways", "different ways", "all options", "routes to"]):
             if src and dst:
                 params["source"] = src
@@ -555,13 +598,13 @@ class ChatbotEngine:
                 params["destination"] = dst
                 return "clarification", params
 
-        # 3. Nearest Stop Check
+        # 6. Nearest Stop Check
         if any(k in text_lower for k in ["nearest", "closest", "nearby", "close to"]):
             if matched_stops:
                 params["location"] = matched_stops[0]
                 return "nearest_stops", params
 
-        # 4. Budget Constraint / Budget Exploration
+        # 7. Budget Constraint / Budget Exploration
         budget = self.extract_budget(text)
         if budget is not None:
             params["budget"] = budget
@@ -573,19 +616,19 @@ class ChatbotEngine:
             else:
                 return "budget_explore", params
 
-        # 5. Vehicle vs Transit
+        # 8. Vehicle vs Transit
         vtype = self.extract_vehicle_type(text)
         if vtype is not None:
             params["vtype"] = vtype
             params["destination"] = dst or (matched_stops[0] if matched_stops else None)
             return "vehicle_vs_transit", params
 
-        # 6. Weather Forecast
+        # 9. Weather Forecast
         if any(k in text_lower for k in ["weather", "rain", "shower", "storm", "flood", "precipitation", "drizzle", "clear"]):
             params["time"] = self.extract_time(text)
             return "weather_query", params
 
-        # 7. Journey Time vs Cost
+        # 10. Journey Time vs Cost
         is_route_request = any(k in text_lower for k in [
             "go to", "reach", "travel to", "how to go", "how can i get", "route to", "way to", "directions to",
             "how to travel", "how to reach", "get to", "timing from", "route from", "how do i get"
@@ -602,7 +645,7 @@ class ChatbotEngine:
             else:
                 return "journey_time", params
 
-        # 8. General conversational fallback
+        # 11. General conversational fallback
         return "general", params
 
 
@@ -821,30 +864,133 @@ class ChatbotEngine:
                     reply += f"- {name} Metro Station (~{dist:.2f} km)\n"
             return reply
 
+        elif intent == "multimodal_journey":
+            src, dst = params.get("source"), params.get("destination")
+            plan = data.get("multimodal_plan")
+            if not plan or not plan.get("available"):
+                return (
+                    f"Sorry, I couldn't find a combined Bus+Metro route from {src} to {dst}. "
+                    "Try asking for 'all options' to see what modes are available."
+                )
+            legs = plan.get("legs", [])
+            total_cost = plan.get("cost", 0)
+            total_time = plan.get("time", 0)
+            reply = f"**Multimodal Route: {src} → {dst}**\n"
+            reply += f"Total: ~{total_time} min | ₹{total_cost}\n\n"
+            for i, leg in enumerate(legs, 1):
+                mode = leg.get("mode", "transit").upper()
+                leg_from = leg.get("from", "")
+                leg_to = leg.get("to", "")
+                leg_time = leg.get("time", "?")
+                leg_cost = leg.get("cost", 0)
+                route_info = f" via {leg.get('route', '')}" if leg.get("route") else ""
+                reply += f"{i}. **{mode}**: {leg_from} → {leg_to}{route_info} (~{leg_time} min, ₹{leg_cost})\n"
+            return reply
+
+        elif intent == "bus_schedule_query":
+            route_no = data.get("route_number")
+            src = params.get("source")
+            dst = params.get("destination")
+            buses = data.get("buses", [])
+            stops = data.get("stops", [])
+
+            if route_no and buses:
+                reply = f"**Route {route_no}** information:\n"
+                if stops:
+                    reply += f"- Stops: {len(stops)} stops total\n"
+                    key_stops = stops[:3] + (["..."] if len(stops) > 6 else []) + stops[-3:] if len(stops) > 6 else stops
+                    reply += "- Key stops: " + " → ".join(str(s) for s in key_stops) + "\n"
+                if buses:
+                    b = buses[0]
+                    reply += f"- First bus: {b.get('departure', 'check BMTC app')}\n"
+                    reply += f"- Frequency: Approx. every 15-30 min during peak hours\n"
+                return reply
+            elif src and dst and buses:
+                reply = f"Buses from **{src}** to **{dst}**:\n"
+                for b in buses[:5]:
+                    reply += f"- Route **{b.get('route', '?')}**: departs {b.get('departure', '?')}, ~{b.get('time', '?')} min\n"
+                return reply
+            elif route_no:
+                return (
+                    f"I found route **{route_no}** in the BMTC network. "
+                    "For live timings, please check the BMTC official app or tummoc.com. "
+                    "I can tell you routes and fares if you give me source and destination stops."
+                )
+            else:
+                return (
+                    "Please specify a route number (e.g. '500D', 'V1') or source and destination "
+                    "to look up bus schedule information."
+                )
+
+        elif intent == "multi_stop_itinerary":
+            waypoints = data.get("waypoints", [])
+            legs = data.get("legs", [])
+            total_cost = data.get("total_cost", 0)
+            total_time_min = data.get("total_time_min", 0)
+            start_time = data.get("start_time", "9:00 AM")
+
+            if not waypoints or not legs:
+                return (
+                    "I'd love to plan your day trip! Please list the places you want to visit "
+                    "(e.g., 'Plan a trip to Cubbon Park, Lalbagh, Commercial Street and UB City starting at 10 AM')."
+                )
+
+            reply = f"**Your Bengaluru Day Itinerary** (Starting at {start_time})\n"
+            reply += f"Covering {len(waypoints)} places | ~{total_time_min} min travel total | ~₹{total_cost} total fare\n\n"
+
+            for leg in legs:
+                stop_name = leg.get("to", "")
+                arrive_time = leg.get("arrive_time", "")
+                depart_time = leg.get("depart_time", "")
+                mode = MODE_LABELS.get(leg.get("mode", ""), "Transit")
+                leg_cost = leg.get("cost", 0)
+                leg_time = leg.get("time", 0)
+                visit_duration = leg.get("visit_minutes", 60)
+                restaurants = leg.get("restaurants", [])
+
+                reply += f"### {stop_name}\n"
+                if depart_time:
+                    reply += f"🚌 Depart at {depart_time} via **{mode}** (~{leg_time} min, ₹{leg_cost})\n"
+                if arrive_time:
+                    reply += f"📍 Arrive at {arrive_time} | Visit: ~{visit_duration} min\n"
+                if restaurants:
+                    reply += "🍽️ **Nearby food spots:** "
+                    rest_items = [f"{r['name']} ({r.get('specialty', r.get('cuisine', ''))})"
+                                  for r in restaurants[:2]]
+                    reply += ", ".join(rest_items) + "\n"
+                reply += "\n"
+
+            reply += f"**Total estimated fare: ₹{total_cost}** across all legs.\n"
+            reply += "💡 *Fares are estimates. Allow extra time between stops for exploration.*"
+            return reply
+
         else:
             # Handle general conversational requests
             msg = params.get("message", "").lower() if params else ""
             if any(k in msg for k in ["hello", "hi", "hey"]):
-                return "Hello! How can I help you navigate Bangalore today? Ask me about routes, nearest stops, fares, or weather!"
+                return "Hello! How can I help you navigate Bangalore today? Ask me about routes, nearest stops, fares, weather, or plan a multi-stop day trip!"
             elif any(k in msg for k in ["thank", "thanks"]):
                 return "You're welcome! Safe travels. Let me know if you need anything else!"
             elif any(k in msg for k in ["help", "what can you"]):
                 return (
-                    "I am your Commuter Assistant. I can help you with:\n"
-                    "1. Finding routes (e.g., 'how to go from Majestic to Silk Board')\n"
-                    "2. Checking AC Vajra bus availability ('is AC bus available from Indiranagar to Majestic?')\n"
-                    "3. Finding nearby stops ('nearest bus stop to Electronic City')\n"
-                    "4. Weather checks ('will it rain at 5 PM?')\n"
-                    "5. Comparing public transit vs driving ('should I take my bike to Indiranagar?')\n"
-                    "6. Finding routes under budget ('cheapest route under ₹50')\n"
-                    "7. Budget-based sightseeing ('I have ₹300 and 5 hours, where can I go?')"
+                    "I am your Bengaluru Commuter Assistant. I can help you with:\n"
+                    "1. 🗺️ Finding routes (e.g., 'How to go from Majestic to Silk Board')\n"
+                    "2. 💰 Fares & cost comparison (cheapest, fastest, all modes)\n"
+                    "3. 🚌🚇 Multimodal routes (Bus + Metro combos)\n"
+                    "4. 📅 Multi-stop day itinerary (e.g., 'Plan a trip to Cubbon Park, Lalbagh and UB City')\n"
+                    "5. 🕐 Bus schedules & stops info (e.g., 'stops on route 500D')\n"
+                    "6. 📍 Nearest stops (e.g., 'nearest metro to Electronic City')\n"
+                    "7. ☁️ Weather & traffic impact\n"
+                    "8. 🏍️ Personal vehicle vs transit comparison\n"
+                    "9. 💸 Budget-based travel & sightseeing suggestions"
                 )
             else:
                 return (
-                    "Hello! I am your Commuter Assistant. I can help you plan your journey, "
-                    "find options matching your budget, check rain forecast impact, compare transit vs. driving, "
-                    "look up AC Vajra buses, or find nearby stops. "
-                    "Try asking: 'How long does it take from Majestic to Silk Board?' or 'Nearest stop to Indiranagar'"
+                    "Hello! I am your Bengaluru Commuter Assistant. I can help you plan your journey, "
+                    "create a multi-stop day itinerary, find routes under budget, check rain impact, "
+                    "compare transit vs. driving, look up bus schedules, or find nearby stops. "
+                    "Try asking: 'Plan a trip to Cubbon Park, Lalbagh and UB City starting at 10 AM' "
+                    "or 'How to go from Majestic to Silk Board?'"
                 )
 
     def _clean_place_name(self, name: Optional[str]) -> Optional[str]:

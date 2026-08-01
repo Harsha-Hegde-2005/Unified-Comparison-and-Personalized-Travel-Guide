@@ -292,3 +292,144 @@ def test_chatbot_landmark_and_mode_preference():
     assert data["embedded_data"] is not None
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# New Feature Tests: Multi-Stop Itinerary, Bus Schedule, Multimodal Journey
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestNewChatbotIntents:
+    """Test new chatbot intents: multi_stop_itinerary, bus_schedule_query, multimodal_journey."""
+
+    def test_multi_stop_itinerary_intent_classification(self):
+        """ChatbotEngine should classify day-trip queries as multi_stop_itinerary."""
+        engine = ChatbotEngine(
+            bmtc_stops=["Majestic", "Silk Board"],
+            metro_stations=["MG Road", "Indiranagar"],
+            poi_names=["Cubbon Park", "Lalbagh Botanical Garden", "UB City Mall"],
+        )
+        # Explicit "plan a trip" cue
+        matched = engine.extract_stops("Plan a trip to Cubbon Park, Lalbagh and UB City at 10 AM")
+        intent, params = engine.classify_intent(
+            "Plan a trip to Cubbon Park, Lalbagh and UB City at 10 AM", matched
+        )
+        assert intent == "multi_stop_itinerary"
+        # Should extract waypoints
+        assert "waypoints" in params
+
+    def test_multi_stop_itinerary_endpoint(self):
+        """API should return itinerary legs for a multi-stop day trip query."""
+        client = TestClient(app)
+        resp = client.post("/api/chatbot/query", json={
+            "message": "Plan a trip to Cubbon Park, Lalbagh Botanical Garden and UB City Mall starting at 10 AM"
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["intent"] == "multi_stop_itinerary"
+        # Should have a text response with itinerary info
+        assert data["text"] is not None
+        assert len(data["text"]) > 0
+
+    def test_bus_schedule_intent_classification(self):
+        """ChatbotEngine should classify route-number queries as bus_schedule_query."""
+        engine = ChatbotEngine(
+            bmtc_stops=["Majestic", "Silk Board"],
+            metro_stations=[],
+            poi_names=[],
+        )
+        matched = engine.extract_stops("what are the stops on route 500D?")
+        intent, params = engine.classify_intent("what are the stops on route 500D?", matched)
+        assert intent == "bus_schedule_query"
+        assert params.get("route_number") == "500D"
+
+    def test_bus_schedule_endpoint_by_route(self):
+        """API should handle bus route schedule queries without crashing."""
+        client = TestClient(app)
+        resp = client.post("/api/chatbot/query", json={
+            "message": "what are the stops on route 500D?"
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["intent"] == "bus_schedule_query"
+        assert data["text"] is not None
+
+    def test_bus_schedule_endpoint_src_dst(self):
+        """API should handle 'bus timings from X to Y' queries."""
+        client = TestClient(app)
+        resp = client.post("/api/chatbot/query", json={
+            "message": "bus timings from Majestic to Silk Board"
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["intent"] == "bus_schedule_query"
+        assert data["text"] is not None
+
+    def test_multimodal_journey_intent_classification(self):
+        """ChatbotEngine should classify multimodal queries correctly."""
+        engine = ChatbotEngine(
+            bmtc_stops=["Majestic", "Silk Board"],
+            metro_stations=["MG Road"],
+            poi_names=[],
+        )
+        matched = engine.extract_stops("show me a multimodal route from Majestic to Silk Board")
+        intent, params = engine.classify_intent(
+            "show me a multimodal route from Majestic to Silk Board", matched
+        )
+        assert intent == "multimodal_journey"
+        assert params.get("source") == "Majestic"
+        assert params.get("destination") == "Silk Board"
+
+    def test_multimodal_journey_endpoint(self):
+        """API should return multimodal plan for multimodal journey queries."""
+        client = TestClient(app)
+        resp = client.post("/api/chatbot/query", json={
+            "message": "show me a multimodal route from Majestic to Silk Board"
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["intent"] == "multimodal_journey"
+        assert data["text"] is not None
+
+    def test_journey_cost_includes_multimodal(self):
+        """journey_cost intent should include multimodal in embedded_data or text."""
+        client = TestClient(app)
+        resp = client.post("/api/chatbot/query", json={
+            "message": "how much does it cost from Majestic to Silk Board?"
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["intent"] in ("journey_cost", "journey_time", "possible_ways")
+        assert data["embedded_data"] is not None
+
+    def test_typo_tolerance_source_dest(self):
+        """ChatbotEngine should handle common typos in place names."""
+        engine = ChatbotEngine(
+            bmtc_stops=["Majestic", "Silk Board", "Indiranagar"],
+            metro_stations=["MG Road"],
+            poi_names=[],
+        )
+        # "silkboard" without space
+        matched = engine.extract_stops("from Majestic to silkboard")
+        assert any("Silk Board" in s or "silk" in s.lower() for s in matched)
+
+    def test_poi_restaurants_near_cubbon_park(self):
+        """poi_data.get_restaurants_near() should return restaurants near Cubbon Park."""
+        import sys
+        sys.path.insert(0, "backend")
+        import poi_data
+        recs = poi_data.get_restaurants_near(12.9763, 77.5929, radius_km=2.0)
+        assert len(recs) > 0
+        for r in recs:
+            assert "name" in r
+            assert "distance_km" in r
+            assert r["distance_km"] <= 2.0
+
+    def test_get_restaurants_returns_all(self):
+        """poi_data.get_restaurants() should return all restaurant POIs."""
+        import sys
+        sys.path.insert(0, "backend")
+        import poi_data
+        rests = poi_data.get_restaurants()
+        assert len(rests) >= 10  # We have 27 restaurants loaded
+        for r in rests:
+            assert r["category"] == "restaurant"
+            assert "lat" in r
+            assert "lng" in r

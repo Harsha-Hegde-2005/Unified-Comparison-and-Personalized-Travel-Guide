@@ -113,6 +113,21 @@ class TestMultimodalRouter:
         assert "results" in data
         assert "bmtc" in data["results"]
         assert "metro" in data["results"]
+        assert "multimodal" in data["results"]
+        assert data["results"]["multimodal"]["available"] is True
+
+    def test_multimodal_plan_on_direct_route(self):
+        # Majestic to Indiranagar has direct metro, but multimodal should still be available
+        resp = client.post("/api/compare", json={
+            "source": "Majestic",
+            "destination": "Indiranagar",
+            "preference": "cost"
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "multimodal" in data["results"]
+        assert data["results"]["multimodal"]["available"] is True
+        assert len(data["results"]["multimodal"]["all_options"]) > 0
 
 
 class TestBmtcNewEndpoints:
