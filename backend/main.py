@@ -3948,4 +3948,10 @@ def delete_user_document(doc_id: int, current_user: User = Depends(get_current_u
         
     db.delete(doc)
     db.commit()
-    return {"status": "success"} # trigger reload cabs, update reverse supplement config and reload uvicorn
+    return {"status": "success"}
+
+@app.get("/api/config/google-maps-key")
+def get_google_maps_key():
+    key = os.getenv("GOOGLE_MAPS_API_KEY") or os.getenv("VITE_GOOGLE_MAPS_API_KEY", "")
+    return {"key": key}
+
