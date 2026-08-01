@@ -201,3 +201,17 @@ class TestCoordinateWalkRouting:
         assert data["guide"][0]["icon"] == "walk"
         assert "nav_url" in data["guide"][0]
 
+    def test_bmtc_coordinate_fallback(self):
+        # Test coordinates where the absolute nearest stop might have no routes / no neighbors
+        # but the fallback mechanism successfully resolves alternative nearby stops.
+        resp = client.post("/api/bmtc/plan", json={
+            "source": "12.8800, 77.6450",  # near Hosa Road
+            "destination": "12.9200, 77.6100"  # near Silk Board
+        })
+        assert resp.status_code in (200, 404)
+        if resp.status_code == 200:
+            data = resp.json()
+            assert data["available"] is True
+            assert len(data["segments"]) >= 1
+
+

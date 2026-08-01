@@ -280,37 +280,13 @@ def _google_walk_distance(src_lat, src_lng, dst_lat, dst_lng) -> tuple[float, fl
 
 
 def find_nearest_bmtc_stop(lat: float, lng: float) -> tuple[str, float]:
+    """Return the single best-scored stop near (lat, lng)."""
+    candidates = find_top_nearby_bmtc_stops(lat, lng, n=1)
+    if candidates:
+        stop, dist, _ = candidates[0]
+        return stop, dist
+    # Ultimate fallback: absolute nearest regardless of routes
     from modes.bmtc.core.loader import canonical_stop_name
-    try:
-        from modes.bmtc.features.routing import _routes_by_stop
-    except Exception:
-        _routes_by_stop = {}
-
-    best_stop = None
-    best_score = -1.0
-    best_dist = 0.0
-    
-    # Evaluate candidates within 1.0 km
-    for norm, coords in STOP_COORDS.items():
-        dist = _haversine_km(lat, lng, coords["latitude"], coords["longitude"])
-        if dist > 1.0:
-            continue
-        
-        norm_key = norm.strip().lower()
-        route_count = len(_routes_by_stop.get(norm_key, []))
-        
-        # Scoring function: weight route count heavily while penalizing distance
-        score = (route_count + 0.1) / (1.0 + dist * 2.0)
-        
-        if score > best_score:
-            best_score = score
-            best_stop = canonical_stop_name(norm)
-            best_dist = dist
-            
-    if best_stop:
-        return best_stop, best_dist
-
-    # Fallback to absolute nearest stop
     min_dist = float('inf')
     best_stop = None
     for norm, coords in STOP_COORDS.items():
@@ -319,6 +295,61 @@ def find_nearest_bmtc_stop(lat: float, lng: float) -> tuple[str, float]:
             min_dist = dist
             best_stop = canonical_stop_name(norm)
     return best_stop, min_dist
+
+
+def find_top_nearby_bmtc_stops(lat: float, lng: float, n: int = 5) -> list[tuple[str, float, float]]:
+    """
+    Return up to *n* candidate BMTC stops near (lat, lng), sorted by a
+    route-count / distance score (best first).
+
+    Each element: (canonical_stop_name, distance_km, score)
+
+    Algorithm:
+      1. Score every stop within 1.5 km using route_count / (1 + dist*2).
+      2. If no stop is within 1.5 km, extend the search to the closest 10 stops
+         by raw distance (useful for areas at the city boundary).
+    """
+    from modes.bmtc.core.loader import canonical_stop_name
+    try:
+        from modes.bmtc.features.routing import _routes_by_stop
+    except Exception:
+        _routes_by_stop = {}
+
+    RADIUS_KM = 1.5  # primary search radius
+
+    scored: list[tuple[float, float, str]] = []  # (score, dist, canonical)
+
+    for norm, coords in STOP_COORDS.items():
+        dist = _haversine_km(lat, lng, coords["latitude"], coords["longitude"])
+        if dist > RADIUS_KM:
+            continue
+        norm_key = norm.strip().lower()
+        route_count = len(_routes_by_stop.get(norm_key, []))
+        score = (route_count + 0.1) / (1.0 + dist * 2.0)
+        canon = canonical_stop_name(norm)
+        scored.append((score, dist, canon))
+
+    if not scored:
+        # Outside city — fall back to nearest 10 stops by raw distance
+        all_stops = sorted(
+            ((  _haversine_km(lat, lng, c["latitude"], c["longitude"]),
+                canonical_stop_name(norm) )
+             for norm, c in STOP_COORDS.items()),
+            key=lambda x: x[0],
+        )[:10]
+        scored = [(0.0, d, name) for d, name in all_stops]
+
+    # Sort by score descending; deduplicate by canonical name
+    scored.sort(key=lambda x: -x[0])
+    seen: set[str] = set()
+    result: list[tuple[str, float, float]] = []
+    for score, dist, canon in scored:
+        if canon not in seen:
+            seen.add(canon)
+            result.append((canon, dist, score))
+        if len(result) >= n:
+            break
+    return result
 
 
 _METRO_COORDS_CACHE = {}
@@ -905,6 +936,71 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+    # ── Coordinate-based fallback: try alternative nearby stops ──────────────
+    # When either end was resolved from GPS coordinates, the primary stop may
+    # have no neighbours in _nearby_stops (graph proximity map) and yield 0
+    # results. Try the top-N candidates at each end until a route is found.
+    if not direct and not transfers and (src_coord or dst_coord):
+        MAX_ALT = 3  # how many alternative stops to try per side
+
+        src_candidates: list[tuple[str, float]] = [(source, start_walk_dist)]
+        if src_coord:
+            for alt_stop, alt_dist, _ in find_top_nearby_bmtc_stops(
+                    src_coord[0], src_coord[1], n=MAX_ALT + 1):
+                if alt_stop.lower() != source.lower():
+                    src_candidates.append((alt_stop, alt_dist))
+
+        dst_candidates: list[tuple[str, float]] = [(destination, end_walk_dist)]
+        if dst_coord:
+            for alt_stop, alt_dist, _ in find_top_nearby_bmtc_stops(
+                    dst_coord[0], dst_coord[1], n=MAX_ALT + 1):
+                if alt_stop.lower() != destination.lower():
+                    dst_candidates.append((alt_stop, alt_dist))
+
+        found = False
+        for alt_src, alt_src_dist in src_candidates:
+            if found:
+                break
+            for alt_dst, alt_dst_dist in dst_candidates:
+                if alt_src.lower() == source.lower() and alt_dst.lower() == destination.lower():
+                    continue  # already tried this combination
+                try:
+                    alt_direct, alt_transfers = get_all_buses_comprehensive(
+                        alt_src.strip().lower(), alt_dst.strip().lower(),
+                        max_transfer_options=max_options,
+                        departure_dt=dep_time,
+                        preference=req.preference
+                    )
+                except Exception:
+                    continue
+                if alt_direct or alt_transfers:
+                    direct, transfers = alt_direct, alt_transfers
+                    # Update resolved stop names & walk metrics
+                    source = alt_src
+                    src_norm = source.strip().lower()
+                    start_walk_dist = alt_src_dist
+                    if src_coord:
+                        wm = _google_walk_distance(
+                            src_coord[0], src_coord[1],
+                            *get_stop_coords(source)
+                        )
+                        start_walk_dist, start_walk_mins = wm if wm else (
+                            alt_src_dist, max(1, int(alt_src_dist * 12.5))
+                        )
+                    destination = alt_dst
+                    dst_norm = destination.strip().lower()
+                    end_walk_dist = alt_dst_dist
+                    if dst_coord:
+                        wm = _google_walk_distance(
+                            *get_stop_coords(destination),
+                            dst_coord[0], dst_coord[1]
+                        )
+                        end_walk_dist, end_walk_mins = wm if wm else (
+                            alt_dst_dist, max(1, int(alt_dst_dist * 12.5))
+                        )
+                    found = True
+                    break
 
     if not direct and not transfers:
         raise HTTPException(status_code=404,
