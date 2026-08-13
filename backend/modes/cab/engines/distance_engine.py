@@ -47,14 +47,11 @@ class DistanceEngine:
         from dotenv import load_dotenv
         load_dotenv(override=True)
         key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
-        if key and not DistanceEngine.google_maps_disabled:
+        if key:
             try:
                 return self._google(source_coords, destination_coords, key)
             except Exception as e:
                 print(f"Google Maps API failed: {e}. Falling back to OSRM.")
-                if "REQUEST_DENIED" in str(e) or "API key" in str(e) or "OVER_QUERY_LIMIT" in str(e):
-                    print("Google Maps API key is invalid or restricted. Disabling further Google Maps API requests.")
-                    DistanceEngine.google_maps_disabled = True
 
         try:
             return self._osrm(source_coords, destination_coords)

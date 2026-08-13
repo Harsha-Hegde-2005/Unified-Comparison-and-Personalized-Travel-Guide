@@ -221,6 +221,37 @@ def get_stop_coords(stop_name: str) -> tuple[float, float] | None:
         except Exception:
             pass
 
+    # 5. Fallback: Geocode lookup using Google Maps API or Photon OSM
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
+    if key:
+        try:
+            import requests as _req
+            q = f"{stop_name}, Bengaluru, India"
+            resp = _req.get("https://maps.googleapis.com/maps/api/geocode/json", params={"address": q, "key": key}, timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get("status") == "OK" and data.get("results"):
+                loc = data["results"][0]["geometry"]["location"]
+                return float(loc["lat"]), float(loc["lng"])
+        except Exception as e:
+            print(f"Google Geocoding error for {stop_name}: {e}")
+
+    try:
+        import requests as _req
+        q = f"{stop_name.strip()} Bengaluru"
+        url = f"https://photon.komoot.io/api/?q={_req.utils.quote(q)}&limit=1&bbox=77.3,12.7,77.8,13.2"
+        resp = _req.get(url, timeout=4)
+        resp.raise_for_status()
+        data = resp.json()
+        if data and "features" in data and len(data["features"]) > 0:
+            coords = data["features"][0].get("geometry", {}).get("coordinates", [])
+            if len(coords) >= 2:
+                return float(coords[1]), float(coords[0])
+    except Exception:
+        pass
+
     return None
 
 
@@ -501,9 +532,8 @@ def _haversine_road_km(lat1, lon1, lat2, lon2) -> float:
 
 def _google_road_distance(src_lat, src_lng, dst_lat, dst_lng) -> tuple[float, float] | None:
     """Returns (distance_km, duration_min) via Google Maps, or None."""
-    from modes.cab.engines.distance_engine import DistanceEngine
-    if DistanceEngine.google_maps_disabled:
-        return None
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
     key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
     if not key:
         return None
@@ -519,17 +549,17 @@ def _google_road_distance(src_lat, src_lng, dst_lat, dst_lng) -> tuple[float, fl
         )
         resp.raise_for_status()
         data = resp.json()
-        if data.get("status") == "REQUEST_DENIED":
-            print("Google Maps Road API failed: REQUEST_DENIED. Disabling Google Maps.")
-            DistanceEngine.google_maps_disabled = True
-            return None
-        el = data["rows"][0]["elements"][0]
-        if el["status"] != "OK":
-            return None
-        return (round(el["distance"]["value"] / 1000, 2),
-                round(el["duration"]["value"] / 60, 1))
-    except Exception:
-        return None
+        if data.get("status") == "OK" and data.get("rows"):
+            el = data["rows"][0]["elements"][0]
+            if el.get("status") == "OK":
+                return (round(el["distance"]["value"] / 1000, 2),
+                        round(el["duration"]["value"] / 60, 1))
+        elif data.get("status") != "OK":
+            print(f"Google Distance Matrix status: {data.get('status')} - {data.get('error_message', '')}")
+    except Exception as e:
+        print(f"Google Maps road distance error: {e}")
+    return None
+
 
 
 # ── Fallback cab/car estimates (no coordinates needed) ────────────────────────
@@ -2768,6 +2798,113 @@ def get_api_config():
     return {
         "google_maps_api_key": os.environ.get("GOOGLE_MAPS_API_KEY", "")
     }
+
+
+@app.get("/api/places/autocomplete")
+def places_autocomplete(query: str = ""):
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
+    
+    if not query.strip():
+        return {"suggestions": [], "source": "empty"}
+
+    if key:
+        try:
+            import requests as _req
+            url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
+            params = {
+                "input": query,
+                "components": "country:in",
+                "location": "12.9716,77.5946",
+                "radius": "40000",
+                "key": key
+            }
+            resp = _req.get(url, params=params, timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get("status") in ["OK", "ZERO_RESULTS"] and "predictions" in data:
+                suggestions = [
+                    {
+                        "placeId": p["place_id"],
+                        "mainText": p.get("structured_formatting", {}).get("main_text", p["description"]),
+                        "secondaryText": p.get("structured_formatting", {}).get("secondary_text", ""),
+                        "fullText": p["description"]
+                    }
+                    for p in data["predictions"]
+                ]
+                return {"suggestions": suggestions, "source": "google_places"}
+            elif data.get("status") not in ["OK", "ZERO_RESULTS"]:
+                print(f"Google Places Autocomplete status: {data.get('status')} - {data.get('error_message', '')}")
+        except Exception as e:
+            print(f"Google Places Autocomplete error: {e}")
+
+    # Fallback to Photon OSM search
+    try:
+        import requests as _req
+        q = f"{query.strip()} Bengaluru"
+        url = f"https://photon.komoot.io/api/?q={_req.utils.quote(q)}&limit=7&bbox=77.3,12.7,77.8,13.2"
+        resp = _req.get(url, timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
+        if data and "features" in data:
+            suggestions = []
+            for idx, f in enumerate(data["features"]):
+                props = f.get("properties", {})
+                coords = f.get("geometry", {}).get("coordinates", [77.5946, 12.9716])
+                name = props.get("name") or props.get("street") or query
+                area = ", ".join(filter(None, [props.get("street"), props.get("district"), props.get("city", "Bengaluru")]))
+                suggestions.append({
+                    "placeId": f"free_{props.get('osm_id', idx)}",
+                    "mainText": name,
+                    "secondaryText": area,
+                    "fullText": f"{name}, {area}",
+                    "lat": coords[1],
+                    "lng": coords[0]
+                })
+            return {"suggestions": suggestions, "source": "photon_osm"}
+    except Exception as ex:
+        print(f"Photon OSM search error: {ex}")
+
+    return {"suggestions": [], "source": "none"}
+
+
+@app.get("/api/places/details")
+def places_details(placeId: str):
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
+
+    if key and not placeId.startswith("free_"):
+        try:
+            import requests as _req
+            url = "https://maps.googleapis.com/maps/api/place/details/json"
+            params = {
+                "place_id": placeId,
+                "fields": "place_id,name,formatted_address,geometry",
+                "key": key
+            }
+            resp = _req.get(url, params=params, timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get("status") == "OK" and "result" in data:
+                res = data["result"]
+                loc = res.get("geometry", {}).get("location", {})
+                return {
+                    "details": {
+                        "placeId": res["place_id"],
+                        "name": res.get("name", ""),
+                        "formattedAddress": res.get("formatted_address", ""),
+                        "lat": loc.get("lat"),
+                        "lng": loc.get("lng")
+                    },
+                    "source": "google_places"
+                }
+        except Exception as e:
+            print(f"Google Place Details error: {e}")
+
+    return {"error": "Place details not found"}
+
 
 
 # ── Chatbot Endpoint ────────────────────────────────────────────────────────

@@ -10,13 +10,13 @@ def round2(n: float) -> float:
     return round(n, 2)
 
 EXACT_NAMMA_YATRI_RATES = [
-    { "vehicleType": "AUTO", "label": "Auto", "category": "auto", "capacity": 3, "minFare": 36, "minDistanceKm": 2, "slab1Rate": 18, "slab1EndKm": None, "slab2Rate": None, "pickupCharge": 0, "driverAdditions": 10, "priorityTip": 0, "icon": "🛺" },
-    { "vehicleType": "AUTO_PRIORITY", "label": "Auto Priority", "category": "auto", "capacity": 3, "minFare": 36, "minDistanceKm": 2, "slab1Rate": 18, "slab1EndKm": None, "slab2Rate": None, "pickupCharge": 0, "driverAdditions": 10, "priorityTip": 30, "icon": "🛺⚡" },
+    { "vehicleType": "AUTO", "label": "Auto (Easy Commute)", "category": "auto", "capacity": 3, "minFare": 36, "minDistanceKm": 2, "slab1Rate": 18, "slab1EndKm": None, "slab2Rate": None, "pickupCharge": 0, "driverAdditions": 10, "priorityTip": 0, "icon": "🛺" },
+    { "vehicleType": "AUTO_PRIORITY", "label": "Auto Priority", "category": "auto", "capacity": 3, "minFare": 36, "minDistanceKm": 2, "slab1Rate": 18, "slab1EndKm": None, "slab2Rate": None, "pickupCharge": 0, "driverAdditions": 10, "priorityTip": 30, "icon": "⚡🛺" },
     { "vehicleType": "NON_AC_CAB", "label": "Non-AC Cab", "category": "hatchback", "capacity": 4, "minFare": 85, "minDistanceKm": 4, "slab1Rate": 20, "slab1EndKm": 10, "slab2Rate": 16, "pickupCharge": 20, "driverAdditions": 0, "priorityTip": 0, "icon": "🚗" },
-    { "vehicleType": "AC_CAB", "label": "AC Cab", "category": "hatchback", "capacity": 4, "minFare": 100, "minDistanceKm": 4, "slab1Rate": 23, "slab1EndKm": 10, "slab2Rate": 18.4, "pickupCharge": 20, "driverAdditions": 0, "priorityTip": 0, "icon": "🚗❄️" },
-    { "vehicleType": "SEDAN_PREMIUM", "label": "Sedan Premium", "category": "sedan", "capacity": 4, "minFare": 121, "minDistanceKm": 4, "slab1Rate": 28.5, "slab1EndKm": 10, "slab2Rate": 22.5, "pickupCharge": 21, "driverAdditions": 0, "priorityTip": 0, "icon": "🚕" },
+    { "vehicleType": "AC_CAB", "label": "AC Cab", "category": "hatchback", "capacity": 4, "minFare": 100, "minDistanceKm": 4, "slab1Rate": 23, "slab1EndKm": 10, "slab2Rate": 18.4, "pickupCharge": 20, "driverAdditions": 0, "priorityTip": 0, "icon": "❄️🚗" },
+    { "vehicleType": "SEDAN_PREMIUM", "label": "Sedan Premium", "category": "sedan", "capacity": 4, "minFare": 121, "minDistanceKm": 4, "slab1Rate": 28.5, "slab1EndKm": 10, "slab2Rate": 22.5, "pickupCharge": 21, "driverAdditions": 0, "priorityTip": 0, "icon": "✨🚗" },
     { "vehicleType": "XL_CAB", "label": "XL Cab", "category": "suv", "capacity": 6, "minFare": 130, "minDistanceKm": 4, "slab1Rate": 30, "slab1EndKm": None, "slab2Rate": None, "pickupCharge": 40, "driverAdditions": 0, "priorityTip": 0, "icon": "🚙" },
-    { "vehicleType": "XL_PREMIUM", "label": "XL Premium", "category": "suv", "capacity": 6, "minFare": 150, "minDistanceKm": 4, "slab1Rate": 36, "slab1EndKm": None, "slab2Rate": None, "pickupCharge": 60, "driverAdditions": 0, "priorityTip": 0, "icon": "🚙✨" },
+    { "vehicleType": "XL_PREMIUM", "label": "XL Premium", "category": "suv", "capacity": 6, "minFare": 150, "minDistanceKm": 4, "slab1Rate": 36, "slab1EndKm": None, "slab2Rate": None, "pickupCharge": 60, "driverAdditions": 0, "priorityTip": 0, "icon": "❄️🚙" },
 ]
 
 OLA_TIER_CONFIGS = [
@@ -31,15 +31,29 @@ OLA_TIER_CONFIGS = [
 ]
 
 UBER_TIER_CONFIGS = [
-    { "tier": "moto", "tierLabel": "Uber Moto", "category": "bike", "tierDescription": "Affordable bike rides", "capacity": 1, "baseFare": 8, "perMinute": 0.75, "perKm": 9, "minimumFare": 35, "bookingFee": 5, "etaBaseMinutes": 2 },
-    { "tier": "auto", "tierLabel": "Uber Auto", "category": "auto", "tierDescription": "Pay directly to driver, cash/UPI only", "capacity": 3, "baseFare": 8, "perMinute": 1.0, "perKm": 13, "minimumFare": 50, "bookingFee": 10, "etaBaseMinutes": 2 },
-    { "tier": "gonoac", "tierLabel": "Go Non AC", "category": "hatchback", "tierDescription": "Everyday affordable rides", "capacity": 4, "baseFare": 15, "perMinute": 1.3, "perKm": 14, "minimumFare": 65, "bookingFee": 9, "etaBaseMinutes": 4 },
-    { "tier": "ubergoac", "tierLabel": "Uber Go AC", "category": "hatchback", "tierDescription": "Affordable compact AC rides", "capacity": 4, "baseFare": 20, "perMinute": 1.5, "perKm": 16, "minimumFare": 120, "bookingFee": 12, "etaBaseMinutes": 3 },
-    { "tier": "premierac", "tierLabel": "Premier AC", "category": "sedan", "tierDescription": "Comfortable sedans, top-quality drivers", "capacity": 4, "baseFare": 16, "perMinute": 2.5, "perKm": 28, "minimumFare": 290, "bookingFee": 18, "etaBaseMinutes": 3 },
-    { "tier": "comfort", "tierLabel": "Comfort", "category": "sedan", "tierDescription": "New Sedans, Highly rated drivers", "capacity": 4, "baseFare": 20, "perMinute": 2.0, "perKm": 24, "minimumFare": 260, "bookingFee": 15, "etaBaseMinutes": 2 },
-    { "tier": "uberxl", "tierLabel": "UberXL", "category": "suv", "tierDescription": "Affordable rides for groups up to 6", "capacity": 6, "baseFare": 100, "perMinute": 1.5, "perKm": 22, "minimumFare": 260, "bookingFee": 20, "etaBaseMinutes": 4 },
-    { "tier": "black", "tierLabel": "Uber Black", "category": "sedan", "tierDescription": "Elevated ride experience with top tier cars", "capacity": 4, "baseFare": 150, "perMinute": 3.0, "perKm": 35, "minimumFare": 350, "bookingFee": 25, "etaBaseMinutes": 1 },
-    { "tier": "blacksuv", "tierLabel": "Uber Black SUV", "category": "suv", "tierDescription": "Luxury SUV for groups up to 6", "capacity": 6, "baseFare": 200, "perMinute": 3.5, "perKm": 42, "minimumFare": 450, "bookingFee": 30, "etaBaseMinutes": 2 },
+    { "tier": "moto", "tierLabel": "Uber Moto", "category": "bike", "tierDescription": "Affordable bike rides", "capacity": 1, "baseFare": 8, "perMinute": 0.75, "perKm": 9, "minimumFare": 35, "bookingFee": 5, "etaBaseMinutes": 2, "icon": "🏍️" },
+    { "tier": "auto", "tierLabel": "Uber Auto", "category": "auto", "tierDescription": "Pay directly to driver, cash/UPI only", "capacity": 3, "baseFare": 8, "perMinute": 1.0, "perKm": 13, "minimumFare": 50, "bookingFee": 10, "etaBaseMinutes": 2, "icon": "🛺" },
+    { "tier": "gonoac", "tierLabel": "Go Non AC", "category": "hatchback", "tierDescription": "Everyday affordable rides", "capacity": 4, "baseFare": 15, "perMinute": 1.3, "perKm": 14, "minimumFare": 65, "bookingFee": 9, "etaBaseMinutes": 4, "icon": "🚗" },
+    { "tier": "ubergoac", "tierLabel": "Uber Go AC", "category": "hatchback", "tierDescription": "Affordable compact AC rides", "capacity": 4, "baseFare": 20, "perMinute": 1.5, "perKm": 16, "minimumFare": 120, "bookingFee": 12, "etaBaseMinutes": 3, "icon": "❄️🚗" },
+    { "tier": "premierac", "tierLabel": "Premier AC", "category": "sedan", "tierDescription": "Comfortable sedans, top-quality drivers", "capacity": 4, "baseFare": 16, "perMinute": 2.5, "perKm": 28, "minimumFare": 290, "bookingFee": 18, "etaBaseMinutes": 3, "icon": "⭐🚗" },
+    { "tier": "comfort", "tierLabel": "Comfort", "category": "sedan", "tierDescription": "New Sedans, Highly rated drivers", "capacity": 4, "baseFare": 20, "perMinute": 2.0, "perKm": 24, "minimumFare": 260, "bookingFee": 15, "etaBaseMinutes": 2, "icon": "🚘" },
+    { "tier": "uberxl", "tierLabel": "UberXL", "category": "suv", "tierDescription": "Affordable rides for groups up to 6", "capacity": 6, "baseFare": 100, "perMinute": 1.5, "perKm": 22, "minimumFare": 260, "bookingFee": 20, "etaBaseMinutes": 4, "icon": "🚙" },
+    { "tier": "black", "tierLabel": "Uber Black", "category": "sedan", "tierDescription": "Elevated ride experience with top tier cars", "capacity": 4, "baseFare": 150, "perMinute": 3.0, "perKm": 35, "minimumFare": 350, "bookingFee": 25, "etaBaseMinutes": 1, "icon": "🖤🚗" },
+    { "tier": "blacksuv", "tierLabel": "Uber Black SUV", "category": "suv", "tierDescription": "Luxury SUV for groups up to 6", "capacity": 6, "baseFare": 200, "perMinute": 3.5, "perKm": 42, "minimumFare": 450, "bookingFee": 30, "etaBaseMinutes": 2, "icon": "🖤🚙" },
+]
+
+RAPIDO_TIER_CONFIGS = [
+    { "id": "bike-direct", "label": "Bike Direct", "icon": "🏍️", "category": "bike", "capacity": 1, "baseFare": 25, "perKm": 6.0, "perMin": 1.0, "minFare": 30, "description": "Quick Bike rides" },
+    { "id": "scooty-direct", "label": "Scooty Direct", "icon": "🛵", "category": "bike", "capacity": 1, "baseFare": 30, "perKm": 7.0, "perMin": 1.07, "minFare": 35, "description": "Comfortable scooty ride" },
+    { "id": "bike-women", "label": "Bike – Women Preferred", "icon": "🏍️", "category": "bike", "capacity": 1, "baseFare": 25, "perKm": 6.0, "perMin": 1.0, "minFare": 30, "description": "Captains Rated by Women", "womenPreferred": True },
+    { "id": "auto-lite", "label": "Auto Lite", "icon": "🛺", "category": "auto", "capacity": 3, "baseFare": 30, "perKm": 11.1, "perMin": 0.5, "minFare": 50, "description": "Budget auto ride" },
+    { "id": "auto", "label": "Rapido Auto", "icon": "🛺", "category": "auto", "capacity": 3, "baseFare": 35, "perKm": 13.2, "perMin": 0.5, "minFare": 55, "description": "Shared or private auto" },
+    { "id": "auto-priority", "label": "Auto Priority", "icon": "⚡🛺", "category": "auto", "capacity": 3, "baseFare": 35, "perKm": 16.7, "perMin": 0.5, "minFare": 80, "description": "Fastest auto, priority matching", "priority": True },
+    { "id": "cab-non-ac", "label": "Cab Non AC", "icon": "🚗", "category": "hatchback", "capacity": 4, "baseFare": 40, "perKm": 14.9, "perMin": 0.75, "minFare": 70, "description": "Budget cab without AC" },
+    { "id": "cab-ac-priority", "label": "Cab AC Priority", "icon": "⚡🚗", "category": "hatchback", "capacity": 4, "baseFare": 45, "perKm": 17.2, "perMin": 0.75, "minFare": 90, "description": "Priority AC cab, faster pickup", "priority": True },
+    { "id": "cab-ac", "label": "Cab AC", "icon": "❄️🚗", "category": "hatchback", "capacity": 4, "baseFare": 40, "perKm": 16.5, "perMin": 0.75, "minFare": 85, "description": "Air-conditioned cab" },
+    { "id": "cab-premium", "label": "Cab Premium", "icon": "✨🚙", "category": "sedan", "capacity": 4, "baseFare": 50, "perKm": 19.75, "perMin": 1.0, "minFare": 110, "description": "Premium sedan experience" },
+    { "id": "cab-xl", "label": "Cab XL", "icon": "🚐", "category": "suv", "capacity": 6, "baseFare": 60, "perKm": 24.1, "perMin": 1.0, "minFare": 150, "description": "XL vehicle for groups" },
 ]
 
 
@@ -55,11 +69,15 @@ class FareEngine:
         self._reload_config()
 
     def _reload_config(self):
-        mtime = os.path.getmtime(self._fare_config_path)
+        mtime = os.path.getmtime(self._fare_config_path) if os.path.exists(self._fare_config_path) else None
         if mtime != self._fare_config_mtime:
-            with open(self._fare_config_path, "r", encoding="utf-8") as f:
-                self.config = json.load(f)
-            self.providers = self.config["providers"]
+            if os.path.exists(self._fare_config_path):
+                with open(self._fare_config_path, "r", encoding="utf-8") as f:
+                    self.config = json.load(f)
+                self.providers = self.config.get("providers", {})
+            else:
+                self.config = {"providers": {}}
+                self.providers = {}
             self._fare_config_mtime = mtime
 
     def is_night(self, current_time: datetime = None) -> bool:
@@ -84,6 +102,24 @@ class FareEngine:
             return 1.3
         if (10 <= hourIst < 12) or (20 <= hourIst < 23) or (7 <= hourIst < 8):
             return 1.1
+        return 1.0
+
+    def compute_rapido_surge(self, current_time: datetime = None) -> float:
+        if current_time is None:
+            current_time = datetime.now(IST)
+        elif current_time.tzinfo is None:
+            current_time = current_time.replace(tzinfo=IST)
+        else:
+            current_time = current_time.astimezone(IST)
+        hour = current_time.hour
+        is_morning_peak = 7 <= hour <= 10
+        is_evening_peak = 17 <= hour <= 21
+        is_night = hour >= 22 or hour < 5
+
+        if is_morning_peak or is_evening_peak:
+            return 1.5
+        if is_night:
+            return 1.2
         return 1.0
 
     def compute_ola_surge(self, current_time: datetime = None, weather: str = "clear", is_auto: bool = False) -> float:
@@ -121,10 +157,10 @@ class FareEngine:
     def get_all_fares_for_provider(self, provider_key: str, distance_km: float,
                                    duration_min: float, current_time: datetime = None,
                                    weather: str = "clear") -> list:
-        provider_key = provider_key.lower()
+        provider_key = provider_key.lower().replace("-", "_")
         results = []
         
-        if provider_key == "namma_yatri":
+        if provider_key in ["namma_yatri", "nammayatri"]:
             night = self.is_night(current_time)
             for cfg in EXACT_NAMMA_YATRI_RATES:
                 if cfg["category"] == "auto" and distance_km > 25.0:
@@ -155,7 +191,7 @@ class FareEngine:
                     
                 results.append({
                     "vehicle": cfg["label"],
-                    "description": "",
+                    "description": f"{cfg['category'].capitalize()} ride on Namma Yatri",
                     "capacity": cfg["capacity"],
                     "icon": cfg.get("icon", "🚗"),
                     "distance_km": distance_km,
@@ -211,7 +247,7 @@ class FareEngine:
                     "fare_min": fareMin,
                     "fare_max": fareMax,
                     "fare_display": f"Rs. {fareMin} - Rs. {fareMax}",
-                    "is_night": False,
+                    "is_night": self.is_night(current_time),
                     "surge": round2(surge),
                     "vtype": cfg["id"]
                 })
@@ -239,20 +275,54 @@ class FareEngine:
                     "vehicle": cfg["tierLabel"],
                     "description": cfg["tierDescription"],
                     "capacity": cfg["capacity"],
-                    "icon": "🚗",
+                    "icon": cfg.get("icon", "🚗"),
                     "distance_km": distance_km,
                     "duration_min": duration_min,
                     "fare_estimate": estimate,
                     "fare_min": round(fareMin),
                     "fare_max": round(fareMax),
                     "fare_display": f"Rs. {round(fareMin)} - Rs. {round(fareMax)}",
-                    "is_night": False,
+                    "is_night": self.is_night(current_time),
                     "surge": round2(surge),
                     "vtype": cfg["tier"]
                 })
 
+        elif provider_key == "rapido":
+            surge = self.compute_rapido_surge(current_time)
+            for cfg in RAPIDO_TIER_CONFIGS:
+                if cfg["category"] == "auto" and distance_km > 25.0:
+                    continue
+                if cfg["category"] == "bike" and distance_km > 15.0:
+                    continue
+
+                distanceFare = round2(distance_km * cfg["perKm"])
+                timeFare = round2(duration_min * cfg["perMin"])
+                rawFare = cfg["baseFare"] + distanceFare + timeFare
+                fareBeforeSurge = max(rawFare, cfg["minFare"])
+                totalAfterSurge = fareBeforeSurge * surge if surge > 1.0 else fareBeforeSurge
+                total = round(totalAfterSurge)
+
+                rangeDelta = max(5, round(total * 0.03))
+                fareMin = max(cfg["minFare"], math.floor((total - rangeDelta) / 5) * 5)
+                fareMax = math.ceil((total + rangeDelta) / 5) * 5
+
+                results.append({
+                    "vehicle": cfg["label"],
+                    "description": cfg["description"],
+                    "capacity": cfg["capacity"],
+                    "icon": cfg.get("icon", "🚗"),
+                    "distance_km": distance_km,
+                    "duration_min": duration_min,
+                    "fare_estimate": total,
+                    "fare_min": fareMin,
+                    "fare_max": fareMax,
+                    "fare_display": f"Rs. {fareMin} - Rs. {fareMax}",
+                    "is_night": self.is_night(current_time),
+                    "surge": round2(surge),
+                    "vtype": cfg["id"]
+                })
+
         else:
-            # Fallback for rapido and others if they exist in fare_config.json
             self._reload_config()
             if provider_key in self.providers:
                 vehicles = self.providers[provider_key]["vehicles"]
@@ -269,48 +339,16 @@ class FareEngine:
                     per_min_rate = cfg.get("per_min", 0.0)
             
                     billable_km = max(0.0, distance_km - base_dist)
-                    
-                    rate_tiers = cfg.get("rate_tiers", [])
-                    if rate_tiers:
-                        remaining = billable_km
-                        prev_boundary = 0
-                        distance_charge = 0.0
-                        for tier in rate_tiers:
-                            if remaining <= 0:
-                                break
-                            upto_km = tier.get("upto_km", float('inf'))
-                            rate = tier.get("rate", 0.0)
-                            band_size = upto_km - prev_boundary
-                            km_in_band = min(remaining, band_size)
-                            distance_charge += km_in_band * rate
-                            remaining -= km_in_band
-                            prev_boundary = upto_km
-                    else:
-                        distance_charge = billable_km * per_km_rate
-            
+                    distance_charge = billable_km * per_km_rate
                     distance_charge = round(distance_charge, 2)
                     duration_charge = round(duration_min * per_min_rate, 2)
             
                     pre_surge_subtotal = round(base_fare + distance_charge + duration_charge, 2)
-                    
-                    surge_mult_base = cfg.get("surge_multiplier", 1.0)
-                    is_auto = "auto" in vehicle_key or "bike" in vehicle_key
-                    surge_mult_dynamic = self.compute_ola_surge(current_time, weather, is_auto) # reuse ola surge loosely
-                    surge_mult = surge_mult_base * surge_mult_dynamic
+                    surge_mult = cfg.get("surge_multiplier", 1.0)
                     surge_amount = round(pre_surge_subtotal * (surge_mult - 1.0), 2)
-                    
-                    night_cfg = cfg.get("night_charge")
-                    night_active = False
-                    night_mult = 1.0
-                    if night_cfg and night_cfg.get("enabled", False):
-                        night_active = self.is_night(current_time)
-                        if night_active:
-                            night_mult = night_cfg.get("multiplier", 1.0)
-                    
-                    night_amount = round((pre_surge_subtotal + surge_amount) * (night_mult - 1.0), 2)
                     booking_fee = cfg.get("booking_fee", 0.0)
             
-                    raw_total = round(pre_surge_subtotal + surge_amount + night_amount + booking_fee, 2)
+                    raw_total = round(pre_surge_subtotal + surge_amount + booking_fee, 2)
                     min_fare = cfg.get("min_fare", 0.0)
                     estimate = round(max(raw_total, min_fare))
                     buf = cfg.get("fare_range_buffer", 10)
@@ -326,9 +364,10 @@ class FareEngine:
                         "fare_min":      estimate,
                         "fare_max":      estimate + buf,
                         "fare_display":  f"Rs. {estimate} - Rs. {estimate + buf}",
-                        "is_night":      night_active,
+                        "is_night":      self.is_night(current_time),
                         "surge":         round(surge_mult, 2),
                         "vtype":         cfg.get("vtype", "")
                     })
 
         return sorted(results, key=lambda x: x["fare_min"])
+

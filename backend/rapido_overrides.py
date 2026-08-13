@@ -61,16 +61,9 @@ def _load_benchmark():
     return _benchmark_data
 
 def get_rapido_benchmark_override(src_lat: float, src_lng: float, dst_lat: float, dst_lng: float, dep_time: datetime) -> list | None:
-    # 1. Match route_id based on coordinates (threshold ~500m / 0.005 degrees)
-    matched_route_id = None
-    for route_id, src, dst in BENCHMARK_ROUTES:
-        if abs(src_lat - src[0]) < 0.005 and abs(src_lng - src[1]) < 0.005:
-            if abs(dst_lat - dst[0]) < 0.005 and abs(dst_lng - dst[1]) < 0.005:
-                matched_route_id = route_id
-                break
-                
-    if matched_route_id is None:
-        return None
+    # Always return None to allow dynamic FareEngine calculations based on original formulas
+    return None
+
 
     # Convert dep_time to IST
     if dep_time.tzinfo is None:
