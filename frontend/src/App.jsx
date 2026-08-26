@@ -662,6 +662,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
         mapTypeControl: false,
         streetViewControl: false,
       });
+      window.gMapInstance = mapRef.current;
     }
     const map = mapRef.current;
 
@@ -758,6 +759,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
 
         const osmMap = window.L.map(ref.current).setView([12.9716, 77.5946], 12);
         osmMapRef.current = osmMap;
+        window.osmMapInstance = osmMap;
 
         window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
           attribution: '&copy; OpenStreetMap &copy; CartoDB',
@@ -4748,25 +4750,37 @@ function ComparisonDashboard({ data, onSelectRoute }) {
   const modeIcons = {
     bmtc: "🚌",
     metro: "🚇",
-    cab: "🚖",
+    multimodal: "🔀",
+    ola: "🚕",
+    uber: "🚙",
+    rapido: "🏍️",
+    namma_yatri: "🛺",
     car: "🚗",
-    multimodal: "🔀"
+    bike: "🛵"
   };
 
   const modeLabels = {
     bmtc: "BMTC Bus",
     metro: "Namma Metro",
-    cab: "Cab / Auto",
-    car: "Personal Vehicle",
-    multimodal: "Multimodal"
+    multimodal: "Bus + Metro",
+    ola: "Ola Cab",
+    uber: "Uber Cab",
+    rapido: "Rapido Ride",
+    namma_yatri: "Namma Yatri",
+    car: "Personal Car",
+    bike: "Personal Bike"
   };
 
   const modeColors = {
     bmtc: "#3b82f6",
     metro: "#10b981",
-    cab: "#a855f7",
-    car: "#f97316",
-    multimodal: "#ec4899"
+    multimodal: "#ec4899",
+    ola: "#f5c518",
+    uber: "#e0e0e0",
+    rapido: "#a855f7",
+    namma_yatri: "#f97316",
+    car: "#22c55e",
+    bike: "#14b8a6"
   };
 
   return (
@@ -4793,9 +4807,9 @@ function ComparisonDashboard({ data, onSelectRoute }) {
               onClick={() => setExpandedMode(isExpanded ? null : opt.mode)}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 18 }}>{modeIcons[opt.mode]}</span>
+                <span style={{ fontSize: 18 }}>{modeIcons[opt.mode] || "🚗"}</span>
                 <span style={{ fontSize: 13, fontWeight: 800, color: "#ffffff" }}>
-                  {modeLabels[opt.mode]}
+                  {modeLabels[opt.mode] || opt.mode}
                 </span>
                 {opt.score && (
                   <span style={{
@@ -4829,9 +4843,18 @@ function ComparisonDashboard({ data, onSelectRoute }) {
               color: "#94a3b8"
             }}>
               <div>🕒 <strong>{opt.time} min</strong></div>
-              <div>🔄 <strong>{opt.transfers} trans</strong></div>
-              <div>🚶 <strong>{opt.walking_distance} km</strong></div>
-              <div style={{ gridColumn: "span 3" }}>🌿 CO₂: <strong>{(opt.co2_kg * 1000).toFixed(0)}g CO₂</strong></div>
+              <div>📏 <strong>{opt.details?.distance || opt.walking_distance || 0} km</strong></div>
+              {(opt.mode === "car" || opt.mode === "bike") ? (
+                <div>⛽ <strong>{opt.details?.fuel_needed || opt.fuel_needed || 0} L</strong></div>
+              ) : (
+                <div>🚶 <strong>{opt.walking_distance || 0} km</strong></div>
+              )}
+              <div style={{ gridColumn: "span 3", display: "flex", justifyContent: "space-between" }}>
+                <span>🌿 CO₂: <strong>{((opt.co2_kg || 0) * 1000).toFixed(0)}g CO₂</strong></span>
+                {(opt.mode === "car" || opt.mode === "bike") && (
+                  <span style={{ fontSize: 8.5, color: "#f5c518", fontWeight: 700 }}>* Estimated</span>
+                )}
+              </div>
             </div>
 
             {/* Explanation and Buttons */}
@@ -4885,20 +4908,76 @@ function ComparisonDashboard({ data, onSelectRoute }) {
   );
 }
 
-function NearbyPlacesDashboard({ data }) {
-  const [activeTab, setActiveTab] = useState("restaurant");
-
+function NearbyPlacesDashboard({ data, onSelectPlace }) {
   if (!data || !data.places) return null;
 
   const places = data.places;
-  const filteredPlaces = places.filter(p => {
-    const category = p.category.toLowerCase();
-    if (activeTab === "restaurant") {
-      return category.includes("restaurant") || category.includes("food") || category.includes("cafe") || category.includes("pub") || category.includes("bar");
-    } else {
-      return !(category.includes("restaurant") || category.includes("food") || category.includes("cafe") || category.includes("pub") || category.includes("bar"));
+
+  const handleViewOnMap = (p) => {
+    if (window.google && window.gMapInstance) {
+      const pos = new window.google.maps.LatLng(p.lat, p.lng);
+      window.gMapInstance.setCenter(pos);
+      window.gMapInstance.setZoom(16);
+      
+      if (window.tempMarker) {
+        window.tempMarker.setMap(null);
+      }
+      window.tempMarker = new window.google.maps.Marker({
+        position: pos,
+        map: window.gMapInstance,
+        title: p.name,
+        animation: window.google.maps.Animation.DROP
+      });
+      
+      const infoWindow = new window.google.maps.InfoWindow({
+        content: `<div style="color: black; font-weight: bold; padding: 4px;">${p.name}</div>`
+      });
+      infoWindow.open(window.gMapInstance, window.tempMarker);
+    } else if (window.osmMapInstance) {
+      const map = window.osmMapInstance;
+      map.setView([p.lat, p.lng], 16);
+      if (window.tempMarker) {
+        map.removeLayer(window.tempMarker);
+      }
+      if (window.L) {
+        window.tempMarker = window.L.marker([p.lat, p.lng]).addTo(map)
+          .bindPopup(`<div style="color: black; font-weight: bold;">${p.name}</div>`)
+          .openPopup();
+      }
     }
-  });
+  };
+
+  const handleGetDirections = (p) => {
+    if (onSelectPlace) {
+      onSelectPlace(p);
+    }
+  };
+
+  const categoryEmojis = {
+    restaurant: "🍔",
+    cafe: "☕",
+    hotel: "🏨",
+    hospital: "🏥",
+    mall: "🛍️",
+    atm: "🏧",
+    petrol_pump: "⛽",
+    bus_stop: "🚌",
+    metro_station: "🚇",
+    attraction: "🏛️"
+  };
+
+  const categoryLabels = {
+    restaurant: "Restaurant",
+    cafe: "Cafe",
+    hotel: "Hotel",
+    hospital: "Hospital",
+    mall: "Shopping Mall",
+    atm: "ATM",
+    petrol_pump: "Petrol Pump",
+    bus_stop: "Bus Stop",
+    metro_station: "Metro Station",
+    attraction: "Tourist Attraction"
+  };
 
   return (
     <div style={{
@@ -4909,75 +4988,102 @@ function NearbyPlacesDashboard({ data }) {
       marginTop: 8,
       width: "100%"
     }}>
-      <div style={{ fontSize: 11, fontWeight: 800, color: "#3b82f6", textTransform: "uppercase", marginBottom: 8 }}>
-        📍 Nearby Recommendations ({data.location})
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: "#3b82f6", textTransform: "uppercase" }}>
+          📍 Explore Near {data.location || "Destination"}
+        </div>
+        {!data.is_live && (
+          <span style={{ fontSize: 8.5, color: "#f5c518", fontWeight: 700, background: "#f5c51815", padding: "2px 6px", borderRadius: 4 }}>
+            Estimated Fallback
+          </span>
+        )}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 10, background: "#08090f", borderRadius: 8, padding: 2 }}>
-        <button
-          onClick={() => setActiveTab("restaurant")}
-          style={{
-            flex: 1,
-            padding: "6px 10px",
-            background: activeTab === "restaurant" ? "#272a3d" : "transparent",
-            border: "none",
-            borderRadius: 6,
-            color: activeTab === "restaurant" ? "#ffffff" : "#64748b",
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            transition: "all 0.2s"
-          }}
-        >
-          🍔 Food & Cafe
-        </button>
-        <button
-          onClick={() => setActiveTab("places")}
-          style={{
-            flex: 1,
-            padding: "6px 10px",
-            background: activeTab === "places" ? "#272a3d" : "transparent",
-            border: "none",
-            borderRadius: 6,
-            color: activeTab === "places" ? "#ffffff" : "#64748b",
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            transition: "all 0.2s"
-          }}
-        >
-          🏛️ Attractions & Malls
-        </button>
-      </div>
-
-      {/* Places List */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 180, overflowY: "auto", paddingRight: 4 }}>
-        {filteredPlaces.length === 0 ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
+        {places.length === 0 ? (
           <div style={{ fontSize: 11, color: "#64748b", textAlign: "center", padding: "10px 0" }}>
-            No nearby options found for this category.
+            No nearby options found.
           </div>
         ) : (
-          filteredPlaces.map((p, idx) => (
+          places.map((p, idx) => (
             <div key={idx} style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: 8,
               background: "#08090f",
-              borderRadius: 8,
-              fontSize: 11
+              borderRadius: 10,
+              padding: 10,
+              fontSize: 11,
+              border: "1px solid #1e2440",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6
             }}>
-              <div style={{ paddingRight: 8 }}>
-                <div style={{ fontWeight: 800, color: "#ffffff" }}>{p.name}</div>
-                <div style={{ fontSize: 9.5, color: "#64748b", marginTop: 2 }}>
-                  {p.category} · {p.address}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontWeight: 800, color: "#ffffff", fontSize: 12 }}>{p.name}</div>
+                  <div style={{ fontSize: 9.5, color: "#64748b", marginTop: 2 }}>
+                    {categoryEmojis[p.category] || "📍"} {categoryLabels[p.category] || p.category}
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                  <span style={{ fontWeight: 700, color: "#3b82f6", fontSize: 11 }}>
+                     {p.distance_km || p.distance} km
+                  </span>
+                  {p.rating && (
+                    <span style={{ color: "#f5c518", fontWeight: 700, fontSize: 9.5 }}>
+                      ⭐ {p.rating}
+                    </span>
+                  )}
+                  {p.open_now !== undefined && p.open_now !== null && (
+                    <span style={{ fontSize: 8.5, color: p.open_now ? "#10b981" : "#ef4444", fontWeight: 800 }}>
+                      {p.open_now ? "🟢 OPEN NOW" : "🔴 CLOSED"}
+                    </span>
+                  )}
                 </div>
               </div>
-              <div style={{ fontWeight: 700, color: "#3b82f6", whiteSpace: "nowrap" }}>
-                🚶 {p.distance} km
+
+              {p.address && (
+                <div style={{ fontSize: 10, color: "#94a3b8", display: "flex", gap: 4, alignItems: "center" }}>
+                  <span>📍</span>
+                  <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", maxWidth: 220 }}>
+                    {p.address}
+                  </span>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                <button
+                  onClick={() => handleViewOnMap(p)}
+                  style={{
+                    flex: 1,
+                    padding: "5px 10px",
+                    background: "#1e293b",
+                    border: "1px solid #334155",
+                    borderRadius: 6,
+                    color: "#ffffff",
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: "inherit"
+                  }}
+                >
+                  View on Map 🗺️
+                </button>
+                <button
+                  onClick={() => handleGetDirections(p)}
+                  style={{
+                    flex: 1,
+                    padding: "5px 10px",
+                    background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+                    border: "none",
+                    borderRadius: 6,
+                    color: "#ffffff",
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    fontFamily: "inherit"
+                  }}
+                >
+                  Get Directions ➡️
+                </button>
               </div>
             </div>
           ))
@@ -4987,7 +5093,7 @@ function NearbyPlacesDashboard({ data }) {
   );
 }
 
-function ChatbotWidget({ triggerSearch, setSelected }) {
+function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
@@ -5014,13 +5120,36 @@ function ChatbotWidget({ triggerSearch, setSelected }) {
     setInput("");
     setLoading(true);
 
+    let latitude = null;
+    let longitude = null;
+    
+    const lowerText = text.toLowerCase();
+    const needsLocation = lowerText.includes("near me") || lowerText.includes("restaurants near") || lowerText.includes("cafe near") || lowerText.includes("hospital near") || lowerText.includes("places near");
+
+    if (needsLocation && navigator.geolocation) {
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            timeout: 5000,
+            maximumAge: 60000
+          });
+        });
+        latitude = position.coords.latitude;
+        longitude = position.coords.longitude;
+      } catch (err) {
+        console.warn("Geolocation query error:", err);
+      }
+    }
+
     try {
       const response = await fetch(`${API_BASE}/api/chatbot/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
-          history: messages.map(m => ({ sender: m.sender, text: m.text }))
+          history: messages.map(m => ({ sender: m.sender, text: m.text })),
+          latitude,
+          longitude
         }),
       });
 
@@ -5053,6 +5182,17 @@ function ChatbotWidget({ triggerSearch, setSelected }) {
         setSelected(mode);
       });
     }
+  };
+
+  const handleSelectPlace = (p, embedded_data) => {
+    let startLoc = src || "Majestic";
+    if (embedded_data && embedded_data.source) {
+      startLoc = embedded_data.source;
+    }
+    const destLoc = `${p.name} (${p.lat}, ${p.lng})`;
+    if (setSrc) setSrc(startLoc);
+    if (setDst) setDst(destLoc);
+    triggerSearch(startLoc, destLoc);
   };
 
   const handleCardClick = (msg) => {
@@ -5215,11 +5355,61 @@ function ChatbotWidget({ triggerSearch, setSelected }) {
                   </div>
 
                   {m.sender === "bot" && m.embedded_data && m.embedded_data.type === "comparison" && (
-                    <ComparisonDashboard data={m.embedded_data} onSelectRoute={(mode) => handleSelectRoute(mode, m.embedded_data)} />
+                    <>
+                      <ComparisonDashboard data={m.embedded_data} onSelectRoute={(mode) => handleSelectRoute(mode, m.embedded_data)} />
+                      
+                      {/* Explore nearby category buttons row */}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                        {[
+                          { label: "🏛️ Tourist Spots", cat: "attraction" },
+                          { label: "🍔 Restaurants", cat: "restaurant" },
+                          { label: "☕ Cafes", cat: "cafe" },
+                          { label: "🏨 Hotels", cat: "hotel" },
+                          { label: "🛍️ Shopping", cat: "mall" },
+                          { label: "🏥 Hospitals", cat: "hospital" }
+                        ].map((item) => (
+                          <button
+                            key={item.cat}
+                            onClick={() => {
+                              const query = `Explore ${item.cat} near ${m.embedded_data.destination}`;
+                              sendMessage(query);
+                            }}
+                            style={{
+                              padding: "6px 12px",
+                              background: "#1e293b",
+                              border: "1px solid #334155",
+                              borderRadius: 20,
+                              color: "#e2e8f0",
+                              fontSize: 10.5,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              transition: "all 0.2s",
+                              fontFamily: "inherit"
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = "#273549"}
+                            onMouseLeave={(e) => e.currentTarget.style.background = "#1e293b"}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Display places if this is a combined travel + nearby query */}
+                      {m.embedded_data.places && m.embedded_data.places.length > 0 && (
+                        <NearbyPlacesDashboard
+                          data={{
+                            places: m.embedded_data.places,
+                            location: m.embedded_data.destination,
+                            is_live: !m.embedded_data.is_estimated
+                          }}
+                          onSelectPlace={(p) => handleSelectPlace(p, m.embedded_data)}
+                        />
+                      )}
+                    </>
                   )}
 
                   {m.sender === "bot" && m.embedded_data && m.embedded_data.type === "nearby_places" && (
-                    <NearbyPlacesDashboard data={m.embedded_data} />
+                    <NearbyPlacesDashboard data={m.embedded_data} onSelectPlace={(p) => handleSelectPlace(p, m.embedded_data)} />
                   )}
 
                   {/* Embedded cards for different intents */}
@@ -7677,7 +7867,7 @@ export default function App() {
         )}
         </main>
       </div>
-      <ChatbotWidget triggerSearch={triggerSearch} setSelected={setSelected} />
+      <ChatbotWidget triggerSearch={triggerSearch} setSelected={setSelected} setSrc={setSrc} setDst={setDst} src={src} />
 
       {/* SETTINGS MODAL */}
       {showSettings && (

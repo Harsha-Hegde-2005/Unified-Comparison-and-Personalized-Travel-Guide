@@ -137,6 +137,7 @@ def main():
 
     total_predictions = 0
     total_absolute_pct_error = 0.0
+    provider_errors = {}
 
     print("\nGenerating 200 random coordinate trips...")
     
@@ -186,10 +187,24 @@ def main():
                 total_absolute_pct_error += absolute_pct_error
                 total_predictions += 1
 
+                # Collect per provider
+                if provider_key not in provider_errors:
+                    provider_errors[provider_key] = []
+                provider_errors[provider_key].append(absolute_pct_error)
+
     # Calculate MAPE
     if total_predictions == 0:
         print("Error: No predictions generated.")
         sys.exit(1)
+
+    print("\n" + "=" * 60)
+    print(f"{'PROVIDER':<15} | {'SIMULATIONS':<12} | {'MAPE (%)':<10} | {'ACCURACY (%)':<12}")
+    print("=" * 60)
+    for p_key, errs in provider_errors.items():
+        p_mape = (sum(errs) / len(errs)) * 100
+        p_acc = 100.0 - p_mape
+        print(f"{p_key:<15} | {len(errs):<12} | {p_mape:.2f}% | {p_acc:.2f}%")
+    print("=" * 60)
 
     mape = (total_absolute_pct_error / total_predictions) * 100
     accuracy = 100.0 - mape
@@ -210,3 +225,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

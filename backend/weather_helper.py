@@ -53,7 +53,8 @@ def get_realtime_weather(target_time: Optional[datetime] = None) -> str:
         target_time = datetime.now()
         
     # Check if target_time is within 7 days from now (Open-Meteo standard forecast window)
-    now = datetime.now()
+    tz = target_time.tzinfo
+    now = datetime.now(tz) if tz else datetime.now()
     if abs((target_time - now).days) > 6:
         # Out of forecast range, default directly to mock fallback
         return get_simulated_weather_fallback(target_time)

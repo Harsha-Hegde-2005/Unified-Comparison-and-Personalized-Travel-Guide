@@ -22,7 +22,17 @@ _STOPWORDS = {
     "traveling", "travelled", "traveler", "commuter", "commute", "way", "ways",
 }
 
-MODE_LABELS = {"bmtc": "BMTC Bus", "metro": "Namma Metro", "cab": "Cab / Auto", "car": "Personal Vehicle"}
+MODE_LABELS = {
+    "bmtc": "BMTC Bus",
+    "metro": "Namma Metro",
+    "multimodal": "Bus + Metro",
+    "ola": "Ola Cab",
+    "uber": "Uber Cab",
+    "rapido": "Rapido Ride",
+    "namma_yatri": "Namma Yatri",
+    "car": "Personal Car",
+    "bike": "Personal Bike"
+}
 
 # A handful of BMTC stop entries in the raw dataset are just generic single
 # words (data artifacts, e.g. a stop literally named "Metro" or "Church")
@@ -76,6 +86,7 @@ class ChatbotEngine:
             "- \"journey_time\": User wants to travel between locations — fastest route, any mode.\n"
             "- \"journey_cost\": User asks about public transit (bus/metro) fares or general/comparative route costs.\n"
             "- \"budget_constrained\": User wants to travel under a specific budget.\n"
+            "- \"budget_explore\": User wants to explore what destinations they can travel to within a budget (no destination specified). Extract budget.\n"
             "- \"possible_ways\": User wants ALL modes/routes compared.\n"
             "- \"ride_cost\": User asks specifically about cab, taxi, auto, Ola, Uber, Namma Yatri, or Rapido ride-hailing fares. Extract source+destination.\n"
             "- \"fuel_cost\": User asks about fuel/petrol/diesel or private vehicle cost. Extract source, destination, vehicle_type.\n"
@@ -84,12 +95,14 @@ class ChatbotEngine:
             "- \"multimodal_journey\": User asks for Bus+Metro combined route.\n"
             "- \"weather_query\": User asks about weather or rain forecast.\n"
             "- \"vehicle_vs_transit\": User wants to compare driving vs public transit.\n"
-            "- \"nearby_pois\": User wants to find nearby places, restaurants, cafes, attractions, hotels, or other POIs. Extract location and poi_type ('restaurant', 'cafe', 'attraction', 'places').\n"
+            "- \"nearby_pois\": User wants to find nearby places, restaurants, cafes, attractions, hotels, or other POIs. Extract location and poi_type/explore_category.\n"
+            "- \"multi_stop_itinerary\": User wants to plan a trip to multiple waypoints (3 or more locations). Extract waypoints array.\n"
+            "- \"bus_schedule_query\": User asks about bus routes, route stops, or bus schedules/timings. Extract route_number, source, destination.\n"
             "- \"general\": General transit rules, Metro timings, greetings, help.\n"
             "- \"clarification\": Journey intent but source or destination is missing.\n\n"
             "RULES:\n"
-            "1. Support multi-stop journeys: For journeys with 3 to 5 destinations, extract all destinations in order into the 'stops' parameter array.\n"
-            "2. For nearby_pois: extract the center location into 'location' and the type of places (e.g. 'restaurant', 'cafe', 'attraction') into 'poi_type'.\n"
+            "1. Support multi-stop journeys: For journeys with 3 to 5 destinations, extract all destinations in order into the 'waypoints' parameter array.\n"
+            "2. For nearby_pois or travel queries that also ask for nearby items, extract the center location into 'location' and set 'explore_category' to one of: 'restaurant', 'cafe', 'attraction', 'hotel', 'hospital', 'mall', 'petrol_pump', 'atm', 'bus_stop', 'metro_station'.\n"
             "3. Output MUST be a single JSON object matching the structure below.\n\n"
             "Output structure:\n"
             "{\n"
@@ -98,8 +111,11 @@ class ChatbotEngine:
             "    \"source\": \"string or null\",\n"
             "    \"destination\": \"string or null\",\n"
             "    \"stops\": [\"string\"] or null,\n"
+            "    \"waypoints\": [\"string\"] or null,\n"
+            "    \"route_number\": \"string or null\",\n"
             "    \"location\": \"string or null\",\n"
             "    \"poi_type\": \"string or null\",\n"
+            "    \"explore_category\": \"string or null\",\n"
             "    \"time\": \"string or null\",\n"
             "    \"budget\": 0,\n"
             "    \"vehicle_type\": \"string or null\",\n"
@@ -520,32 +536,121 @@ class ChatbotEngine:
         text_lower = text.lower()
         params: Dict[str, Any] = {}
 
+        # Resolve source and destination early to distinguish routing requests
+        src, dst = self.determine_source_dest(matched_stops, text)
+
         # Keep original message for general replies
         params["message"] = raw_text
 
-        # 0. Check for multi-stop journey first
-        if len(matched_stops) >= 3:
-            params["stops"] = matched_stops
-            params["source"] = matched_stops[0]
-            params["destination"] = matched_stops[-1]
-            return "possible_ways", params
+        # Declare standard POI categories mapping
+        poi_keywords = {
+            "restaurant": ["restaurant", "food", "eat", "dining", "diner", "meals", "fast food", "vegetarian restaurant", "restaurants"],
+            "cafe": ["cafe", "coffee", "tea", "starbucks", "cafes"],
+            "hotel": ["hotel", "stay", "lodging", "inn", "hostel", "pg", "hotels"],
+            "hospital": ["hospital", "clinic", "medical", "doctor", "pharmacy", "chemist", "hospitals"],
+            "mall": ["mall", "shopping", "store", "shop", "supermarket", "malls"],
+            "atm": ["atm", "cash", "bank", "atms"],
+            "petrol_pump": ["petrol", "fuel", "diesel", "cng", "gas station", "petrol pump", "petrol pumps"],
+            "bus_stop": ["bus stop", "bus stand", "bus depot", "bus stops"],
+            "metro_station": ["metro station", "metro stations"],
+            "attraction": ["tourist", "attraction", "sightseeing", "places to visit", "park", "museum", "temple", "church", "monument", "palace", "attractions", "tourist spot", "tourist spots"]
+        }
+
+        # 0. Check for multi-stop journey or itinerary planner
+        has_itinerary_cue = any(k in text_lower for k in [
+            "plan a trip", "day trip", "day plan", "one-day", "one day", "itinerary", "visit 3", "visit 4", "visit 5", "visit several", "places to cover", "places to visit"
+        ])
+        if len(matched_stops) >= 3 or has_itinerary_cue:
+            wps = []
+            for s in matched_stops:
+                if s not in wps:
+                    wps.append(s)
+            if not wps:
+                for poi in self.poi_names:
+                    if poi.lower() in text_lower and poi not in wps:
+                        wps.append(poi)
+            if not wps:
+                wps = ["Bangalore Palace", "Cubbon Park", "Lalbagh Botanical Garden"]
+            params["waypoints"] = wps
+            params["source"] = wps[0]
+            params["destination"] = wps[-1]
+            return "multi_stop_itinerary", params
+
+        # 0.0.1. Check for bus route schedule timetable queries
+        route_match = re.search(r'\b(?:route\s+)?(\d{3}[a-zA-Z]?)\b', text_lower)
+        is_timetable_query = any(k in text_lower for k in ["timetable", "schedule", "timings", "timing", "stops on", "route stops"])
+        
+        # Prevent numbers that represent budgets, places, hours etc. from being matched as route numbers
+        if route_match:
+            val = route_match.group(1)
+            val_idx = text_lower.find(val)
+            before = text_lower[max(0, val_idx - 10):val_idx].strip()
+            after = text_lower[val_idx + len(val):val_idx + len(val) + 15].strip()
+            is_budget_or_count = (
+                any(k in before for k in ["₹", "rs", "rupees", "budget", "under", "inr"]) or
+                any(k in after for k in ["rupees", "rs", "inr", "places", "stops", "attractions", "hours", "hrs", "people"])
+            )
+            if is_budget_or_count:
+                route_match = None
+
+        if route_match or (is_timetable_query and any(k in text_lower for k in ["bus", "bmtc"])):
+            if route_match:
+                params["route_number"] = route_match.group(1).upper()
+            src_test, dst_test = self.determine_source_dest(matched_stops, text)
+            params["source"] = src_test
+            params["destination"] = dst_test
+            return "bus_schedule_query", params
+
+        # 0.0.2. Check for multimodal Bus+Metro combination route query
+        if any(k in text_lower for k in ["multimodal", "combo", "combined", "bus and metro", "bus + metro", "transit combination"]):
+            src_test, dst_test = self.determine_source_dest(matched_stops, text)
+            params["source"] = src_test
+            params["destination"] = dst_test
+            return "multimodal_journey", params
 
         # 0.1. Check for nearby POIs/places/restaurants
-        is_nearby_request = any(k in text_lower for k in ["restaurant", "cafe", "food", "eat", "dining", "diner", "places to visit", "attractions", "sightseeing", "places to see", "tourist spot", "nearby places", "places near"])
+        is_nearby_request = False
+        detected_category = None
+        for cat, keywords in poi_keywords.items():
+            if any(k in text_lower for k in keywords):
+                is_nearby_request = True
+                detected_category = cat
+                break
+
+        # Also check general words like "nearby", "near me", "explore near"
+        if not is_nearby_request:
+            if any(k in text_lower for k in ["nearby", "near me", "places near", "explore near", "explore nearby"]):
+                is_nearby_request = True
+                detected_category = "attraction"
+
+        if is_nearby_request and detected_category in ("bus_stop", "metro_station") and any(k in text_lower for k in ["nearest", "closest"]):
+            is_nearby_request = False
+
+        if is_nearby_request and src and dst:
+            is_nearby_request = False
+
         if is_nearby_request:
-            loc = matched_stops[0] if matched_stops else None
-            if not loc:
-                unresolved = self.find_unresolved_location_phrases(text, matched_stops)
-                if unresolved:
-                    loc = unresolved[0]
+            # Check if user query mentions "me" or "near me" or "my location"
+            is_near_me = any(k in text_lower for k in ["near me", "my location", "close to me"])
+            
+            # If not near me, look for matched stops
+            loc = None
+            if not is_near_me:
+                loc = matched_stops[0] if matched_stops else None
+                if not loc:
+                    unresolved = self.find_unresolved_location_phrases(text, matched_stops)
+                    if unresolved:
+                        loc = unresolved[0]
+            else:
+                loc = "me"
+                
             if loc:
                 params["location"] = loc
-                if any(k in text_lower for k in ["restaurant", "food", "eat", "dining", "diner"]):
-                    params["poi_type"] = "restaurant"
-                elif "cafe" in text_lower:
-                    params["poi_type"] = "cafe"
-                else:
-                    params["poi_type"] = "attraction"
+                params["poi_type"] = detected_category
+                params["explore_category"] = detected_category
+                src_test, dst_test = self.determine_source_dest(matched_stops, text)
+                if src_test: params["source"] = src_test
+                if dst_test: params["destination"] = dst_test
                 return "nearby_pois", params
 
         # Determine source and destination first to see if we have a complete route request
@@ -651,6 +756,13 @@ class ChatbotEngine:
             if not src or not dst:
                 return "clarification", params
 
+            # If they also ask to explore nearby
+            for cat, keywords in poi_keywords.items():
+                if any(k in text_lower for k in keywords):
+                    params["explore_category"] = cat
+                    params["poi_type"] = cat
+                    break
+
             if any(k in text_lower for k in ["cost", "price", "fare", "cheap", "expensive", "rupee", "charge", "much"]):
                 return "journey_cost", params
             else:
@@ -670,7 +782,7 @@ class ChatbotEngine:
                 return f"I couldn't find any nearby {poi_type}s close to '{loc}'."
             return f"I found {len(places)} nearby {poi_type}(s) close to {loc}. You can view their details and walking distances in the cards below!"
 
-        if "options" in data and data["options"]:
+        if intent in ("journey_time", "journey_cost", "possible_ways") and "options" in data and data["options"]:
             src = params.get("source")
             dst = params.get("destination")
             stops = params.get("stops")
@@ -689,7 +801,7 @@ class ChatbotEngine:
             reply += "Please review the travel time, fare, walking distance, transfers, and carbon footprint comparisons in the cards below."
             return reply
 
-        if "legs" in data:
+        if intent == "legacy_itinerary" and "legs" in data:
             legs = data["legs"]
             reply = f"Here are the possible ways to travel your multi-stop itinerary:\n\n"
             
@@ -803,40 +915,62 @@ class ChatbotEngine:
         elif intent in ("journey_time", "journey_cost", "possible_ways"):
             src, dst = params.get("source"), params.get("destination")
             options = data.get("options", [])
-            best_opt = data.get("best_option")
             
-            if not options and best_opt:
-                options = [best_opt]
-
             if not options:
                 return f"Sorry, I couldn't find a route from {src} to {dst}."
 
-            if intent == "journey_time":
-                reply = f"Here is a comparison of the fastest travel options from {src} to {dst}:\n\n"
-            elif intent == "journey_cost":
-                reply = f"Here is a comparison of the cheapest travel options from {src} to {dst}:\n\n"
-            else:
-                reply = f"Here are the possible ways to travel from {src} to {dst}:\n\n"
+            cheapest_opt = min(options, key=lambda x: x["cost"]) if options else None
+            fastest_opt = min(options, key=lambda x: x["time"]) if options else None
+            best_overall = data.get("best_overall")
+
+            reply = f"### 🚗 Journey Options\n\n"
+            
+            if best_overall and isinstance(best_overall, dict):
+                b_mode = best_overall.get("mode")
+                b_label = MODE_LABELS.get(b_mode, b_mode)
+                b_time = best_overall.get("time")
+                b_cost = best_overall.get("cost")
+                reply += f"**🥇 Best Overall**\n• Transport: {b_label}\n• Est. Time: {b_time} min\n• Est. Cost: ₹{b_cost}\n\n"
+
+            if cheapest_opt:
+                c_mode = cheapest_opt.get("mode")
+                c_label = MODE_LABELS.get(c_mode, c_mode)
+                reply += f"**💰 Cheapest**\n• Transport: {c_label}\n• Est. Cost: ₹{cheapest_opt.get('cost')}\n• Est. Time: {cheapest_opt.get('time')} min\n\n"
+
+            if fastest_opt:
+                f_mode = fastest_opt.get("mode")
+                f_label = MODE_LABELS.get(f_mode, f_mode)
+                reply += f"**⚡ Fastest**\n• Transport: {f_label}\n• Est. Time: {fastest_opt.get('time')} min\n• Est. Cost: ₹{fastest_opt.get('cost')}\n\n"
+
+            # Filter out Best, Cheapest, and Fastest from Other Options if they are already highlighted
+            other_opts = []
+            highlighted_modes = set()
+            if best_overall:
+                highlighted_modes.add(best_overall.get("mode"))
+            if cheapest_opt:
+                highlighted_modes.add(cheapest_opt.get("mode"))
+            if fastest_opt:
+                highlighted_modes.add(fastest_opt.get("mode"))
+
             for opt in options:
                 m = opt.get("mode")
-                m_label = MODE_LABELS.get(m, m)
-                t = opt.get("time")
-                c = opt.get("cost")
-                
-                emoji = "🚇" if m == "metro" else "🚌" if m == "bmtc" else "🚖" if m == "cab" else "🚗"
-                
-                suffix = ""
-                best_pick = data.get("best_overall")
-                if best_pick and best_pick.get("mode") == m:
-                    suffix = " ⭐ (Recommended)"
-                elif best_opt and best_opt.get("mode") == m:
-                    suffix = " ⚡ (Fastest)" if intent == "journey_time" else " 💎 (Cheapest)"
-                    
-                reply += f"• {emoji} **{m_label}**: ~{t} mins, ₹{c}{suffix}\n"
+                if m not in highlighted_modes:
+                    other_opts.append(opt)
 
-            best_pick = data.get("best_overall")
-            if best_pick and best_pick.get("note"):
-                reply += f"\n**Recommendation:** {best_pick['note']}"
+            opts_to_show = other_opts if other_opts else options
+            
+            if opts_to_show:
+                reply += "**Other Options**\n"
+                for opt in opts_to_show:
+                    m = opt.get("mode")
+                    m_label = MODE_LABELS.get(m, m)
+                    t = opt.get("time")
+                    c = opt.get("cost")
+                    emoji = "🚇" if m == "metro" else "🚌" if m == "bmtc" else "🔀" if m == "multimodal" else "🚗" if m == "car" else "🛵" if m == "bike" else "🚖"
+                    reply += f"• {emoji} {m_label}: ~{t} mins, ₹{c}\n"
+
+            if best_overall and best_overall.get("note"):
+                reply += f"\n**Recommendation:** {best_overall['note']}"
             return reply
 
         elif intent == "ride_cost":
@@ -911,41 +1045,133 @@ class ChatbotEngine:
 
         elif intent == "budget_explore":
             budget = params.get("budget", 0)
-            hours = params.get("available_hours")
             source = data.get("source_used")
             recs = data.get("attraction_recommendations", [])
             assumed_source = data.get("assumed_source", False)
+            chained = data.get("chained_plan")
+
+            if chained and chained.get("stops"):
+                reply = f"### 💰 **₹{budget} Bangalore Travel Plan**\n\n"
+                for s in chained["stops"]:
+                    m = s["mode"]
+                    m_label = MODE_LABELS.get(m, m)
+                    emoji = "🚇" if m == "metro" else "🚌" if m == "bmtc" else "🚶"
+                    reply += f"📍 **{s['name']}** — {emoji} {m_label} ₹{s['cost']}\n"
+                
+                reply += f"\n**Estimated transport:** ₹{chained['total_fare']}\n"
+                reply += f"**Remaining:** ₹{chained['remaining']}\n"
+                return reply
 
             if not recs:
-                shortfall = data.get("cheapest_shortfall")
-                base = f"With ₹{budget}"
-                if hours:
-                    base += f" and {hours:g} hours"
-                base += f" from {source}, I couldn't find an attraction that fits -- even the cheapest option "
-                if shortfall:
-                    base += f"({shortfall['name']}) needs about ₹{shortfall['total_cost']} round-trip with entry fee, which is over budget."
-                else:
-                    base += "needs more than your budget covers once travel and entry fees are included."
-                return base
+                return f"Sorry, I couldn't find any destinations reachable from {source} within your budget of ₹{budget}."
 
-            lines = []
-            prefix = f"With ₹{budget}"
-            if hours:
-                prefix += f" and about {hours:g} hours"
-            prefix += f" from {source}"
+            reply = f"### 💰 **₹{budget} Travel Ideas**\n"
             if assumed_source:
-                prefix += " (assuming you're starting near the city center -- tell me your actual starting point for more accurate costs)"
-            prefix += ", here's what you can comfortably do:\n"
-            lines.append(prefix)
+                reply += "*(Assuming you start near Majestic)*\n\n"
+            else:
+                reply += f"*(Starting from {source})*\n\n"
 
             for r in recs:
-                lines.append(
-                    f"- **{r['name']}**: ~₹{r['return_fare']} round-trip by {MODE_LABELS.get(r['mode'], r['mode'])} "
-                    f"(~{r['one_way_time']} min each way) + ₹{r['entry_fee']} entry ≈ ₹{r['total_cost']} total, "
-                    f"leaving you ₹{r['remaining_budget']}."
-                )
-            lines.append("(Entry fees are approximate reference values and travel costs are computed by the app's routing engines.)")
-            return "\n".join(lines)
+                m = r.get("mode")
+                m_label = MODE_LABELS.get(m, m)
+                emoji = "🚇" if m == "metro" else "🚌" if m == "bmtc" else "🔀" if m == "multimodal" else "🚗" if m == "car" else "🛵" if m == "bike" else "🚖"
+                fare = r.get("one_way_cost") or r.get("return_fare", 0)
+                rem = budget - fare
+                reply += f"📍 **{r['name']}**\n• {emoji} {m_label}: ₹{fare}\n• 💰 Remaining: ₹{rem}\n\n"
+            return reply
+
+        elif intent == "multi_stop_itinerary":
+            legs = data.get("legs", [])
+            total_cost = data.get("total_cost", 0)
+            total_time = data.get("total_time_min", 0)
+            start_time = data.get("start_time", "9:00 AM")
+            waypoints = data.get("waypoints", [])
+
+            if not legs:
+                return "Sorry, I couldn't generate an itinerary for the requested waypoints."
+
+            reply = f"### 🗺️ **Bangalore Trip Itinerary**\n\n"
+            for i, leg in enumerate(legs):
+                from_place = leg.get("from")
+                to_place = leg.get("to")
+                mode = leg.get("mode")
+                mode_lbl = MODE_LABELS.get(mode, mode)
+                fare = leg.get("cost")
+                duration = leg.get("time")
+                arr_time = leg.get("arrive_time")
+                dep_time_str = leg.get("depart_time")
+                
+                # Emojis
+                emoji = "🚇" if mode == "metro" else "🚌" if mode == "bmtc" else "🔀" if mode == "multimodal" else "🚗" if mode == "car" else "🛵" if mode == "bike" else "🚖"
+                
+                # Add source stop info
+                if i == 0:
+                    reply += f"1. 📍 **{from_place}** — {dep_time_str}\n"
+                
+                # Add travel leg
+                reply += f"   • {emoji} {mode_lbl}: ₹{fare} (~{duration} min)\n"
+                
+                # Add destination stop info
+                reply += f"{i+2}. 📍 **{to_place}** — {arr_time}\n"
+                
+                # If there are recommended restaurants
+                rests = leg.get("restaurants", [])
+                if rests:
+                    reply += "   🍔 *Nearby food suggestions:*\n"
+                    for r in rests:
+                        reply += f"     - {r['name']} ({r.get('distance_km', 1.0)} km)\n"
+                reply += "\n"
+
+            reply += f"**Total Est. Travel Time:** ~{total_time} mins\n"
+            reply += f"**Total Est. Travel Cost:** ₹{total_cost}\n"
+            return reply
+
+        elif intent == "bus_schedule_query":
+            route = data.get("route_number")
+            buses = data.get("buses", [])
+            stops = data.get("stops", [])
+            
+            if route:
+                reply = f"### 🚌 **BMTC Route {route} Timetable & Stops**\n\n"
+                if stops:
+                    reply += "**Route Stops:**\n"
+                    reply += " ➔ ".join(stops[:12])
+                    if len(stops) > 12:
+                        reply += f" ... (+{len(stops)-12} more stops)"
+                    reply += "\n\n"
+                if buses:
+                    reply += "**Timings:**\n"
+                    for b in buses[:5]:
+                        reply += f"• Departs: {b.get('departure')} (Est. Time: {b.get('time')} mins)\n"
+                else:
+                    reply += "No schedule timing found for this route.\n"
+                return reply
+            else:
+                # timings from src to dst
+                reply = f"### 🚌 **Bus Timings**\n\n"
+                if buses:
+                    for b in buses[:5]:
+                        reply += f"• Route **{b.get('route')}**: Departs {b.get('departure')} (Est. duration: {b.get('time')} min)\n"
+                else:
+                    reply += "No direct bus schedule found between these locations.\n"
+                return reply
+
+        elif intent == "multimodal_journey":
+            plan = data.get("multimodal_plan", {})
+            if not plan or not plan.get("available"):
+                return "Sorry, I couldn't find a multimodal (Bus + Metro) route between these locations."
+            
+            reply = f"### 🔀 **Multimodal Route Plan**\n\n"
+            reply += f"• **Total Duration:** {plan.get('time')} mins\n"
+            reply += f"• **Total Fare:** ₹{plan.get('cost')}\n\n"
+            
+            # Legs breakdown
+            reply += "**Detailed Legs:**\n"
+            for seg in plan.get("segments", []):
+                s_type = seg.get("type")
+                emoji = "🚶" if s_type == "walk" else "🚇" if s_type == "metro" else "🚌"
+                reply += f"- {emoji} **{seg.get('route')}**: from {seg.get('from')} to {seg.get('to')} ({seg.get('duration')} min, ₹{seg.get('fare')})\n"
+            return reply
 
         elif intent == "vehicle_vs_transit":
             dst = params.get("destination")
