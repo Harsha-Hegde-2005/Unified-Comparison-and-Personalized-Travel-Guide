@@ -229,51 +229,9 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
     # Sort options by recommendation score descending
     available_options.sort(key=lambda x: x["score"], reverse=True)
     
-    # 4. Generate Explainable AI explanations
-    explanations = {}
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if api_key:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-        
-        # Summary of options for the prompt
-        summary_str = ""
-        for idx, opt in enumerate(available_options):
-            summary_str += f"- Option {idx+1}: {opt['mode'].upper()} (Cost: Rs.{opt['cost']}, Time: {opt['time']} mins, Transfers: {opt['transfers']}, CO2: {opt['emissions']}g, Score: {opt['score']}/100)\n"
-            
-        system_instruction = (
-            "You are a local Bangalore transit recommendation analyzer. Given a journey, weather, and user preferences, "
-            "explain the ranking and trade-offs of the transit modes in a highly concise manner.\n"
-            "Format the response strictly as a JSON object mapping mode keys (bmtc, metro, cab, car, multimodal) "
-            "to their respective explanation string. Do not include markdown wraps."
-        )
-        
-        user_message = (
-            f"Journey: {source} to {destination}\n"
-            f"Weather: {weather}\n"
-            f"Preference: {preference}\n\n"
-            f"Transit Options Evaluated:\n{summary_str}\n"
-            f"Provide a friendly, context-aware 2-sentence explanation for each mode key. Emphasize why it got its score."
-        )
-        
-        payload = {
-            "contents": [{"role": "user", "parts": [{"text": user_message}]}],
-            "systemInstruction": {"parts": [{"text": system_instruction}]},
-            "generationConfig": {"responseMimeType": "application/json"}
-        }
-        
-        try:
-            resp = requests.post(url, json=payload, timeout=3.0)
-            if resp.status_code == 200:
-                text_content = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-                explanations = json.loads(text_content)
-        except Exception:
-            pass # Fallback below
-            
-    # Fallback to local rule-based descriptions for missing explanations
-    fallback = generate_fallback_explanations(available_options, weather, preference)
+    # 4. Generate Explainable AI explanations (removed)
     for opt in available_options:
-        mode = opt["mode"]
-        opt["explanation"] = explanations.get(mode) or fallback.get(mode, "Highly recommended option based on your preferences.")
+        opt["explanation"] = ""
         
     # Clean output dictionary for final response
     output_recommendations = []

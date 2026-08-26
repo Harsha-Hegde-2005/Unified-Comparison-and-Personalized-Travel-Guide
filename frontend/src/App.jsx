@@ -4860,9 +4860,11 @@ function ComparisonDashboard({ data, onSelectRoute }) {
             {/* Explanation and Buttons */}
             {isExpanded && (
               <div style={{ marginTop: 10, borderTop: "1px solid #272a3d", paddingTop: 10 }}>
-                <p style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4, margin: "0 0 10px 0" }}>
-                  {opt.explanation}
-                </p>
+                {opt.explanation && (
+                  <p style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4, margin: "0 0 10px 0" }}>
+                    {opt.explanation}
+                  </p>
+                )}
 
                 {/* Multi-stop leg breakdown */}
                 {opt.legs && opt.legs.length > 1 && (
@@ -5800,12 +5802,12 @@ function AIRecommendationsPanel({
             <span style={{ fontSize: 18 }}>🤖</span>
           </div>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 16, color: "#1e1b24", letterSpacing: "-0.02em", lineHeight: "1.1" }}>U-Transit AI Smart Ranker</div>
-            <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, marginTop: 3 }}>Explainable AI & Top-K Routing</div>
+            <div style={{ fontWeight: 900, fontSize: 16, color: "#1e1b24", letterSpacing: "-0.02em", lineHeight: "1.1" }}>U-Transit Journey Ranker</div>
+            <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, marginTop: 3 }}>Top-K Routing Optimization</div>
           </div>
         </div>
         <div style={{ background: "rgba(124, 58, 237, 0.08)", color: "#7c3aed", padding: "6px 12px", borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
-          ✨ Gemini Powered
+          Smart Sort
         </div>
       </div>
 
@@ -5959,20 +5961,22 @@ function AIRecommendationsPanel({
               </div>
 
               {/* Explanation Card */}
-              <div style={{
-                marginTop: 12,
-                fontSize: 12.5,
-                lineHeight: "18px",
-                color: "#4b5563",
-                background: "#ffffff",
-                padding: "10px 14px",
-                borderRadius: 12,
-                border: "1px solid #f1f1f5",
-                borderLeft: `4px solid ${config.color || C.accent}`,
-                fontWeight: 500
-              }}>
-                <strong>Why recommended:</strong> {rec.explanation}
-              </div>
+              {rec.explanation && (
+                <div style={{
+                  marginTop: 12,
+                  fontSize: 12.5,
+                  lineHeight: "18px",
+                  color: "#4b5563",
+                  background: "#ffffff",
+                  padding: "10px 14px",
+                  borderRadius: 12,
+                  border: "1px solid #f1f1f5",
+                  borderLeft: `4px solid ${config.color || C.accent}`,
+                  fontWeight: 500
+                }}>
+                  <strong>Why recommended:</strong> {rec.explanation}
+                </div>
+              )}
 
               {/* Inline cab option details (rendered inside ranker card if expanded and mode is cab) */}
               {isExpanded && rec.mode === "cab" && actualData.all_estimates && (
