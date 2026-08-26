@@ -2133,7 +2133,11 @@ def vehicle_estimate(req: VehicleRequest):
 
 
 def multimodal_plan(source: str, destination: str, dep_time: datetime, preference: str = "cost", weather: str = "clear") -> dict:
-    from multimodal.config import INTERCHANGE_POINTS
+    return {"available": False, "mode": "multimodal", "error": "Multimodal planner is disabled in this branch"}
+
+def _unused_multimodal_plan(source: str, destination: str, dep_time: datetime, preference: str = "cost", weather: str = "clear") -> dict:
+    # disabled
+    return {"available": False}
     from shared.utils import resolve_stop_name
 
     src_coords = get_stop_coords(source)
