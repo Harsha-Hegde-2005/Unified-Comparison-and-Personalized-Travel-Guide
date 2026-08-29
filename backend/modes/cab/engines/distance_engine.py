@@ -22,34 +22,36 @@ class DistanceEngine:
         self._cache = {}
 
 
-    def get_distance(self, source_coords: dict, destination_coords: dict) -> dict:
+    def get_distance(self, source_coords: dict, destination_coords: dict, departure_time = None) -> dict:
         """
         Returns driving distance and duration.
 
         Returns:
             { "distance_km": 17.99, "duration_min": 22 }
         """
-        # Round coordinates to 5 decimals (approx. 1.1 meters) to avoid float mismatch in cache keys
+        # Round coordinates to 5 decimals to avoid float mismatch in cache keys
+        time_key = departure_time.hour if departure_time else -1
         cache_key = (
             round(source_coords["latitude"], 5),
             round(source_coords["longitude"], 5),
             round(destination_coords["latitude"], 5),
-            round(destination_coords["longitude"], 5)
+            round(destination_coords["longitude"], 5),
+            time_key
         )
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        result = self._get_distance_raw(source_coords, destination_coords)
+        result = self._get_distance_raw(source_coords, destination_coords, departure_time)
         self._cache[cache_key] = result
         return result
 
-    def _get_distance_raw(self, source_coords: dict, destination_coords: dict) -> dict:
+    def _get_distance_raw(self, source_coords: dict, destination_coords: dict, departure_time = None) -> dict:
         from dotenv import load_dotenv
         load_dotenv(override=True)
         key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
         if key:
             try:
-                return self._google(source_coords, destination_coords, key)
+                return self._google(source_coords, destination_coords, key, departure_time)
             except Exception as e:
                 print(f"Google Maps API failed: {e}. Falling back to OSRM.")
 
@@ -59,16 +61,23 @@ class DistanceEngine:
             print(f"OSRM API failed: {e}. Falling back to Haversine × 1.3 road factor.")
             return self._haversine(source_coords, destination_coords)
 
-    def _google(self, src: dict, dst: dict, key: str) -> dict:
+    def _google(self, src: dict, dst: dict, key: str, departure_time = None) -> dict:
+        params = {
+            "origins": f"{src['latitude']},{src['longitude']}",
+            "destinations": f"{dst['latitude']},{dst['longitude']}",
+            "mode": "driving",
+            "units": "metric",
+            "key": key,
+        }
+        if departure_time:
+            epoch = int(departure_time.timestamp())
+            now_epoch = int(datetime.now().timestamp())
+            params["departure_time"] = max(now_epoch, epoch)
+            params["traffic_model"] = "best_guess"
+
         resp = requests.get(
             GOOGLE_DIST_URL,
-            params={
-                "origins": f"{src['latitude']},{src['longitude']}",
-                "destinations": f"{dst['latitude']},{dst['longitude']}",
-                "mode": "driving",
-                "units": "metric",
-                "key": key,
-            },
+            params=params,
             timeout=8,
         )
         resp.raise_for_status()
@@ -81,9 +90,13 @@ class DistanceEngine:
         if elem["status"] != "OK":
             raise ValueError(f"Route not found: {elem['status']}")
 
+        free_flow_sec = elem["duration"]["value"]
+        duration_sec = elem.get("duration_in_traffic", elem["duration"])["value"]
+
         return {
             "distance_km": round(elem["distance"]["value"] / 1000, 2),
-            "duration_min": round(elem["duration"]["value"] / 60, 2),
+            "duration_min": round(duration_sec / 60, 2),
+            "free_flow_duration_min": round(free_flow_sec / 60, 2)
         }
 
     def _osrm(self, src: dict, dst: dict) -> dict:

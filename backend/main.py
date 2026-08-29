@@ -490,6 +490,7 @@ class VehicleRequest(BaseModel):
     source_lng:  float
     dest_lat:    float
     dest_lng:    float
+    time:        Optional[str] = None
 
 class VehicleSearchRequest(BaseModel):
     query: str
@@ -533,8 +534,8 @@ def _haversine_road_km(lat1, lon1, lat2, lon2) -> float:
     return _haversine_km(lat1, lon1, lat2, lon2) * 1.3
 
 
-def _google_road_distance(src_lat, src_lng, dst_lat, dst_lng) -> tuple[float, float] | None:
-    """Returns (distance_km, duration_min) via Google Maps, or None."""
+def _google_road_distance(src_lat, src_lng, dst_lat, dst_lng, departure_time=None) -> tuple[float, float, float] | None:
+    """Returns (distance_km, duration_min, free_flow_duration_min) via Google Maps, or None."""
     from dotenv import load_dotenv
     load_dotenv(override=True)
     key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
@@ -542,12 +543,21 @@ def _google_road_distance(src_lat, src_lng, dst_lat, dst_lng) -> tuple[float, fl
         return None
     try:
         import requests as _req
+        params = {
+            "origins":       f"{src_lat},{src_lng}",
+            "destinations":  f"{dst_lat},{dst_lng}",
+            "mode":          "driving",
+            "key":           key
+        }
+        if departure_time:
+            epoch = int(departure_time.timestamp())
+            now_epoch = int(datetime.now().timestamp())
+            params["departure_time"] = max(now_epoch, epoch)
+            params["traffic_model"] = "best_guess"
+
         resp = _req.get(
             "https://maps.googleapis.com/maps/api/distancematrix/json",
-            params={"origins":       f"{src_lat},{src_lng}",
-                    "destinations":  f"{dst_lat},{dst_lng}",
-                    "mode":          "driving",
-                    "key":           key},
+            params=params,
             timeout=6,
         )
         resp.raise_for_status()
@@ -555,8 +565,10 @@ def _google_road_distance(src_lat, src_lng, dst_lat, dst_lng) -> tuple[float, fl
         if data.get("status") == "OK" and data.get("rows"):
             el = data["rows"][0]["elements"][0]
             if el.get("status") == "OK":
-                return (round(el["distance"]["value"] / 1000, 2),
-                        round(el["duration"]["value"] / 60, 1))
+                dist_km = round(el["distance"]["value"] / 1000, 2)
+                free_flow_min = round(el["duration"]["value"] / 60, 1)
+                duration_min = round(el.get("duration_in_traffic", el["duration"])["value"] / 60, 1)
+                return (dist_km, duration_min, free_flow_min)
         elif data.get("status") != "OK":
             print(f"Google Distance Matrix status: {data.get('status')} - {data.get('error_message', '')}")
     except Exception as e:
@@ -624,8 +636,17 @@ def _car_estimate(src: str, dst: str, dep_time: datetime, src_coords=None, dst_c
     # Standard Petrol Car parameters: mileage = 15.0 km/L, fuel price = 102.94 INR/L
     fuel_needed = distance_km / 15.0
     fuel = int(fuel_needed * 102.94)
-    parking = 30
-    est_fare = fuel + parking
+    
+    # Check if destination is a mall
+    is_mall = any(x in dst.lower() for x in ["mall", "phoenix", "forum", "orion", "lulu", "nexus", "mantri", "vega"])
+    if is_mall:
+        parking_str = "₹40-100"
+        parking_val = 60
+    else:
+        parking_str = "₹0-30"
+        parking_val = 0
+
+    est_fare = fuel + parking_val
     arr = dep_time + timedelta(minutes=est_min)
 
     return {
@@ -644,7 +665,7 @@ def _car_estimate(src: str, dst: str, dep_time: datetime, src_coords=None, dst_c
             {"step": 1, "icon": "car",
              "text": f"Drive to {dst} via ORR / Main Roads",
              "duration": f"{est_min} min",
-             "detail": f"₹{fuel} fuel + ₹{parking} parking est."},
+             "detail": f"₹{fuel} fuel + {parking_str} parking est."},
         ],
     }
 
@@ -727,14 +748,25 @@ def metro_plan(req: JourneyRequest):
             else:
                 end_walk_dist = 0.0
                 end_walk_mins = 0
-        else:
-            end_walk_dist = 0.0
-            end_walk_mins = 0
-
     try:
         result = _metro_planner.plan_journey(source, destination)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    total_walking = start_walk_dist + end_walk_dist
+    direct_dist = 9999
+    if src_coord and dst_coord:
+        direct_dist = _haversine_km(src_coord[0], src_coord[1], dst_coord[0], dst_coord[1])
+    elif start_lat is not None and dest_lat is not None:
+        direct_dist = _haversine_km(start_lat, start_lng, dest_lat, dest_lng)
+
+    # Reject if source and destination stations are the same (no train leg) or walking distance exceeds direct distance
+    if source == destination or not result.get("route", {}).get("legs") or total_walking >= direct_dist:
+        return {
+            "available": False,
+            "mode": "metro",
+            "error": f"No viable metro route found (walking distance {round(total_walking, 2)} km exceeds direct distance {round(direct_dist, 2)} km or same station)"
+        }
 
     # Transit leg durations and timings
     current_time = dep_time + timedelta(minutes=start_walk_mins)
@@ -1230,6 +1262,21 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
                 "nav_url": nav_url
             })
 
+        # Check walking efficiency compared to direct route
+        direct_dist = 9999
+        if start_lat is not None and dest_lat is not None:
+            direct_dist = _haversine_km(start_lat, start_lng, dest_lat, dest_lng)
+        
+        total_walking = start_walk_dist + end_walk_dist
+        if total_walking >= direct_dist:
+            res = {
+                "available": False,
+                "mode": "bmtc",
+                "error": f"Walking to/from stops ({round(total_walking, 2)} km) is inefficient compared to direct routing ({round(direct_dist, 2)} km)."
+            }
+            _bmtc_cache[cache_key] = res
+            return res
+
         res = {
             "available":  True, "mode": "bmtc",
             "time":       total_mins,
@@ -1392,6 +1439,21 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
             "nav_url": nav_url
         })
 
+    # Check walking efficiency compared to direct route
+    direct_dist = 9999
+    if start_lat is not None and dest_lat is not None:
+        direct_dist = _haversine_km(start_lat, start_lng, dest_lat, dest_lng)
+    
+    total_walking = start_walk_dist + end_walk_dist
+    if total_walking >= direct_dist:
+        res = {
+            "available": False,
+            "mode": "bmtc",
+            "error": f"Walking to/from stops ({round(total_walking, 2)} km) is inefficient compared to direct routing ({round(direct_dist, 2)} km)."
+        }
+        _bmtc_cache[cache_key] = res
+        return res
+
     res = {
         "available": True, "mode": "bmtc",
         "time":      total_mins,
@@ -1500,32 +1562,87 @@ def bmtc_all_routes(q: str = ""):
     all_routes = sorted(set(
         r.replace("_REV", "") for r in _route_trips.keys()
     ))
+    metro_lines = ["Purple Line", "Green Line"]
+    
     if q.strip():
-        q_upper = q.strip().upper()
-        filtered = [r for r in all_routes if q_upper in r.upper()]
-        return {"routes": filtered[:40]}
-    return {"routes": all_routes[:200]}
+        q_norm = q.strip().replace("-", "").upper()
+        # Find matching metro lines
+        filtered_metro = [line for line in metro_lines if q_norm in line.replace("-", "").upper()]
+        
+        # Find matching bus routes
+        filtered_bmtc = []
+        for r in all_routes:
+            r_norm = r.replace("-", "").upper()
+            if q_norm in r_norm:
+                filtered_bmtc.append(r)
+                
+        return {"routes": filtered_metro + filtered_bmtc[:40]}
+        
+    return {"routes": metro_lines + all_routes[:200]}
 
 
 @app.get("/api/bmtc/route-search")
 def bmtc_route_search(route: str):
     route_clean = route.strip()
-    stops = get_route_stop_names(route_clean)
-    rev_stops = get_route_stop_names(route_clean + "_REV")
+    route_norm = route_clean.replace("-", "").upper()
+    
+    # 1. Check if it's a metro line color search
+    metro_query = route_clean.lower()
+    matched_line = None
+    for line_name in _metro_planner.routing_engine.lines.keys():
+        if metro_query in line_name.lower() or line_name.lower() in metro_query:
+            matched_line = line_name
+            break
+            
+    if matched_line:
+        stations = _metro_planner.routing_engine.lines[matched_line]
+        return {
+            "route": matched_line,
+            "type": "metro",
+            "stop_count": len(stations),
+            "trips": 120, # Estimated daily train frequency
+            "schedule": {"departure": "05:00", "arrival": "23:00"},
+            "stops": stations,
+            "reverse_stops": list(reversed(stations))
+        }
+        
+    # 2. Check if it's a BMTC bus route search (hyphen-insensitive match)
+    actual_route = None
+    for key in _route_trips.keys():
+        key_clean = key.replace("_REV", "")
+        key_norm = key_clean.replace("-", "").upper()
+        if key_norm == route_norm:
+            actual_route = key_clean
+            break
+            
+    if not actual_route:
+        # Fallback substring match
+        for key in _route_trips.keys():
+            key_clean = key.replace("_REV", "")
+            key_norm = key_clean.replace("-", "").upper()
+            if route_norm in key_norm:
+                actual_route = key_clean
+                break
+                
+    if not actual_route:
+        raise HTTPException(status_code=404, detail=f"Route '{route}' not found")
+        
+    stops = get_route_stop_names(actual_route)
+    rev_stops = get_route_stop_names(actual_route + "_REV")
     
     if not stops and rev_stops:
         stops, rev_stops = rev_stops, []
-        route_clean = route_clean + "_REV"
+        actual_route = actual_route + "_REV"
             
     if not stops:
         raise HTTPException(status_code=404, detail=f"Route '{route}' not found")
         
-    base_route = route_clean.replace("_REV", "")
+    base_route = actual_route.replace("_REV", "")
     trips = _route_trips.get(base_route, 0)
     
     sched = {}
     try:
-        sched_est = estimate_route_schedule(route_clean)
+        sched_est = estimate_route_schedule(actual_route)
         if sched_est:
             sched = {
                 "departure": sched_est.get("departure"),
@@ -1536,6 +1653,7 @@ def bmtc_route_search(route: str):
         
     return {
         "route": base_route,
+        "type": "bmtc",
         "stop_count": len(stops),
         "trips": trips,
         "schedule": sched,
@@ -2033,7 +2151,26 @@ def _lookup_vehicle(name: str) -> dict | None:
 
 @app.get("/api/vehicle/list")
 def vehicle_list():
-    return {"vehicles": _all_vehicles, "count": len(_all_vehicles)}
+    bikes = []
+    if _bikes_df is not None:
+        bikes = sorted(set(_bikes_df["full_name"].dropna().tolist()))
+    cars = []
+    if _cars_df is not None:
+        cars = sorted(set(_cars_df["name"].dropna().tolist()))
+    return {
+        "bikes": bikes,
+        "cars": cars,
+        "vehicles": _all_vehicles,
+        "count": len(_all_vehicles)
+    }
+
+
+@app.get("/api/vehicle/info")
+def get_vehicle_info(name: str):
+    info = _lookup_vehicle(name)
+    if not info:
+        raise HTTPException(status_code=404, detail="Vehicle not found in dataset")
+    return info
 
 
 @app.post("/api/vehicle/search")
@@ -2055,21 +2192,30 @@ def vehicle_estimate(req: VehicleRequest):
         raise HTTPException(status_code=404,
                             detail=f"Vehicle '{req.vehicle}' not found in dataset")
 
+    dep_time = _parse_time(req.time) if (hasattr(req, "time") and req.time) else datetime.now()
+
     # Try DistanceEngine first, fall back to Google/Haversine
     distance_km = None
+    duration_min = None
+    free_flow_min = None
     if _NAMMA_OK and _ny_distance:
         try:
             road = _ny_distance.get_distance(
                 {"latitude": req.source_lat, "longitude": req.source_lng},
-                {"latitude": req.dest_lat, "longitude": req.dest_lng}
+                {"latitude": req.dest_lat, "longitude": req.dest_lng},
+                dep_time
             )
-            distance_km = road["distance_km"]
+            distance_km = road.get("distance_km")
+            duration_min = road.get("duration_min")
+            free_flow_min = road.get("free_flow_duration_min")
         except Exception:
             pass
     else:
-        road = _google_road_distance(req.source_lat, req.source_lng, req.dest_lat, req.dest_lng)
+        road = _google_road_distance(req.source_lat, req.source_lng, req.dest_lat, req.dest_lng, dep_time)
         if road:
             distance_km = road[0]
+            duration_min = road[1]
+            free_flow_min = road[2]
 
     if not distance_km:
         distance_km = _haversine_km(
@@ -2083,15 +2229,18 @@ def vehicle_estimate(req: VehicleRequest):
     total_cost  = round(fuel_needed * fuel_price, 2)
     cost_per_km = round(total_cost / distance_km, 2) if distance_km else 0
 
-    avg_speed_kmh = 25.0
-    est_minutes   = int((distance_km / avg_speed_kmh) * 60)
+    if duration_min is not None:
+        est_minutes = int(duration_min)
+    else:
+        avg_speed_kmh = 25.0
+        est_minutes   = int((distance_km / avg_speed_kmh) * 60)
 
-    dep_time = _parse_time(None)
     arr_time = dep_time + timedelta(minutes=est_minutes)
 
     return {
         "available":   True,
         "mode":        "car",
+        "free_flow_duration_min": free_flow_min if free_flow_min is not None else est_minutes,
         "vehicle":     req.vehicle,
         "vtype":       vehicle_info["vtype"],
         "fuel":        fuel.capitalize(),
@@ -2812,6 +2961,85 @@ def metro_stations():
     return {"stations": _metro_stations, "count": len(_metro_stations)}
 
 
+@app.get("/api/weather/report")
+def weather_report(lat: float, lng: float, location_name: str = "Bengaluru"):
+    """
+    Fetch comprehensive weather details from Open-Meteo for given coordinates,
+    including current conditions, hourly forecasts, and WMO status mappings.
+    """
+    import requests
+    from weather_helper import map_wmo_code
+    
+    try:
+        url = "https://api.open-meteo.com/v1/forecast"
+        params = {
+            "latitude": lat,
+            "longitude": lng,
+            "current": "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation",
+            "daily": "temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max",
+            "timezone": "Asia/Kolkata"
+        }
+        resp = requests.get(url, params=params, timeout=5)
+        if resp.status_code != 200:
+            return {"error": "Failed to fetch weather data from Open-Meteo API."}
+            
+        data = resp.json()
+        current = data.get("current", {})
+        
+        wmo_code = current.get("weather_code", 0)
+        status = map_wmo_code(wmo_code)
+        
+        report = {
+            "location": location_name,
+            "temp": current.get("temperature_2m", 25.0),
+            "humidity": current.get("relative_humidity_2m", 60.0),
+            "wind_speed": current.get("wind_speed_10m", 10.0),
+            "precipitation": current.get("precipitation", 0.0),
+            "wmo_code": wmo_code,
+            "status": status,
+            "temp_max": data.get("daily", {}).get("temperature_2m_max", [28.0])[0],
+            "temp_min": data.get("daily", {}).get("temperature_2m_min", [22.0])[0],
+            "rain_probability": data.get("daily", {}).get("precipitation_probability_max", [0])[0]
+        }
+        return report
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/api/metro/line-info")
+def metro_line_info(station: str):
+    """Return the line(s) a metro station belongs to and all stations on those lines."""
+    stations_lookup = _metro_planner.routing_engine.stations
+    lookup_name = station.strip().lower()
+    
+    # Find match
+    canonical_name = None
+    for name in stations_lookup.keys():
+        if name.lower() == lookup_name:
+            canonical_name = name
+            break
+            
+    if not canonical_name:
+        # Fuzzy match
+        for name in stations_lookup.keys():
+            if lookup_name in name.lower() or name.lower() in lookup_name:
+                canonical_name = name
+                break
+                
+    if not canonical_name:
+        return {"lines": []}
+        
+    lines_info = []
+    for line_name, stations_list in _metro_planner.routing_engine.lines.items():
+        if canonical_name in stations_list:
+            lines_info.append({
+                "line": line_name,
+                "stations": stations_list
+            })
+            
+    return {"station": canonical_name, "lines": lines_info}
+
+
 @app.get("/api/bmtc/stops")
 def bmtc_stops():
     return {"stops": ALL_STOPS, "count": len(ALL_STOPS)}
@@ -3387,14 +3615,27 @@ def _personal_vehicle_estimate(vtype: str, src: str, dst: str, dep_time: datetim
     avg_speed_kmh = 30.0 if vtype == "bike" else 25.0
     est_min = max(5, int((distance_km / avg_speed_kmh) * 60))
 
+    # Check if destination is a mall
+    is_mall = any(x in dst.lower() for x in ["mall", "phoenix", "forum", "orion", "lulu", "nexus", "mantri", "vega"])
+
     if vtype == "bike":
         efficiency_kmpl = 45.0  # typical two-wheeler
         fuel_price = 103.0
-        parking = 10
+        if is_mall:
+            parking_str = "₹20-50"
+            parking_val = 30
+        else:
+            parking_str = "₹0-10"
+            parking_val = 0
     else:
         efficiency_kmpl = 15.0  # typical car (petrol)
         fuel_price = 103.0
-        parking = 30
+        if is_mall:
+            parking_str = "₹40-100"
+            parking_val = 60
+        else:
+            parking_str = "₹0-30"
+            parking_val = 0
 
     if vtype == "bike" and _bikes_df is not None and not _bikes_df.empty:
         try:
@@ -3417,7 +3658,7 @@ def _personal_vehicle_estimate(vtype: str, src: str, dst: str, dep_time: datetim
 
     fuel_litres = distance_km / efficiency_kmpl
     fuel_cost = fuel_litres * fuel_price
-    est_fare = int(fuel_cost + parking)
+    est_fare = int(fuel_cost + parking_val)
     arr = dep_time + timedelta(minutes=est_min)
 
     # CO2 emissions estimation: bike ~60g/km, car ~120g/km
@@ -3442,7 +3683,7 @@ def _personal_vehicle_estimate(vtype: str, src: str, dst: str, dep_time: datetim
             {"step": 1, "icon": "car" if vtype == "car" else "bike",
              "text": f"Drive personal {vtype} to {dst}",
              "duration": f"{est_min} min",
-             "detail": f"₹{int(fuel_cost)} fuel + ₹{parking} parking est. ({est_km} km)"},
+             "detail": f"₹{int(fuel_cost)} fuel + {parking_str} parking est. ({est_km} km)"},
         ],
     }
 

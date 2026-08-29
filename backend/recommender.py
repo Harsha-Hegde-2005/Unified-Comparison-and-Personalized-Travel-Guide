@@ -151,6 +151,26 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
         comfort = get_comfort_score(mode, transfers, distance, is_vajra=is_vajra)
         weather_suit = get_weather_suitability(mode, weather)
         
+        # Calculate dynamic traffic score
+        traffic_score = 1.0
+        if mode == "metro":
+            traffic_score = 1.0
+        elif mode in ("car", "cab", "bmtc", "multimodal"):
+            free_flow = data.get("free_flow_duration_min")
+            actual_time = data.get("time")
+            if free_flow and actual_time and free_flow > 0:
+                delay_factor = max(1.0, actual_time / free_flow)
+                traffic_score = max(0.1, min(1.0, 1.0 / delay_factor))
+            else:
+                import datetime
+                h = datetime.datetime.now().hour
+                if 8 <= h <= 10 or 17 <= h <= 20:
+                    traffic_score = 0.4
+                elif 12 <= h <= 15 or 21 <= h <= 23:
+                    traffic_score = 0.7
+                else:
+                    traffic_score = 0.95
+
         available_options.append({
             "mode": mode,
             "cost": cost,
@@ -160,6 +180,7 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
             "emissions": emissions,
             "comfort": comfort,
             "weather_suitability": weather_suit,
+            "traffic_suitability": traffic_score,
             "raw_data": data
         })
         
@@ -177,10 +198,10 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
     
     # 3. Calculate normalized sub-scores (0.0 to 1.0) and composite recommendations
     weight_sets = {
-        "cost": {"cost": 0.70, "time": 0.10, "comfort": 0.05, "eco": 0.05, "weather": 0.10},
-        "time": {"cost": 0.10, "time": 0.70, "comfort": 0.05, "eco": 0.05, "weather": 0.10},
-        "convenience": {"cost": 0.10, "time": 0.15, "comfort": 0.60, "eco": 0.05, "weather": 0.10},
-        "default": {"cost": 0.30, "time": 0.30, "comfort": 0.20, "eco": 0.10, "weather": 0.10}
+        "cost": {"cost": 0.60, "time": 0.10, "comfort": 0.05, "eco": 0.05, "weather": 0.10, "traffic": 0.10},
+        "time": {"cost": 0.10, "time": 0.50, "comfort": 0.05, "eco": 0.05, "weather": 0.10, "traffic": 0.20},
+        "convenience": {"cost": 0.10, "time": 0.15, "comfort": 0.50, "eco": 0.05, "weather": 0.10, "traffic": 0.10},
+        "default": {"cost": 0.25, "time": 0.25, "comfort": 0.20, "eco": 0.10, "weather": 0.10, "traffic": 0.10}
     }
     
     w = weight_sets.get(preference.lower(), weight_sets["default"])
@@ -206,6 +227,7 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
             
         opt_comfort = opt["comfort"]
         opt_weather = opt["weather_suitability"]
+        opt_traffic = opt["traffic_suitability"]
         
         # Calculate overall utility score (0 to 100)
         composite = (
@@ -213,7 +235,8 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
             w["time"] * time_score +
             w["comfort"] * opt_comfort +
             w["eco"] * eco_score +
-            w["weather"] * opt_weather
+            w["weather"] * opt_weather +
+            w["traffic"] * opt_traffic
         )
         opt["score"] = round(composite * 100, 1)
         
@@ -223,7 +246,8 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
             "time_score": int(time_score * 100),
             "comfort_score": int(opt_comfort * 100),
             "eco_score": int(eco_score * 100),
-            "weather_score": int(opt_weather * 100)
+            "weather_score": int(opt_weather * 100),
+            "traffic_score": int(opt_traffic * 100)
         }
         
     # Sort options by recommendation score descending
