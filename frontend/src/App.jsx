@@ -27,12 +27,46 @@ window.fetch = async (url, options = {}) => {
 /* ─────────────────────────────────────────────────────────────
    DESIGN TOKENS
 ───────────────────────────────────────────────────────────── */
-const C = {
+let currentTheme = 'light';
+
+const LIGHT_C = {
   bg: "#f4f5fa", surface: "#ffffff", card: "#ffffff",
   border: "#eef0f6", border2: "#e2e4ed",
   text: "#1a1625", muted: "#7d788a", dim: "#f3f1f7",
   accent: "#7c3aed", metro: "#8b5cf6",
   green: "#10b981", red: "#ef4444", yellow: "#f59e0b",
+};
+
+const DARK_C = {
+  bg: "#090a0f",
+  surface: "#12131a",
+  card: "#12131a",
+  border: "#1f212e",
+  border2: "#2d3042",
+  text: "#f1f3f9",
+  muted: "#949ba8",
+  dim: "#171923",
+  accent: "#a855f7",
+  metro: "#a78bfa",
+  green: "#34d399",
+  red: "#f87171",
+  yellow: "#fbbf24",
+};
+
+const C = {
+  get bg() { return currentTheme === 'light' ? LIGHT_C.bg : DARK_C.bg; },
+  get surface() { return currentTheme === 'light' ? LIGHT_C.surface : DARK_C.surface; },
+  get card() { return currentTheme === 'light' ? LIGHT_C.card : DARK_C.card; },
+  get border() { return currentTheme === 'light' ? LIGHT_C.border : DARK_C.border; },
+  get border2() { return currentTheme === 'light' ? LIGHT_C.border2 : DARK_C.border2; },
+  get text() { return currentTheme === 'light' ? LIGHT_C.text : DARK_C.text; },
+  get muted() { return currentTheme === 'light' ? LIGHT_C.muted : DARK_C.muted; },
+  get dim() { return currentTheme === 'light' ? LIGHT_C.dim : DARK_C.dim; },
+  get accent() { return currentTheme === 'light' ? LIGHT_C.accent : DARK_C.accent; },
+  get metro() { return currentTheme === 'light' ? LIGHT_C.metro : DARK_C.metro; },
+  get green() { return currentTheme === 'light' ? LIGHT_C.green : DARK_C.green; },
+  get red() { return currentTheme === 'light' ? LIGHT_C.red : DARK_C.red; },
+  get yellow() { return currentTheme === 'light' ? LIGHT_C.yellow : DARK_C.yellow; },
 };
 
 const MC = {
@@ -93,6 +127,7 @@ const P = {
   instagram: "M17 2H7a5 5 0 00-5 5v10a5 5 0 005 5h10a5 5 0 005-5V7a5 5 0 00-5-5z M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z M17.5 6.5h.01",
   youtube: "M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 00-1.95 1.96A29 29 0 001 11.54a29 29 0 00.46 5.12 2.78 2.78 0 001.95 1.96C5.12 19.08 12 19.08 12 19.08s6.88 0 8.59 0a2.78 2.78 0 001.95-1.96 29 29 0 00.46-5.12 29 29 0 00-.46-5.12z M9.54 15.08V8l6 3.54-6 3.54z",
   bicycle: "M18.5 17.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zm-13 0a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z M12 15h3.5l1.5-4.5H12M12 15l-3-6H5M12 9V6M9.5 6.5h5",
+  settings: "M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.63-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z",
 };
 
 
@@ -5167,7 +5202,7 @@ function CompareTable({ results }) {
 /* ─────────────────────────────────────────────────────────────
    DASHBOARD
 ───────────────────────────────────────────────────────────── */
-function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpen, setGarageOpen, gloveboxOpen, setGloveboxOpen, onRefreshVehicles, mapStyle, setMapStyle, useOsm, setUseOsm, stops, setShowWeatherModal, setShowStopsInfo }) {
+function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpen, setGarageOpen, gloveboxOpen, setGloveboxOpen, onRefreshVehicles, mapStyle, setMapStyle, useOsm, setUseOsm, stops, setShowWeatherModal, setShowStopsInfo, setShowSettings }) {
   const [data, setData] = useState({ stats: [], recent: [], saved: [] });
   const [vehicles, setVehicles] = useState([]);
   const [showBicyclePopup, setShowBicyclePopup] = useState(false);
@@ -5353,8 +5388,10 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
     <div style={{ fontFamily: "inherit" }}>
       {/* Visual Welcome Banner */}
       <div style={{
-        background: "linear-gradient(135deg, #eae8ff 0%, #f5e8ff 100%)",
-        border: "1px solid rgba(124, 58, 237, 0.12)",
+        background: currentTheme === 'light' 
+          ? "linear-gradient(135deg, #eae8ff 0%, #f5e8ff 100%)" 
+          : "linear-gradient(135deg, #17122a 0%, #1e102d 100%)",
+        border: `1px solid ${C.border}`,
         borderRadius: 24,
         padding: "36px 40px",
         marginBottom: 32,
@@ -5379,7 +5416,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
         </div>
 
         <div style={{ zIndex: 2, position: "relative" }}>
-          <h1 style={{ fontSize: 32, fontWeight: 900, color: "#1e1b24", margin: "0 0 8px 0", letterSpacing: "-0.03em" }}>Good Morning, {username}! 👋</h1>
+          <h1 style={{ fontSize: 32, fontWeight: 900, color: C.text, margin: "0 0 8px 0", letterSpacing: "-0.03em" }}>Good Morning, {username}! 👋</h1>
           <p style={{ color: C.muted, fontSize: 14, fontWeight: 600, margin: 0 }}>Let's make your journey easy and efficient.</p>
         </div>
       </div>
@@ -5390,7 +5427,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           <div 
             key={s.label} 
             style={{ 
-              background: "#ffffff", 
+              background: C.card, 
               border: `1px solid ${C.border}`, 
               borderRadius: 20, 
               padding: "20px 24px", 
@@ -5421,8 +5458,8 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                 <Ic n={s.icon} s={18} c={s.color} sw={2.2} />
               </div>
               <div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: "#1e1b24", lineHeight: "1.2" }}>{s.val}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#1e1b24", marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: C.text, lineHeight: "1.2" }}>{s.val}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{s.label}</div>
                 <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 1 }}>{s.sub}</div>
               </div>
             </div>
@@ -5435,7 +5472,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
         
         {/* Recent Searches */}
         <div style={{ 
-          background: "#ffffff", 
+          background: C.card, 
           border: `1px solid ${C.border}`, 
           borderRadius: 24, 
           padding: "28px 24px",
@@ -5444,7 +5481,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           flexDirection: "column"
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
               <Ic n="clock" s={16} c={C.text} sw={2.2} /> Recent Searches
             </h2>
             {data.recent?.length > 0 && (
@@ -5467,24 +5504,24 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     padding: "12px 14px", 
                     borderRadius: 16, 
                     cursor: "pointer", 
-                    background: "#f9f9fc",
-                    border: "1px solid #f1f1f5",
+                    background: C.dim,
+                    border: `1px solid ${C.border}`,
                     transition: "all 0.2s" 
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.background = "#f1efff";
-                    e.currentTarget.style.borderColor = "rgba(124, 58, 237, 0.2)";
+                    e.currentTarget.style.background = currentTheme === 'light' ? "#f1efff" : "#241f3d";
+                    e.currentTarget.style.borderColor = C.accent + "33";
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.background = "#f9f9fc";
-                    e.currentTarget.style.borderColor = "#f1f1f5";
+                    e.currentTarget.style.background = C.dim;
+                    e.currentTarget.style.borderColor = C.border;
                   }}
                 >
                   <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(124, 58, 237, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <Ic n="search" s={14} c={C.accent} sw={2.2} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1e1b24", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.from} → {r.to}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.from} → {r.to}</div>
                     <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500 }}>{r.date}</div>
                   </div>
                   <div style={{ fontSize: 11, color: C.accent, fontWeight: 700 }}>Search →</div>
@@ -5492,7 +5529,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               ))
             ) : (
               <div style={{ textAlign: "center", padding: "40px 0", color: C.muted, fontSize: 13, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
-                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Ic n="search" s={18} c={C.muted} sw={2.2} />
                 </div>
                 No recent searches. Start planning to view routes!
@@ -5503,7 +5540,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
 
         {/* Saved Places */}
         <div id="saved-places-card" style={{ 
-          background: "#ffffff", 
+          background: C.card, 
           border: `1px solid ${C.border}`, 
           borderRadius: 24, 
           padding: "28px 24px",
@@ -5512,7 +5549,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           flexDirection: "column"
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
               <Ic n="star" s={16} c="#f59e0b" sw={2.2} /> Saved Places
             </h2>
             <button 
@@ -5539,17 +5576,17 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                       padding: "12px 14px", 
                       borderRadius: 16, 
                       cursor: "pointer", 
-                      background: "#f9f9fc",
-                      border: "1px solid #f1f5f9",
+                      background: C.dim,
+                      border: `1px solid ${C.border}`,
                       transition: "all 0.2s" 
                     }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.background = "#f1efff";
-                      e.currentTarget.style.borderColor = "rgba(124, 58, 237, 0.2)";
+                      e.currentTarget.style.background = currentTheme === 'light' ? "#f1efff" : "#241f3d";
+                      e.currentTarget.style.borderColor = C.accent + "33";
                     }}
                     onMouseLeave={e => {
-                      e.currentTarget.style.background = "#f9f9fc";
-                      e.currentTarget.style.borderColor = "#f1f5f9";
+                      e.currentTarget.style.background = C.dim;
+                      e.currentTarget.style.borderColor = C.border;
                     }}
                   >
                     <div style={{ width: 36, height: 36, borderRadius: 10, background: modeBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -5557,7 +5594,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "#1e1b24", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {r.custom_name ? r.custom_name : `${r.from} → ${r.to}`}
                         </span>
                         {r.custom_name && <Pill color={modeColor} small>{MC[r.mode]?.short || "SAVED"}</Pill>}
@@ -5589,7 +5626,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               })
             ) : (
               <div style={{ textAlign: "center", padding: "16px 0", color: C.muted, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-                <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 48, height: 48, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Ic n="star" s={18} c={C.muted} sw={2.2} />
                 </div>
                 <div style={{ fontWeight: 800, color: C.text }}>No saved Places yet</div>
@@ -5625,7 +5662,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
         
         {/* My Garage */}
         <div id="my-garage-card" style={{ 
-          background: "#ffffff", 
+          background: C.card, 
           border: `1px solid ${C.border}`, 
           borderRadius: 24, 
           padding: "28px 24px",
@@ -5634,7 +5671,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           flexDirection: "column"
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
               <Ic n="car" s={16} c={C.text} sw={2.2} /> My Garage
             </h2>
             <button 
@@ -5655,9 +5692,9 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               {garageOpen ? "Close" : "+ Add"}
             </button>
           </div>
-
+ 
           {garageOpen && (
-            <form onSubmit={handleAddVehicle} style={{ background: "#f9f9fc", borderRadius: 16, padding: 16, marginBottom: 16, border: "1px solid #f1f1f5" }}>
+            <form onSubmit={handleAddVehicle} style={{ background: C.dim, borderRadius: 16, padding: 16, marginBottom: 16, border: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 12, textTransform: "uppercase" }}>New Vehicle Specs</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <input 
@@ -5665,13 +5702,13 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                   onChange={e => setVname(e.target.value)} 
                   placeholder="Vehicle Model, e.g. Tesla Model Y" 
                   required 
-                  style={{ width: "100%", background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
+                  style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
                 />
                 <div style={{ display: "flex", gap: 10 }}>
                   <select 
                     value={vfuel} 
                     onChange={e => setVfuel(e.target.value)} 
-                    style={{ flex: 1, background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+                    style={{ flex: 1, background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
                   >
                     <option value="Petrol">Petrol</option>
                     <option value="Diesel">Diesel</option>
@@ -5685,7 +5722,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     onChange={e => setVeff(e.target.value)} 
                     placeholder={vfuel === "EV" ? "km/kWh" : "km/L"} 
                     required 
-                    style={{ flex: 1.2, background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
+                    style={{ flex: 1.2, background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
                   />
                 </div>
                 <button 
@@ -5707,16 +5744,16 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               </div>
             </form>
           )}
-
+ 
           <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
             {vehicles.length > 0 ? (
               vehicles.slice(0, 3).map(v => (
-                <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#f9f9fc", border: "1px solid #f1f1f5", borderRadius: 16 }}>
+                <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.dim, border: `1px solid ${C.border}`, borderRadius: 16 }}>
                   <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(16, 185, 129, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <span style={{ fontSize: 14 }}>{v.fuel_type === "EV" ? "⚡" : "🚗"}</span>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1e1b24", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</div>
                     <div style={{ fontSize: 10, color: C.muted, marginTop: 2, fontWeight: 500 }}>
                       Type: {v.fuel_type} - Efficiency: {v.efficiency} {v.fuel_type === "EV" ? "km/kWh" : "km/L"}
                     </div>
@@ -5755,7 +5792,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
 
         {/* Digital Glovebox */}
         <div id="digital-glovebox-card" style={{ 
-          background: "#ffffff", 
+          background: C.card, 
           border: `1px solid ${C.border}`, 
           borderRadius: 24, 
           padding: "28px 24px",
@@ -5764,7 +5801,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           flexDirection: "column"
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
               <Ic n="folder" s={16} c={C.text} sw={2.2} /> Digital Glovebox
             </h2>
             <button 
@@ -5787,13 +5824,13 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           </div>
 
           {gloveboxOpen && (
-            <form onSubmit={handleAddDocument} style={{ background: "#f9f9fc", borderRadius: 16, padding: 16, marginBottom: 16, border: "1px solid #f1f1f5" }}>
+            <form onSubmit={handleAddDocument} style={{ background: C.dim, borderRadius: 16, padding: 16, marginBottom: 16, border: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 12, textTransform: "uppercase" }}>New Document Upload</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <select 
                   value={docType} 
                   onChange={e => setDocType(e.target.value)} 
-                  style={{ width: "100%", background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+                  style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
                 >
                   <option value="Driving License">Driving License</option>
                   <option value="Registration Certificate (RC)">Registration Certificate (RC)</option>
@@ -5806,14 +5843,14 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     onChange={e => setDocNum(e.target.value)} 
                     placeholder="Doc No." 
                     required 
-                    style={{ flex: 1, background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
+                    style={{ flex: 1, background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
                   />
                   <input 
                     type="date" 
                     value={docExpiry} 
                     onChange={e => setDocExpiry(e.target.value)} 
                     required 
-                    style={{ flex: 1, background: "#ffffff", border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
+                    style={{ flex: 1, background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
                   />
                 </div>
                 <div>
@@ -5844,10 +5881,10 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               documents.slice(0, 3).map(d => {
                 const status = getDocExpiryStatus(d.expiry_date);
                 return (
-                  <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#f9f9fc", border: "1px solid #f1f1f5", borderRadius: 16 }}>
+                  <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.dim, border: `1px solid ${C.border}`, borderRadius: 16 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "#1e1b24" }}>{d.doc_type}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{d.doc_type}</span>
                         <Pill color={status.color} small>{status.label}</Pill>
                       </div>
                       <div style={{ fontSize: 10, color: C.muted, marginTop: 4, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>No: {d.doc_number}</div>
@@ -5904,7 +5941,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
 
         {/* Quick Actions */}
         <div style={{ 
-          background: "#ffffff", 
+          background: C.card, 
           border: `1px solid ${C.border}`, 
           borderRadius: 24, 
           padding: "28px 24px",
@@ -5912,7 +5949,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           display: "flex",
           flexDirection: "column"
         }}>
-          <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
             <Ic n="now" s={16} c="#f59e0b" sw={2.2} /> Quick Actions
           </h2>
           
@@ -5924,6 +5961,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               { id: "search_saved_routes", label: "Search Saved Routes", sub: "Find saved journeys", icon: "search", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
               { id: "search_place", label: "Search a Place", sub: "Find any location", icon: "gps", color: "#ec4899", bg: "rgba(236, 72, 153, 0.08)" },
               { id: "route_lookup_journey", label: "Route Lookup for a Journey", sub: "Plan from A to B", icon: "route", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
+              { id: "settings", label: "Settings", sub: "App configuration", icon: "settings", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
             ].map(act => (
               <div 
                 key={act.label}
@@ -5940,29 +5978,31 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     setShowStopsInfo(true);
                   } else if (act.id === "route_lookup_journey") {
                     setShowRouteLookupJourneyModal(true);
+                  } else if (act.id === "settings") {
+                    setShowSettings(true);
                   }
                 }}
                 style={{ 
-                  border: "1px solid #f1f1f5", 
+                  border: `1px solid ${C.border}`,
                   borderRadius: 16, 
                   padding: "12px 14px", 
                   display: "flex", 
                   flexDirection: "column", 
                   gap: 8,
-                  background: "#f9f9fc",
+                  background: C.dim,
                   cursor: "pointer",
                   transition: "all 0.2s"
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = "scale(1.02)";
-                  e.currentTarget.style.background = "#ffffff";
+                  e.currentTarget.style.background = C.card;
                   e.currentTarget.style.borderColor = act.color + "30";
                   e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.04) 0 8px 16px";
                 }}
                 onMouseLeave={e => {
                   e.currentTarget.style.transform = "none";
-                  e.currentTarget.style.background = "#f9f9fc";
-                  e.currentTarget.style.borderColor = "#f1f1f5";
+                  e.currentTarget.style.background = C.dim;
+                  e.currentTarget.style.borderColor = C.border;
                   e.currentTarget.style.boxShadow = "none";
                 }}
               >
@@ -5970,7 +6010,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                   <Ic n={act.icon} s={14} c={act.color} sw={2.2} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#1e1b24" }}>{act.label}</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{act.label}</div>
                   <div style={{ fontSize: 10, color: C.muted, marginTop: 2, fontWeight: 500 }}>{act.sub}</div>
                 </div>
               </div>
@@ -5985,7 +6025,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
         
         {/* Commute Suggestions */}
         <div style={{ 
-          background: "#ffffff", 
+          background: C.card, 
           border: `1px solid ${C.border}`, 
           borderRadius: 24, 
           padding: "28px 24px",
@@ -5994,7 +6034,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           flexDirection: "column"
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
               <Ic n="rocket" s={16} c={C.accent} sw={2.2} /> Commute Suggestions
             </h2>
             <button 
@@ -6006,19 +6046,19 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           </div>
 
           <div style={{
-            background: "rgba(124, 58, 237, 0.04)",
-            border: "1px solid rgba(124, 58, 237, 0.1)",
+            background: C.accent + "0a",
+            border: `1px solid ${C.accent}20`,
             borderRadius: 16,
             padding: "16px 20px",
             display: "flex",
             alignItems: "center",
             gap: 16
           }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(124, 58, 237, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: C.accent + "1c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Ic n="rocket" s={16} c={C.accent} sw={2.2} />
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#1e1b24" }}>Beat the traffic!</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Beat the traffic!</div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontWeight: 500, lineHeight: 1.4 }}>Travel before 9:00 AM to save up to 25% time on your commute.</div>
             </div>
           </div>
@@ -6026,14 +6066,14 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           {/* Dots Pagination */}
           <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 16 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.accent }} />
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#e2e8f0" }} />
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#e2e8f0" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.border2 }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.border2 }} />
           </div>
         </div>
 
         {/* Travel Alerts */}
         <div id="travel-alerts-card" style={{ 
-          background: "#ffffff", 
+          background: C.card, 
           border: `1px solid ${C.border}`, 
           borderRadius: 24, 
           padding: "28px 24px",
@@ -6042,7 +6082,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           flexDirection: "column"
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: "#1e1b24", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
               <Ic n="bell" s={16} c={C.red} sw={2.2} /> Travel Alerts
             </h2>
             <button 
@@ -6056,38 +6096,38 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Transit Alert */}
             <div style={{
-              background: "rgba(239, 68, 68, 0.03)",
-              border: "1px solid rgba(239, 68, 68, 0.08)",
+              background: C.red + "08",
+              border: `1px solid ${C.red}18`,
               borderRadius: 16,
               padding: "12px 16px",
               display: "flex",
               alignItems: "center",
               gap: 12
             }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(239, 68, 68, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.red + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Ic n="alert" s={14} c={C.red} sw={2.2} />
               </div>
               <div>
-                <div style={{ fontSize: 12.5, fontWeight: 800, color: "#1e1b24" }}>Transit: No active alerts</div>
+                <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>Transit: No active alerts</div>
                 <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2, fontWeight: 500 }}>No disruptions on your saved routes.</div>
               </div>
             </div>
 
             {/* Weather Alert */}
             <div style={{
-              background: "rgba(59, 130, 246, 0.03)",
-              border: "1px solid rgba(59, 130, 246, 0.08)",
+              background: C.accent + "08",
+              border: `1px solid ${C.accent}18`,
               borderRadius: 16,
               padding: "12px 16px",
               display: "flex",
               alignItems: "center",
               gap: 12
             }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(59, 130, 246, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.accent + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <span style={{ fontSize: 14 }}>☀️</span>
               </div>
               <div>
-                <div style={{ fontSize: 12.5, fontWeight: 800, color: "#1e1b24" }}>Weather: 27°C Partly Cloudy</div>
+                <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>Weather: 27°C Partly Cloudy</div>
                 <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2, fontWeight: 500 }}>Perfect commute weather. No rain expected today.</div>
               </div>
             </div>
@@ -8604,6 +8644,8 @@ export default function App() {
 
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem("theme_mode") || "light");
+  currentTheme = themeMode;
   const [useOsm, setUseOsm] = useState(() => {
     if (localStorage.getItem("force_osm") === "true") return true;
     if (localStorage.getItem("force_osm") === "false") return false;
@@ -9314,8 +9356,7 @@ export default function App() {
                 { id: "dashboard", icon: "home", label: "Home" },
                 { id: "plan", icon: "mappin", label: "Plan Journey" },
                 { id: "search_routes", icon: "route", label: "Search Routes" },
-                { id: "timetable", icon: "clock", label: "Timetable" },
-                { id: "map_settings", icon: "sparkles", label: "Map Settings" }
+                { id: "timetable", icon: "clock", label: "Timetable" }
               ].map(n => {
                 const isActive = (n.id === "dashboard" && page === "dashboard") || (n.id === "plan" && page === "plan" && !showRouteSearch && !showTimetable);
                 const isRouteSearchActive = n.id === "search_routes" && page === "plan" && showRouteSearch;
@@ -9330,7 +9371,6 @@ export default function App() {
                       else if (n.id === "plan") { setPage("plan"); setShowRouteSearch(false); setShowTimetable(false); }
                       else if (n.id === "search_routes") { setPage("plan"); setShowRouteSearch(true); setShowAllBuses(false); setShowTimetable(false); }
                       else if (n.id === "timetable") { setPage("plan"); setShowTimetable(true); setShowAllBuses(false); setShowRouteSearch(false); }
-                      else if (n.id === "map_settings") { setShowSettings(true); }
                     }}
                     style={{
                       background: isItemActive ? "linear-gradient(90deg, rgba(124, 58, 237, 0.16) 0%, rgba(124, 58, 237, 0.04) 100%)" : "none",
@@ -9525,7 +9565,7 @@ export default function App() {
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {[
                 { id: "help_support", icon: "chat", label: "Help & Support", sub: "FAQs & contact" },
-                { id: "settings", icon: "logout", label: "Settings" }
+                { id: "settings", icon: "settings", label: "Settings" }
               ].map(n => {
                 return (
                   <button
@@ -9623,7 +9663,7 @@ export default function App() {
         {/* TOP HEADER */}
         <header style={{
           height: 70,
-          background: "#ffffff",
+          background: C.card,
           borderBottom: `1px solid ${C.border}`,
           padding: "0 40px",
           display: "flex",
@@ -9636,7 +9676,7 @@ export default function App() {
           {/* Greeting depending on page */}
           <div>
             <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Welcome Back</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#1e1b24", marginTop: 2 }}>{user} 👋</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginTop: 2 }}>{user} 👋</div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -9645,14 +9685,14 @@ export default function App() {
               display: "flex", 
               alignItems: "center", 
               gap: 12, 
-              background: "#f8fafc", 
-              border: "1px solid #f1f5f9", 
+              background: C.dim, 
+              border: `1px solid ${C.border}`, 
               padding: "8px 16px", 
               borderRadius: 16 
             }}>
               <span style={{ fontSize: 18 }}>☀️</span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#1e1b24", lineHeight: 1.1 }}>27°C</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>27°C</div>
                 <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>Partly Cloudy</div>
               </div>
             </div>
@@ -9662,14 +9702,14 @@ export default function App() {
               display: "flex", 
               alignItems: "center", 
               gap: 12, 
-              background: "#f8fafc", 
-              border: "1px solid #f1f5f9", 
+              background: C.dim, 
+              border: `1px solid ${C.border}`, 
               padding: "8px 16px", 
               borderRadius: 16 
             }}>
               <span style={{ fontSize: 18 }}>🕒</span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#1e1b24", lineHeight: 1.1 }}>{nowTime()}</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>{nowTime()}</div>
                 <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>
                   {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                 </div>
@@ -9727,6 +9767,7 @@ export default function App() {
             stops={stops}
             setShowWeatherModal={setShowWeatherModal}
             setShowStopsInfo={setShowStopsInfo}
+            setShowSettings={setShowSettings}
           />
         )}
 
@@ -10403,12 +10444,48 @@ export default function App() {
             display: "flex", flexDirection: "column", gap: 20
           }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontWeight: 800, fontSize: 16 }}>Map Configuration</div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>App Settings</div>
               <button onClick={() => setShowSettings(false)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16 }}>✕</button>
             </div>
             
+            {/* Theme Settings */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted }}>MAP STYLE THEME</label>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.05em" }}>APP INTERFACE THEME</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <button
+                  onClick={() => {
+                    setThemeMode("light");
+                    localStorage.setItem("theme_mode", "light");
+                  }}
+                  style={{
+                    padding: "10px 0", borderRadius: 10, border: `1.5px solid ${themeMode === "light" ? C.accent : C.border2}`,
+                    background: themeMode === "light" ? C.accent + "15" : C.card,
+                    color: themeMode === "light" ? C.accent : C.text,
+                    fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit"
+                  }}
+                >
+                  ☀️ Light Mode
+                </button>
+                <button
+                  onClick={() => {
+                    setThemeMode("dark");
+                    localStorage.setItem("theme_mode", "dark");
+                  }}
+                  style={{
+                    padding: "10px 0", borderRadius: 10, border: `1.5px solid ${themeMode === "dark" ? C.accent : C.border2}`,
+                    background: themeMode === "dark" ? C.accent + "15" : C.card,
+                    color: themeMode === "dark" ? C.accent : C.text,
+                    fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit"
+                  }}
+                >
+                  🌑 Dark Mode
+                </button>
+              </div>
+            </div>
+
+            {/* Map Styles Settings */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.05em" }}>MAP STYLE THEME</label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {[
                   { k: "dark", label: "🌑 Dark Mode Map" },
@@ -10432,6 +10509,41 @@ export default function App() {
                     {theme.label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Map Provider Settings */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.05em" }}>MAP ENGINE PROVIDER</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <button
+                  onClick={() => {
+                    setUseOsm(false);
+                    localStorage.setItem("force_osm", "false");
+                  }}
+                  style={{
+                    padding: "10px 0", borderRadius: 10, border: `1.5px solid ${!useOsm ? C.accent : C.border2}`,
+                    background: !useOsm ? C.accent + "15" : C.card,
+                    color: !useOsm ? C.accent : C.text,
+                    fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit"
+                  }}
+                >
+                  🗺️ Google Maps
+                </button>
+                <button
+                  onClick={() => {
+                    setUseOsm(true);
+                    localStorage.setItem("force_osm", "true");
+                  }}
+                  style={{
+                    padding: "10px 0", borderRadius: 10, border: `1.5px solid ${useOsm ? C.accent : C.border2}`,
+                    background: useOsm ? C.accent + "15" : C.card,
+                    color: useOsm ? C.accent : C.text,
+                    fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit"
+                  }}
+                >
+                  🗺️ OpenStreetMap
+                </button>
               </div>
             </div>
 

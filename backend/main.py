@@ -686,6 +686,13 @@ def metro_plan(req: JourneyRequest):
 
     dep_time = _parse_time(req.time)
 
+    start_lat = None
+    start_lng = None
+    dest_lat = None
+    dest_lng = None
+    src_coord = None
+    dst_coord = None
+
     # 1. Parse source coordinate / resolve station
     src_coord = parse_coords(req.source)
     if src_coord:
@@ -748,6 +755,9 @@ def metro_plan(req: JourneyRequest):
             else:
                 end_walk_dist = 0.0
                 end_walk_mins = 0
+        else:
+            end_walk_dist = 0.0
+            end_walk_mins = 0
     try:
         result = _metro_planner.plan_journey(source, destination)
     except ValueError as e:
@@ -3865,61 +3875,14 @@ def chatbot_query(req: ChatbotRequest):
         all_vehicles=_all_vehicles, poi_names=_POI_NAMES,
     )
 
-    # Extract stops
-    matched_stops = engine.extract_stops(req.message)
+    # Resolve pronouns early using conversation history
+    processed_message = engine.resolve_pronouns(req.message, req.history)
+    matched_stops = engine.extract_stops(processed_message)
 
-    intent = None
-    params = {"message": req.message}
+    # 1. Local classification first (fast rule-based)
+    intent, params = engine.classify_intent(processed_message, matched_stops)
 
-    llm_res = None
-    try:
-        llm_res = engine.query_llm(req.message, req.history)
-    except Exception:
-        pass
-
-    if llm_res and isinstance(llm_res, dict):
-        intent = llm_res.get("intent")
-        llm_params = llm_res.get("parameters") or {}
-        for k, v in llm_params.items():
-            if v is not None:
-                params[k] = v
-
-        # Sanitize parameters
-        if "time" in params and isinstance(params["time"], str) and params["time"]:
-            try:
-                params["time"] = engine.extract_time(params["time"])
-            except Exception:
-                pass
-        if "budget" in params and params["budget"] is not None:
-            try:
-                params["budget"] = int(params["budget"])
-            except Exception:
-                pass
-        if "vehicle_type" in params:
-            params["vtype"] = params.get("vehicle_type")
-
-        llm_answer = llm_res.get("answer")
-        if llm_answer and intent in ("general", "clarification"):
-            serialized_params = {}
-            for k, v in params.items():
-                if isinstance(v, datetime):
-                    serialized_params[k] = v.isoformat()
-                else:
-                    serialized_params[k] = v
-            return {
-                "text": llm_answer,
-                "intent": intent,
-                "parameters": serialized_params,
-                "embedded_data": None
-            }
-    else:
-        resolved_context = engine.resolve_context_from_history(req.message, req.history)
-        if resolved_context:
-            intent, params = resolved_context
-        else:
-            intent, params = engine.classify_intent(req.message, matched_stops)
-
-    # Conversation memory: fill in source/destination/budget/vehicle that the
+    # 2. Conversation memory: fill in source/destination/budget/vehicle that the
     # CURRENT message omits from earlier turns in this conversation (e.g.
     # "what about by cab instead?" after already discussing a route).
     remembered = _recall_slots_from_history(req.history, engine)
@@ -3937,21 +3900,93 @@ def chatbot_query(req: ChatbotRequest):
         if not params.get("destination") and remembered.get("destination"):
             params["destination"] = remembered["destination"]
     if intent == "general":
-        follow_up = any(k in req.message.lower() for k in [
+        follow_up = any(k in processed_message.lower() for k in [
             "instead", "what about", "how about", "and by", "and what about", "same route",
         ])
         if follow_up and remembered.get("destination"):
             src = remembered.get("source") or "Majestic"
             dst = remembered["destination"]
-            vtype = engine.extract_vehicle_type(req.message) or remembered.get("vehicle")
+            vtype = engine.extract_vehicle_type(processed_message) or remembered.get("vehicle")
             if vtype:
                 intent = "vehicle_vs_transit"
                 params["vtype"] = vtype
                 params["destination"] = dst
             else:
-                intent = "journey_time" if "cost" not in req.message.lower() and "fare" not in req.message.lower() else "journey_cost"
+                intent = "journey_time" if "cost" not in processed_message.lower() and "fare" not in processed_message.lower() else "journey_cost"
                 params["source"] = src
                 params["destination"] = dst
+
+    # 3. Check if confident structured intent to bypass the LLM for sub-10ms latency
+    is_confident = False
+    if intent in ("journey_time", "journey_cost", "possible_ways", "ride_cost", "fuel_cost", "ac_bus_available", "multimodal_journey"):
+        if params.get("source") and params.get("destination"):
+            is_confident = True
+    elif intent == "nearest_stops":
+        if params.get("location"):
+            is_confident = True
+    elif intent == "nearby_pois":
+        if params.get("location"):
+            explore_cues = ["find", "show", "explore", "search", "list", "recommend", "suggest", "near", "nearest", "nearby", "close", "any", "where", "what", "spot", "spots"]
+            if any(k in processed_message.lower() for k in explore_cues):
+                is_confident = True
+    elif intent == "weather_query":
+        is_confident = True
+    elif intent == "multi_stop_itinerary":
+        if len(params.get("waypoints", [])) >= 2:
+            is_confident = True
+    elif intent == "bus_schedule_query":
+        if params.get("route_number") or (params.get("source") and params.get("destination")):
+            is_confident = True
+    elif intent == "budget_explore" and params.get("budget") is not None:
+        is_confident = True
+    elif intent == "budget_constrained" and params.get("budget") is not None and params.get("source") and params.get("destination"):
+        is_confident = True
+    elif intent == "vehicle_vs_transit" and params.get("vtype") and params.get("destination"):
+        is_confident = True
+
+    # 4. Fallback to LLM if not fully confident locally (e.g. conversational, general FAQs, greeting, help)
+    if not is_confident:
+        llm_res = None
+        try:
+            llm_res = engine.query_llm(processed_message, req.history)
+        except Exception:
+            pass
+
+        if llm_res and isinstance(llm_res, dict):
+            intent = llm_res.get("intent")
+            llm_params = llm_res.get("parameters") or {}
+            for k, v in llm_params.items():
+                if v is not None:
+                    params[k] = v
+
+            # Sanitize parameters
+            if "time" in params and isinstance(params["time"], str) and params["time"]:
+                try:
+                    params["time"] = engine.extract_time(params["time"])
+                except Exception:
+                    pass
+            if "budget" in params and params["budget"] is not None:
+                try:
+                    params["budget"] = int(params["budget"])
+                except Exception:
+                    pass
+            if "vehicle_type" in params:
+                params["vtype"] = params.get("vehicle_type")
+
+            llm_answer = llm_res.get("answer")
+            if llm_answer and intent in ("general", "clarification"):
+                serialized_params = {}
+                for k, v in params.items():
+                    if isinstance(v, datetime):
+                        serialized_params[k] = v.isoformat()
+                    else:
+                        serialized_params[k] = v
+                return {
+                    "text": llm_answer,
+                    "intent": intent,
+                    "parameters": serialized_params,
+                    "embedded_data": None
+                }
 
     dep_time = None
     if req.time:
@@ -4182,7 +4217,7 @@ def chatbot_query(req: ChatbotRequest):
                     })
 
             # Apply user's preferences & filters
-            msg_lower = req.message.lower()
+            msg_lower = processed_message.lower()
             prefer_metro = any(k in msg_lower for k in ["metro", "train", "purple", "green line"])
             prefer_bus = any(k in msg_lower for k in ["bus", "bmtc", "volvo", "vajra"])
             exclude_bus = any(k in msg_lower for k in ["no bus", "without bus", "exclude bus", "don't want a bus"])
@@ -4263,7 +4298,7 @@ def chatbot_query(req: ChatbotRequest):
 
         source = "Majestic"
         if matched_stops:
-            src_parsed, dst_parsed = engine.determine_source_dest(matched_stops, req.message)
+            src_parsed, dst_parsed = engine.determine_source_dest(matched_stops, processed_message)
             if src_parsed:
                 source = src_parsed
             if dst_parsed:
@@ -4665,33 +4700,78 @@ def chatbot_query(req: ChatbotRequest):
                 leg_cost = 0
                 leg_time = 0
 
+                # Fetch Weather
+                weather = engine.get_simulated_weather(current_time)
+
+                # Fetch Traffic
+                traffic_level = "clear"
+                distance_km = 5.0
+                src_coords = _resolve_any_location_coords(prev_wp)
+                dst_coords = _resolve_any_location_coords(wp)
+
+                if src_coords and dst_coords:
+                    route = _osrm_distance(src_coords[0], src_coords[1], dst_coords[0], dst_coords[1])
+                    if route:
+                        distance_km = route.get("distance_km", 5.0)
+                        raw_duration = route.get("duration_min", 15.0)
+                        traffic_level = _get_traffic_level(raw_duration, distance_km)
+
+                # Availability analysis for transit modes (BMTC and Metro)
+                bmtc_available = False
+                metro_available = False
+                bmtc_cost, bmtc_time = 0, 0
+                metro_cost, metro_time = 0, 0
+
                 try:
                     b_res = bmtc_plan(JourneyRequest(source=prev_wp, destination=wp, time=_fmt(current_time)))
                     if b_res.get("available"):
-                        leg_mode = "bmtc"
-                        leg_cost = b_res.get("cost", 0)
-                        leg_time = b_res.get("time", 0)
+                        bmtc_available = True
+                        bmtc_cost = b_res.get("cost", 15)
+                        bmtc_time = b_res.get("time", 30)
                 except Exception:
                     pass
 
                 try:
                     m_res = metro_plan(JourneyRequest(source=prev_wp, destination=wp, time=_fmt(current_time)))
-                    if m_res.get("available") and (leg_mode is None or m_res.get("cost", 999) < leg_cost):
-                        leg_mode = "metro"
-                        leg_cost = m_res.get("cost", 0)
-                        leg_time = m_res.get("time", 0)
+                    if m_res.get("available"):
+                        metro_available = True
+                        metro_cost = m_res.get("cost", 20)
+                        metro_time = m_res.get("time", 25)
                 except Exception:
                     pass
 
-                if not leg_mode:
-                    # Fall back to cab estimate
-                    src_coords = _resolve_any_location_coords(prev_wp)
-                    dst_coords = _resolve_any_location_coords(wp)
+                # Delay factor calculation (cabs and buses are affected by traffic and weather; metro is not)
+                weather_factor = 1.0
+                if "heavy rain" in weather or "storm" in weather:
+                    weather_factor = 1.54
+                elif "light rain" in weather or "drizzle" in weather:
+                    weather_factor = 1.2
+
+                traffic_factor = 1.0
+                if traffic_level == "heavy":
+                    traffic_factor = 1.4
+                elif traffic_level == "moderate":
+                    traffic_factor = 1.15
+
+                # Select mode
+                if metro_available and (metro_time < bmtc_time * weather_factor or "rain" in weather or traffic_level == "heavy"):
+                    leg_mode = "metro"
+                    leg_cost = metro_cost
+                    leg_time = metro_time
+                elif bmtc_available and not ("heavy rain" in weather or traffic_level == "heavy"):
+                    leg_mode = "bmtc"
+                    leg_cost = bmtc_cost
+                    leg_time = int(bmtc_time * weather_factor * traffic_factor)
+                else:
+                    # Fallback to cab
+                    leg_mode = "cab"
                     if src_coords and dst_coords:
                         cab = _cab_estimate(prev_wp, wp, current_time)
-                        leg_mode = "cab"
-                        leg_cost = cab.get("cost", 0)
-                        leg_time = cab.get("time", 0)
+                        leg_cost = int(cab.get("cost", 150) * (1.2 if traffic_level == "heavy" or "rain" in weather else 1.0))
+                        leg_time = int(cab.get("time", 20) * weather_factor * traffic_factor)
+                    else:
+                        leg_cost = int(distance_km * 18 + 50)
+                        leg_time = int((distance_km * 3) * weather_factor * traffic_factor)
 
                 depart_time_str = current_time.strftime("%I:%M %p")
                 arrive_dt = current_time.replace(
@@ -4700,10 +4780,10 @@ def chatbot_query(req: ChatbotRequest):
                 )
                 arrive_time_str = arrive_dt.strftime("%I:%M %p")
 
-                # Typical visit time at this waypoint
+                # Typical visit time
                 visit_minutes = int((poi_entry.get("typical_visit_hours", 1.0) if poi_entry else 1.0) * 60)
 
-                # Restaurant recommendations near this waypoint
+                # Restaurants near this waypoint
                 restaurants = []
                 if wp_lat and wp_lng:
                     restaurants = _poi_data.get_restaurants_near(wp_lat, wp_lng, radius_km=1.5, max_results=2)
@@ -4711,9 +4791,13 @@ def chatbot_query(req: ChatbotRequest):
                 legs.append({
                     "from": prev_wp,
                     "to": wp,
-                    "mode": leg_mode or "cab",
+                    "mode": leg_mode,
                     "cost": leg_cost,
                     "time": leg_time,
+                    "weather": weather,
+                    "traffic": traffic_level,
+                    "bmtc_available": bmtc_available,
+                    "metro_available": metro_available,
                     "depart_time": depart_time_str,
                     "arrive_time": arrive_time_str,
                     "visit_minutes": visit_minutes,

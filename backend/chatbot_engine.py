@@ -68,7 +68,90 @@ class ChatbotEngine:
         self.all_stops = [s for s in combined_stops if s.strip().lower() not in _GENERIC_STOP_BLOCKLIST]
         self.all_vehicles = all_vehicles or []
 
+    def query_llm_groq(self, message: str, history: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
+        api_key = os.environ.get("GROQ_API_KEY", "").strip()
+        if not api_key:
+            return None
+        try:
+            from groq import Groq
+            client = Groq(api_key=api_key)
+            
+            system_instruction = (
+                "You are a comprehensive Bangalore commuter assistant that helps with ALL transport modes.\n"
+                "Parse the user query, classify intent, extract parameters, answer general questions.\n\n"
+                "INTENTS:\n"
+                "- \"journey_time\": User wants to travel between locations — fastest route, any mode.\n"
+                "- \"journey_cost\": User asks about public transit (bus/metro) fares or general/comparative route costs.\n"
+                "- \"budget_constrained\": User wants to travel under a specific budget.\n"
+                "- \"budget_explore\": User wants to explore what destinations they can travel to within a budget (no destination specified). Extract budget.\n"
+                "- \"possible_ways\": User wants ALL modes/routes compared.\n"
+                "- \"ride_cost\": User asks specifically about cab, taxi, auto, Ola, Uber, Namma Yatri, or Rapido ride-hailing fares. Extract source+destination.\n"
+                "- \"fuel_cost\": User asks about fuel/petrol/diesel or private vehicle cost. Extract source, destination, vehicle_type.\n"
+                "- \"nearest_stops\": User wants nearest bus stop or metro station. Extract location.\n"
+                "- \"traffic_query\": User asks about traffic, congestion, road conditions, drive time.\n"
+                "- \"multimodal_journey\": User asks for Bus+Metro combined route.\n"
+                "- \"weather_query\": User asks about weather or rain forecast.\n"
+                "- \"vehicle_vs_transit\": User wants to compare driving vs public transit.\n"
+                "- \"nearby_pois\": User wants to find nearby places, restaurants, cafes, attractions, hotels, or other POIs. Extract location and poi_type/explore_category.\n"
+                "- \"multi_stop_itinerary\": User wants to plan a trip to multiple waypoints (3 or more locations). Extract waypoints array.\n"
+                "- \"bus_schedule_query\": User asks about bus routes, route stops, or bus schedules/timings. Extract route_number, source, destination.\n"
+                "- \"general\": General transit rules, Metro timings, greetings, help.\n"
+                "- \"clarification\": Journey intent but source or destination is missing.\n\n"
+                "RULES:\n"
+                "1. Support multi-stop journeys: For journeys with 3 to 5 destinations, extract all destinations in order into the 'waypoints' parameter array.\n"
+                "2. For nearby_pois or travel queries that also ask for nearby items, extract the center location into 'location' and set 'explore_category' to one of: 'restaurant', 'cafe', 'attraction', 'hotel', 'hospital', 'mall', 'petrol_pump', 'atm', 'bus_stop', 'metro_station'.\n"
+                "3. Output MUST be a single JSON object matching the structure below.\n\n"
+                "Output structure:\n"
+                "{\n"
+                "  \"intent\": \"intent_name\",\n"
+                "  \"parameters\": {\n"
+                "    \"source\": \"string or null\",\n"
+                "    \"destination\": \"string or null\",\n"
+                "    \"stops\": [\"string\"] or null,\n"
+                "    \"waypoints\": [\"string\"] or null,\n"
+                "    \"route_number\": \"string or null\",\n"
+                "    \"location\": \"string or null\",\n"
+                "    \"poi_type\": \"string or null\",\n"
+                "    \"explore_category\": \"string or null\",\n"
+                "    \"time\": \"string or null\",\n"
+                "    \"budget\": 0,\n"
+                "    \"vehicle_type\": \"string or null\",\n"
+                "    \"clarification_question\": \"string or null\"\n"
+                "  },\n"
+                "  \"answer\": \"string or null\"\n"
+                "}\n"
+                "No markdown formatting. Response MUST be valid JSON."
+            )
+
+            messages = [{"role": "system", "content": system_instruction}]
+            if history:
+                for msg in history[-8:]:
+                    role = "user" if msg.get("sender") == "user" else "assistant"
+                    messages.append({"role": role, "content": msg.get("text", "")})
+            messages.append({"role": "user", "content": message})
+            
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=messages,
+                response_format={"type": "json_object"},
+                temperature=0.2,
+                max_tokens=600,
+                timeout=3.0
+            )
+            text_content = completion.choices[0].message.content
+            if text_content:
+                return json.loads(text_content)
+            return None
+        except Exception:
+            return None
+
     def query_llm(self, message: str, history: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
+        # 1. Try Groq first for sub-200ms parsing latency
+        groq_res = self.query_llm_groq(message, history)
+        if groq_res:
+            return groq_res
+
+        # 2. Fallback to Gemini if Groq fails or is not configured
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             return None
@@ -373,6 +456,9 @@ class ChatbotEngine:
                 if len(phrase) < 4:
                     continue
                 phrase_lower = phrase.lower()
+                poi_words = {"restaurant", "restaurants", "cafe", "cafes", "mall", "malls", "hotel", "hotels", "hospital", "hospitals", "atm", "atms", "petrol", "fuel", "stop", "stops", "station", "stations"}
+                if any(w in phrase_lower.split() for w in poi_words):
+                    continue
                 # Already resolved by extract_stops()? skip it -- either by
                 # direct substring containment, or because it confidently
                 # fuzzy-matches a known stop/POI at the SAME cutoff
@@ -574,6 +660,30 @@ class ChatbotEngine:
             params["waypoints"] = wps
             params["source"] = wps[0]
             params["destination"] = wps[-1]
+
+            # Extract start time if specified (e.g. "at 8am" or "between 8am")
+            time_match = re.search(r'\b(?:at|start\s+at|from|starts?\s+at|planned\s+between)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\b', text_lower)
+            if time_match:
+                try:
+                    params["start_time"] = self.extract_time(time_match.group(1))
+                except Exception:
+                    pass
+            else:
+                first_time_match = re.search(r'\b(\d{1,2}(?::\d{2})?\s*(?:am|pm))\b', text_lower)
+                if first_time_match:
+                    try:
+                        params["start_time"] = self.extract_time(first_time_match.group(1))
+                    except Exception:
+                        pass
+
+            # Extract end time range if specified (e.g. "to 8 pm" or "until 8pm")
+            end_time_match = re.search(r'\b(?:to|until|till|ends?\s+at)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm))\b', text_lower)
+            if end_time_match:
+                try:
+                    params["end_time"] = self.extract_time(end_time_match.group(1))
+                except Exception:
+                    pass
+
             return "multi_stop_itinerary", params
 
         # 0.0.1. Check for bus route schedule timetable queries
@@ -608,20 +718,25 @@ class ChatbotEngine:
             params["destination"] = dst_test
             return "multimodal_journey", params
 
-        # 0.1. Check for nearby POIs/places/restaurants
+        # 0.1. Check for nearby POIs/places/restaurants on word boundaries
         is_nearby_request = False
         detected_category = None
         for cat, keywords in poi_keywords.items():
-            if any(k in text_lower for k in keywords):
-                is_nearby_request = True
-                detected_category = cat
+            for k in keywords:
+                if re.search(r'\b' + re.escape(k) + r'\b', text_lower):
+                    is_nearby_request = True
+                    detected_category = cat
+                    break
+            if is_nearby_request:
                 break
 
-        # Also check general words like "nearby", "near me", "explore near"
+        # Also check general words like "nearby", "near me", "explore near" on word boundaries
         if not is_nearby_request:
-            if any(k in text_lower for k in ["nearby", "near me", "places near", "explore near", "explore nearby"]):
-                is_nearby_request = True
-                detected_category = "attraction"
+            for k in ["nearby", "near me", "places near", "explore near", "explore nearby"]:
+                if re.search(r'\b' + re.escape(k) + r'\b', text_lower):
+                    is_nearby_request = True
+                    detected_category = "attraction"
+                    break
 
         if is_nearby_request and detected_category in ("bus_stop", "metro_station") and any(k in text_lower for k in ["nearest", "closest"]):
             is_nearby_request = False
@@ -642,6 +757,9 @@ class ChatbotEngine:
                     if unresolved:
                         loc = unresolved[0]
             else:
+                loc = "me"
+
+            if not loc:
                 loc = "me"
                 
             if loc:
@@ -716,9 +834,8 @@ class ChatbotEngine:
 
         # 3. Nearest Stop Check
         if any(k in text_lower for k in ["nearest", "closest", "nearby", "close to"]):
-            if matched_stops:
-                params["location"] = matched_stops[0]
-                return "nearest_stops", params
+            params["location"] = matched_stops[0] if matched_stops else "me"
+            return "nearest_stops", params
 
         # 4. Budget Constraint / Budget Exploration
         budget = self.extract_budget(text)
@@ -1090,7 +1207,40 @@ class ChatbotEngine:
             if not legs:
                 return "Sorry, I couldn't generate an itinerary for the requested waypoints."
 
-            reply = f"### 🗺️ **Bangalore Trip Itinerary**\n\n"
+            reply = f"### 🗺️ **Personalized Bangalore Day-Trip Planner**\n"
+            reply += f"*Optimized schedule starting at **{start_time}** covers {len(waypoints)} destinations.*\n\n"
+            
+            # Show a global warnings block if any leg has heavy traffic or rain
+            warnings = []
+            for leg in legs:
+                w = leg.get("weather", "").lower()
+                t = leg.get("traffic", "").lower()
+                if "heavy rain" in w or "storm" in w:
+                    warnings.append("☔ **Heavy Rain/Storm Alert**: Some legs have severe weather forecasts. Expect road delays up to 54%.")
+                if t == "heavy":
+                    warnings.append("🚗 **High Traffic Alert**: Peak congestion detected on road routes. Road travel duration is scaled up by 40%.")
+            
+            # Check if final arrival time exceeds user-specified end time
+            end_time_dt = params.get("end_time")
+            if end_time_dt and legs:
+                try:
+                    if isinstance(end_time_dt, str):
+                        end_time_dt = self.extract_time(end_time_dt)
+                    last_leg = legs[-1]
+                    arr_time_str = last_leg.get("arrive_time")
+                    arr_time_dt = datetime.strptime(arr_time_str, "%I:%M %p")
+                    arr_time_dt = end_time_dt.replace(hour=arr_time_dt.hour, minute=arr_time_dt.minute)
+                    if arr_time_dt > end_time_dt:
+                        warnings.append(f"⏱️ **Time Constraint Shortfall**: Your final arrival at **{arr_time_str}** exceeds your requested end time of **{end_time_dt.strftime('%I:%M %p')}**.")
+                except Exception:
+                    pass
+
+            if warnings:
+                reply += "⚠️ **Commute Conditions Analysis**\n"
+                for warn in set(warnings):
+                    reply += f"- {warn}\n"
+                reply += "\n"
+
             for i, leg in enumerate(legs):
                 from_place = leg.get("from")
                 to_place = leg.get("to")
@@ -1100,30 +1250,44 @@ class ChatbotEngine:
                 duration = leg.get("time")
                 arr_time = leg.get("arrive_time")
                 dep_time_str = leg.get("depart_time")
+                weather = leg.get("weather", "clear")
+                traffic = leg.get("traffic", "clear")
                 
-                # Emojis
-                emoji = "🚇" if mode == "metro" else "🚌" if mode == "bmtc" else "🔀" if mode == "multimodal" else "🚗" if mode == "car" else "🛵" if mode == "bike" else "🚖"
+                # Emojis & icons
+                mode_emoji = "🚇" if mode == "metro" else "🚌" if mode == "bmtc" else "🚖"
+                weather_emoji = "☔" if "rain" in weather.lower() or "storm" in weather.lower() else "☀️"
+                traffic_emoji = "🔴" if traffic == "heavy" else "🟡" if traffic == "moderate" else "🟢"
                 
                 # Add source stop info
                 if i == 0:
-                    reply += f"1. 📍 **{from_place}** — {dep_time_str}\n"
+                    reply += f"1. 📍 **{from_place}** — Departure at **{dep_time_str}**\n"
                 
-                # Add travel leg
-                reply += f"   • {emoji} {mode_lbl}: ₹{fare} (~{duration} min)\n"
+                # Add travel leg details
+                reply += f"   • {mode_emoji} **{mode_lbl}** to {to_place}\n"
+                reply += f"     - ⏱️ *Duration:* {duration} mins | 💵 *Est. Fare:* ₹{fare}\n"
+                reply += f"     - {weather_emoji} *Weather:* {weather} | {traffic_emoji} *Traffic:* {traffic.capitalize()}\n"
                 
+                # Recommended logic output
+                if mode == "metro":
+                    reply += "     - 💡 *Note:* Metro is highly recommended for this leg to completely bypass road traffic and rain.\n"
+                elif mode == "cab" and (traffic == "heavy" or "rain" in weather.lower()):
+                    reply += "     - ⚠️ *Note:* Cab is chosen as fallback, but expect heavy traffic gridlock and surge pricing.\n"
+
                 # Add destination stop info
-                reply += f"{i+2}. 📍 **{to_place}** — {arr_time}\n"
+                reply += f"{i+2}. 📍 **{to_place}** — Arrival at **{arr_time}** (typical visit: {leg.get('visit_minutes', 60)} min)\n"
                 
-                # If there are recommended restaurants
+                # Food suggestions
                 rests = leg.get("restaurants", [])
                 if rests:
-                    reply += "   🍔 *Nearby food suggestions:*\n"
+                    reply += "   🍔 *Nearby Food Suggestions:*\n"
                     for r in rests:
-                        reply += f"     - {r['name']} ({r.get('distance_km', 1.0)} km)\n"
+                        reply += f"     - {r['name']} ({r.get('distance_km', 1.0)} km) ★{r.get('rating', 4.0)}\n"
                 reply += "\n"
 
-            reply += f"**Total Est. Travel Time:** ~{total_time} mins\n"
-            reply += f"**Total Est. Travel Cost:** ₹{total_cost}\n"
+            reply += f"📊 **Itinerary Summary:**\n"
+            reply += f"• **Total Travel Cost:** ₹{total_cost}\n"
+            reply += f"• **Total Transit Duration:** ~{total_time} mins\n"
+            reply += f"• **Optimal Routing Path:** {' ➔ '.join(waypoints)}\n"
             return reply
 
         elif intent == "bus_schedule_query":
@@ -1400,4 +1564,49 @@ class ChatbotEngine:
 
     def determine_source_dest(self, matched_stops: List[str], text: str) -> Tuple[Optional[str], Optional[str]]:
         return self.parse_source_dest_from_text(text, matched_stops)
+
+    def resolve_pronouns(self, text: str, history: Optional[List[Dict[str, str]]] = None) -> str:
+        """Scan conversation history to resolve pronouns like 'this', 'that', 'there',
+        'it', 'these', 'those', 'here', 'them' with previously discussed locations/stops/routes.
+        This provides context memory efficiency."""
+        if not history:
+            return text
+
+        lower_text = text.lower()
+        pronouns = ["this", "that", "there", "it", "these", "those", "here", "them"]
+        has_pronoun = any(re.search(r"\b" + re.escape(p) + r"\b", lower_text) for p in pronouns)
+        if not has_pronoun:
+            return text
+
+        prev_stops = []
+        for msg in reversed(history):
+            msg_text = msg.get("text") or msg.get("content") or ""
+            if not msg_text:
+                continue
+            stops = self.extract_stops(msg_text)
+            if stops:
+                for s in stops:
+                    if s not in prev_stops:
+                        prev_stops.append(s)
+                break  # Stop searching once we find a message containing stops
+
+        if not prev_stops:
+            return text
+
+        primary_stop = prev_stops[0]
+
+        # 1. Resolve route pronouns if we have 2+ stops in history
+        if len(prev_stops) >= 2:
+            src, dst = prev_stops[0], prev_stops[1]
+            text = re.sub(r'\b(?:this|that|the)\s+(?:route|journey|trip)\b', f"from {src} to {dst}", text, flags=re.IGNORECASE)
+
+        # 2. Resolve target pronouns with prepositions (e.g., "to it", "near there", "close to this")
+        patterns = [
+            (r'\b(near|nearest|nearby|close to|next to|to|at|from|around)\s+(?:this\s+place|that\s+place|this|that|there|here|it)\b', rf'\1 {primary_stop}'),
+            (r'\b(to|reach|get to|go to)\s+(?:this\s+place|that\s+place|this|that|there|it)\b', rf'\1 {primary_stop}'),
+        ]
+        for pattern, repl in patterns:
+            text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
+
+        return text
 
