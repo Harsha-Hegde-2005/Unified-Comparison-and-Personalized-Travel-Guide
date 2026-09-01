@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../theme.dart';
 
 class LoginScreen extends StatefulWidget {
   final Function(String username) onLoginSuccess;
+  final VoidCallback? onContinueAsGuest;
 
   const LoginScreen({
     super.key,
     required this.onLoginSuccess,
+    this.onContinueAsGuest,
   });
 
   @override
@@ -17,17 +20,48 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   bool _isSignUp = false;
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
+  String? _successMessage;
+  bool _isBackendConnected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBackend();
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkBackend() async {
+    final ok = await ApiService.checkHealth();
+    if (mounted) {
+      setState(() => _isBackendConnected = ok);
+    }
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_isSignUp && _passwordController.text != _confirmPasswordController.text) {
+      setState(() => _errorMessage = 'Passwords do not match.');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _successMessage = null;
     });
 
     final username = _usernameController.text.trim();
@@ -40,15 +74,24 @@ class _LoginScreenState extends State<LoginScreen> {
       result = await ApiService.login(username: username, password: password);
     }
 
-    setState(() {
-      _isLoading = false;
-    });
+    if (!mounted) return;
+
+    setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      widget.onLoginSuccess(username);
+      setState(() {
+        _successMessage = _isSignUp
+            ? 'Account created successfully in database! Logging you in...'
+            : 'Welcome back, $username!';
+      });
+
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (mounted) {
+        widget.onLoginSuccess(username);
+      }
     } else {
       setState(() {
-        _errorMessage = result['error'] ?? 'Authentication failed';
+        _errorMessage = result['error'] ?? 'Authentication failed. Please check your credentials.';
       });
     }
   }
@@ -56,205 +99,341 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = const Color(0xFF7C5CFF);
-    final scaffoldBg = isDark ? const Color(0xFF13141C) : const Color(0xFFF1F5F9);
-    final cardBg = isDark ? const Color(0xFF1E202C) : Colors.white;
-    final textColor = isDark ? Colors.white : Colors.black87;
+    final scaffoldBg = AppTheme.getBg(isDark);
+    final cardBg = AppTheme.getCard(isDark);
+    final textColor = AppTheme.getText(isDark);
+    final mutedColor = AppTheme.getMuted(isDark);
 
     return Scaffold(
       backgroundColor: scaffoldBg,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Dynamic Glowing Icon Header
+              // Glowing Brand Icon Header
               Container(
-                width: 80,
-                height: 80,
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF7C5CFF), Color(0xFF10B981)],
+                    colors: [Color(0xFF7C3AED), Color(0xFFF97316)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(22),
                   boxShadow: [
                     BoxShadow(
-                      color: primaryColor.withOpacity(0.3),
-                      blurRadius: 16,
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.35),
+                      blurRadius: 18,
                       offset: const Offset(0, 8),
                     )
                   ],
                 ),
                 child: const Icon(
-                  Icons.commute,
-                  size: 40,
+                  Icons.commute_rounded,
+                  size: 38,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
               Text(
-                'Commuter Assistant',
+                'Bengaluru Transit',
                 style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
                   color: textColor,
-                  letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
-                _isSignUp ? 'Create an account to get started' : 'Sign in to access personalized travel plans',
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-                textAlign: TextAlign.center,
+                'Unified Multimodal Commuter Guide',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: mutedColor,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              const SizedBox(height: 32),
 
-              // Glassmorphic Login/Register Card container
-              Card(
-                color: cardBg,
-                elevation: 6,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (_errorMessage != null) ...[
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50.withOpacity(isDark ? 0.1 : 0.9),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red.shade300),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.error_outline, color: Colors.red),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    _errorMessage!,
-                                    style: const TextStyle(color: Colors.red, fontSize: 13),
+              const SizedBox(height: 10),
+
+              // Backend Database Sync Status Pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: (_isBackendConnected ? AppTheme.green : Colors.amber).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: (_isBackendConnected ? AppTheme.green : Colors.amber).withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 4,
+                      backgroundColor: _isBackendConnected ? AppTheme.green : Colors.amber,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isBackendConnected ? 'Connected to Transit DB' : 'Checking Backend DB...',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _isBackendConnected ? AppTheme.green : Colors.amber.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Main Auth Card
+              Container(
+                padding: const EdgeInsets.all(22.0),
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppTheme.getBorder(isDark)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    )
+                  ],
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Dual Tab Switcher: Sign In vs Sign Up
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E202C) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _isSignUp = false;
+                                    _errorMessage = null;
+                                    _successMessage = null;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: !_isSignUp ? AppTheme.bmtcColor : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Username Input Field
-                        TextFormField(
-                          controller: _usernameController,
-                          style: TextStyle(color: textColor),
-                          decoration: InputDecoration(
-                            labelText: 'Username',
-                            labelStyle: const TextStyle(color: Colors.grey),
-                            prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade400.withOpacity(0.5)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: primaryColor, width: 2),
-                            ),
-                          ),
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) return 'Enter your username';
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Password Input Field
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: true,
-                          style: TextStyle(color: textColor),
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            labelStyle: const TextStyle(color: Colors.grey),
-                            prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade400.withOpacity(0.5)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: primaryColor, width: 2),
-                            ),
-                          ),
-                          validator: (val) {
-                            if (val == null || val.isEmpty) return 'Enter your password';
-                            if (val.length < 4) return 'Password must be at least 4 characters';
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Gradient Submit Button
-                        Container(
-                          height: 50,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF7C5CFF), Color(0xFF5B21B6)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            onPressed: _isLoading ? null : _submit,
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                : Text(
-                                    _isSignUp ? 'CREATE ACCOUNT' : 'SIGN IN',
-                                    style: const TextStyle(
-                                      fontSize: 16,
+                                  child: Text(
+                                    'Sign In',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      fontSize: 13,
+                                      color: !_isSignUp ? Colors.white : mutedColor,
                                     ),
                                   ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _isSignUp = true;
+                                    _errorMessage = null;
+                                    _successMessage = null;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: _isSignUp ? AppTheme.bmtcColor : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    'Create Account',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: _isSignUp ? Colors.white : mutedColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Username Field
+                      TextFormField(
+                        controller: _usernameController,
+                        decoration: InputDecoration(
+                          labelText: 'Username',
+                          hintText: 'Enter your transit username',
+                          prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) return 'Username is required';
+                          if (val.trim().length < 3) return 'Must be at least 3 characters';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Password Field
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          hintText: '••••••••',
+                          prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, size: 18),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
+                        validator: (val) {
+                          if (val == null || val.isEmpty) return 'Password is required';
+                          if (val.length < 4) return 'Password must be at least 4 characters';
+                          return null;
+                        },
+                      ),
+
+                      // Confirm Password (Sign Up only)
+                      if (_isSignUp) ...[
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _confirmPasswordController,
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
+                            labelText: 'Confirm Password',
+                            hintText: 'Re-enter password',
+                            prefixIcon: const Icon(Icons.lock_clock_outlined, size: 20),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          ),
+                          validator: (val) {
+                            if (val == null || val.isEmpty) return 'Please confirm your password';
+                            return null;
+                          },
+                        ),
+                      ],
+
+                      // Error Message Banner
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.red.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppTheme.red.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline_rounded, color: AppTheme.red, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(fontSize: 11, color: AppTheme.red, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                    ),
+
+                      // Success Message Banner
+                      if (_successMessage != null) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.green.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppTheme.green.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.check_circle_outline_rounded, color: AppTheme.green, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _successMessage!,
+                                  style: const TextStyle(fontSize: 11, color: AppTheme.green, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 20),
+
+                      // Submit Action Button
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.bmtcColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 0,
+                        ),
+                        onPressed: _isLoading ? null : _submit,
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : Text(
+                                _isSignUp ? 'Create Account' : 'Sign In',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+
               const SizedBox(height: 20),
 
-              // Switch Login/Register Toggle
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _isSignUp = !_isSignUp;
-                    _errorMessage = null;
-                  });
-                },
-                child: Text(
-                  _isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Create one",
-                  style: TextStyle(
-                    color: primaryColor,
-                    fontWeight: FontWeight.bold,
+              // Continue as Guest Button
+              if (widget.onContinueAsGuest != null)
+                TextButton.icon(
+                  onPressed: widget.onContinueAsGuest,
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                  label: const Text(
+                    'Continue as Guest',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
-              ),
             ],
           ),
         ),

@@ -1,8 +1,13 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
 import '../services/api_service.dart';
+import '../theme.dart';
+import '../utils/geolocation_helper.dart';
+import '../widgets/linear_route_map.dart';
+import '../widgets/travel_guide.dart';
+import '../widgets/google_map_view.dart';
 
 class RouteDetailsScreen extends StatefulWidget {
   final String source;
@@ -27,7 +32,32 @@ class RouteDetailsScreen extends StatefulWidget {
 class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   final fm.MapController _mapController = fm.MapController();
   List<ll.LatLng> _routePoints = [];
-  bool _isLoadingCoords = false;
+
+  int _activeSegmentIndex = 0;
+  bool _isLiveNavigating = false;
+  bool _useRealGps = true;
+  Timer? _navTimer;
+  StreamSubscription<ll.LatLng>? _gpsSubscription;
+  double _liveProgress = 0.0;
+  ll.LatLng? _liveGpsPoint;
+
+  static const Map<String, ll.LatLng> _knownCoords = {
+    'majestic': ll.LatLng(12.9767, 77.5713),
+    'indiranagar': ll.LatLng(12.9784, 77.6408),
+    'whitefield': ll.LatLng(12.9698, 77.7500),
+    'electronic city': ll.LatLng(12.8452, 77.6602),
+    'silk board': ll.LatLng(12.9174, 77.6238),
+    'mg road': ll.LatLng(12.9756, 77.6066),
+    'hebbal': ll.LatLng(13.0358, 77.5970),
+    'banashankari': ll.LatLng(12.9255, 77.5739),
+    'yeshwantpur': ll.LatLng(13.0238, 77.5529),
+    'koramangala': ll.LatLng(12.9352, 77.6245),
+    'marathahalli': ll.LatLng(12.9591, 77.6974),
+    'btm layout': ll.LatLng(12.9166, 77.6101),
+    'jayanagar': ll.LatLng(12.9308, 77.5838),
+    'kempegowda bus station': ll.LatLng(12.9767, 77.5713),
+    'airport': ll.LatLng(13.1986, 77.7066),
+  };
 
   @override
   void initState() {
@@ -35,9 +65,27 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
     _fetchRouteCoords();
   }
 
+  @override
+  void dispose() {
+    _navTimer?.cancel();
+    _gpsSubscription?.cancel();
+    super.dispose();
+  }
+
+  ll.LatLng? _lookupKnownCoord(String name) {
+    final n = name.trim().toLowerCase();
+    for (final entry in _knownCoords.entries) {
+      if (n.contains(entry.key) || entry.key.contains(n)) {
+        return entry.value;
+      }
+    }
+    return null;
+  }
+
   Future<void> _fetchRouteCoords() async {
     final List<String> stops = [];
     final opt = widget.option;
+
     if (opt['segments'] is List) {
       for (final seg in opt['segments']) {
         if (seg is Map<String, dynamic>) {
@@ -52,482 +100,383 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       }
     }
 
-    if (stops.isEmpty) return;
-
-    setState(() {
-      _isLoadingCoords = true;
-    });
+    stops.insert(0, widget.source);
+    stops.add(widget.destination);
 
     final uniqueStops = stops.toSet().toList();
     final res = await ApiService.fetchStopCoords(uniqueStops);
-    final coords = res?['coordinates'] as Map<String, dynamic>?;
+    final coords = res?['coordinates'] as Map<String, dynamic>? ?? {};
 
-    if (coords != null && mounted) {
-      final List<ll.LatLng> points = [];
-      if (opt['segments'] is List) {
-        for (final seg in opt['segments']) {
-          if (seg is Map<String, dynamic>) {
-            final fromText = seg['from']?.toString();
-            final toText = seg['to']?.toString();
+    final List<ll.LatLng> points = [];
 
-            if (fromText != null && coords.containsKey(fromText)) {
-              final c = coords[fromText] as Map<String, dynamic>;
-              points.add(ll.LatLng((c['lat'] as num).toDouble(), (c['lng'] as num).toDouble()));
-            }
-
-            if (seg['stops'] is List) {
-              for (final s in seg['stops']) {
-                final stopName = s.toString();
-                if (coords.containsKey(stopName)) {
-                  final c = coords[stopName] as Map<String, dynamic>;
-                  points.add(ll.LatLng((c['lat'] as num).toDouble(), (c['lng'] as num).toDouble()));
-                }
-              }
-            }
-
-            if (toText != null && coords.containsKey(toText)) {
-              final c = coords[toText] as Map<String, dynamic>;
-              points.add(ll.LatLng((c['lat'] as num).toDouble(), (c['lng'] as num).toDouble()));
-            }
-          }
+    for (final s in uniqueStops) {
+      if (coords.containsKey(s)) {
+        final c = coords[s] as Map<String, dynamic>;
+        final lat = (c['lat'] as num?)?.toDouble();
+        final lng = (c['lng'] as num?)?.toDouble();
+        if (lat != null && lng != null) {
+          points.add(ll.LatLng(lat, lng));
         }
+      } else {
+        final fallback = _lookupKnownCoord(s);
+        if (fallback != null) points.add(fallback);
       }
+    }
 
+    if (points.isEmpty) {
+      final sFall = _lookupKnownCoord(widget.source) ?? const ll.LatLng(12.9767, 77.5713);
+      final dFall = _lookupKnownCoord(widget.destination) ?? const ll.LatLng(12.9784, 77.6408);
+      points.addAll([sFall, dFall]);
+    }
+
+    if (mounted) {
       setState(() {
         _routePoints = points;
-        _isLoadingCoords = false;
       });
 
-      if (_routePoints.isNotEmpty) {
+      if (_routePoints.length >= 2) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
+          try {
             final bounds = fm.LatLngBounds.fromPoints(_routePoints);
             _mapController.fitCamera(
-              fm.CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(60)),
+              fm.CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
             );
-          }
+          } catch (_) {}
         });
       }
-    } else {
+    }
+  }
+
+  void _toggleLiveNav() {
+    if (_isLiveNavigating) {
+      _navTimer?.cancel();
+      _gpsSubscription?.cancel();
       setState(() {
-        _isLoadingCoords = false;
+        _isLiveNavigating = false;
+        _liveGpsPoint = null;
+        _liveProgress = 0.0;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⏹ Live GPS Navigation stopped')),
+      );
+    } else {
+      if (_routePoints.isEmpty) return;
+
+      setState(() {
+        _isLiveNavigating = true;
+        _liveProgress = 0.0;
+        _activeSegmentIndex = 0;
+        _liveGpsPoint = _routePoints.first;
+      });
+
+      if (_useRealGps) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📡 Live Real-Time GPS Tracking started! Monitoring device position...'),
+            backgroundColor: AppTheme.green,
+          ),
+        );
+
+        // Listen to live device GPS position stream
+        _gpsSubscription = GeolocationHelper.watchPositionStream().listen((pos) {
+          if (!mounted) return;
+          _updateRealGpsPosition(pos);
+        });
+
+        // Initial single position fetch
+        GeolocationHelper.getCurrentPosition().then((pos) {
+          if (pos != null && mounted) _updateRealGpsPosition(pos);
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('▶️ Simulated Demo Navigation started!'),
+            backgroundColor: AppTheme.blue,
+          ),
+        );
+
+        _navTimer = Timer.periodic(const Duration(milliseconds: 700), (timer) {
+          if (!mounted) return;
+          setState(() {
+            _liveProgress += 3.5;
+            if (_liveProgress >= 100.0) {
+              _liveProgress = 100.0;
+              _liveGpsPoint = _routePoints.last;
+              _isLiveNavigating = false;
+              timer.cancel();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🎉 Destination Arrived! You have reached your destination.'),
+                  backgroundColor: AppTheme.green,
+                ),
+              );
+            } else {
+              final idx = ((_liveProgress / 100.0) * (_routePoints.length - 1)).floor();
+              _liveGpsPoint = _routePoints[idx.clamp(0, _routePoints.length - 1)];
+
+              final guide = widget.option['guide'] as List<dynamic>?;
+              if (guide != null && guide.isNotEmpty) {
+                final stepIdx = ((_liveProgress / 100.0) * guide.length).floor();
+                _activeSegmentIndex = stepIdx.clamp(0, guide.length - 1);
+              }
+            }
+          });
+        });
+      }
     }
   }
 
-  IconData _getIconForMode(String mode) {
-    switch (mode.toLowerCase()) {
-      case 'bmtc':
-        return Icons.directions_bus;
-      case 'metro':
-        return Icons.subway;
-      case 'cab':
-        return Icons.local_taxi;
-      case 'car':
-        return Icons.directions_car;
-      case 'multimodal':
-        return Icons.shuffle;
-      default:
-        return Icons.directions;
-    }
-  }
+  void _updateRealGpsPosition(ll.LatLng pos) {
+    if (_routePoints.isEmpty) return;
 
-  String _getLabelForMode(String mode) {
-    switch (mode.toLowerCase()) {
-      case 'bmtc':
-        return 'BMTC Bus';
-      case 'metro':
-        return 'Namma Metro';
-      case 'cab':
-        return 'Cab / Auto';
-      case 'car':
-        return 'Personal Vehicle';
-      case 'multimodal':
-        return 'Multimodal Journey';
-      default:
-        return mode.toUpperCase();
-    }
-  }
+    final start = _routePoints.first;
+    final end = _routePoints.last;
+    final totalDistance = const ll.Distance().as(ll.LengthUnit.Meter, start, end);
+    final userDistance = const ll.Distance().as(ll.LengthUnit.Meter, start, pos);
 
-  Widget _mapBtn(IconData icon, VoidCallback onPressed) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(230),
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(38),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          )
-        ],
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: const Color(0xFF7C5CFF), size: 20),
-        onPressed: onPressed,
-      ),
-    );
+    double prog = 0.0;
+    if (totalDistance > 0) {
+      prog = ((userDistance / totalDistance) * 100.0).clamp(0.0, 100.0);
+    }
+
+    final guide = widget.option['guide'] as List<dynamic>?;
+    int stepIdx = _activeSegmentIndex;
+    if (guide != null && guide.isNotEmpty) {
+      stepIdx = ((prog / 100.0) * guide.length).floor().clamp(0, guide.length - 1);
+    }
+
+    setState(() {
+      _liveGpsPoint = pos;
+      _liveProgress = prog;
+      _activeSegmentIndex = stepIdx;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accentPurple = const Color(0xFF7C5CFF);
-    final cardBgColor = isDark ? const Color(0xFF1E2130) : Colors.white;
+    final cardBg = AppTheme.getCard(isDark);
+    final textColor = AppTheme.getText(isDark);
+    final mutedColor = AppTheme.getMuted(isDark);
 
-    final mode = widget.option['mode']?.toString() ?? '';
-    final duration = widget.option['time'] ?? 0;
+    final mode = widget.option['mode']?.toString() ?? 'bmtc';
+    final modeColor = AppTheme.getModeColor(mode);
+    final time = widget.option['time'] ?? 0;
     final cost = widget.option['cost'] ?? 0;
-    final walk = widget.option['distance'] ?? 0.0;
-    final explanation = widget.option['explanation']?.toString() ?? '';
-    final guideSteps = widget.option['guide'] as List<dynamic>? ?? [];
-
-    final center = widget.srcCoord ?? widget.dstCoord ?? const ll.LatLng(12.9716, 77.5946);
-
-    final markers = <fm.Marker>[
-      if (widget.srcCoord != null)
-        fm.Marker(
-          point: widget.srcCoord!,
-          width: 48,
-          height: 58,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(6),
-                  boxShadow: [BoxShadow(color: Colors.black.withAlpha(76), blurRadius: 4)],
-                ),
-                child: const Text('FROM', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-              ),
-              const Icon(Icons.location_pin, color: Colors.green, size: 32),
-            ],
-          ),
-        ),
-      if (widget.dstCoord != null)
-        fm.Marker(
-          point: widget.dstCoord!,
-          width: 48,
-          height: 58,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(6),
-                  boxShadow: [BoxShadow(color: Colors.black.withAlpha(76), blurRadius: 4)],
-                ),
-                child: const Text('TO', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-              ),
-              const Icon(Icons.location_pin, color: Colors.red, size: 32),
-            ],
-          ),
-        ),
-    ];
-
-    final directLine = <ll.LatLng>[
-      if (widget.srcCoord != null) widget.srcCoord!,
-      if (widget.dstCoord != null) widget.dstCoord!,
-    ];
-
-    Widget mapWidget = fm.FlutterMap(
-      mapController: _mapController,
-      options: fm.MapOptions(
-        initialCenter: center,
-        initialZoom: 12.5,
-        interactionOptions: const fm.InteractionOptions(
-          flags: fm.InteractiveFlag.pinchZoom | fm.InteractiveFlag.drag,
-        ),
-      ),
-      children: [
-        fm.TileLayer(
-          urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-          userAgentPackageName: 'com.bmtc.app',
-          maxZoom: 19,
-        ),
-        if (_routePoints.isNotEmpty)
-          fm.PolylineLayer(
-            polylines: [
-              fm.Polyline(
-                points: _routePoints,
-                color: accentPurple,
-                strokeWidth: 5,
-              ),
-            ],
-          )
-        else if (directLine.length == 2)
-          fm.PolylineLayer(
-            polylines: [
-              fm.Polyline(
-                points: directLine,
-                color: accentPurple,
-                strokeWidth: 4,
-                isDotted: true,
-              ),
-            ],
-          ),
-        fm.MarkerLayer(markers: markers),
-      ],
-    );
-
-    if (isDark && !kIsWeb) {
-      mapWidget = ColorFiltered(
-        colorFilter: const ColorFilter.matrix([
-          -1, 0, 0, 0, 255,
-           0,-1, 0, 0, 255,
-           0, 0,-1, 0, 255,
-           0, 0, 0, 1,   0,
-        ]),
-        child: mapWidget,
-      );
-    }
+    final dist = widget.option['distance'] ?? 0.0;
+    final guide = widget.option['guide'] as List<dynamic>?;
+    final segments = widget.option['segments'] as List<dynamic>?;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // Detailed map takes the background
-          Positioned.fill(child: mapWidget),
-
-          // Custom back button and header panel
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 10,
-            left: 16,
-            right: 16,
-            child: Row(
+      appBar: AppBar(
+        title: Text(
+          '${AppTheme.getModeLabel(mode)} Route',
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _isLiveNavigating ? Icons.stop_circle_rounded : Icons.navigation_rounded,
+              color: _isLiveNavigating ? AppTheme.red : AppTheme.green,
+            ),
+            tooltip: _isLiveNavigating ? 'Stop Navigation' : 'Start Live Navigation',
+            onPressed: _toggleLiveNav,
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Mode selector bar (Live Real GPS vs Demo Simulation)
+            Row(
               children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.black87),
-                    onPressed: () => Navigator.pop(context),
+                Expanded(
+                  child: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment<bool>(
+                        value: true,
+                        label: Text('📡 Real GPS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        icon: Icon(Icons.my_location_rounded, size: 14),
+                      ),
+                      ButtonSegment<bool>(
+                        value: false,
+                        label: Text('▶️ Demo Simulator', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        icon: Icon(Icons.play_arrow_rounded, size: 14),
+                      ),
+                    ],
+                    selected: {_useRealGps},
+                    onSelectionChanged: (setVal) {
+                      if (_isLiveNavigating) _toggleLiveNav();
+                      setState(() => _useRealGps = setVal.first);
+                    },
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: cardBgColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-                    ),
-                    child: Row(
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // 1. Prominent Start Navigation Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isLiveNavigating ? AppTheme.red : AppTheme.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 4,
+                ),
+                onPressed: _toggleLiveNav,
+                icon: Icon(
+                  _isLiveNavigating ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded,
+                  size: 22,
+                ),
+                label: Text(
+                  _isLiveNavigating
+                      ? 'STOP LIVE GPS NAVIGATION'
+                      : '🚀 START LIVE NAVIGATION (${_liveProgress.toStringAsFixed(0)}%)',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.3),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 2. Live Navigation Status & % Ride Completion Banner
+            if (_isLiveNavigating)
+              Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF10B981), Color(0xFF047857)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.green.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        CircleAvatar(
-                          backgroundColor: accentPurple.withAlpha(26),
-                          child: Icon(_getIconForMode(mode), color: accentPurple),
+                        Row(
+                          children: [
+                            const Icon(Icons.navigation_rounded, color: Colors.white, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              _useRealGps ? 'REAL-TIME GPS TRACKING' : 'DEMO SIMULATION ACTIVE',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _getLabelForMode(mode),
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                              Text(
-                                '⏱️ $duration min  ·  ₹$cost  ·  🚶 ${walk}km',
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                              ),
-                            ],
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${_liveProgress.toStringAsFixed(0)}% Done',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Zoom control buttons
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 80,
-            right: 16,
-            child: Column(
-              children: [
-                _mapBtn(Icons.add, () => _mapController.move(
-                    _mapController.camera.center,
-                    (_mapController.camera.zoom + 1).clamp(1, 19))),
-                const SizedBox(height: 8),
-                _mapBtn(Icons.remove, () => _mapController.move(
-                    _mapController.camera.center,
-                    (_mapController.camera.zoom - 1).clamp(1, 19))),
-              ],
-            ),
-          ),
-
-          // Guidelines sheet at the bottom
-          DraggableScrollableSheet(
-            initialChildSize: 0.35,
-            minChildSize: 0.20,
-            maxChildSize: 0.85,
-            builder: (context, scrollController) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: cardBgColor,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(38),
-                      blurRadius: 10,
-                      offset: const Offset(0, -3),
-                    )
-                  ],
-                ),
-                child: ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  children: [
-                    // Handle bar
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white24 : Colors.black12,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    if (explanation.isNotEmpty) ...[
-                      Text(
-                        '💡 Smart Insights',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: accentPurple.withAlpha(20),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: accentPurple.withAlpha(38)),
-                        ),
-                        child: Text(
-                          explanation,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? Colors.grey[300] : Colors.grey[800],
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    Text(
-                      '🗺️ Step-by-Step Directions',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: (_liveProgress / 100.0).clamp(0.0, 1.0),
+                        backgroundColor: Colors.white24,
+                        color: Colors.white,
+                        minHeight: 6,
                       ),
                     ),
                     const SizedBox(height: 8),
-
-                    if (_isLoadingCoords)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                      )
-                    else if (guideSteps.isNotEmpty)
-                      ...guideSteps.map((step) {
-                        if (step is Map<String, dynamic>) {
-                          final stepText = step['text']?.toString() ?? '';
-                          final stepDur = step['duration']?.toString() ?? '';
-                          final stepDetail = step['detail']?.toString() ?? '';
-                          final stepIconStr = step['icon']?.toString() ?? 'directions';
-
-                          IconData stepIcon = Icons.directions;
-                          if (stepIconStr.contains('walk')) stepIcon = Icons.directions_walk;
-                          if (stepIconStr.contains('bus')) stepIcon = Icons.directions_bus;
-                          if (stepIconStr.contains('train') || stepIconStr.contains('metro') || stepIconStr.contains('subway')) stepIcon = Icons.subway;
-                          if (stepIconStr.contains('cab') || stepIconStr.contains('car') || stepIconStr.contains('taxi')) stepIcon = Icons.local_taxi;
-
-                          return Container(
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withAlpha(5) : Colors.black.withAlpha(4),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor: accentPurple.withAlpha(26),
-                                  child: Icon(stepIcon, size: 16, color: accentPurple),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        stepText,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark ? Colors.white : Colors.black87,
-                                        ),
-                                      ),
-                                      if (stepDur.isNotEmpty || stepDetail.isNotEmpty) ...[
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          [stepDur, stepDetail].where((s) => s.isNotEmpty).join(' · '),
-                                          style: const TextStyle(fontSize: 11, color: Colors.grey),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.arrow_right, size: 16, color: Colors.grey),
-                              const SizedBox(width: 4),
-                              Expanded(child: Text(step.toString(), style: const TextStyle(fontSize: 12))),
-                            ],
-                          ),
-                        );
-                      })
-                    else
-                      const Text(
-                        'No detailed steps available.',
-                        style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey),
-                      ),
-
-                    const SizedBox(height: 24),
+                    Text(
+                      'Current Step (${_activeSegmentIndex + 1}/${guide?.length ?? 1}): ${guide != null && guide.length > _activeSegmentIndex ? (guide[_activeSegmentIndex]['text'] ?? '') : 'En route'}',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
                   ],
                 ),
-              );
-            },
-          ),
-        ],
+              ),
+
+            // 3. Summary Badge Bar
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.getBorder(isDark)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${widget.source} → ${widget.destination}',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: textColor),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '⏱️ $time min  ·  ₹$cost  ·  🚶 ${dist}km',
+                        style: TextStyle(fontSize: 12, color: mutedColor, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  PillBadge(
+                    text: AppTheme.getModeLabel(mode),
+                    color: modeColor,
+                    icon: AppTheme.getModeIcon(mode),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 4. Interactive Google Maps Box with Live GPS Marker
+            GoogleMapView(
+              points: _routePoints,
+              srcPoint: widget.srcCoord,
+              dstPoint: widget.dstCoord,
+              liveGpsPoint: _liveGpsPoint,
+              liveGpsProgress: _isLiveNavigating ? _liveProgress : null,
+              routeColor: modeColor,
+              height: 240,
+            ),
+            const SizedBox(height: 16),
+
+            // 5. Linear Route Map Timeline (---o---o---)
+            LinearRouteMap(
+              segments: segments,
+              activeMode: mode,
+            ),
+            const SizedBox(height: 16),
+
+            // 6. Step-by-Step Travel Guide with NAVIGATE WALK buttons
+            TravelGuide(
+              guide: guide,
+              color: modeColor,
+              activeSegmentIndex: _activeSegmentIndex,
+              onStepTapped: (idx) {
+                setState(() => _activeSegmentIndex = idx);
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

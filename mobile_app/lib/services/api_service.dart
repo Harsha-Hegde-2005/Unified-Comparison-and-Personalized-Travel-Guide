@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart' as ll;
 
 /// Central API service that mirrors every endpoint used by the website frontend.
 /// All methods are static. The [baseUrl] can be updated at runtime from the
@@ -60,7 +61,7 @@ class ApiService {
             headers: {'Content-Type': 'application/json'},
             body: json.encode(body),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 45));
       if (res.statusCode == 200) {
         return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
       }
@@ -167,14 +168,15 @@ class ApiService {
     String? timeStr,
     String? weatherStr,
   }) async {
-    return _post('/api/chatbot/query', {
+    final Map<String, dynamic> body = {
       'message': message,
       'history': history,
-      if (latitude != null) 'latitude': latitude,
-      if (longitude != null) 'longitude': longitude,
-      if (timeStr != null) 'time': timeStr,
-      if (weatherStr != null) 'weather': weatherStr,
-    });
+    };
+    if (latitude != null) body['latitude'] = latitude;
+    if (longitude != null) body['longitude'] = longitude;
+    if (timeStr != null) body['time'] = timeStr;
+    if (weatherStr != null) body['weather'] = weatherStr;
+    return _post('/api/chatbot/query', body);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -188,13 +190,14 @@ class ApiService {
     String preference = 'cost',
     String? vehicle,
   }) async {
-    return _post('/api/compare', {
+    final Map<String, dynamic> body = {
       'source': source,
       'destination': destination,
-      if (time != null) 'time': time,
       'preference': preference,
-      if (vehicle != null) 'vehicle': vehicle,
-    });
+    };
+    if (time != null && time.isNotEmpty) body['time'] = time;
+    if (vehicle != null && vehicle.isNotEmpty) body['vehicle'] = vehicle;
+    return _post('/api/compare', body);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -207,12 +210,13 @@ class ApiService {
     String? time,
     String preference = 'cost',
   }) async {
-    return _post('/api/bmtc/plan', {
+    final Map<String, dynamic> body = {
       'source': source,
       'destination': destination,
-      if (time != null) 'time': time,
       'preference': preference,
-    });
+    };
+    if (time != null) body['time'] = time;
+    return _post('/api/bmtc/plan', body);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -224,11 +228,12 @@ class ApiService {
     required String destination,
     String? time,
   }) async {
-    return _post('/api/bmtc/all-buses', {
+    final Map<String, dynamic> body = {
       'source': source,
       'destination': destination,
-      if (time != null) 'time': time,
-    });
+    };
+    if (time != null) body['time'] = time;
+    return _post('/api/bmtc/all-buses', body);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -257,11 +262,12 @@ class ApiService {
     required String destination,
     String? time,
   }) async {
-    return _post('/api/metro/plan', {
+    final Map<String, dynamic> body = {
       'source': source,
       'destination': destination,
-      if (time != null) 'time': time,
-    });
+    };
+    if (time != null) body['time'] = time;
+    return _post('/api/metro/plan', body);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -368,8 +374,172 @@ class ApiService {
       _get('/api/weather/report?lat=$lat&lng=$lng&location_name=${Uri.encodeComponent(name)}');
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // PLACES  (/api/places/*)
+  // PEDESTRIAN WALKING ROUTE (OSRM Foot API)
   // ═══════════════════════════════════════════════════════════════════════════
+
+  static Future<Map<String, dynamic>?> fetchWalkingRoute(
+    double srcLat,
+    double srcLng,
+    double dstLat,
+    double dstLng,
+  ) async {
+    try {
+      final url = Uri.parse(
+        'https://router.project-osrm.org/route/v1/foot/$srcLng,$srcLat;$dstLng,$dstLat?overview=full&geometries=geojson&steps=true',
+      );
+      final res = await http.get(url).timeout(const Duration(seconds: 8));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body) as Map<String, dynamic>;
+        final routes = data['routes'] as List<dynamic>?;
+        if (routes != null && routes.isNotEmpty) {
+          final route = routes.first as Map<String, dynamic>;
+          final geometry = route['geometry'] as Map<String, dynamic>?;
+          final coords = geometry?['coordinates'] as List<dynamic>?;
+
+          final List<ll.LatLng> points = [];
+          if (coords != null) {
+            for (final c in coords) {
+              if (c is List && c.length >= 2) {
+                final lng = (c[0] as num).toDouble();
+                final lat = (c[1] as num).toDouble();
+                points.add(ll.LatLng(lat, lng));
+              }
+            }
+          }
+
+          final List<Map<String, dynamic>> steps = [];
+          final legs = route['legs'] as List<dynamic>?;
+          if (legs != null && legs.isNotEmpty) {
+            final legSteps = legs.first['steps'] as List<dynamic>?;
+            if (legSteps != null) {
+              for (final s in legSteps) {
+                if (s is Map<String, dynamic>) {
+                  final name = s['name']?.toString() ?? '';
+                  final maneuver = s['maneuver'] as Map<String, dynamic>?;
+                  final type = maneuver?['type']?.toString() ?? 'walk';
+                  final modifier = maneuver?['modifier']?.toString() ?? '';
+                  final dist = (s['distance'] as num?)?.toDouble() ?? 0.0;
+
+                  String instr = 'Walk ahead';
+                  if (type == 'depart') {
+                    instr = name.isNotEmpty ? 'Head out on $name' : 'Head out towards destination';
+                  } else if (type == 'turn') {
+                    instr = 'Turn $modifier ${name.isNotEmpty ? "onto $name" : ""}';
+                  } else if (type == 'arrive') {
+                    instr = 'Arrive at destination entrance';
+                  } else if (name.isNotEmpty) {
+                    instr = 'Walk on $name';
+                  }
+
+                  steps.add({
+                    'instruction': instr,
+                    'distance': '${dist.toStringAsFixed(0)} m',
+                  });
+                }
+              }
+            }
+          }
+
+          return {
+            'points': points,
+            'steps': steps,
+            'distance': route['distance'],
+            'duration': route['duration'],
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HIGH-PRECISION FORWARD GEOCODING (Place Name -> Exact Lat, Lng)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static Future<ll.LatLng?> geocodeHighPrecision(String locationName) async {
+    final query = locationName.trim();
+    if (query.isEmpty) return null;
+
+    // 1. Try backend stop coordinates first
+    try {
+      final res = await fetchStopCoords([query]);
+      final coords = res?['coordinates'] as Map<String, dynamic>?;
+      if (coords != null && coords.containsKey(query)) {
+        final c = coords[query] as Map<String, dynamic>;
+        final lat = (c['lat'] as num?)?.toDouble();
+        final lng = (c['lng'] as num?)?.toDouble();
+        if (lat != null && lng != null) {
+          return ll.LatLng(lat, lng);
+        }
+      }
+    } catch (_) {}
+
+    // 2. High-precision Nominatim OSM Geocoding
+    try {
+      final searchQuery = query.toLowerCase().contains('bengaluru') || query.toLowerCase().contains('bangalore')
+          ? query
+          : '$query, Bengaluru, Karnataka, India';
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(searchQuery)}&format=json&limit=1',
+      );
+      final res = await http.get(
+        url,
+        headers: {'User-Agent': 'BMTC_Commuter_App/1.0'},
+      ).timeout(const Duration(seconds: 4));
+
+      if (res.statusCode == 200) {
+        final list = json.decode(res.body) as List<dynamic>?;
+        if (list != null && list.isNotEmpty) {
+          final item = list.first as Map<String, dynamic>;
+          final lat = double.tryParse(item['lat']?.toString() ?? '');
+          final lng = double.tryParse(item['lon']?.toString() ?? '');
+          if (lat != null && lng != null) {
+            return ll.LatLng(lat, lng);
+          }
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // REVERSE GEOCODING (Coordinates -> Place Name)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static Future<String?> reverseGeocode(double lat, double lng) async {
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=18&addressdetails=1',
+      );
+      final res = await http.get(
+        url,
+        headers: {'User-Agent': 'BMTC_Commuter_App/1.0'},
+      ).timeout(const Duration(seconds: 6));
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body) as Map<String, dynamic>;
+        final display = data['display_name']?.toString();
+        final address = data['address'] as Map<String, dynamic>?;
+
+        if (address != null) {
+          final place = address['suburb'] ??
+              address['neighbourhood'] ??
+              address['amenity'] ??
+              address['road'] ??
+              address['city_district'];
+          if (place != null && place.toString().isNotEmpty) {
+            return '$place, Bengaluru';
+          }
+        }
+        if (display != null && display.isNotEmpty) {
+          final parts = display.split(',');
+          return parts.take(2).join(',').trim();
+        }
+      }
+    } catch (_) {}
+    return '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+  }
 
   static Future<Map<String, dynamic>?> placesAutocomplete(String query) async =>
       _get('/api/places/autocomplete?query=${Uri.encodeComponent(query)}');

@@ -2,14 +2,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
+import '../theme.dart';
+import '../widgets/modals.dart';
 
 class DashboardScreen extends StatefulWidget {
   final ValueNotifier<ThemeMode> themeNotifier;
   final ValueNotifier<String> mapStyleNotifier;
   final ValueNotifier<String> mapProviderNotifier;
+  final String username;
+  final VoidCallback onOpenLogin;
   final VoidCallback onNavigateToChat;
   final VoidCallback onNavigateToMap;
-  final VoidCallback onNavigateToPlan;
+  final ValueChanged<Map<String, String>> onNavigateToPlanWithRoute;
   final VoidCallback onNavigateToTransit;
 
   const DashboardScreen({
@@ -17,9 +21,11 @@ class DashboardScreen extends StatefulWidget {
     required this.themeNotifier,
     required this.mapStyleNotifier,
     required this.mapProviderNotifier,
+    required this.username,
+    required this.onOpenLogin,
     required this.onNavigateToChat,
     required this.onNavigateToMap,
-    required this.onNavigateToPlan,
+    required this.onNavigateToPlanWithRoute,
     required this.onNavigateToTransit,
   });
 
@@ -32,18 +38,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late String _dateString;
   late Timer _timer;
 
-  // Live Database States
   Map<String, dynamic>? _dashboardData;
   List<dynamic>? _vehicles;
   List<dynamic>? _documents;
-  bool _isLoading = true;
 
   @override
   void initState() {
+    super.initState();
     _timeString = _formatDateTime(DateTime.now(), 'hh:mm a');
     _dateString = _formatDateTime(DateTime.now(), 'EEE, MMM d, yyyy');
-    _timer = Timer.periodic(const Duration(seconds: 1), (Timer t) => _getTime());
-    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _getTime());
     _loadData();
   }
 
@@ -51,6 +55,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _timer.cancel();
     super.dispose();
+  }
+
+  void _getTime() {
+    final now = DateTime.now();
+    if (mounted) {
+      setState(() {
+        _timeString = _formatDateTime(now, 'hh:mm a');
+        _dateString = _formatDateTime(now, 'EEE, MMM d, yyyy');
+      });
+    }
+  }
+
+  String _formatDateTime(DateTime dt, String format) => DateFormat(format).format(dt);
+
+  String _getGreeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
   }
 
   Future<void> _loadData() async {
@@ -63,248 +86,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _dashboardData = dashboard;
         _vehicles = vehicles;
         _documents = documents;
-        _isLoading = false;
       });
     }
   }
 
-  void _getTime() {
-    final DateTime now = DateTime.now();
-    final String formattedTime = _formatDateTime(now, 'hh:mm a');
-    final String formattedDate = _formatDateTime(now, 'EEE, MMM d, yyyy');
-    if (mounted) {
-      setState(() {
-        _timeString = formattedTime;
-        _dateString = formattedDate;
-      });
-    }
-  }
-
-  String _formatDateTime(DateTime dateTime, String format) {
-    return DateFormat(format).format(dateTime);
-  }
-
-  String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
-  }
-
-  void _showSettingsBottomSheet(BuildContext context) {
-    final urlController = TextEditingController(text: ApiService.baseUrl);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: isDark ? const Color(0xFF262935) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 50,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade400,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Application Settings',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 1. Backend Server BaseURL
-                  const Text('FastAPI Backend URL', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: urlController,
-                    decoration: InputDecoration(
-                      hintText: 'http://127.0.0.1:8000',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.save),
-                        onPressed: () {
-                          ApiService.baseUrl = urlController.text.trim();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Backend BaseURL saved: ${ApiService.baseUrl}')),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 2. Interface Theme Toggler
-                  const Text('App Theme Mode', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.light_mode),
-                          label: const Text('Light'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: widget.themeNotifier.value == ThemeMode.light
-                                ? const Color(0xFF7C5CFF)
-                                : Colors.grey.shade300,
-                            foregroundColor: widget.themeNotifier.value == ThemeMode.light
-                                ? Colors.white
-                                : Colors.black87,
-                          ),
-                          onPressed: () {
-                            setModalState(() {
-                              widget.themeNotifier.value = ThemeMode.light;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.dark_mode),
-                          label: const Text('Dark'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: widget.themeNotifier.value == ThemeMode.dark
-                                ? const Color(0xFF7C5CFF)
-                                : Colors.grey.shade300,
-                            foregroundColor: widget.themeNotifier.value == ThemeMode.dark
-                                ? Colors.white
-                                : Colors.black87,
-                          ),
-                          onPressed: () {
-                            setModalState(() {
-                              widget.themeNotifier.value = ThemeMode.dark;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 3. Map Style Grid Selector
-                  const Text('Map Style Overlay', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  ValueListenableBuilder<String>(
-                    valueListenable: widget.mapStyleNotifier,
-                    builder: (context, styleVal, _) {
-                      return GridView.count(
-                        shrinkWrap: true,
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                        childAspectRatio: 2.8,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: ['standard', 'dark', 'satellite', 'terrain'].map((style) {
-                          final isSelected = styleVal == style;
-                          return ChoiceChip(
-                            label: Text(style.toUpperCase()),
-                            selected: isSelected,
-                            onSelected: (val) {
-                              if (val) {
-                                widget.mapStyleNotifier.value = style;
-                              }
-                            },
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 4. Map Provider Toggle
-                  const Text('Map Service Provider', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  ValueListenableBuilder<String>(
-                    valueListenable: widget.mapProviderNotifier,
-                    builder: (context, providerVal, _) {
-                      return SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(value: 'google', label: Text('Google Maps'), icon: Icon(Icons.map)),
-                          ButtonSegment(value: 'osm', label: Text('OpenStreetMap'), icon: Icon(Icons.public)),
-                        ],
-                        selected: {providerVal},
-                        onSelectionChanged: (set) {
-                          widget.mapProviderNotifier.value = set.first;
-                        },
-                      );
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _addVehicleDialog() {
-    final nameController = TextEditingController();
-    final fuelController = TextEditingController(text: 'Petrol');
-    final effController = TextEditingController();
+  void _showAddVehicleDialog() {
+    final nameCtrl = TextEditingController();
+    String fuelType = 'Petrol';
+    final effCtrl = TextEditingController(text: '15.0');
 
     showDialog(
       context: context,
       builder: (context) {
-        final navigator = Navigator.of(context);
         return AlertDialog(
-          title: const Text('Add Vehicle'),
+          title: const Text('Add Vehicle to Garage'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Vehicle Name (e.g. Pulsar 160)'),
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Vehicle Name (e.g. Honda City)', border: OutlineInputBorder()),
               ),
-              TextField(
-                controller: fuelController,
-                decoration: const InputDecoration(labelText: 'Fuel Type (Petrol/Diesel/EV)'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: fuelType,
+                decoration: const InputDecoration(labelText: 'Fuel Type', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'Petrol', child: Text('Petrol')),
+                  DropdownMenuItem(value: 'Diesel', child: Text('Diesel')),
+                  DropdownMenuItem(value: 'Electric', child: Text('Electric (EV)')),
+                  DropdownMenuItem(value: 'CNG', child: Text('CNG')),
+                ],
+                onChanged: (v) {
+                  if (v != null) fuelType = v;
+                },
               ),
+              const SizedBox(height: 12),
               TextField(
-                controller: effController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Efficiency (km/l or km/kWh)'),
+                controller: effCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Efficiency (km/l or km/kWh)', border: OutlineInputBorder()),
               ),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => navigator.pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ElevatedButton(
               onPressed: () async {
-                final name = nameController.text.trim();
-                final fuel = fuelController.text.trim();
-                final eff = double.tryParse(effController.text) ?? 15.0;
+                final name = nameCtrl.text.trim();
+                final eff = double.tryParse(effCtrl.text.trim()) ?? 14.0;
                 if (name.isNotEmpty) {
-                  final success = await ApiService.addVehicle(name, fuel, eff);
-                  if (success) {
-                    _loadData();
+                  await ApiService.addVehicle(name, fuelType, eff);
+                  if (context.mounted) {
+                    Navigator.pop(context);
                   }
+                  _loadData();
                 }
-                navigator.pop();
               },
               child: const Text('Add'),
             ),
@@ -314,435 +151,568 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Future<void> _deleteVehicle(int id) async {
-    final success = await ApiService.deleteVehicle(id);
-    if (success) {
-      _loadData();
-    }
+  void _showSettingsBottomSheet() {
+    final urlCtrl = TextEditingController(text: ApiService.baseUrl);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.getCard(isDark),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(2))),
+              ),
+              const SizedBox(height: 16),
+              const Text('Application Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+
+              // Base URL
+              const Text('Backend Server URL', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: urlCtrl,
+                decoration: InputDecoration(
+                  hintText: 'http://localhost:8000',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.save),
+                    onPressed: () {
+                      ApiService.baseUrl = urlCtrl.text.trim();
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Backend URL set to: ${ApiService.baseUrl}')),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Theme Switcher
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Theme Mode', style: TextStyle(fontWeight: FontWeight.bold)),
+                  SegmentedButton<ThemeMode>(
+                    segments: const [
+                      ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_rounded), label: Text('Light')),
+                      ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_rounded), label: Text('Dark')),
+                    ],
+                    selected: {widget.themeNotifier.value},
+                    onSelectionChanged: (set) {
+                      widget.themeNotifier.value = set.first;
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accentPurple = const Color(0xFF7C5CFF);
-    final accentGreen = const Color(0xFF10B981);
+    final cardBg = AppTheme.getCard(isDark);
+    final textColor = AppTheme.getText(isDark);
+    final mutedColor = AppTheme.getMuted(isDark);
 
-    // Extract stats or render placeholders
-    final statsList = _dashboardData?['stats'] as List<dynamic>? ?? [
-      {"label": "Journeys", "val": "0", "color": "#f97316"},
-      {"label": "Saved", "val": "₹0", "color": "#8b5cf6"},
-      {"label": "Time saved", "val": "0 hr", "color": "#f59e0b"},
-      {"label": "Avg cost", "val": "₹0", "color": "#10b981"}
-    ];
-
-    final recentSearches = _dashboardData?['recent'] as List<dynamic>? ?? [];
-    final savedPlaces = _dashboardData?['saved'] as List<dynamic>? ?? [];
+    final journeys = _dashboardData?['saved_journeys'] as List<dynamic>? ?? [];
+    final totalCO2 = _dashboardData?['total_co2_saved'] ?? 42.5;
+    final trees = (totalCO2 / 20.0).toStringAsFixed(1);
 
     return Scaffold(
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. Header (Greeting, Weather, Date/Time card)
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDark
-                              ? [const Color(0xFF312E81), const Color(0xFF1E1B4B)]
-                              : [const Color(0xFF6366F1), const Color(0xFF4F46E5)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+      appBar: AppBar(
+        title: const Text('Bengaluru Commuter', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        actions: [
+          IconButton(
+            icon: Icon(isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded),
+            tooltip: 'Toggle Theme',
+            onPressed: () {
+              widget.themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: _showSettingsBottomSheet,
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
+          children: [
+            // 0. Account Profile Bar (Database Sync)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.getBorder(isDark)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: widget.username != 'Guest'
+                            ? AppTheme.green.withValues(alpha: 0.2)
+                            : Colors.grey.withValues(alpha: 0.2),
+                        child: Icon(
+                          widget.username != 'Guest' ? Icons.person_rounded : Icons.person_outline_rounded,
+                          size: 16,
+                          color: widget.username != 'Guest' ? AppTheme.green : mutedColor,
                         ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: accentPurple.withOpacity(0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
                       ),
-                      padding: const EdgeInsets.all(18),
-                      child: Row(
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _getGreeting(),
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                                Text(
-                                  ApiService.loggedInUsername ?? 'Harsha',
-                                  style: const TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '🌦️ 24°C • Scattered Drizzle',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: isDark ? const Color(0xFF34D399) : const Color(0xFFA7F3D0),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          Text(
+                            widget.username != 'Guest' ? widget.username : 'Guest User',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor),
                           ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                _timeString,
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                _dateString,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white60,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            widget.username != 'Guest' ? 'Synced with Transit DB' : 'Not signed in',
+                            style: TextStyle(fontSize: 10, color: mutedColor),
                           ),
                         ],
                       ),
+                    ],
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      visualDensity: VisualDensity.compact,
                     ),
-                    const SizedBox(height: 20),
-
-                    // 2. Stats Grid (Matching Website)
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: 2.2,
-                      children: statsList.map((stat) {
-                        final label = stat['label'] ?? '';
-                        final val = stat['val'] ?? '0';
-                        final colorHex = stat['color'] ?? '#7C5CFF';
-                        final color = Color(int.parse(colorHex.replaceFirst('#', '0xFF')));
-
-                        return Card(
-                          color: isDark ? const Color(0xFF262935) : Colors.white,
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(10.0),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 18,
-                                  backgroundColor: color.withOpacity(0.15),
-                                  child: Icon(_getIconForLabel(label), color: color, size: 18),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        val,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark ? Colors.white : Colors.black87,
-                                        ),
-                                      ),
-                                      Text(
-                                        label,
-                                        style: const TextStyle(fontSize: 11, color: Colors.grey),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                    onPressed: widget.onOpenLogin,
+                    icon: Icon(
+                      widget.username != 'Guest' ? Icons.logout_rounded : Icons.login_rounded,
+                      size: 14,
+                      color: widget.username != 'Guest' ? AppTheme.red : AppTheme.bmtcColor,
                     ),
-                    const SizedBox(height: 20),
-
-                    // 3. Quick Actions
-                    const Text(
-                      'Quick Actions',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    label: Text(
+                      widget.username != 'Guest' ? 'Log Out' : 'Sign In / Register',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: widget.username != 'Guest' ? AppTheme.red : AppTheme.bmtcColor,
+                      ),
                     ),
-                    const SizedBox(height: 10),
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                      childAspectRatio: 1.0,
+                  ),
+                ],
+              ),
+            ),
+
+            // 1. Hero Greeting Banner
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF7C3AED), Color(0xFF5B21B6)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF7C3AED).withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _getGreeting(),
+                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _timeString,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(_dateString, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  const SizedBox(height: 14),
+
+                  // Quick search action
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF7C3AED),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      widget.onNavigateToPlanWithRoute({});
+                    },
+                    icon: const Icon(Icons.directions_rounded, size: 18),
+                    label: const Text('Plan New Journey', style: TextStyle(fontWeight: FontWeight.w800)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 2. Eco Impact & Carbon Savings Card
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.getBorder(isDark)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.green.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(Icons.eco_rounded, color: AppTheme.green, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildQuickActionCard(
-                          context,
-                          icon: Icons.directions_outlined,
-                          label: 'Plan Journey',
-                          color: Colors.blue,
-                          onTap: widget.onNavigateToPlan,
-                        ),
-                        _buildQuickActionCard(
-                          context,
-                          icon: Icons.grid_view_outlined,
-                          label: 'Transit Tools',
-                          color: Colors.deepOrange,
-                          onTap: widget.onNavigateToTransit,
-                        ),
-                        _buildQuickActionCard(
-                          context,
-                          icon: Icons.chat_bubble_outline,
-                          label: 'Commute Chat',
-                          color: accentPurple,
-                          onTap: widget.onNavigateToChat,
-                        ),
-                        _buildQuickActionCard(
-                          context,
-                          icon: Icons.map_outlined,
-                          label: 'Explore Map',
-                          color: accentGreen,
-                          onTap: widget.onNavigateToMap,
-                        ),
-                        _buildQuickActionCard(
-                          context,
-                          icon: Icons.settings_outlined,
-                          label: 'Settings',
-                          color: Colors.orange,
-                          onTap: () => _showSettingsBottomSheet(context),
-                        ),
+                        Text('Eco Impact & Sustainability', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                        const SizedBox(height: 4),
+                        Text('Saved $totalCO2 kg CO2 (~$trees trees equivalent) by choosing public transit!',
+                            style: TextStyle(fontSize: 12, color: mutedColor, height: 1.3)),
                       ],
                     ),
-                    const SizedBox(height: 25),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
 
-                    // 4. Recent Searches
-                    _buildSectionHeader('Recent Searches'),
-                    const SizedBox(height: 10),
-                    if (recentSearches.isEmpty)
-                      _buildEmptyCard('No recent searches yet.')
-                    else
-                      _buildStatusCard(
-                        context: context,
-                        indicatorColor: Colors.grey,
+            // 3. Quick Transit Tools Grid
+            Text('QUICK TRANSIT TOOLS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
+            const SizedBox(height: 10),
+            GridView.count(
+              crossAxisCount: 3,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _buildToolTile('Route Lookup', Icons.alt_route_rounded, AppTheme.bmtcColor, isDark, widget.onNavigateToTransit),
+                _buildToolTile('Timetables', Icons.schedule_rounded, AppTheme.metroColor, isDark, widget.onNavigateToTransit),
+                _buildToolTile('Stops Info', Icons.pin_drop_rounded, AppTheme.blue, isDark, () {
+                  showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (context) => const StopsInfoModal());
+                }),
+                _buildToolTile('Fare Calc', Icons.calculate_outlined, AppTheme.carColor, isDark, () {
+                  showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (context) => const FareCalculatorModal());
+                }),
+                _buildToolTile('Weather', Icons.wb_sunny_outlined, Colors.amber, isDark, () {
+                  showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (context) => const WeatherReportModal());
+                }),
+                _buildToolTile('Fare Guide', Icons.menu_book_rounded, AppTheme.multimodalColor, isDark, () {
+                  showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (context) => const FareGuideModal());
+                }),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // 4. Saved Journeys
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('SAVED JOURNEYS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
+                if (journeys.isNotEmpty)
+                  Text('${journeys.length} Saved', style: TextStyle(fontSize: 11, color: mutedColor)),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            if (journeys.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.getBorder(isDark)),
+                ),
+                child: Center(
+                  child: Text('No saved journeys yet. Save your favorite routes from search!', style: TextStyle(fontSize: 12, color: mutedColor)),
+                ),
+              )
+            else
+              ...journeys.map((j) {
+                final from = j['from_stop'] ?? j['from'] ?? 'Majestic';
+                final to = j['to_stop'] ?? j['to'] ?? 'Indiranagar';
+                final mode = j['mode'] ?? 'bmtc';
+                final customName = j['custom_name'] ?? '$from ➔ $to';
+                final cost = j['cost'] ?? 0;
+                final dur = j['duration'] ?? 0;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.getBorder(isDark)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.getModeColor(mode).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(AppTheme.getModeIcon(mode), color: AppTheme.getModeColor(mode), size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
                         child: Column(
-                          children: recentSearches.map((r) {
-                            return ListTile(
-                              leading: const Icon(Icons.history, color: Colors.grey),
-                              title: Text(
-                                '${r['from']} → ${r['to']}',
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                              ),
-                              subtitle: Text(r['date'] ?? ''),
-                            );
-                          }).toList(),
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(customName.toString(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor)),
+                            Text('$from ➔ $to · ₹$cost · $dur min', style: TextStyle(fontSize: 11, color: mutedColor)),
+                          ],
                         ),
                       ),
-                    const SizedBox(height: 20),
-
-                    // 5. Saved Places / Routes
-                    _buildSectionHeader('Saved Places'),
-                    const SizedBox(height: 10),
-                    if (savedPlaces.isEmpty)
-                      _buildEmptyCard('No saved places yet.')
-                    else
-                      _buildStatusCard(
-                        context: context,
-                        indicatorColor: accentPurple,
-                        child: Column(
-                          children: savedPlaces.map((s) {
-                            return ListTile(
-                              leading: const Icon(Icons.star, color: Colors.amber),
-                              title: Text(
-                                s['custom_name'] ?? '${s['from']} → ${s['to']}',
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Text('${s['from']} → ${s['to']} • ${s['mode'].toString().toUpperCase()} (₹${s['cost']})'),
-                            );
-                          }).toList(),
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                        color: AppTheme.getAccent(isDark),
+                        onPressed: () {
+                          widget.onNavigateToPlanWithRoute({'source': from.toString(), 'destination': to.toString()});
+                        },
                       ),
-                    const SizedBox(height: 20),
+                    ],
+                  ),
+                );
+              }),
+            const SizedBox(height: 20),
 
-                    // 6. My Garage
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildSectionHeader('My Garage'),
-                        IconButton(
-                          icon: const Icon(Icons.add, color: Color(0xFF7C5CFF)),
-                          onPressed: _addVehicleDialog,
-                        ),
-                      ],
+            // 5. User Garage (Personal Vehicles)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('MY GARAGE (VEHICLES)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
+                TextButton.icon(
+                  onPressed: _showAddVehicleDialog,
+                  icon: const Icon(Icons.add, size: 14),
+                  label: const Text('Add Vehicle', style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+
+            if (_vehicles == null || _vehicles!.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.getBorder(isDark)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.directions_car_filled_rounded, color: AppTheme.carColor),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('Add your car or two-wheeler to get exact fuel & parking estimates in journey comparisons.',
+                          style: TextStyle(fontSize: 12, color: mutedColor)),
                     ),
-                    const SizedBox(height: 10),
-                    if (_vehicles == null || _vehicles!.isEmpty)
-                      _buildEmptyCard('No vehicles in your garage.')
-                    else
-                      _buildStatusCard(
-                        context: context,
-                        indicatorColor: accentGreen,
-                        child: Column(
-                          children: _vehicles!.map((v) {
-                            return ListTile(
-                              leading: const Icon(Icons.electric_car, color: Colors.blue),
-                              title: Text(v['name'] ?? 'Vehicle', style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: Text('${v['fuel_type']} • ${v['efficiency']} km/l'),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                                onPressed: () => _deleteVehicle(v['id']),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    const SizedBox(height: 20),
-
-                    // 7. Digital Glovebox
-                    _buildSectionHeader('Digital Glovebox'),
-                    const SizedBox(height: 10),
-                    if (_documents == null || _documents!.isEmpty)
-                      _buildEmptyCard('No documents uploaded yet.\nSecure DL, insurance & RC here.')
-                    else
-                      _buildStatusCard(
-                        context: context,
-                        indicatorColor: Colors.blue,
-                        child: Column(
-                          children: _documents!.map((doc) {
-                            return ListTile(
-                              leading: const Icon(Icons.description, color: Colors.blue),
-                              title: Text(doc['doc_type'] ?? 'Document', style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: Text('No: ${doc['doc_number']} • Expiry: ${doc['expiry_date']}'),
-                            );
-                          }).toList(),
-                        ),
-                      ),
                   ],
                 ),
-              ),
-      ),
-    );
-  }
+              )
+            else
+              ..._vehicles!.map((v) {
+                final vId = v['id'];
+                final vName = v['name'] ?? 'Car';
+                final vFuel = v['fuel_type'] ?? 'Petrol';
+                final vEff = v['efficiency'] ?? 15.0;
 
-  Widget _buildEmptyCard(String text) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Card(
-      color: isDark ? const Color(0xFF262935) : Colors.white,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        child: Center(
-          child: Text(
-            text,
-            style: const TextStyle(color: Colors.grey, fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-    );
-  }
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.getBorder(isDark)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.directions_car_rounded, color: AppTheme.carColor),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(vName.toString(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: textColor)),
+                            Text('$vFuel · $vEff km/l', style: TextStyle(fontSize: 11, color: mutedColor)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
+                        onPressed: () async {
+                          if (vId != null) {
+                            await ApiService.deleteVehicle(vId as int);
+                            _loadData();
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            const SizedBox(height: 20),
 
-  IconData _getIconForLabel(String label) {
-    switch (label.toLowerCase()) {
-      case 'journeys':
-        return Icons.map_outlined;
-      case 'saved':
-        return Icons.savings_outlined;
-      case 'time saved':
-        return Icons.access_time;
-      case 'avg cost':
-        return Icons.payment;
-      default:
-        return Icons.info_outline;
-    }
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-    );
-  }
-
-  Widget _buildStatusCard({
-    required BuildContext context,
-    required Widget child,
-    required Color indicatorColor,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBgColor = isDark ? const Color(0xFF262935) : Colors.white;
-
-    return Card(
-      color: cardBgColor,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              width: 6,
-              color: indicatorColor,
+            // 6. Glovebox (Document Vault)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('MY GLOVEBOX (DOCUMENTS)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
+                if (_documents != null && _documents!.isNotEmpty)
+                  Text('${_documents!.length} Stored', style: TextStyle(fontSize: 11, color: mutedColor)),
+              ],
             ),
-            Expanded(child: child),
+            const SizedBox(height: 6),
+
+            if (_documents == null || _documents!.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.getBorder(isDark)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.folder_shared_outlined, color: Color(0xFF7C3AED)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('Digital document vault ready for DL, RC, bus passes, and vehicle insurance.',
+                          style: TextStyle(fontSize: 12, color: mutedColor)),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ..._documents!.map((d) {
+                final dName = d['name'] ?? d['document_type'] ?? 'Document';
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.getBorder(isDark)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.description_rounded, size: 18, color: Color(0xFF7C3AED)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(dName.toString(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textColor)),
+                      ),
+                      const PillBadge(text: 'SECURE', color: AppTheme.green, isSmall: true),
+                    ],
+                  ),
+                );
+              }),
+            const SizedBox(height: 20),
+
+            // 7. Popular Transit Hubs in Bengaluru
+            Text('POPULAR BENGALURU HUBS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildHubChip('Majestic (KBS)', 'Majestic', textColor, cardBg, isDark),
+                _buildHubChip('Indiranagar 100ft', 'Indiranagar', textColor, cardBg, isDark),
+                _buildHubChip('Whitefield ITPL', 'Whitefield', textColor, cardBg, isDark),
+                _buildHubChip('Electronic City Phase 1', 'Electronic City', textColor, cardBg, isDark),
+                _buildHubChip('Silk Board Junction', 'Silk Board', textColor, cardBg, isDark),
+                _buildHubChip('Kempegowda Airport', 'Kempegowda International Airport', textColor, cardBg, isDark),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildQuickActionCard(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBgColor = isDark ? const Color(0xFF262935) : Colors.white;
-
-    return Card(
-      color: cardBgColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+  Widget _buildToolTile(String title, IconData icon, Color color, bool isDark, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: isDark ? 0.12 : 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 28, color: color),
-            const SizedBox(height: 8),
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 6),
             Text(
-              label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              title,
               textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildHubChip(String label, String dest, Color textColor, Color cardBg, bool isDark) {
+    return ActionChip(
+      backgroundColor: cardBg,
+      side: BorderSide(color: AppTheme.getBorder(isDark)),
+      avatar: const Icon(Icons.place_rounded, size: 14, color: AppTheme.bmtcColor),
+      label: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textColor)),
+      onPressed: () {
+        widget.onNavigateToPlanWithRoute({'destination': dest});
+      },
     );
   }
 }

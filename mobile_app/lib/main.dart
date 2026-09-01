@@ -5,6 +5,7 @@ import 'screens/login_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/plan_journey_screen.dart';
 import 'screens/transit_hub_screen.dart';
+import 'theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,97 +19,39 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // 1. Unified state notifier variables for settings
   final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
   final ValueNotifier<String> mapStyleNotifier = ValueNotifier('standard');
   final ValueNotifier<String> mapProviderNotifier = ValueNotifier('google');
 
-  bool _isLoggedIn = false;
+  bool _isLoggedIn = true;
+  String _currentUsername = 'Guest';
 
   @override
   Widget build(BuildContext context) {
-    // Accent theme color colors matching our website styling
-    const primaryColor = Color(0xFF7C5CFF);
-    const secondaryColor = Color(0xFF10B981);
-
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
       builder: (context, currentThemeMode, child) {
         return MaterialApp(
-          title: 'Commuter Assistant',
+          title: 'Bengaluru Commuter Assistant',
           debugShowCheckedModeBanner: false,
           themeMode: currentThemeMode,
-          
-          // Light Theme Design matching website
-          theme: ThemeData(
-            useMaterial3: true,
-            brightness: Brightness.light,
-            scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-            primaryColor: primaryColor,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: primaryColor,
-              primary: primaryColor,
-              secondary: secondaryColor,
-              brightness: Brightness.light,
-              background: const Color(0xFFF8FAFC),
-              surface: Colors.white,
-            ),
-            cardTheme: const CardThemeData(
-              color: Colors.white,
-              elevation: 2,
-            ),
-          ),
-          
-          // Dark Theme Design matching website
-          darkTheme: ThemeData(
-            useMaterial3: true,
-            brightness: Brightness.dark,
-            scaffoldBackgroundColor: const Color(0xFF1A1B23),
-            primaryColor: primaryColor,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: primaryColor,
-              primary: primaryColor,
-              secondary: secondaryColor,
-              brightness: Brightness.dark,
-              background: const Color(0xFF1A1B23),
-              surface: const Color(0xFF262935),
-            ),
-            cardTheme: const CardThemeData(
-              color: Color(0xFF262935),
-              elevation: 2,
-            ),
-          ),
-          
-          home: Scaffold(
-            body: Builder(
-              builder: (context) {
-                final screenWidth = MediaQuery.of(context).size.width;
+          theme: AppTheme.lightThemeData,
+          darkTheme: AppTheme.darkThemeData,
+          builder: (context, childWidget) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
                 final isDark = Theme.of(context).brightness == Brightness.dark;
+                final screenWidth = constraints.maxWidth;
+                final screenHeight = constraints.maxHeight;
 
-                // Active view based on login state
-                Widget activeView;
-                if (!_isLoggedIn) {
-                  activeView = LoginScreen(
-                    onLoginSuccess: (user) {
-                      setState(() {
-                        _isLoggedIn = true;
-                      });
-                    },
-                  );
-                } else {
-                  activeView = AppNavigationWrapper(
-                    themeNotifier: themeNotifier,
-                    mapStyleNotifier: mapStyleNotifier,
-                    mapProviderNotifier: mapProviderNotifier,
-                  );
-                }
-
-                if (screenWidth > 600) {
+                if (screenWidth > 500) {
                   return Container(
+                    width: double.infinity,
+                    height: double.infinity,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: isDark
-                            ? [const Color(0xFF0F172A), const Color(0xFF1E1B4B)]
+                            ? [const Color(0xFF0B0D14), const Color(0xFF151824)]
                             : [const Color(0xFFE2E8F0), const Color(0xFFEEF2F6)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
@@ -116,35 +59,79 @@ class _MyAppState extends State<MyApp> {
                     ),
                     child: Center(
                       child: Container(
-                        width: 440,
-                        height: 880,
-                        margin: const EdgeInsets.symmetric(vertical: 20),
+                        width: 412,
+                        height: screenHeight > 880 ? 860 : screenHeight - 32,
+                        margin: const EdgeInsets.symmetric(vertical: 16),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1A1B23) : const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(40),
+                          color: isDark ? AppTheme.darkBg : AppTheme.lightBg,
+                          borderRadius: BorderRadius.circular(42),
                           border: Border.all(
-                            color: isDark ? const Color(0xFF334155) : const Color(0xFF94A3B8),
-                            width: 12,
+                            color: isDark ? const Color(0xFF2A2D3D) : const Color(0xFFCBD5E1),
+                            width: 10,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.35),
-                              blurRadius: 25,
-                              offset: const Offset(0, 12),
+                              color: Colors.black.withValues(alpha: isDark ? 0.6 : 0.25),
+                              blurRadius: 35,
+                              spreadRadius: 2,
+                              offset: const Offset(0, 15),
                             ),
                           ],
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: activeView,
+                        child: Column(
+                          children: [
+                            // Sleek phone speaker / notch bar
+                            Container(
+                              height: 24,
+                              color: isDark ? AppTheme.darkCard : AppTheme.lightCard,
+                              child: Center(
+                                child: Container(
+                                  width: 90,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Pushed screens and active view
+                            Expanded(child: childWidget ?? const SizedBox()),
+                          ],
+                        ),
                       ),
                     ),
                   );
                 }
-
-                return activeView;
+                return childWidget ?? const SizedBox();
               },
-            ),
-          ),
+            );
+          },
+          home: _isLoggedIn
+              ? AppNavigationWrapper(
+                  themeNotifier: themeNotifier,
+                  mapStyleNotifier: mapStyleNotifier,
+                  mapProviderNotifier: mapProviderNotifier,
+                  username: _currentUsername,
+                  onOpenLogin: () {
+                    setState(() => _isLoggedIn = false);
+                  },
+                )
+              : LoginScreen(
+                  onLoginSuccess: (user) {
+                    setState(() {
+                      _currentUsername = user;
+                      _isLoggedIn = true;
+                    });
+                  },
+                  onContinueAsGuest: () {
+                    setState(() {
+                      _currentUsername = 'Guest';
+                      _isLoggedIn = true;
+                    });
+                  },
+                ),
         );
       },
     );
@@ -155,12 +142,16 @@ class AppNavigationWrapper extends StatefulWidget {
   final ValueNotifier<ThemeMode> themeNotifier;
   final ValueNotifier<String> mapStyleNotifier;
   final ValueNotifier<String> mapProviderNotifier;
+  final String username;
+  final VoidCallback onOpenLogin;
 
   const AppNavigationWrapper({
     super.key,
     required this.themeNotifier,
     required this.mapStyleNotifier,
     required this.mapProviderNotifier,
+    required this.username,
+    required this.onOpenLogin,
   });
 
   @override
@@ -169,16 +160,28 @@ class AppNavigationWrapper extends StatefulWidget {
 
 class _AppNavigationWrapperState extends State<AppNavigationWrapper> {
   int _currentIndex = 0;
+  String? _prefillSource;
+  String? _prefillDestination;
+
+  void _navigateToPlanWithRoute(Map<String, String> route) {
+    setState(() {
+      _prefillSource = route['source'];
+      _prefillDestination = route['destination'];
+      _currentIndex = 1;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> screens = [
+    final screens = [
       DashboardScreen(
         themeNotifier: widget.themeNotifier,
         mapStyleNotifier: widget.mapStyleNotifier,
         mapProviderNotifier: widget.mapProviderNotifier,
-        onNavigateToChat:    () => setState(() => _currentIndex = 3),
-        onNavigateToMap:     () => Navigator.push(
+        username: widget.username,
+        onOpenLogin: widget.onOpenLogin,
+        onNavigateToChat: () => setState(() => _currentIndex = 3),
+        onNavigateToMap: () => Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => MapScreen(
@@ -187,12 +190,18 @@ class _AppNavigationWrapperState extends State<AppNavigationWrapper> {
             ),
           ),
         ),
-        onNavigateToPlan:    () => setState(() => _currentIndex = 1),
+        onNavigateToPlanWithRoute: _navigateToPlanWithRoute,
         onNavigateToTransit: () => setState(() => _currentIndex = 2),
       ),
-      const PlanJourneyScreen(),
+      PlanJourneyScreen(
+        key: ValueKey('$_prefillSource-$_prefillDestination'),
+        initialSource: _prefillSource,
+        initialDestination: _prefillDestination,
+      ),
       const TransitHubScreen(),
-      const ChatScreen(),
+      ChatScreen(
+        onPlanJourney: _navigateToPlanWithRoute,
+      ),
     ];
 
     return Scaffold(
@@ -202,26 +211,34 @@ class _AppNavigationWrapperState extends State<AppNavigationWrapper> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        onDestinationSelected: (index) {
+          setState(() {
+            _currentIndex = index;
+            if (index != 1) {
+              _prefillSource = null;
+              _prefillDestination = null;
+            }
+          });
+        },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
+            icon: Icon(Icons.grid_view_rounded),
+            selectedIcon: Icon(Icons.grid_view_rounded, color: AppTheme.bmtcColor),
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.directions_outlined),
-            selectedIcon: Icon(Icons.directions),
+            icon: Icon(Icons.directions_rounded),
+            selectedIcon: Icon(Icons.directions_rounded, color: AppTheme.bmtcColor),
             label: 'Plan',
           ),
           NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view),
+            icon: Icon(Icons.directions_bus_rounded),
+            selectedIcon: Icon(Icons.directions_bus_rounded, color: AppTheme.bmtcColor),
             label: 'Transit',
           ),
           NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
+            icon: Icon(Icons.chat_bubble_outline_rounded),
+            selectedIcon: Icon(Icons.chat_bubble_rounded, color: AppTheme.bmtcColor),
             label: 'Assistant',
           ),
         ],
