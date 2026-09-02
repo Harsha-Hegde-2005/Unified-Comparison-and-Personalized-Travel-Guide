@@ -120,7 +120,6 @@ class _PlacesAutocompleteFieldState extends State<PlacesAutocompleteField> {
   Future<void> _selectSuggestion(Map<String, dynamic> item) async {
     _isSelecting = true;
     final mainText = item['mainText']?.toString() ?? item['fullText']?.toString() ?? '';
-    widget.controller.text = mainText;
     _hideOverlay();
 
     double? lat = (item['lat'] as num?)?.toDouble();
@@ -144,8 +143,14 @@ class _PlacesAutocompleteFieldState extends State<PlacesAutocompleteField> {
       }
     }
 
+    final String textToDisplay = (lat != null && lng != null)
+        ? '$mainText (${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)})'
+        : mainText;
+
+    widget.controller.text = textToDisplay;
+
     if (widget.onPlaceSelected != null) {
-      widget.onPlaceSelected!(mainText, lat, lng);
+      widget.onPlaceSelected!(textToDisplay, lat, lng);
     }
     if (widget.onSubmitted != null) {
       widget.onSubmitted!();

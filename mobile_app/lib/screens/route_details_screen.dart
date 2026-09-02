@@ -8,6 +8,7 @@ import '../utils/geolocation_helper.dart';
 import '../widgets/linear_route_map.dart';
 import '../widgets/travel_guide.dart';
 import '../widgets/google_map_view.dart';
+import '../widgets/app_settings_modal.dart';
 
 class RouteDetailsScreen extends StatefulWidget {
   final String source;
@@ -32,6 +33,7 @@ class RouteDetailsScreen extends StatefulWidget {
 class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   final fm.MapController _mapController = fm.MapController();
   List<ll.LatLng> _routePoints = [];
+  List<Map<String, dynamic>> _segmentPolylines = [];
 
   int _activeSegmentIndex = 0;
   bool _isLiveNavigating = false;
@@ -85,6 +87,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   Future<void> _fetchRouteCoords() async {
     final List<String> stops = [];
     final opt = widget.option;
+    final optMode = opt['mode']?.toString() ?? 'bmtc';
 
     if (opt['segments'] is List) {
       for (final seg in opt['segments']) {
@@ -129,15 +132,76 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       points.addAll([sFall, dFall]);
     }
 
+    final List<Map<String, dynamic>> segPolylines = [];
+    if (opt['segments'] is List) {
+      final segs = opt['segments'] as List<dynamic>;
+      for (final seg in segs) {
+        if (seg is Map<String, dynamic>) {
+          final segType = seg['type']?.toString() ?? '';
+          final routeName = seg['route']?.toString() ?? '';
+          final isWalk = segType == 'walk' || routeName.toLowerCase().contains('walk');
+          final isMetro = segType == 'metro' || routeName.toLowerCase().contains('line');
+
+          Color segColor = AppTheme.getModeColor(optMode);
+          if (isMetro) {
+            final r = routeName.toLowerCase();
+            if (r.contains('green')) {
+              segColor = const Color(0xFF22C55E); 
+            } else if (r.contains('purple')) {
+              segColor = const Color(0xFF8B5CF6); 
+            } else if (r.contains('yellow')) {
+              segColor = const Color(0xFFEAB308); 
+            } else {
+              segColor = const Color(0xFF8B5CF6);
+            }
+          } else if (isWalk) {
+            segColor = const Color(0xFF6B7A99);
+          }
+
+          final List<ll.LatLng> segPts = [];
+          final segStops = (seg['stops'] as List<dynamic>?) ?? [];
+          for (final s in segStops) {
+            final sStr = s.toString();
+            if (coords.containsKey(sStr)) {
+              final c = coords[sStr] as Map<String, dynamic>;
+              final lat = (c['lat'] as num?)?.toDouble();
+              final lng = (c['lng'] as num?)?.toDouble();
+              if (lat != null && lng != null) {
+                segPts.add(ll.LatLng(lat, lng));
+              }
+            } else {
+              final fallback = _lookupKnownCoord(sStr);
+              if (fallback != null) segPts.add(fallback);
+            }
+          }
+
+          if (segPts.length >= 2) {
+            segPolylines.add({
+              'points': segPts,
+              'color': segColor,
+              'isWalk': isWalk,
+              'isMetro': isMetro,
+              'routeName': routeName,
+            });
+          }
+        }
+      }
+    }
+
     if (mounted) {
       setState(() {
+        _segmentPolylines = segPolylines;
         _routePoints = points;
       });
 
-      if (_routePoints.length >= 2) {
+      final activePoints = _segmentPolylines.isNotEmpty
+          ? _segmentPolylines.expand((s) => (s['points'] as List<ll.LatLng>)).toList()
+          : _routePoints;
+
+      if (activePoints.length >= 2) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           try {
-            final bounds = fm.LatLngBounds.fromPoints(_routePoints);
+            final bounds = fm.LatLngBounds.fromPoints(activePoints);
             _mapController.fitCamera(
               fm.CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
             );
@@ -153,72 +217,48 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       _gpsSubscription?.cancel();
       setState(() {
         _isLiveNavigating = false;
-        _liveGpsPoint = null;
         _liveProgress = 0.0;
+        _liveGpsPoint = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('⏹ Live GPS Navigation stopped')),
       );
     } else {
-      if (_routePoints.isEmpty) return;
-
-      setState(() {
-        _isLiveNavigating = true;
-        _liveProgress = 0.0;
-        _activeSegmentIndex = 0;
-        _liveGpsPoint = _routePoints.first;
-      });
-
       if (_useRealGps) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('📡 Live Real-Time GPS Tracking started! Monitoring device position...'),
-            backgroundColor: AppTheme.green,
-          ),
-        );
+        setState(() {
+          _isLiveNavigating = true;
+          _liveProgress = 0.0;
+          _liveGpsPoint = widget.srcCoord ?? (_routePoints.isNotEmpty ? _routePoints.first : null);
+        });
 
-        // Listen to live device GPS position stream
         _gpsSubscription = GeolocationHelper.watchPositionStream().listen((pos) {
           if (!mounted) return;
           _updateRealGpsPosition(pos);
         });
-
-        // Initial single position fetch
-        GeolocationHelper.getCurrentPosition().then((pos) {
-          if (pos != null && mounted) _updateRealGpsPosition(pos);
-        });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('▶️ Simulated Demo Navigation started!'),
-            backgroundColor: AppTheme.blue,
-          ),
-        );
+        setState(() {
+          _isLiveNavigating = true;
+          _liveProgress = 0.0;
+          _liveGpsPoint = widget.srcCoord ?? (_routePoints.isNotEmpty ? _routePoints.first : null);
+        });
 
-        _navTimer = Timer.periodic(const Duration(milliseconds: 700), (timer) {
+        _navTimer = Timer.periodic(const Duration(seconds: 1), (t) {
           if (!mounted) return;
           setState(() {
-            _liveProgress += 3.5;
+            _liveProgress += 3.0;
             if (_liveProgress >= 100.0) {
               _liveProgress = 100.0;
-              _liveGpsPoint = _routePoints.last;
+              t.cancel();
               _isLiveNavigating = false;
-              timer.cancel();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('🎉 Destination Arrived! You have reached your destination.'),
+                  content: Text('🎉 Destination Reached! Navigation Complete.'),
                   backgroundColor: AppTheme.green,
                 ),
               );
             } else {
               final idx = ((_liveProgress / 100.0) * (_routePoints.length - 1)).floor();
               _liveGpsPoint = _routePoints[idx.clamp(0, _routePoints.length - 1)];
-
-              final guide = widget.option['guide'] as List<dynamic>?;
-              if (guide != null && guide.isNotEmpty) {
-                final stepIdx = ((_liveProgress / 100.0) * guide.length).floor();
-                _activeSegmentIndex = stepIdx.clamp(0, guide.length - 1);
-              }
             }
           });
         });
@@ -282,6 +322,11 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             tooltip: _isLiveNavigating ? 'Stop Navigation' : 'Start Live Navigation',
             onPressed: _toggleLiveNav,
           ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'App Settings',
+            onPressed: () => showAppSettingsModal(context),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -289,7 +334,6 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Mode selector bar (Live Real GPS vs Demo Simulation)
             Row(
               children: [
                 Expanded(
@@ -317,7 +361,6 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             ),
             const SizedBox(height: 10),
 
-            // 1. Prominent Start Navigation Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -343,7 +386,6 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             ),
             const SizedBox(height: 14),
 
-            // 2. Live Navigation Status & % Ride Completion Banner
             if (_isLiveNavigating)
               Container(
                 margin: const EdgeInsets.only(bottom: 14),
@@ -411,7 +453,6 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                 ),
               ),
 
-            // 3. Summary Badge Bar
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -422,20 +463,25 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${widget.source} → ${widget.destination}',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: textColor),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '⏱️ $time min  ·  ₹$cost  ·  🚶 ${dist}km',
-                        style: TextStyle(fontSize: 12, color: mutedColor, fontWeight: FontWeight.w600),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${widget.source} → ${widget.destination}',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '⏱️ $time min  ·  ₹$cost  ·  🚶 ${dist}km',
+                          style: TextStyle(fontSize: 12, color: mutedColor, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   PillBadge(
                     text: AppTheme.getModeLabel(mode),
                     color: modeColor,
@@ -446,9 +492,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             ),
             const SizedBox(height: 14),
 
-            // 4. Interactive Google Maps Box with Live GPS Marker
             GoogleMapView(
               points: _routePoints,
+              segmentPolylines: _segmentPolylines,
               srcPoint: widget.srcCoord,
               dstPoint: widget.dstCoord,
               liveGpsPoint: _liveGpsPoint,
@@ -458,7 +504,6 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 5. Linear Route Map Timeline (---o---o---)
             LinearRouteMap(
               segments: segments,
               activeMode: mode,

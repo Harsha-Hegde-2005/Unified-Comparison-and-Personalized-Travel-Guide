@@ -6,22 +6,34 @@ import 'package:latlong2/latlong.dart';
 import 'dart:html' as html;
 
 class GeolocationHelper {
-  /// Fetch current single GPS position with strict 2-second timeout
+  /// Fetch current single GPS position with high accuracy and reliable timeouts
   static Future<LatLng?> getCurrentPosition() async {
     if (kIsWeb) {
       try {
         final pos = await html.window.navigator.geolocation
-            .getCurrentPosition()
-            .timeout(const Duration(milliseconds: 2000));
+            .getCurrentPosition(enableHighAccuracy: true)
+            .timeout(const Duration(seconds: 10));
         final lat = pos.coords?.latitude?.toDouble();
         final lng = pos.coords?.longitude?.toDouble();
         if (lat != null && lng != null) {
           return LatLng(lat, lng);
         }
-      } catch (_) {}
+      } catch (_) {
+        // Fallback retry with low accuracy / network positioning
+        try {
+          final pos = await html.window.navigator.geolocation
+              .getCurrentPosition(enableHighAccuracy: false)
+              .timeout(const Duration(seconds: 5));
+          final lat = pos.coords?.latitude?.toDouble();
+          final lng = pos.coords?.longitude?.toDouble();
+          if (lat != null && lng != null) {
+            return LatLng(lat, lng);
+          }
+        } catch (_) {}
+      }
     }
-    // Instant fallback coordinates (PES University / City Center)
-    return const LatLng(12.9352, 77.5358);
+    // Default fallback coordinates (Majestic Central Hub, Bengaluru)
+    return const LatLng(12.9716, 77.5946);
   }
 
   /// Watch live continuous GPS position stream

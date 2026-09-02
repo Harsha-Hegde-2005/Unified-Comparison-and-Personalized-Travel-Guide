@@ -3950,6 +3950,7 @@ function AllBusesPanel({ src, dst, time, onClose }) {
    ROUTE SEARCH PANEL  (with autocomplete)
 ───────────────────────────────────────────────────────────── */
 function RouteSearchPanel() {
+  const [activeMode, setActiveMode] = useState("bmtc"); // "bmtc" | "metro"
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showDrop, setShowDrop] = useState(false);
@@ -3990,9 +3991,15 @@ function RouteSearchPanel() {
     try {
       const d = await apiRouteSearch(term);
       setResult(d);
-    } catch { setError("Route not found. Try e.g. 360-K, V-360B, KBS-3E"); }
+    } catch { setError(`Route "${term}" not found.`); }
     finally { setLoading(false); }
   };
+
+  const metroLines = [
+    { name: "Purple Line", color: "#800080", route: "Whitefield (Kadugodi) ↔ Challaghatta", stations: 37 },
+    { name: "Green Line", color: "#008000", route: "Silk Institute ↔ Nagasandra / Madavara", stations: 31 },
+    { name: "Yellow Line", color: "#EAB308", route: "R.V. Road ↔ Bommasandra", stations: 16 },
+  ];
 
   const visibleSuggestions = showDrop && suggestions.length > 0
     ? suggestions.filter(s => s.toUpperCase() !== query.toUpperCase()).slice(0, 10)
@@ -4000,76 +4007,134 @@ function RouteSearchPanel() {
 
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
-      <div style={{ fontWeight: 800, fontSize: 15, color: C.text, marginBottom: 14 }}>Route Lookup</div>
+      <div style={{ fontWeight: 800, fontSize: 15, color: C.text, marginBottom: 14 }}>Route & Station Lookup</div>
 
-      {/* Search input with dropdown */}
-      <div style={{ position: "relative", marginBottom: 14 }}>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            value={query}
-            onChange={e => handleQueryChange(e.target.value)}
-            onFocus={() => { setShowDrop(true); if (query) fetchSuggestions(query); }}
-            onBlur={() => setTimeout(() => setShowDrop(false), 160)}
-            onKeyDown={e => { if (e.key === "Enter") doSearch(); if (e.key === "Escape") setShowDrop(false); }}
-            placeholder="Type route number, e.g. 360-K, V-360B, KBS-3E…"
-            style={{
-              flex: 1, background: C.surface, border: `1.5px solid ${C.border2}`,
-              borderRadius: 10, color: C.text, padding: "11px 14px",
-              fontSize: 13, outline: "none", fontFamily: "inherit",
-            }}
-          />
-          <button
-            onClick={() => doSearch()}
-            disabled={loading}
-            style={{
-              background: MC.bmtc.color, border: "none", borderRadius: 10,
-              padding: "11px 18px", color: "white", fontWeight: 700,
-              cursor: loading ? "wait" : "pointer", fontFamily: "inherit",
-              fontSize: 13, display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
-            }}>
-            {loading
-              ? <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid white", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-              : <Ic n="search" s={14} c="white" />
-            }
-            Search
-          </button>
-          {(result || error) && (
-            <button
-              onClick={() => { setResult(null); setError(null); setQuery(""); setSuggestions([]); }}
+      {/* Mode Selector Buttons */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        <button
+          onClick={() => { setActiveMode("bmtc"); setResult(null); setError(null); setQuery(""); }}
+          style={{
+            flex: 1, padding: "10px 14px", borderRadius: 12, fontWeight: 800, fontSize: 13,
+            background: activeMode === "bmtc" ? MC.bmtc.color : C.surface,
+            color: activeMode === "bmtc" ? "#fff" : C.text,
+            border: `1.5px solid ${activeMode === "bmtc" ? MC.bmtc.color : C.border2}`,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            fontFamily: "inherit",
+          }}>
+          🚌 BMTC Bus Route Lookup
+        </button>
+        <button
+          onClick={() => { setActiveMode("metro"); setResult(null); setError(null); setQuery(""); }}
+          style={{
+            flex: 1, padding: "10px 14px", borderRadius: 12, fontWeight: 800, fontSize: 13,
+            background: activeMode === "metro" ? MC.metro.color : C.surface,
+            color: activeMode === "metro" ? "#fff" : C.text,
+            border: `1.5px solid ${activeMode === "metro" ? MC.metro.color : C.border2}`,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            fontFamily: "inherit",
+          }}>
+          🚇 Namma Metro Lines
+        </button>
+      </div>
+
+      {activeMode === "bmtc" ? (
+        /* Search input with dropdown for BMTC Bus */
+        <div style={{ position: "relative", marginBottom: 14 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={query}
+              onChange={e => handleQueryChange(e.target.value)}
+              onFocus={() => { setShowDrop(true); if (query) fetchSuggestions(query); }}
+              onBlur={() => setTimeout(() => setShowDrop(false), 160)}
+              onKeyDown={e => { if (e.key === "Enter") doSearch(); if (e.key === "Escape") setShowDrop(false); }}
+              placeholder="Type bus/route number, e.g. 500D, 335E, KIA-8, 360-K…"
               style={{
-                background: "none", border: `1px solid ${C.border2}`, borderRadius: 10,
-                padding: "11px 13px", color: C.muted, cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
-              }}>✕</button>
+                flex: 1, background: C.surface, border: `1.5px solid ${C.border2}`,
+                borderRadius: 10, color: C.text, padding: "11px 14px",
+                fontSize: 13, outline: "none", fontFamily: "inherit",
+              }}
+            />
+            <button
+              onClick={() => doSearch()}
+              disabled={loading}
+              style={{
+                background: MC.bmtc.color, border: "none", borderRadius: 10,
+                padding: "11px 18px", color: "white", fontWeight: 700,
+                cursor: loading ? "wait" : "pointer", fontFamily: "inherit",
+                fontSize: 13, display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+              }}>
+              {loading
+                ? <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid white", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                : <Ic n="search" s={14} c="white" />
+              }
+              Search Route
+            </button>
+            {(result || error) && (
+              <button
+                onClick={() => { setResult(null); setError(null); setQuery(""); setSuggestions([]); }}
+                style={{
+                  background: "none", border: `1px solid ${C.border2}`, borderRadius: 10,
+                  padding: "11px 13px", color: C.muted, cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
+                }}>✕</button>
+            )}
+          </div>
+
+          {/* Dropdown suggestions */}
+          {visibleSuggestions.length > 0 && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 4px)", left: 0,
+              right: 0, background: C.card, border: `1px solid ${C.border2}`,
+              borderRadius: 10, zIndex: 300, boxShadow: "0 16px 48px #00000099",
+              maxHeight: 260, overflowY: "auto",
+            }}>
+              {visibleSuggestions.map(r => (
+                <div
+                  key={r}
+                  onMouseDown={() => selectSuggestion(r)}
+                  style={{
+                    padding: "10px 14px", cursor: "pointer", fontSize: 13,
+                    color: C.text, borderBottom: `1px solid ${C.border}`,
+                    display: "flex", alignItems: "center", gap: 10,
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.surface}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  <Pill color={isVajraBus(r) ? C.accent : MC.bmtc.color} small>{r}</Pill>
+                  {isVajraBus(r) && <span style={{ fontSize: 10, color: C.accent, fontWeight: 700 }}>VAJRA/AC</span>}
+                </div>
+              ))}
+            </div>
           )}
         </div>
-
-        {/* Dropdown suggestions */}
-        {visibleSuggestions.length > 0 && (
-          <div style={{
-            position: "absolute", top: "calc(100% + 4px)", left: 0,
-            right: 0, background: C.card, border: `1px solid ${C.border2}`,
-            borderRadius: 10, zIndex: 300, boxShadow: "0 16px 48px #00000099",
-            maxHeight: 260, overflowY: "auto",
-          }}>
-            {visibleSuggestions.map(r => (
-              <div
-                key={r}
-                onMouseDown={() => selectSuggestion(r)}
+      ) : (
+        /* Namma Metro 3 Line Buttons */
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 8, letterSpacing: "0.05em" }}>
+            SELECT A NAMMA METRO LINE TO VIEW ALL STATIONS & ROUTE:
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+            {metroLines.map(line => (
+              <button
+                key={line.name}
+                onClick={() => { setQuery(line.name); doSearch(line.name); }}
                 style={{
-                  padding: "10px 14px", cursor: "pointer", fontSize: 13,
-                  color: C.text, borderBottom: `1px solid ${C.border}`,
-                  display: "flex", alignItems: "center", gap: 10,
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = C.surface}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-              >
-                <Pill color={r.toLowerCase().includes("purple") || r.toLowerCase().includes("green") ? (r.toLowerCase().includes("purple") ? "#800080" : "#008000") : (isVajraBus(r) ? C.accent : MC.bmtc.color)} small>{r}</Pill>
-                {isVajraBus(r) && <span style={{ fontSize: 10, color: C.accent, fontWeight: 700 }}>VAJRA/AC</span>}
-              </div>
+                  background: result?.route === line.name ? line.color + "18" : C.surface,
+                  border: `2px solid ${line.color}`,
+                  borderRadius: 12, padding: "12px 14px", textAlign: "left",
+                  cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s"
+                }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: line.color }}>{line.name}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 8, background: line.color + "25", color: line.color }}>
+                    {line.stations} Stations
+                  </span>
+                </div>
+                <div style={{ fontSize: 11, color: C.muted }}>{line.route}</div>
+              </button>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {error && (
         <div style={{
@@ -4085,7 +4150,7 @@ function RouteSearchPanel() {
             background: C.surface, borderRadius: 10, padding: "12px 14px",
             marginBottom: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
           }}>
-            <Pill color={result.type === "metro" ? (result.route.toLowerCase().includes("purple") ? "#800080" : "#008000") : (isVajraBus(result.route) ? C.accent : MC.bmtc.color)}>{result.route}</Pill>
+            <Pill color={result.type === "metro" ? (result.route.toLowerCase().includes("purple") ? "#800080" : result.route.toLowerCase().includes("yellow") ? "#EAB308" : "#008000") : (isVajraBus(result.route) ? C.accent : MC.bmtc.color)}>{result.route}</Pill>
             <span style={{ fontSize: 12, color: C.muted }}>
               {direction === "forward" ? result.stop_count : (result.reverse_stops?.length || 0)} stops
             </span>
@@ -4109,7 +4174,7 @@ function RouteSearchPanel() {
                 { k: "forward", l: "Outbound / Forward" },
                 { k: "return", l: "Inbound / Return" },
               ].map(d => {
-                const activeColor = result.type === "metro" ? (result.route.toLowerCase().includes("purple") ? "#800080" : "#008000") : MC.bmtc.color;
+                const activeColor = result.type === "metro" ? (result.route.toLowerCase().includes("purple") ? "#800080" : result.route.toLowerCase().includes("yellow") ? "#EAB308" : "#008000") : MC.bmtc.color;
                 return (
                   <button key={d.k}
                     onClick={() => setDirection(d.k)}
@@ -4135,7 +4200,7 @@ function RouteSearchPanel() {
           <div style={{ maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
             <StopTimeline
               stops={direction === "forward" ? (result.stops || []) : (result.reverse_stops || [])}
-              color={result.type === "metro" ? (result.route.toLowerCase().includes("purple") ? "#800080" : "#008000") : (isVajraBus(result.route) ? C.accent : MC.bmtc.color)}
+              color={result.type === "metro" ? (result.route.toLowerCase().includes("purple") ? "#800080" : result.route.toLowerCase().includes("yellow") ? "#EAB308" : "#008000") : (isVajraBus(result.route) ? C.accent : MC.bmtc.color)}
             />
           </div>
         </div>
@@ -4148,174 +4213,83 @@ function RouteSearchPanel() {
    TIMETABLE PANEL
    Shows Namma Metro & GTFS Bus scheduled departures/timings
 ───────────────────────────────────────────────────────────── */
-function TimetablePanel({ results, onClose, stops, src, dst, time }) {
-  const [metroData, setMetroData] = useState([]);
+function TimetablePanel({ onClose, stops, src, dst }) {
+  const [activeMode, setActiveMode] = useState("bmtc"); // "bmtc" | "metro"
 
-  const [srcQuery, setSrcQuery] = useState(src || "");
-  const [dstQuery, setDstQuery] = useState(dst || "");
-  const [srcSuggestions, setSrcSuggestions] = useState([]);
-  const [dstSuggestions, setDstSuggestions] = useState([]);
-  const [srcDrop, setSrcDrop] = useState(false);
-  const [dstDrop, setDstDrop] = useState(false);
+  // BMTC Bus state
+  const [bmtcRoute, setBmtcRoute] = useState("500D");
+  const [bmtcStop, setBmtcStop] = useState(src || "Hebbal");
+  const [bmtcRouteSuggestions, setBmtcRouteSuggestions] = useState([]);
+  const [bmtcStopSuggestions, setBmtcStopSuggestions] = useState([]);
+  const [bmtcRouteDrop, setBmtcRouteDrop] = useState(false);
+  const [bmtcStopDrop, setBmtcStopDrop] = useState(false);
+  const [bmtcResult, setBmtcResult] = useState(null);
+  const [bmtcLoading, setBmtcLoading] = useState(false);
+  const [bmtcError, setBmtcError] = useState(null);
 
-  // Metro timing results
+  // Metro state
+  const [metroStation, setMetroStation] = useState(src || "Indiranagar");
+  const [metroSuggestions, setMetroSuggestions] = useState([]);
+  const [metroDrop, setMetroDrop] = useState(false);
   const [metroResult, setMetroResult] = useState(null);
   const [metroLoading, setMetroLoading] = useState(false);
   const [metroError, setMetroError] = useState(null);
 
-  // BMTC timing results
-  const [connectingBuses, setConnectingBuses] = useState([]);
-  const [busLoading, setBusLoading] = useState(false);
-  const [busError, setBusError] = useState(null);
-
-  // Selected bus timetable (clicked tag)
-  const [selectedBusRoute, setSelectedBusRoute] = useState("");
-  const [busResult, setBusResult] = useState(null);
-  const [busResultLoading, setBusResultLoading] = useState(false);
-  const [busResultError, setBusResultError] = useState(null);
-
-  // Standalone Check Route Timings state
-  const [checkQuery, setCheckQuery] = useState("");
-  const [checkSuggestions, setCheckSuggestions] = useState([]);
-  const [checkDrop, setCheckDrop] = useState(false);
-  const [checkResult, setCheckResult] = useState(null);
-  const [checkResultLoading, setCheckResultLoading] = useState(false);
-  const [checkResultError, setCheckResultError] = useState(null);
-
   const debounceRef = useRef(null);
 
-  useEffect(() => {
-    const fetchGeneralMetro = async () => {
-      try {
-        const d = await apiMetroTimetable();
-        setMetroData(d.metro || []);
-      } catch { }
-    };
-    fetchGeneralMetro();
-  }, []);
-
-  const fetchTimetable = async (sourceVal, destVal) => {
-    if (!sourceVal || !destVal) return;
-
-    // Clear previous results
-    setMetroResult(null);
-    setConnectingBuses([]);
-    setSelectedBusRoute("");
-    setBusResult(null);
-
-    // 1. Fetch metro timings
-    setMetroLoading(true); setMetroError(null);
-    try {
-      const d = await apiMetroTimetable(sourceVal, time || "");
-      setMetroResult(d);
-    } catch {
-      setMetroError("Failed to fetch metro timings.");
-    } finally {
-      setMetroLoading(false);
-    }
-
-    // 2. Fetch direct connecting buses
-    setBusLoading(true); setBusError(null);
-    try {
-      const res = await fetch(`${API_BASE}/api/bmtc/all-buses`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: sourceVal, destination: destVal, time: time || null })
-      });
-      if (res.ok) {
-        const d = await res.json();
-        const routes = new Set();
-        if (d.direct) {
-          d.direct.forEach(b => {
-            if (b.route) routes.add(b.route);
-          });
-        }
-        setConnectingBuses(Array.from(routes));
-      } else {
-        setBusError("Failed to find connecting buses.");
-      }
-    } catch {
-      setBusError("Failed to fetch connecting buses.");
-    } finally {
-      setBusLoading(false);
-    }
-  };
-
-  // Auto-fetch if source and destination are pre-populated
-  useEffect(() => {
-    if (src && dst) {
-      setSrcQuery(src);
-      setDstQuery(dst);
-      fetchTimetable(src, dst);
-    }
-  }, [src, dst]);
-
-  const selectConnectingBus = async (r) => {
-    setSelectedBusRoute(r);
-    setBusResult(null);
-    setBusResultError(null);
-    setBusResultLoading(true);
-    try {
-      const d = await apiRouteTimetable(r);
-      setBusResult(d);
-    } catch {
-      setBusResultError("Departures schedule not found.");
-    } finally {
-      setBusResultLoading(false);
-    }
-  };
-
-  // Autocomplete suggestions for source/destination
-  const handleSrcChange = (val) => {
-    setSrcQuery(val);
-    setSrcDrop(true);
-    if (!val.trim()) { setSrcSuggestions([]); return; }
-    const q = val.toLowerCase();
-    const matches = (stops?.all || []).filter(s => s.toLowerCase().includes(q)).slice(0, 10);
-    setSrcSuggestions(matches);
-  };
-
-  const handleDstChange = (val) => {
-    setDstQuery(val);
-    setDstDrop(true);
-    if (!val.trim()) { setDstSuggestions([]); return; }
-    const q = val.toLowerCase();
-    const matches = (stops?.all || []).filter(s => s.toLowerCase().includes(q)).slice(0, 10);
-    setDstSuggestions(matches);
-  };
-
-  // Check Route Timings autocomplete
-  const fetchCheckSuggestions = useCallback((q) => {
+  // BMTC Route suggestions
+  const fetchRouteSuggestions = useCallback((q) => {
     clearTimeout(debounceRef.current);
-    if (!q.trim()) { setCheckSuggestions([]); return; }
+    if (!q.trim()) { setBmtcRouteSuggestions([]); return; }
     debounceRef.current = setTimeout(async () => {
       const list = await apiRouteSuggestions(q);
-      setCheckSuggestions(list);
+      setBmtcRouteSuggestions(list);
     }, 200);
   }, []);
 
-  const handleCheckChange = (val) => {
-    setCheckQuery(val);
-    setCheckDrop(true);
-    fetchCheckSuggestions(val);
-  };
+  const handleRouteSearch = async (r, s) => {
+    const routeVal = (r || bmtcRoute).trim();
+    const stopVal = (s !== undefined ? s : bmtcStop).trim();
+    if (!routeVal) return;
 
-  const runCheckSearch = async (r) => {
-    const routeName = (r || checkQuery).trim();
-    if (!routeName) return;
-    setCheckDrop(false);
-    setCheckResultLoading(true);
-    setCheckResultError(null);
-    setCheckResult(null);
+    setBmtcLoading(true); setBmtcError(null); setBmtcResult(null);
+    setBmtcRouteDrop(false); setBmtcStopDrop(false);
+
     try {
-      const d = await apiRouteTimetable(routeName);
-      setCheckResult(d);
+      const res = await fetch(`${API_BASE}/api/bmtc/route-timetable?route=${encodeURIComponent(routeVal)}&stop=${encodeURIComponent(stopVal)}`);
+      if (res.ok) {
+        const d = await res.json();
+        setBmtcResult(d);
+      } else {
+        setBmtcError(`Timetable not found for bus "${routeVal}".`);
+      }
     } catch {
-      setCheckResultError("Bus route not found.");
+      setBmtcError("Failed to fetch BMTC timetable.");
     } finally {
-      setCheckResultLoading(false);
+      setBmtcLoading(false);
     }
   };
+
+  const handleMetroSearch = async (st) => {
+    const stationVal = (st || metroStation).trim();
+    if (!stationVal) return;
+
+    setMetroLoading(true); setMetroError(null); setMetroResult(null); setMetroDrop(false);
+
+    try {
+      const d = await apiMetroTimetable(stationVal);
+      setMetroResult(d);
+    } catch {
+      setMetroError(`Failed to fetch Metro timetable for "${stationVal}".`);
+    } finally {
+      setMetroLoading(false);
+    }
+  };
+
+  // Initial fetch on mount
+  useEffect(() => {
+    handleRouteSearch("500D", src || "Hebbal");
+  }, []);
 
   return (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 22, position: "relative", marginBottom: 16 }}>
@@ -4324,168 +4298,111 @@ function TimetablePanel({ results, onClose, stops, src, dst, time }) {
         <Ic n="clock" s={18} c={C.accent} /> Transit Timetable
       </div>
 
-      {/* INPUT FORM */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
-          <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>Source Stop / Coordinates</label>
-          <input
-            value={srcQuery}
-            onChange={e => handleSrcChange(e.target.value)}
-            onFocus={() => { setSrcDrop(true); handleSrcChange(srcQuery); }}
-            onBlur={() => setTimeout(() => setSrcDrop(false), 160)}
-            placeholder="Type coordinates or stop name…"
-            style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
-          />
-          {srcDrop && srcSuggestions.length > 0 && (
-            <div style={{ position: "absolute", top: "105%", left: 0, right: 0, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, zIndex: 12, maxHeight: 180, overflowY: "auto", boxShadow: "0 8px 24px #00000050" }}>
-              {srcSuggestions.map(s => (
-                <div key={s} onMouseDown={() => { setSrcQuery(s); setSrcDrop(false); }} style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: C.text, borderBottom: `1px solid ${C.border2}` }} onMouseEnter={e => e.target.style.background = C.surface} onMouseLeave={e => e.target.style.background = "transparent"}>{s}</div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
-          <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>Destination Stop / Coordinates</label>
-          <input
-            value={dstQuery}
-            onChange={e => handleDstChange(e.target.value)}
-            onFocus={() => { setDstDrop(true); handleDstChange(dstQuery); }}
-            onBlur={() => setTimeout(() => setDstDrop(false), 160)}
-            placeholder="Type coordinates or stop name…"
-            style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
-          />
-          {dstDrop && dstSuggestions.length > 0 && (
-            <div style={{ position: "absolute", top: "105%", left: 0, right: 0, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, zIndex: 12, maxHeight: 180, overflowY: "auto", boxShadow: "0 8px 24px #00000050" }}>
-              {dstSuggestions.map(s => (
-                <div key={s} onMouseDown={() => { setDstQuery(s); setDstDrop(false); }} style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: C.text, borderBottom: `1px solid ${C.border2}` }} onMouseEnter={e => e.target.style.background = C.surface} onMouseLeave={e => e.target.style.background = "transparent"}>{s}</div>
-              ))}
-            </div>
-          )}
-        </div>
-
+      {/* MODE SELECTOR BUTTONS */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
         <button
-          onClick={() => fetchTimetable(srcQuery, dstQuery)}
-          disabled={metroLoading || busLoading || !srcQuery.trim() || !dstQuery.trim()}
-          style={{ background: C.accent, border: "none", borderRadius: 10, padding: "11px 20px", color: "white", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 13, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-          <Ic n="search" s={14} c="white" /> Search Timetable
+          onClick={() => { setActiveMode("bmtc"); }}
+          style={{
+            flex: 1, padding: "10px 14px", borderRadius: 12, fontWeight: 800, fontSize: 13,
+            background: activeMode === "bmtc" ? MC.bmtc.color : C.surface,
+            color: activeMode === "bmtc" ? "#fff" : C.text,
+            border: `1.5px solid ${activeMode === "bmtc" ? MC.bmtc.color : C.border2}`,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            fontFamily: "inherit",
+          }}>
+          🚌 BMTC Bus Timetable
+        </button>
+        <button
+          onClick={() => { setActiveMode("metro"); if (!metroResult) handleMetroSearch("Indiranagar"); }}
+          style={{
+            flex: 1, padding: "10px 14px", borderRadius: 12, fontWeight: 800, fontSize: 13,
+            background: activeMode === "metro" ? MC.metro.color : C.surface,
+            color: activeMode === "metro" ? "#fff" : C.text,
+            border: `1.5px solid ${activeMode === "metro" ? MC.metro.color : C.border2}`,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            fontFamily: "inherit",
+          }}>
+          🚇 Namma Metro Timetable
         </button>
       </div>
 
-      {/* SCHEDULES LAYOUT */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-
-        {/* METRO TIMINGS */}
-        <div style={{ borderRight: `1px solid ${C.border2}`, paddingRight: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: C.muted, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 12 }}>
-            🚇 Metro Timetable
-          </div>
-          {metroLoading && <div style={{ fontSize: 12, color: C.muted, padding: 10 }}>Resolving nearest station and timings…</div>}
-          {metroError && <div style={{ fontSize: 12, color: C.red, padding: 10 }}>{metroError}</div>}
-
-          {metroResult && metroResult.resolved_station ? (
-            <div style={{ background: C.surface, borderRadius: 12, border: `1.5px solid ${metroResult.color}50`, padding: 14, boxShadow: `0 4px 20px ${metroResult.color}15` }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: metroResult.color }} />
-                  <span style={{ fontWeight: 800, fontSize: 14, color: C.text }}>{metroResult.resolved_station}</span>
+      {activeMode === "bmtc" ? (
+        /* BMTC BUS TIMETABLE FORM */
+        <div>
+          <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ flex: 1, minWidth: 180, position: "relative" }}>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>Bus / Route Number</label>
+              <input
+                value={bmtcRoute}
+                onChange={e => { setBmtcRoute(e.target.value); setBmtcRouteDrop(true); fetchRouteSuggestions(e.target.value); }}
+                onFocus={() => { setBmtcRouteDrop(true); if (bmtcRoute) fetchRouteSuggestions(bmtcRoute); }}
+                onBlur={() => setTimeout(() => setBmtcRouteDrop(false), 160)}
+                placeholder="e.g. 500D, 335E, KIA-8, 360-K"
+                style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+              />
+              {bmtcRouteDrop && bmtcRouteSuggestions.length > 0 && (
+                <div style={{ position: "absolute", top: "105%", left: 0, right: 0, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, zIndex: 12, maxHeight: 180, overflowY: "auto", boxShadow: "0 8px 24px #00000050" }}>
+                  {bmtcRouteSuggestions.map(r => (
+                    <div key={r} onMouseDown={() => { setBmtcRoute(r); setBmtcRouteDrop(false); handleRouteSearch(r, bmtcStop); }} style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: C.text, borderBottom: `1px solid ${C.border2}` }} onMouseEnter={e => e.target.style.background = C.surface} onMouseLeave={e => e.target.style.background = "transparent"}>{r}</div>
+                  ))}
                 </div>
-                <span style={{ fontSize: 10, color: metroResult.color, fontWeight: 700, background: metroResult.color + "18", padding: "2px 8px", borderRadius: 6 }}>
-                  {metroResult.line}
-                </span>
-              </div>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>
-                Frequency: <strong>{metroResult.frequency}</strong> {metroResult.is_peak ? "(Peak Hours ⚡)" : "(Normal)"}
-              </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.text, marginBottom: 6 }}>Upcoming Departures:</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {metroResult.departures && metroResult.departures.length > 0 ? (
-                  metroResult.departures.map((t, idx) => (
-                    <span key={idx} style={{ background: metroResult.color + "12", border: `1px solid ${metroResult.color}40`, borderRadius: 8, padding: "5px 8px", fontSize: 11, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 4 }}>
-                      🚇 {t} <span style={{ fontSize: 8, color: C.green }}>🟢</span>
-                    </span>
-                  ))
-                ) : (
-                  <span style={{ fontSize: 11, color: C.muted }}>No upcoming trains. Operational hours: 05:00 – 23:00.</span>
+              )}
+            </div>
+
+            <div style={{ flex: 1, minWidth: 180, position: "relative" }}>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>Bus Stop Name</label>
+              <input
+                value={bmtcStop}
+                onChange={e => { setBmtcStop(e.target.value); setBmtcStopDrop(true); const matches = (stops?.bmtc || stops?.all || []).filter(s => s.toLowerCase().includes(e.target.value.toLowerCase())).slice(0, 10); setBmtcStopSuggestions(matches); }}
+                onFocus={() => { setBmtcStopDrop(true); const matches = (stops?.bmtc || stops?.all || []).filter(s => s.toLowerCase().includes(bmtcStop.toLowerCase())).slice(0, 10); setBmtcStopSuggestions(matches); }}
+                onBlur={() => setTimeout(() => setBmtcStopDrop(false), 160)}
+                placeholder="e.g. Hebbal, Silk Board, Majestic"
+                style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+              />
+              {bmtcStopDrop && bmtcStopSuggestions.length > 0 && (
+                <div style={{ position: "absolute", top: "105%", left: 0, right: 0, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, zIndex: 12, maxHeight: 180, overflowY: "auto", boxShadow: "0 8px 24px #00000050" }}>
+                  {bmtcStopSuggestions.map(s => (
+                    <div key={s} onMouseDown={() => { setBmtcStop(s); setBmtcStopDrop(false); handleRouteSearch(bmtcRoute, s); }} style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: C.text, borderBottom: `1px solid ${C.border2}` }} onMouseEnter={e => e.target.style.background = C.surface} onMouseLeave={e => e.target.style.background = "transparent"}>{s}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => handleRouteSearch()}
+              disabled={bmtcLoading || !bmtcRoute.trim()}
+              style={{ background: MC.bmtc.color, border: "none", borderRadius: 10, padding: "11px 20px", color: "white", fontWeight: 700, cursor: bmtcLoading ? "wait" : "pointer", fontFamily: "inherit", fontSize: 13, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              {bmtcLoading
+                ? <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid white", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                : <Ic n="search" s={14} c="white" />
+              }
+              Get Bus Timetable
+            </button>
+          </div>
+
+          {bmtcError && <div style={{ fontSize: 12, color: C.red, marginBottom: 12 }}>{bmtcError}</div>}
+
+          {bmtcResult && (
+            <div style={{ background: C.surface, border: `1.5px solid ${MC.bmtc.color}40`, borderRadius: 14, padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div>
+                  <span style={{ fontWeight: 800, fontSize: 15, color: C.text }}>Route: {bmtcResult.route || bmtcRoute}</span>
+                  <span style={{ fontSize: 12, color: C.muted, marginLeft: 10 }}>📍 Boarding: <strong style={{ color: MC.bmtc.color }}>{bmtcResult.board_stop || bmtcStop}</strong></span>
+                </div>
+                {bmtcResult.total_trips > 0 && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: MC.bmtc.color, background: MC.bmtc.color + "18", padding: "3px 10px", borderRadius: 8 }}>
+                    {bmtcResult.total_trips} trips/day
+                  </span>
                 )}
               </div>
-            </div>
-          ) : (
-            <div>
-              {/* Fallback general metro lines */}
-              <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic", marginBottom: 10 }}>
-                Enter source above to see departures from your nearest station.
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {metroData.map((line, idx) => (
-                  <div key={idx} style={{ background: C.surface, borderRadius: 10, border: `1px solid ${C.border2}`, padding: 10 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: line.color }} />
-                      <span style={{ fontWeight: 800, fontSize: 12, color: C.text }}>{line.line}</span>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 10, color: C.muted }}>
-                      <div>🕒 First/Last: {line.first_train}-{line.last_train}</div>
-                      <div>⚡ Freq: {line.peak_frequency} (Peak)</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* BUS TIMINGS */}
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 13, color: C.muted, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 12 }}>
-            🚌 BMTC Connecting Buses
-          </div>
-          {busLoading && <div style={{ fontSize: 12, color: C.muted, padding: 10 }}>Finding connecting routes…</div>}
-          {busError && <div style={{ fontSize: 12, color: C.red, padding: 10 }}>{busError}</div>}
-
-          {connectingBuses.length > 0 ? (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>
-                Select a connecting bus route to display departures:
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {connectingBuses.map(r => (
-                  <button
-                    key={r}
-                    onClick={() => selectConnectingBus(r)}
-                    style={{
-                      background: selectedBusRoute === r ? MC.bmtc.color + "22" : C.surface,
-                      border: `1px solid ${selectedBusRoute === r ? MC.bmtc.color : C.border2}`,
-                      borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 700,
-                      color: selectedBusRoute === r ? MC.bmtc.color : C.text,
-                      cursor: "pointer", fontFamily: "inherit"
-                    }}>
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            !busLoading && (
-              <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic", padding: 10 }}>
-                No direct buses found between stops.
-              </div>
-            )
-          )}
-
-          {/* Selected Bus Departures result */}
-          {busResultLoading && <div style={{ fontSize: 12, color: C.muted, padding: 10 }}>Loading departures…</div>}
-          {busResultError && <div style={{ fontSize: 12, color: C.red, padding: 10 }}>{busResultError}</div>}
-
-          {busResult && (
-            <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 12, padding: 12 }}>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
-                <span>📍 From: <strong>{busResult.board_stop}</strong></span>
-                <span>📅 <strong>{busResult.total_trips} trips/day</strong></span>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>
+                SCHEDULED DEPARTURES FROM STOP:
               </div>
 
-              {busResult.departures && busResult.departures.length > 0 ? (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 120, overflowY: "auto" }}>
-                  {busResult.departures.map((t, idx) => {
+              {bmtcResult.departures && bmtcResult.departures.length > 0 ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, maxHeight: 200, overflowY: "auto" }}>
+                  {bmtcResult.departures.map((t, idx) => {
                     const now = new Date();
                     const currentMinutes = now.getHours() * 60 + now.getMinutes();
                     const [h, min] = t.split(":").map(Number);
@@ -4505,76 +4422,558 @@ function TimetablePanel({ results, onClose, stops, src, dst, time }) {
             </div>
           )}
         </div>
+      ) : (
+        /* NAMMA METRO TIMETABLE FORM */
+        <div>
+          <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ flex: 1, minWidth: 220, position: "relative" }}>
+              <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>Metro Station Name</label>
+              <input
+                value={metroStation}
+                onChange={e => { setMetroStation(e.target.value); setMetroDrop(true); const matches = (stops?.metro || []).filter(s => s.toLowerCase().includes(e.target.value.toLowerCase())).slice(0, 10); setMetroSuggestions(matches); }}
+                onFocus={() => { setMetroDrop(true); const matches = (stops?.metro || []).filter(s => s.toLowerCase().includes(metroStation.toLowerCase())).slice(0, 10); setMetroSuggestions(matches); }}
+                onBlur={() => setTimeout(() => setMetroDrop(false), 160)}
+                placeholder="e.g. Indiranagar, Majestic, MG Road"
+                style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+              />
+              {metroDrop && metroSuggestions.length > 0 && (
+                <div style={{ position: "absolute", top: "105%", left: 0, right: 0, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, zIndex: 12, maxHeight: 180, overflowY: "auto", boxShadow: "0 8px 24px #00000050" }}>
+                  {metroSuggestions.map(s => (
+                    <div key={s} onMouseDown={() => { setMetroStation(s); setMetroDrop(false); handleMetroSearch(s); }} style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: C.text, borderBottom: `1px solid ${C.border2}` }} onMouseEnter={e => e.target.style.background = C.surface} onMouseLeave={e => e.target.style.background = "transparent"}>{s}</div>
+                  ))}
+                </div>
+              )}
+            </div>
 
+            <button
+              onClick={() => handleMetroSearch()}
+              disabled={metroLoading || !metroStation.trim()}
+              style={{ background: MC.metro.color, border: "none", borderRadius: 10, padding: "11px 20px", color: "white", fontWeight: 700, cursor: metroLoading ? "wait" : "pointer", fontFamily: "inherit", fontSize: 13, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              {metroLoading
+                ? <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid white", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                : <Ic n="search" s={14} c="white" />
+              }
+              Get Metro Timetable
+            </button>
+          </div>
+
+          {metroError && <div style={{ fontSize: 12, color: C.red, marginBottom: 12 }}>{metroError}</div>}
+
+          {metroResult && (
+            <div style={{ background: C.surface, border: `1.5px solid ${(metroResult.color || MC.metro.color)}40`, borderRadius: 14, padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div>
+                  <span style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{metroResult.resolved_station || metroStation}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: metroResult.color || MC.metro.color, background: (metroResult.color || MC.metro.color) + "18", padding: "3px 10px", borderRadius: 8, marginLeft: 10 }}>
+                    {metroResult.line || "Purple Line"}
+                  </span>
+                </div>
+                <span style={{ fontSize: 11, color: C.muted }}>Frequency: <strong>{metroResult.frequency}</strong> {metroResult.is_peak ? "(Peak ⚡)" : ""}</span>
+              </div>
+
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.text, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>
+                UPCOMING TRAIN DEPARTURES:
+              </div>
+
+              {metroResult.departures && metroResult.departures.length > 0 ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, maxHeight: 180, overflowY: "auto" }}>
+                  {metroResult.departures.map((t, idx) => (
+                    <span key={idx} style={{ background: (metroResult.color || MC.metro.color) + "18", border: `1px solid ${(metroResult.color || MC.metro.color)}50`, borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 4 }}>
+                      🚇 {t}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: 10, color: C.muted }}>Namma Metro operating hours: 05:00 – 23:00.</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   FARE CALCULATOR PANEL
+   Calculates exact stop-to-stop (BMTC) or station-to-station (Metro) fares
+───────────────────────────────────────────────────────────── */
+function FareCalculatorPanel({ onClose, stops, src, dst }) {
+  const [activeMode, setActiveMode] = useState("bmtc"); // "bmtc" | "metro"
+
+  const [fromStop, setFromStop] = useState(src || "Majestic");
+  const [toStop, setToStop] = useState(dst || "Indiranagar");
+  const [fromDrop, setFromDrop] = useState(false);
+  const [toDrop, setToDrop] = useState(false);
+  const [fromSuggestions, setFromSuggestions] = useState([]);
+  const [toSuggestions, setToSuggestions] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [result, setResult] = useState(null);
+
+  const calculateFare = async (modeVal, sVal, dVal) => {
+    const mode = modeVal || activeMode;
+    const s = (sVal !== undefined ? sVal : fromStop).trim();
+    const d = (dVal !== undefined ? dVal : toStop).trim();
+
+    if (!s || !d) return;
+    setLoading(true); setError(null); setResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/fare/calculate?mode=${mode}&source=${encodeURIComponent(s)}&destination=${encodeURIComponent(d)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setResult(data);
+      } else {
+        setError("Failed to calculate fare for selected locations.");
+      }
+    } catch {
+      setError("Network error calculating transit fare.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    calculateFare("bmtc", fromStop, toStop);
+  }, []);
+
+  const handleFromChange = (val) => {
+    setFromStop(val); setFromDrop(true);
+    if (!val.trim()) { setFromSuggestions([]); return; }
+    const pool = activeMode === "metro" ? (stops?.metro || []) : (stops?.bmtc || stops?.all || []);
+    const matches = pool.filter(s => s.toLowerCase().includes(val.toLowerCase())).slice(0, 10);
+    setFromSuggestions(matches);
+  };
+
+  const handleToChange = (val) => {
+    setToStop(val); setToDrop(true);
+    if (!val.trim()) { setToSuggestions([]); return; }
+    const pool = activeMode === "metro" ? (stops?.metro || []) : (stops?.bmtc || stops?.all || []);
+    const matches = pool.filter(s => s.toLowerCase().includes(val.toLowerCase())).slice(0, 10);
+    setToSuggestions(matches);
+  };
+
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 22, position: "relative", marginBottom: 16 }}>
+      <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16 }}>✕</button>
+      <div style={{ fontWeight: 800, fontSize: 18, color: C.text, display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+        <Ic n="table" s={18} c={C.accent} /> Transit Fare Calculator
       </div>
 
-      <hr style={{ border: "none", borderTop: `1px solid ${C.border}`, margin: "18px 0" }} />
+      {/* MODE SELECTOR BUTTONS */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+        <button
+          onClick={() => { setActiveMode("bmtc"); calculateFare("bmtc", fromStop, toStop); }}
+          style={{
+            flex: 1, padding: "10px 14px", borderRadius: 12, fontWeight: 800, fontSize: 13,
+            background: activeMode === "bmtc" ? MC.bmtc.color : C.surface,
+            color: activeMode === "bmtc" ? "#fff" : C.text,
+            border: `1.5px solid ${activeMode === "bmtc" ? MC.bmtc.color : C.border2}`,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            fontFamily: "inherit",
+          }}>
+          🚌 BMTC Stop-to-Stop Fare
+        </button>
+        <button
+          onClick={() => { setActiveMode("metro"); calculateFare("metro", fromStop, toStop); }}
+          style={{
+            flex: 1, padding: "10px 14px", borderRadius: 12, fontWeight: 800, fontSize: 13,
+            background: activeMode === "metro" ? MC.metro.color : C.surface,
+            color: activeMode === "metro" ? "#fff" : C.text,
+            border: `1.5px solid ${activeMode === "metro" ? MC.metro.color : C.border2}`,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            fontFamily: "inherit",
+          }}>
+          🚇 Namma Metro Station-to-Station Fare
+        </button>
+      </div>
 
-      {/* CHECK ROUTE TIMINGS FIELD */}
-      <div>
-        <div style={{ fontWeight: 700, fontSize: 13, color: C.muted, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>
-          🔍 Check Route Timings
-        </div>
-        <div style={{ display: "flex", gap: 8, position: "relative" }}>
+      {/* INPUT FIELDS */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 18, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div style={{ flex: 1, minWidth: 180, position: "relative" }}>
+          <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>
+            {activeMode === "metro" ? "From Metro Station" : "From Bus Stop"}
+          </label>
           <input
-            value={checkQuery}
-            onChange={e => handleCheckChange(e.target.value)}
-            onFocus={() => { setCheckDrop(true); if (checkQuery) fetchCheckSuggestions(checkQuery); }}
-            onBlur={() => setTimeout(() => setCheckDrop(false), 160)}
-            onKeyDown={e => { if (e.key === "Enter") runCheckSearch(); }}
-            placeholder="Type any bus route number (e.g. 500-A, 600-FD, V-500D)…"
-            style={{ flex: 1, background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+            value={fromStop}
+            onChange={e => handleFromChange(e.target.value)}
+            onFocus={() => { setFromDrop(true); handleFromChange(fromStop); }}
+            onBlur={() => setTimeout(() => setFromDrop(false), 160)}
+            placeholder={activeMode === "metro" ? "e.g. Majestic, Indiranagar" : "e.g. Hebbal, Silk Board"}
+            style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
           />
-          <button
-            onClick={() => runCheckSearch()}
-            disabled={checkResultLoading}
-            style={{ background: MC.bmtc.color, border: "none", borderRadius: 10, padding: "10px 18px", color: "white", fontWeight: 700, cursor: checkResultLoading ? "wait" : "pointer", fontFamily: "inherit", fontSize: 13, display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-            {checkResultLoading
-              ? <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid white", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
-              : <Ic n="search" s={14} c="white" />
-            }
-            Get Timings
-          </button>
-
-          {checkDrop && checkSuggestions.length > 0 && (
+          {fromDrop && fromSuggestions.length > 0 && (
             <div style={{ position: "absolute", top: "105%", left: 0, right: 0, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, zIndex: 12, maxHeight: 180, overflowY: "auto", boxShadow: "0 8px 24px #00000050" }}>
-              {checkSuggestions.map(r => (
-                <div key={r} onMouseDown={() => { setCheckQuery(r); setCheckDrop(false); runCheckSearch(r); }} style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: C.text, borderBottom: `1px solid ${C.border2}` }} onMouseEnter={e => e.target.style.background = C.surface} onMouseLeave={e => e.target.style.background = "transparent"}><strong>{r}</strong></div>
+              {fromSuggestions.map(s => (
+                <div key={s} onMouseDown={() => { setFromStop(s); setFromDrop(false); calculateFare(activeMode, s, toStop); }} style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: C.text, borderBottom: `1px solid ${C.border2}` }} onMouseEnter={e => e.target.style.background = C.surface} onMouseLeave={e => e.target.style.background = "transparent"}>{s}</div>
               ))}
             </div>
           )}
         </div>
 
-        {checkResultError && <div style={{ fontSize: 12, color: C.red, marginTop: 8 }}>{checkResultError}</div>}
-
-        {checkResult && (
-          <div style={{ background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 12, padding: 12, marginTop: 10 }}>
-            <div style={{ fontSize: 11, color: C.muted, marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
-              <span>📍 Departures from: <strong>{checkResult.board_stop}</strong></span>
-              <span>📅 <strong>{checkResult.total_trips} trips/day</strong></span>
+        <div style={{ flex: 1, minWidth: 180, position: "relative" }}>
+          <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>
+            {activeMode === "metro" ? "To Metro Station" : "To Bus Stop"}
+          </label>
+          <input
+            value={toStop}
+            onChange={e => handleToChange(e.target.value)}
+            onFocus={() => { setToDrop(true); handleToChange(toStop); }}
+            onBlur={() => setTimeout(() => setToDrop(false), 160)}
+            placeholder={activeMode === "metro" ? "e.g. Whitefield, MG Road" : "e.g. Banashankari, Electronic City"}
+            style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+          />
+          {toDrop && toSuggestions.length > 0 && (
+            <div style={{ position: "absolute", top: "105%", left: 0, right: 0, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, zIndex: 12, maxHeight: 180, overflowY: "auto", boxShadow: "0 8px 24px #00000050" }}>
+              {toSuggestions.map(s => (
+                <div key={s} onMouseDown={() => { setToStop(s); setToDrop(false); calculateFare(activeMode, fromStop, s); }} style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: C.text, borderBottom: `1px solid ${C.border2}` }} onMouseEnter={e => e.target.style.background = C.surface} onMouseLeave={e => e.target.style.background = "transparent"}>{s}</div>
+              ))}
             </div>
-            {checkResult.departures && checkResult.departures.length > 0 ? (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 120, overflowY: "auto" }}>
-                {checkResult.departures.map((t, idx) => {
-                  const now = new Date();
-                  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-                  const [h, min] = t.split(":").map(Number);
-                  const depMinutes = h * 60 + min;
-                  const isUpcoming = depMinutes >= currentMinutes;
+          )}
+        </div>
 
-                  return (
-                    <span key={idx} style={{ background: isUpcoming ? MC.bmtc.color + "22" : C.card, border: `1px solid ${isUpcoming ? MC.bmtc.color + "55" : C.border2}`, borderRadius: 8, padding: "5px 8px", fontSize: 10, fontWeight: 700, color: isUpcoming ? MC.bmtc.color : C.muted, display: "flex", alignItems: "center", gap: 4 }}>
-                      🕒 {t} {isUpcoming && <span style={{ fontSize: 8, verticalAlign: "middle" }}>🟢</span>}
-                    </span>
-                  );
-                })}
+        <button
+          onClick={() => calculateFare()}
+          disabled={loading || !fromStop.trim() || !toStop.trim()}
+          style={{ background: activeMode === "metro" ? MC.metro.color : MC.bmtc.color, border: "none", borderRadius: 10, padding: "11px 20px", color: "white", fontWeight: 700, cursor: loading ? "wait" : "pointer", fontFamily: "inherit", fontSize: 13, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {loading ? "Calculating…" : "Calculate Price"}
+        </button>
+      </div>
+
+      {error && <div style={{ fontSize: 12, color: C.red, marginBottom: 12 }}>{error}</div>}
+
+      {result && (
+        <div style={{ background: C.surface, border: `1.5px solid ${activeMode === "metro" ? MC.metro.color : MC.bmtc.color}40`, borderRadius: 14, padding: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>
+                {result.source} → {result.destination}
               </div>
+              <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                📍 Distance: <strong>{result.distance_km} km</strong>
+              </div>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: activeMode === "metro" ? MC.metro.color : MC.bmtc.color, background: (activeMode === "metro" ? MC.metro.color : MC.bmtc.color) + "18", padding: "4px 12px", borderRadius: 10 }}>
+              {activeMode === "metro" ? "NAMMA METRO TICKET" : "BMTC BUS FARE"}
+            </span>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            {activeMode === "metro" ? (
+              <>
+                <div style={{ background: C.card, border: `1px solid ${C.border2}`, borderRadius: 12, padding: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase" }}>Single Journey Token</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginTop: 4 }}>₹{result.token_fare}</div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>Standard paper token / QR</div>
+                </div>
+                <div style={{ background: MC.metro.color + "12", border: `1px solid ${MC.metro.color}40`, borderRadius: 12, padding: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: MC.metro.color, textTransform: "uppercase" }}>Namma Metro Smart Card (5% Off)</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: MC.metro.color, marginTop: 4 }}>₹{result.smart_card_fare}</div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>Automatic gate tap discount</div>
+                </div>
+              </>
             ) : (
-              <div style={{ fontSize: 10, color: C.muted }}>No scheduled GTFS timings available for this route. Operational window is ~05:00 - 23:30.</div>
+              <>
+                <div style={{ background: C.card, border: `1px solid ${C.border2}`, borderRadius: 12, padding: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase" }}>BMTC Ordinary Non-AC</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: C.text, marginTop: 4 }}>₹{result.ordinary_fare}</div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>Blue / Non-AC bus ticket</div>
+                </div>
+                <div style={{ background: MC.bmtc.color + "12", border: `1px solid ${MC.bmtc.color}40`, borderRadius: 12, padding: 14 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: MC.bmtc.color, textTransform: "uppercase" }}>BMTC Vajra AC</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: MC.bmtc.color, marginTop: 4 }}>₹{result.vajra_fare}</div>
+                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>Volvo AC Volvo ticket</div>
+                </div>
+              </>
             )}
           </div>
-        )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   STOPS INFO PANEL
+   Nearest bus stop & metro station near me or for a place
+───────────────────────────────────────────────────────────── */
+function StopsInfoPanel({ onClose, stops }) {
+  const [searchQuery, setSearchQuery] = useState("Indiranagar");
+  const [suggestions, setSuggestions] = useState([]);
+  const [dropOpen, setDropOpen] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [data, setData] = useState(null);
+
+  const [selectedBusStop, setSelectedBusStop] = useState("");
+  const [visitingBuses, setVisitingBuses] = useState([]);
+  const [busLoading, setBusLoading] = useState(false);
+
+  const [activeBusRoute, setActiveBusRoute] = useState("");
+  const [activeBusSchedule, setActiveBusSchedule] = useState(null);
+  const [busScheduleLoading, setBusScheduleLoading] = useState(false);
+
+  const fetchStopsInfoData = async (queryVal, lat, lng) => {
+    setLoading(true); setError(null); setData(null);
+    setDropOpen(false); setSelectedBusStop(""); setVisitingBuses([]); setActiveBusRoute("");
+
+    let url = `${API_BASE}/api/stops/info`;
+    const params = [];
+    if (queryVal) params.push(`query=${encodeURIComponent(queryVal)}`);
+    if (lat) params.push(`lat=${lat}`);
+    if (lng) params.push(`lng=${lng}`);
+    if (params.length) url += `?${params.join("&")}`;
+
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const d = await res.json();
+        setData(d);
+        if (d.nearest_bmtc?.stop_name) {
+          setSelectedBusStop(d.nearest_bmtc.stop_name);
+          setVisitingBuses(d.nearest_bmtc.visiting_buses || []);
+        }
+      } else {
+        setError("Failed to resolve nearest stops.");
+      }
+    } catch {
+      setError("Network error fetching stops info.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNearMe = () => {
+    setSearchQuery("Current Location");
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => fetchStopsInfoData(null, pos.coords.latitude, pos.coords.longitude),
+        () => fetchStopsInfoData(null, 12.93496, 77.53488)
+      );
+    } else {
+      fetchStopsInfoData(null, 12.93496, 77.53488);
+    }
+  };
+
+  const handleQueryChange = (val) => {
+    setSearchQuery(val);
+    setDropOpen(true);
+    if (!val.trim()) { setSuggestions([]); return; }
+    const q = val.toLowerCase();
+    const matches = (stops?.all || []).filter(s => s.toLowerCase().includes(q)).slice(0, 10);
+    setSuggestions(matches);
+  };
+
+  const loadBusesForStop = async (stopName) => {
+    setSelectedBusStop(stopName);
+    setBusLoading(true);
+    setVisitingBuses([]);
+    setActiveBusRoute("");
+    try {
+      const res = await fetch(`${API_BASE}/api/stops/bmtc-buses?stop=${encodeURIComponent(stopName)}`);
+      if (res.ok) {
+        const d = await res.json();
+        setVisitingBuses((d.buses || []).map(b => b.route));
+      }
+    } catch {
+    } finally {
+      setBusLoading(false);
+    }
+  };
+
+  const loadBusSchedule = async (route, stopName) => {
+    setActiveBusRoute(route);
+    setBusScheduleLoading(true);
+    setActiveBusSchedule(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/bmtc/route-timetable?route=${encodeURIComponent(route)}&stop=${encodeURIComponent(stopName)}`);
+      if (res.ok) {
+        const d = await res.json();
+        setActiveBusSchedule(d);
+      }
+    } catch {
+    } finally {
+      setBusScheduleLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStopsInfoData("Indiranagar");
+  }, []);
+
+  const bmtc = data?.nearest_bmtc;
+  const metro = data?.nearest_metro;
+
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 22, position: "relative", marginBottom: 16 }}>
+      <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16 }}>✕</button>
+      <div style={{ fontWeight: 800, fontSize: 18, color: C.text, display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+        <Ic n="pin" s={18} c={C.accent} /> Nearest Stops & Stations Info
       </div>
+
+      {/* CONTROLS */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <button
+          onClick={handleNearMe}
+          style={{
+            background: C.accent, border: "none", borderRadius: 10, padding: "11px 18px", color: "white",
+            fontWeight: 800, cursor: "pointer", fontFamily: "inherit", fontSize: 13, display: "flex", alignItems: "center", gap: 6, flexShrink: 0
+          }}>
+          📍 Near Me
+        </button>
+
+        <div style={{ flex: 1, minWidth: 220, position: "relative" }}>
+          <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>
+            Search Particular Place / Stop
+          </label>
+          <input
+            value={searchQuery}
+            onChange={e => handleQueryChange(e.target.value)}
+            onFocus={() => { setDropOpen(true); handleQueryChange(searchQuery); }}
+            onBlur={() => setTimeout(() => setDropOpen(false), 160)}
+            onKeyDown={e => { if (e.key === "Enter") fetchStopsInfoData(searchQuery); }}
+            placeholder="Type place or landmark (e.g. Koramangala, Indiranagar, Whitefield)…"
+            style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
+          />
+          {dropOpen && suggestions.length > 0 && (
+            <div style={{ position: "absolute", top: "105%", left: 0, right: 0, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, zIndex: 12, maxHeight: 180, overflowY: "auto", boxShadow: "0 8px 24px #00000050" }}>
+              {suggestions.map(s => (
+                <div key={s} onMouseDown={() => { setSearchQuery(s); setDropOpen(false); fetchStopsInfoData(s); }} style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: C.text, borderBottom: `1px solid ${C.border2}` }} onMouseEnter={e => e.target.style.background = C.surface} onMouseLeave={e => e.target.style.background = "transparent"}>{s}</div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={() => fetchStopsInfoData(searchQuery)}
+          disabled={loading || !searchQuery.trim()}
+          style={{ background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, padding: "11px 18px", color: C.text, fontWeight: 700, cursor: loading ? "wait" : "pointer", fontFamily: "inherit", fontSize: 13, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {loading ? "Searching…" : "Find Stops"}
+        </button>
+      </div>
+
+      {loading && <div style={{ fontSize: 12, color: C.muted, padding: 20 }}>Resolving nearest stops and bus schedules…</div>}
+      {error && <div style={{ fontSize: 12, color: C.red, padding: 10 }}>{error}</div>}
+
+      {data && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          {/* NEAREST METRO CARD */}
+          {metro && (
+            <div style={{ background: C.surface, borderRadius: 14, border: `1.5px solid ${metro.color || MC.metro.color}50`, padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: metro.color || MC.metro.color }} />
+                  <span style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{metro.station_name}</span>
+                </div>
+                <span style={{ fontSize: 11, color: metro.color || MC.metro.color, fontWeight: 700, background: (metro.color || MC.metro.color) + "18", padding: "3px 10px", borderRadius: 8 }}>
+                  {metro.line}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+                📍 <strong>{metro.distance_km} km away</strong> · Frequency: <strong>{metro.frequency}</strong> {metro.is_peak ? "(Peak ⚡)" : ""}
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.text, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>
+                UPCOMING TRAIN DEPARTURES:
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {metro.departures && metro.departures.length > 0 ? (
+                  metro.departures.map((t, idx) => (
+                    <span key={idx} style={{ background: (metro.color || MC.metro.color) + "18", border: `1px solid ${(metro.color || MC.metro.color)}50`, borderRadius: 8, padding: "5px 8px", fontSize: 11, fontWeight: 700, color: C.text, display: "flex", alignItems: "center", gap: 4 }}>
+                      🚇 {t}
+                    </span>
+                  ))
+                ) : (
+                  <span style={{ fontSize: 11, color: C.muted }}>Train service running 05:00 – 23:00.</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* NEAREST BMTC BUS STOP CARD */}
+          {bmtc && (
+            <div style={{ background: C.surface, borderRadius: 14, border: `1.5px solid ${MC.bmtc.color}50`, padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{bmtc.stop_name}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: MC.bmtc.color, background: MC.bmtc.color + "18", padding: "3px 10px", borderRadius: 8 }}>
+                  {bmtc.distance_km} KM AWAY
+                </span>
+              </div>
+
+              {/* Nearby stops chips */}
+              {bmtc.nearby_stops && bmtc.nearby_stops.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>Nearby Alternative Stops:</div>
+                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+                    {bmtc.nearby_stops.map(s => (
+                      <button key={s.stop_name} onClick={() => loadBusesForStop(s.stop_name)} style={{
+                        background: selectedBusStop === s.stop_name ? MC.bmtc.color + "22" : C.card,
+                        border: `1px solid ${selectedBusStop === s.stop_name ? MC.bmtc.color : C.border2}`,
+                        borderRadius: 8, padding: "4px 8px", fontSize: 10, fontWeight: 700, color: C.text, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap"
+                      }}>{s.stop_name}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 8 }}>
+                ALL BUSES VISITING THIS STOP ({selectedBusStop}):
+              </div>
+
+              {busLoading ? (
+                <div style={{ fontSize: 11, color: C.muted }}>Loading buses…</div>
+              ) : visitingBuses.length > 0 ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 180, overflowY: "auto" }}>
+                  {visitingBuses.map(r => {
+                    const isActive = activeBusRoute === r;
+                    return (
+                      <button
+                        key={r}
+                        onClick={() => loadBusSchedule(r, selectedBusStop)}
+                        style={{
+                          background: isActive ? MC.bmtc.color : MC.bmtc.color + "18",
+                          color: isActive ? "#fff" : MC.bmtc.color,
+                          border: `1px solid ${MC.bmtc.color}50`,
+                          borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700,
+                          cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4
+                        }}>
+                        🚌 {r}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ fontSize: 11, color: C.muted }}>No recorded bus numbers for this stop.</div>
+              )}
+
+              {/* Active Bus Schedule view */}
+              {activeBusRoute && (
+                <div style={{ marginTop: 14, background: C.card, border: `1px solid ${MC.bmtc.color}40`, borderRadius: 10, padding: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>Bus {activeBusRoute} Departure Schedule</span>
+                    <button onClick={() => setActiveBusRoute("")} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12 }}>✕</button>
+                  </div>
+                  {busScheduleLoading ? (
+                    <div style={{ fontSize: 11, color: C.muted }}>Fetching timings…</div>
+                  ) : activeBusSchedule?.departures && activeBusSchedule.departures.length > 0 ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 100, overflowY: "auto" }}>
+                      {activeBusSchedule.departures.map((t, idx) => (
+                        <span key={idx} style={{ background: MC.bmtc.color + "18", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, color: C.text }}>
+                          🕒 {t}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 10, color: C.muted }}>Regular service running ~05:30 - 23:00.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -9868,7 +10267,13 @@ export default function App() {
               {showRouteSearch && <RouteSearchPanel />}
 
               {/* Timetable Panel */}
-              {showTimetable && <TimetablePanel results={results} onClose={() => setShowTimetable(false)} stops={stops} src={src} dst={dst} time={time} />}
+              {showTimetable && <TimetablePanel onClose={() => setShowTimetable(false)} stops={stops} src={src} dst={dst} />}
+
+              {/* Fare Calculator Panel */}
+              {showFareCalc && <FareCalculatorPanel onClose={() => setShowFareCalc(false)} stops={stops} src={src} dst={dst} />}
+
+              {/* Stops Info Panel */}
+              {showStopsInfo && <StopsInfoPanel onClose={() => setShowStopsInfo(false)} stops={stops} />}
             </div>
 
             <div style={{ height: "calc(100vh - 120px)", position: "sticky", top: 72 }}>
@@ -10546,10 +10951,22 @@ export default function App() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
-              <button onClick={() => setShowSettings(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 10, background: C.accent, border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Close Settings</button>
-            </div>
+      {showFareCalc && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ maxWidth: 850, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
+            <FareCalculatorPanel onClose={() => setShowFareCalc(false)} stops={stops} src={src} dst={dst} />
+          </div>
+        </div>
+      )}
+
+      {showStopsInfo && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ maxWidth: 850, width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
+            <StopsInfoPanel onClose={() => setShowStopsInfo(false)} stops={stops} />
           </div>
         </div>
       )}
@@ -10567,7 +10984,7 @@ export default function App() {
         * { box-sizing: border-box; }
         input::placeholder { color: #94a3b8; }
         input[type="time"]::-webkit-calendar-picker-indicator { opacity: 0.6; }
-        select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml;utf8,<svg fill='%236b7a99' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
+        select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-repeat: no-repeat; background-position: right 10px center; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
       `}</style>

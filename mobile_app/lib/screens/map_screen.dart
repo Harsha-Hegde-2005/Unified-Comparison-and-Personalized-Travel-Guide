@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gm;
+import '../services/map_theme_service.dart';
+import '../widgets/app_settings_modal.dart';
 
 class MapScreen extends StatefulWidget {
   final ValueNotifier<String> mapStyleNotifier;
@@ -34,7 +36,7 @@ class _MapScreenState extends State<MapScreen> {
   ];
 
   // Route Points
-  final List<ll.LatLng> _routePointsLL = [
+  final List<ll.LatLng> _routePointsLL = const [
     ll.LatLng(12.9716, 77.5946),
     ll.LatLng(12.9756, 77.6100),
     ll.LatLng(12.9784, 77.6408),
@@ -51,56 +53,72 @@ class _MapScreenState extends State<MapScreen> {
     super.initState();
     widget.mapStyleNotifier.addListener(_onStyleChanged);
     widget.mapProviderNotifier.addListener(_onProviderChanged);
+    MapThemeService.mapStyleNotifier.addListener(_onStyleChanged);
+    MapThemeService.mapProviderNotifier.addListener(_onProviderChanged);
   }
 
   @override
   void dispose() {
     widget.mapStyleNotifier.removeListener(_onStyleChanged);
     widget.mapProviderNotifier.removeListener(_onProviderChanged);
+    MapThemeService.mapStyleNotifier.removeListener(_onStyleChanged);
+    MapThemeService.mapProviderNotifier.removeListener(_onProviderChanged);
     super.dispose();
   }
 
   void _onStyleChanged() {
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   void _onProviderChanged() {
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   bool _useGoogleMapsNative() {
-    // google_maps_flutter is only supported on mobile platforms
     final isMobile = defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
-    return isMobile && widget.mapProviderNotifier.value == 'google';
+    final provider = MapThemeService.mapProvider;
+    return isMobile && provider == 'google';
   }
 
   String _getGoogleTileUrl() {
-    final style = widget.mapStyleNotifier.value;
+    final style = MapThemeService.mapStyle;
     if (style == 'satellite') {
-      return 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
+      return 'https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}';
     }
     if (style == 'terrain') {
-      return 'https://mt1.google.com/vt/lyrs=t&x={x}&y={y}&z={z}';
+      return 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}';
     }
-    // standard or dark
+    if (style == 'dark') {
+      return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    }
     return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
   }
 
   Widget _buildFlutterMap(BuildContext context) {
-    // Choose tile URL template based on provider and style
+    final provider = MapThemeService.mapProvider;
+    final style = MapThemeService.mapStyle;
+
     String urlTemplate = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-    if (widget.mapProviderNotifier.value == 'google') {
+    if (provider == 'google') {
       urlTemplate = _getGoogleTileUrl();
+    } else {
+      if (style == 'dark') {
+        urlTemplate = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      } else if (style == 'satellite') {
+        urlTemplate = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      } else if (style == 'terrain') {
+        urlTemplate = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+      }
     }
 
     final tileLayer = fm.TileLayer(
       urlTemplate: urlTemplate,
+      subdomains: const ['a', 'b', 'c'],
       userAgentPackageName: 'com.bmtc.unified',
     );
 
-    // Apply color filter if dark style is selected
-    final filteredTileLayer = widget.mapStyleNotifier.value == 'dark'
+    final filteredTileLayer = style == 'dark'
         ? ColorFiltered(
             colorFilter: const ColorFilter.matrix(<double>[
               -0.7, 0, 0, 0, 220,
@@ -236,6 +254,11 @@ class _MapScreenState extends State<MapScreen> {
                           );
                         }
                       },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined),
+                      tooltip: 'App Settings',
+                      onPressed: () => showAppSettingsModal(context),
                     ),
                   ],
                 ),

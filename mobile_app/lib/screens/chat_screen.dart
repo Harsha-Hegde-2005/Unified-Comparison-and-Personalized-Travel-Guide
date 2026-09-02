@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
+import '../widgets/app_settings_modal.dart';
 
 class ChatScreen extends StatefulWidget {
   final ValueChanged<Map<String, String>>? onPlanJourney;
@@ -122,6 +123,13 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'App Settings',
+            onPressed: () => showAppSettingsModal(context),
+          ),
+        ],
       ),
       body: Column(
         children: [

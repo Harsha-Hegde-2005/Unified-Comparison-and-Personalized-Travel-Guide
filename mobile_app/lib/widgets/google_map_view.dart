@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
+import '../services/map_theme_service.dart';
 import '../theme.dart';
 
 enum GoogleMapStyle { roadmap, traffic, satellite, terrain }
 
 class GoogleMapView extends StatefulWidget {
   final List<ll.LatLng> points;
+  final List<Map<String, dynamic>>? segmentPolylines;
   final ll.LatLng? srcPoint;
   final ll.LatLng? dstPoint;
   final ll.LatLng? liveGpsPoint;
@@ -21,6 +23,7 @@ class GoogleMapView extends StatefulWidget {
   const GoogleMapView({
     super.key,
     required this.points,
+    this.segmentPolylines,
     this.srcPoint,
     this.dstPoint,
     this.liveGpsPoint,
@@ -44,6 +47,19 @@ class _GoogleMapViewState extends State<GoogleMapView> {
   void initState() {
     super.initState();
     _mapController = fm.MapController();
+    MapThemeService.mapStyleNotifier.addListener(_onMapThemeChanged);
+    MapThemeService.mapProviderNotifier.addListener(_onMapThemeChanged);
+  }
+
+  void _onMapThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    MapThemeService.mapStyleNotifier.removeListener(_onMapThemeChanged);
+    MapThemeService.mapProviderNotifier.removeListener(_onMapThemeChanged);
+    super.dispose();
   }
 
   @override
@@ -51,6 +67,14 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     super.didUpdateWidget(oldWidget);
     final allPoints = <ll.LatLng>[];
     allPoints.addAll(widget.points);
+
+    if (widget.segmentPolylines != null) {
+      for (final seg in widget.segmentPolylines!) {
+        final segPts = (seg['points'] as List<dynamic>?)?.cast<ll.LatLng>() ?? [];
+        allPoints.addAll(segPts);
+      }
+    }
+
     if (widget.srcPoint != null) allPoints.add(widget.srcPoint!);
     if (widget.dstPoint != null) allPoints.add(widget.dstPoint!);
     if (widget.liveGpsPoint != null) allPoints.add(widget.liveGpsPoint!);
@@ -67,16 +91,38 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     }
   }
 
-  String _getGoogleTileUrl() {
-    switch (widget.style) {
-      case GoogleMapStyle.satellite:
-        return 'https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}';
-      case GoogleMapStyle.terrain:
-        return 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}';
-      case GoogleMapStyle.traffic:
-        return 'https://mt1.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}';
-      case GoogleMapStyle.roadmap:
-        return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+  String _getTileUrl(bool isDark) {
+    final style = MapThemeService.mapStyle;
+    final provider = MapThemeService.mapProvider;
+
+    final effectiveStyle = style.isNotEmpty
+        ? style
+        : (widget.style == GoogleMapStyle.satellite
+            ? 'satellite'
+            : (widget.style == GoogleMapStyle.terrain
+                ? 'terrain'
+                : (isDark ? 'dark' : 'standard')));
+
+    if (provider == 'osm') {
+      if (effectiveStyle == 'dark') {
+        return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      } else if (effectiveStyle == 'satellite') {
+        return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      } else if (effectiveStyle == 'terrain') {
+        return 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+      } else {
+        return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+      }
+    }
+
+    if (effectiveStyle == 'dark') {
+      return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    } else if (effectiveStyle == 'satellite') {
+      return 'https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}';
+    } else if (effectiveStyle == 'terrain') {
+      return 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}';
+    } else {
+      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
     }
   }
 
@@ -96,6 +142,57 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     }
 
     final markers = <fm.Marker>[];
+    final mapPolylines = <fm.Polyline>[];
+
+    // Process Segment Polylines and Station Dots
+    if (widget.segmentPolylines != null && widget.segmentPolylines!.isNotEmpty) {
+      for (final seg in widget.segmentPolylines!) {
+        final pts = (seg['points'] as List<dynamic>?)?.cast<ll.LatLng>() ?? [];
+        final col = (seg['color'] as Color?) ?? widget.routeColor;
+        final isWalk = seg['isWalk'] == true;
+
+        if (pts.length >= 2) {
+          mapPolylines.add(
+            fm.Polyline(
+              points: pts,
+              strokeWidth: isWalk ? 4.0 : 6.0,
+              color: col,
+              isDotted: isWalk,
+            ),
+          );
+
+          // Render station dots along the transit line
+          for (int i = 0; i < pts.length; i++) {
+            final pt = pts[i];
+            markers.add(
+              fm.Marker(
+                point: pt,
+                width: 14,
+                height: 14,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: col, width: 3),
+                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3)],
+                  ),
+                ),
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    if (mapPolylines.isEmpty && widget.points.length >= 2) {
+      mapPolylines.add(
+        fm.Polyline(
+          points: widget.points,
+          strokeWidth: 5.0,
+          color: widget.routeColor,
+        ),
+      );
+    }
 
     // Source Pin (Green)
     final src = widget.srcPoint ?? (widget.points.isNotEmpty ? widget.points.first : null);
@@ -186,18 +283,12 @@ class _GoogleMapViewState extends State<GoogleMapView> {
               ),
               children: [
                 fm.TileLayer(
-                  urlTemplate: _getGoogleTileUrl(),
+                  urlTemplate: _getTileUrl(isDark),
                   userAgentPackageName: 'com.google.maps.bmtc',
                 ),
-                if (widget.points.length >= 2)
+                if (mapPolylines.isNotEmpty)
                   fm.PolylineLayer(
-                    polylines: [
-                      fm.Polyline(
-                        points: widget.points,
-                        strokeWidth: 5.0,
-                        color: widget.routeColor,
-                      ),
-                    ],
+                    polylines: mapPolylines,
                   ),
                 if (markers.isNotEmpty) fm.MarkerLayer(markers: markers),
               ],

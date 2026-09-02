@@ -293,6 +293,22 @@ class ApiService {
   static Future<Map<String, dynamic>?> fetchStopArrivals(String stop, {int limit = 20}) async =>
       _get('/api/bmtc/stop-arrivals?stop=${Uri.encodeComponent(stop)}&limit=$limit');
 
+  static Future<Map<String, dynamic>?> fetchStopsInfo({String? query, double? lat, double? lng}) async {
+    final params = <String>[];
+    if (query != null && query.isNotEmpty) params.add('query=${Uri.encodeComponent(query)}');
+    if (lat != null) params.add('lat=$lat');
+    if (lng != null) params.add('lng=$lng');
+    final qs = params.isNotEmpty ? '?${params.join('&')}' : '';
+    return _get('/api/stops/info$qs');
+  }
+
+  static Future<Map<String, dynamic>?> fetchBmtcBusesForStop(String stop) async =>
+      _get('/api/stops/bmtc-buses?stop=${Uri.encodeComponent(stop)}');
+
+  static Future<Map<String, dynamic>?> fetchFareCalculate({required String mode, required String source, required String destination}) async {
+    return _get('/api/fare/calculate?mode=$mode&source=${Uri.encodeComponent(source)}&destination=${Uri.encodeComponent(destination)}');
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // STOPS / COORDINATES  (/api/stops/*)
   // ═══════════════════════════════════════════════════════════════════════════
@@ -453,12 +469,67 @@ class ApiService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // ROAD GEOMETRY POLYLINE (Turn-by-turn Street Routing)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static Future<List<ll.LatLng>> fetchRoadPolyline(
+    List<ll.LatLng> waypoints, {
+    String profile = 'driving',
+  }) async {
+    if (waypoints.length < 2) return waypoints;
+    try {
+      final waypointStr = waypoints
+          .map((pt) => '${pt.longitude},${pt.latitude}')
+          .join(';');
+      final mode = (profile == 'walk' || profile == 'foot') ? 'foot' : 'driving';
+      final url = Uri.parse(
+        'https://router.project-osrm.org/route/v1/$mode/$waypointStr?overview=full&geometries=geojson',
+      );
+      final res = await http.get(url).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body) as Map<String, dynamic>;
+        final routes = data['routes'] as List<dynamic>?;
+        if (routes != null && routes.isNotEmpty) {
+          final route = routes.first as Map<String, dynamic>;
+          final geometry = route['geometry'] as Map<String, dynamic>?;
+          final coords = geometry?['coordinates'] as List<dynamic>?;
+
+          final List<ll.LatLng> roadPoints = [];
+          if (coords != null) {
+            for (final c in coords) {
+              if (c is List && c.length >= 2) {
+                final lng = (c[0] as num).toDouble();
+                final lat = (c[1] as num).toDouble();
+                roadPoints.add(ll.LatLng(lat, lng));
+              }
+            }
+          }
+          if (roadPoints.length >= 2) {
+            return roadPoints;
+          }
+        }
+      }
+    } catch (_) {}
+    return waypoints;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // HIGH-PRECISION FORWARD GEOCODING (Place Name -> Exact Lat, Lng)
   // ═══════════════════════════════════════════════════════════════════════════
 
   static Future<ll.LatLng?> geocodeHighPrecision(String locationName) async {
     final query = locationName.trim();
     if (query.isEmpty) return null;
+
+    // 0. High-precision direct coordinate parsing (e.g. "12.9716, 77.5946" or "Location (12.9716, 77.5946)")
+    final coordMatch = RegExp(r'(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)').firstMatch(query);
+    if (coordMatch != null) {
+      final lat = double.tryParse(coordMatch.group(1)!);
+      final lng = double.tryParse(coordMatch.group(2)!);
+      if (lat != null && lng != null) {
+        return ll.LatLng(lat, lng);
+      }
+    }
 
     // 1. Try backend stop coordinates first
     try {
@@ -567,8 +638,31 @@ class ApiService {
       _getAuth('/api/user/dashboard');
 
   // journeys
-  static Future<Map<String, dynamic>?> saveJourney(Map<String, dynamic> journey) async =>
-      _postAuth('/api/user/journey', journey);
+  static Future<bool> saveJourney({
+    required String fromStop,
+    required String toStop,
+    required String mode,
+    required int cost,
+    required int duration,
+    required double distance,
+    bool isSaved = true,
+    String? customName,
+  }) async {
+    final now = DateTime.now();
+    final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final res = await _postAuth('/api/user/journey', {
+      'from_stop': fromStop,
+      'to_stop': toStop,
+      'mode': mode,
+      'cost': cost,
+      'duration': duration,
+      'distance': distance,
+      'date': today,
+      'is_saved': isSaved,
+      'custom_name': customName,
+    });
+    return res != null;
+  }
 
   static Future<bool> deleteJourney(int journeyId) async =>
       _deleteAuth('/api/user/journey/$journeyId');
@@ -609,6 +703,26 @@ class ApiService {
       }
     } catch (_) {}
     return null;
+  }
+
+  static Future<bool> addDocument(String docType, String docNumber, String expiryDate, {List<int>? bytes, String? filename}) async {
+    try {
+      final req = http.MultipartRequest('POST', Uri.parse('$baseUrl/api/user/documents'));
+      req.headers.addAll(authHeaders);
+      req.fields['doc_type'] = docType;
+      req.fields['doc_number'] = docNumber;
+      req.fields['expiry_date'] = expiryDate;
+
+      final fileBytes = bytes ?? [65, 66, 67, 68];
+      final fname = filename ?? '${docType.replaceAll(RegExp(r'\s+'), '_')}.pdf';
+      req.files.add(http.MultipartFile.fromBytes('file', fileBytes, filename: fname));
+
+      final streamedRes = await req.send().timeout(const Duration(seconds: 12));
+      final res = await http.Response.fromStream(streamedRes);
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<bool> deleteDocument(int docId) async =>

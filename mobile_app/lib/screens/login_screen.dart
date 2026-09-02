@@ -4,12 +4,10 @@ import '../theme.dart';
 
 class LoginScreen extends StatefulWidget {
   final Function(String username) onLoginSuccess;
-  final VoidCallback? onContinueAsGuest;
 
   const LoginScreen({
     super.key,
     required this.onLoginSuccess,
-    this.onContinueAsGuest,
   });
 
   @override
@@ -422,18 +420,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              const SizedBox(height: 20),
-
-              // Continue as Guest Button
-              if (widget.onContinueAsGuest != null)
-                TextButton.icon(
-                  onPressed: widget.onContinueAsGuest,
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                  label: const Text(
-                    'Continue as Guest',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                ),
             ],
           ),
         ),

@@ -81,6 +81,15 @@ class AppTheme {
       case 'cab':
       case 'auto':
         return cabColor;
+      case 'namma_yatri':
+      case 'nammayatri':
+        return const Color(0xFFEAB308);
+      case 'uber':
+        return const Color(0xFF374151);
+      case 'ola':
+        return const Color(0xFF84CC16);
+      case 'rapido':
+        return const Color(0xFFEA580C);
       case 'car':
       case 'vehicle':
         return carColor;
@@ -111,7 +120,16 @@ class AppTheme {
         return 'Namma Metro';
       case 'cab':
       case 'auto':
-        return 'Cab / Auto';
+        return 'Cabs & Autos';
+      case 'namma_yatri':
+      case 'nammayatri':
+        return 'Namma Yatri';
+      case 'uber':
+        return 'Uber';
+      case 'ola':
+        return 'Ola';
+      case 'rapido':
+        return 'Rapido';
       case 'car':
       case 'vehicle':
         return 'Personal Vehicle';
@@ -138,6 +156,15 @@ class AppTheme {
       case 'cab':
       case 'auto':
         return Icons.local_taxi_rounded;
+      case 'namma_yatri':
+      case 'nammayatri':
+        return Icons.electric_rickshaw_rounded;
+      case 'uber':
+        return Icons.local_taxi_rounded;
+      case 'ola':
+        return Icons.local_taxi_rounded;
+      case 'rapido':
+        return Icons.two_wheeler_rounded;
       case 'car':
       case 'vehicle':
         return Icons.directions_car_rounded;

@@ -23,8 +23,8 @@ class _MyAppState extends State<MyApp> {
   final ValueNotifier<String> mapStyleNotifier = ValueNotifier('standard');
   final ValueNotifier<String> mapProviderNotifier = ValueNotifier('google');
 
-  bool _isLoggedIn = true;
-  String _currentUsername = 'Guest';
+  bool _isLoggedIn = false;
+  String _currentUsername = '';
 
   @override
   Widget build(BuildContext context) {
@@ -125,12 +125,6 @@ class _MyAppState extends State<MyApp> {
                       _isLoggedIn = true;
                     });
                   },
-                  onContinueAsGuest: () {
-                    setState(() {
-                      _currentUsername = 'Guest';
-                      _isLoggedIn = true;
-                    });
-                  },
                 ),
         );
       },
@@ -160,6 +154,7 @@ class AppNavigationWrapper extends StatefulWidget {
 
 class _AppNavigationWrapperState extends State<AppNavigationWrapper> {
   int _currentIndex = 0;
+  int _transitTabIndex = 0;
   String? _prefillSource;
   String? _prefillDestination;
 
@@ -168,6 +163,13 @@ class _AppNavigationWrapperState extends State<AppNavigationWrapper> {
       _prefillSource = route['source'];
       _prefillDestination = route['destination'];
       _currentIndex = 1;
+    });
+  }
+
+  void _navigateToTransitWithTab(int tabIndex) {
+    setState(() {
+      _transitTabIndex = tabIndex;
+      _currentIndex = 2;
     });
   }
 
@@ -191,14 +193,18 @@ class _AppNavigationWrapperState extends State<AppNavigationWrapper> {
           ),
         ),
         onNavigateToPlanWithRoute: _navigateToPlanWithRoute,
-        onNavigateToTransit: () => setState(() => _currentIndex = 2),
+        onNavigateToTransit: () => _navigateToTransitWithTab(0),
+        onNavigateToTransitWithTab: _navigateToTransitWithTab,
       ),
       PlanJourneyScreen(
         key: ValueKey('$_prefillSource-$_prefillDestination'),
         initialSource: _prefillSource,
         initialDestination: _prefillDestination,
       ),
-      const TransitHubScreen(),
+      TransitHubScreen(
+        key: ValueKey('transit-$_transitTabIndex'),
+        initialTabIndex: _transitTabIndex,
+      ),
       ChatScreen(
         onPlanJourney: _navigateToPlanWithRoute,
       ),
