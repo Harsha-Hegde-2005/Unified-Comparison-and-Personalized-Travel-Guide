@@ -16,9 +16,9 @@ class FareEngine:
 
     def _load_fare_slabs(self, path):
         """
-        Loads fare slabs:
+        Loads fare slabs (distance-based, BMRCL 2026):
         [
-          { "min": 0, "max": 2, "fare": 10 },
+          { "min_km": 0, "max_km": 2, "fare": 11 },
           ...
         ]
         """
@@ -29,8 +29,8 @@ class FareEngine:
 
             for row in reader:
                 slabs.append({
-                    "min": int(row["min_stations"]),
-                    "max": int(row["max_stations"]),
+                    "min_km": float(row["min_km"]),
+                    "max_km": float(row["max_km"]),
                     "fare": float(row["fare_rs"])
                 })
 
@@ -49,13 +49,13 @@ class FareEngine:
             16.5 <= time_val <= 19.5
         )
 
-    def get_fare(self, stations_crossed):
+    def get_fare(self, distance_km: float):
         """
         Returns token fare and smart card fare
-        based on stations crossed
+        based on distance_km (BMRCL 2026 official distance-based slabs)
         """
         for slab in self.slabs:
-            if slab["min"] <= stations_crossed <= slab["max"]:
+            if slab["min_km"] <= distance_km <= slab["max_km"]:
                 token_fare = slab["fare"]
 
                 # Smart card discount
@@ -69,14 +69,14 @@ class FareEngine:
                     "smart_card": smart_card_fare
                 }
 
-        raise ValueError(
-            f"No fare slab found for {stations_crossed} stations"
-        )
+        # Fallback: max fare
+        return {
+            "token": 95.0,
+            "smart_card": round(95.0 * 0.90, 2)
+        }
 
 if __name__ == "__main__":
     engine = FareEngine()
 
-    fare = engine.get_fare(24)
+    fare = engine.get_fare(21.8)  # e.g. S4 Fragrance -> Konanakunte Cross
     print(fare)
-
-

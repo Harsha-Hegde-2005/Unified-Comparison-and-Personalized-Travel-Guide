@@ -27,7 +27,8 @@ from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 
 from dotenv import load_dotenv
-load_dotenv()
+_ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
+load_dotenv(dotenv_path=_ENV_PATH, override=True)
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -222,8 +223,7 @@ def get_stop_coords(stop_name: str) -> tuple[float, float] | None:
             pass
 
     # 5. Fallback: Geocode lookup using Google Maps API or Photon OSM
-    from dotenv import load_dotenv
-    load_dotenv(override=True)
+    load_dotenv(dotenv_path=_ENV_PATH, override=True)
     key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
     if key:
         try:
@@ -242,7 +242,7 @@ def get_stop_coords(stop_name: str) -> tuple[float, float] | None:
         import requests as _req
         q = f"{stop_name.strip()} Bengaluru"
         url = f"https://photon.komoot.io/api/?q={_req.utils.quote(q)}&limit=1&bbox=77.3,12.7,77.8,13.2"
-        resp = _req.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=4)
+        resp = _req.get(url, timeout=4)
         resp.raise_for_status()
         data = resp.json()
         if data and "features" in data and len(data["features"]) > 0:
@@ -356,10 +356,7 @@ def find_top_nearby_bmtc_stops(lat: float, lng: float, n: int = 5) -> list[tuple
             continue
         norm_key = norm.strip().lower()
         route_count = len(_routes_by_stop.get(norm_key, []))
-        if route_count > 0:
-            score = route_count / ((dist + 0.05) ** 2)
-        else:
-            score = 0.01 / (dist + 0.05)
+        score = (route_count + 0.1) / (1.0 + dist * 2.0)
         canon = canonical_stop_name(norm)
         scored.append((score, dist, canon))
 
@@ -391,26 +388,27 @@ _METRO_COORDS_CACHE = {}
 
 def find_nearest_metro_station(lat: float, lng: float) -> tuple[str, float]:
     global _METRO_COORDS_CACHE
-    if not _METRO_COORDS_CACHE:
-        import json
-        db_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "database", "metro", "metro_coords.json")
-        )
-        if os.path.exists(db_path):
-            try:
-                with open(db_path, "r", encoding="utf-8") as f:
-                    m_db = json.load(f)
-                    for st, c in m_db.items():
-                        if "lat" in c and "lng" in c:
-                            _METRO_COORDS_CACHE[st] = (float(c["lat"]), float(c["lng"]))
-            except Exception as e:
-                print(f"Error loading metro_coords.json cache: {e}")
+    # Always reload from metro_coords.json to pick up coordinate updates
+    import json as _json
+    db_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "database", "metro", "metro_coords.json")
+    )
+    if os.path.exists(db_path):
+        try:
+            with open(db_path, "r", encoding="utf-8") as f:
+                m_db = _json.load(f)
+                _METRO_COORDS_CACHE = {}
+                for st, c in m_db.items():
+                    if "lat" in c and "lng" in c:
+                        _METRO_COORDS_CACHE[st] = (float(c["lat"]), float(c["lng"]))
+        except Exception as e:
+            print(f"Error loading metro_coords.json: {e}")
 
-        for station in _metro_stations:
-            if station not in _METRO_COORDS_CACHE:
-                coords = get_stop_coords(station + " Metro Station")
-                if coords:
-                    _METRO_COORDS_CACHE[station] = coords
+    for station in _metro_stations:
+        if station not in _METRO_COORDS_CACHE:
+            coords = get_stop_coords(station + " Metro Station")
+            if coords:
+                _METRO_COORDS_CACHE[station] = coords
 
     candidates = []
     for station, coords in _METRO_COORDS_CACHE.items():
@@ -440,6 +438,7 @@ def find_nearest_metro_station(lat: float, lng: float) -> tuple[str, float]:
         best_dist = 0.0
 
     return best_station, best_dist
+
 
 
 def _shift_time_str(time_str: str, offset_mins: int) -> str:
@@ -490,7 +489,6 @@ class VehicleRequest(BaseModel):
     source_lng:  float
     dest_lat:    float
     dest_lng:    float
-    time:        Optional[str] = None
 
 class VehicleSearchRequest(BaseModel):
     query: str
@@ -534,30 +532,20 @@ def _haversine_road_km(lat1, lon1, lat2, lon2) -> float:
     return _haversine_km(lat1, lon1, lat2, lon2) * 1.3
 
 
-def _google_road_distance(src_lat, src_lng, dst_lat, dst_lng, departure_time=None) -> tuple[float, float, float] | None:
-    """Returns (distance_km, duration_min, free_flow_duration_min) via Google Maps, or None."""
-    from dotenv import load_dotenv
-    load_dotenv(override=True)
+def _google_road_distance(src_lat, src_lng, dst_lat, dst_lng) -> tuple[float, float] | None:
+    """Returns (distance_km, duration_min) via Google Maps, or None."""
+    load_dotenv(dotenv_path=_ENV_PATH, override=True)
     key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
     if not key:
         return None
     try:
         import requests as _req
-        params = {
-            "origins":       f"{src_lat},{src_lng}",
-            "destinations":  f"{dst_lat},{dst_lng}",
-            "mode":          "driving",
-            "key":           key
-        }
-        if departure_time:
-            epoch = int(departure_time.timestamp())
-            now_epoch = int(datetime.now().timestamp())
-            params["departure_time"] = max(now_epoch, epoch)
-            params["traffic_model"] = "best_guess"
-
         resp = _req.get(
             "https://maps.googleapis.com/maps/api/distancematrix/json",
-            params=params,
+            params={"origins":       f"{src_lat},{src_lng}",
+                    "destinations":  f"{dst_lat},{dst_lng}",
+                    "mode":          "driving",
+                    "key":           key},
             timeout=6,
         )
         resp.raise_for_status()
@@ -565,10 +553,8 @@ def _google_road_distance(src_lat, src_lng, dst_lat, dst_lng, departure_time=Non
         if data.get("status") == "OK" and data.get("rows"):
             el = data["rows"][0]["elements"][0]
             if el.get("status") == "OK":
-                dist_km = round(el["distance"]["value"] / 1000, 2)
-                free_flow_min = round(el["duration"]["value"] / 60, 1)
-                duration_min = round(el.get("duration_in_traffic", el["duration"])["value"] / 60, 1)
-                return (dist_km, duration_min, free_flow_min)
+                return (round(el["distance"]["value"] / 1000, 2),
+                        round(el["duration"]["value"] / 60, 1))
         elif data.get("status") != "OK":
             print(f"Google Distance Matrix status: {data.get('status')} - {data.get('error_message', '')}")
     except Exception as e:
@@ -636,17 +622,8 @@ def _car_estimate(src: str, dst: str, dep_time: datetime, src_coords=None, dst_c
     # Standard Petrol Car parameters: mileage = 15.0 km/L, fuel price = 102.94 INR/L
     fuel_needed = distance_km / 15.0
     fuel = int(fuel_needed * 102.94)
-    
-    # Check if destination is a mall
-    is_mall = any(x in dst.lower() for x in ["mall", "phoenix", "forum", "orion", "lulu", "nexus", "mantri", "vega"])
-    if is_mall:
-        parking_str = "₹40-100"
-        parking_val = 60
-    else:
-        parking_str = "₹0-30"
-        parking_val = 0
-
-    est_fare = fuel + parking_val
+    parking = 30
+    est_fare = fuel + parking
     arr = dep_time + timedelta(minutes=est_min)
 
     return {
@@ -665,7 +642,7 @@ def _car_estimate(src: str, dst: str, dep_time: datetime, src_coords=None, dst_c
             {"step": 1, "icon": "car",
              "text": f"Drive to {dst} via ORR / Main Roads",
              "duration": f"{est_min} min",
-             "detail": f"₹{fuel} fuel + {parking_str} parking est."},
+             "detail": f"₹{fuel} fuel + ₹{parking} parking est."},
         ],
     }
 
@@ -674,35 +651,28 @@ def _car_estimate(src: str, dst: str, dep_time: datetime, src_coords=None, dst_c
 # METRO ENDPOINT
 # ══════════════════════════════════════════════════════════════════════════════
 
-_metro_cache = {}
-
 @app.post("/api/metro/plan")
 def metro_plan(req: JourneyRequest):
-    cache_key = (req.source, req.destination, req.time, req.preference)
-    if cache_key in _metro_cache:
-        return _metro_cache[cache_key]
-
     from shared.utils import resolve_stop_name
 
     dep_time = _parse_time(req.time)
-
-    start_lat = None
-    start_lng = None
-    dest_lat = None
-    dest_lng = None
-    src_coord = None
-    dst_coord = None
 
     # 1. Parse source coordinate / resolve station
     src_coord = parse_coords(req.source)
     if src_coord:
         start_lat, start_lng = src_coord
-        source, start_walk_dist = find_nearest_metro_station(start_lat, start_lng)
-        sc = get_stop_coords(source)
-        walk_metrics = _google_walk_distance(start_lat, start_lng, sc[0], sc[1]) if sc else None
-        if walk_metrics:
-            start_walk_dist, start_walk_mins = walk_metrics
+        source, _cached_dist_src = find_nearest_metro_station(start_lat, start_lng)
+        # Recompute walk distance using fresh station coordinates (avoids stale cache)
+        src_station_coords = get_stop_coords(source) or get_stop_coords(source + " Metro Station")
+        if src_station_coords:
+            walk_metrics = _google_walk_distance(start_lat, start_lng, src_station_coords[0], src_station_coords[1])
+            if walk_metrics:
+                start_walk_dist, start_walk_mins = walk_metrics
+            else:
+                start_walk_dist = _haversine_km(start_lat, start_lng, src_station_coords[0], src_station_coords[1])
+                start_walk_mins = max(1, int(start_walk_dist * 12.5))
         else:
+            start_walk_dist = _cached_dist_src
             start_walk_mins = max(1, int(start_walk_dist * 12.5))
     else:
         source = resolve_stop_name(req.source, "metro", metro_stations=_metro_stations)
@@ -711,12 +681,18 @@ def metro_plan(req: JourneyRequest):
             coords = get_stop_coords(req.source)
             if coords:
                 start_lat, start_lng = coords
-                source, start_walk_dist = find_nearest_metro_station(start_lat, start_lng)
-                sc = get_stop_coords(source)
-                walk_metrics = _google_walk_distance(start_lat, start_lng, sc[0], sc[1]) if sc else None
-                if walk_metrics:
-                    start_walk_dist, start_walk_mins = walk_metrics
+                source, _cached_dist_src = find_nearest_metro_station(start_lat, start_lng)
+                # Recompute walk distance using fresh station coordinates (avoids stale cache)
+                src_station_coords = get_stop_coords(source) or get_stop_coords(source + " Metro Station")
+                if src_station_coords:
+                    walk_metrics = _google_walk_distance(start_lat, start_lng, src_station_coords[0], src_station_coords[1])
+                    if walk_metrics:
+                        start_walk_dist, start_walk_mins = walk_metrics
+                    else:
+                        start_walk_dist = _haversine_km(start_lat, start_lng, src_station_coords[0], src_station_coords[1])
+                        start_walk_mins = max(1, int(start_walk_dist * 12.5))
                 else:
+                    start_walk_dist = _cached_dist_src
                     start_walk_mins = max(1, int(start_walk_dist * 12.5))
                 src_coord = coords
             else:
@@ -730,12 +706,18 @@ def metro_plan(req: JourneyRequest):
     dst_coord = parse_coords(req.destination)
     if dst_coord:
         dest_lat, dest_lng = dst_coord
-        destination, end_walk_dist = find_nearest_metro_station(dest_lat, dest_lng)
-        dc = get_stop_coords(destination)
-        walk_metrics = _google_walk_distance(dc[0], dc[1], dest_lat, dest_lng) if dc else None
-        if walk_metrics:
-            end_walk_dist, end_walk_mins = walk_metrics
+        destination, _cached_dist = find_nearest_metro_station(dest_lat, dest_lng)
+        # Recompute walk distance using fresh station coordinates (avoids stale cache)
+        station_coords = get_stop_coords(destination) or get_stop_coords(destination + " Metro Station")
+        if station_coords:
+            walk_metrics = _google_walk_distance(station_coords[0], station_coords[1], dest_lat, dest_lng)
+            if walk_metrics:
+                end_walk_dist, end_walk_mins = walk_metrics
+            else:
+                end_walk_dist = _haversine_km(station_coords[0], station_coords[1], dest_lat, dest_lng)
+                end_walk_mins = max(1, int(end_walk_dist * 12.5))
         else:
+            end_walk_dist = _cached_dist
             end_walk_mins = max(1, int(end_walk_dist * 12.5))
     else:
         destination = resolve_stop_name(req.destination, "metro", metro_stations=_metro_stations)
@@ -744,12 +726,18 @@ def metro_plan(req: JourneyRequest):
             coords = get_stop_coords(req.destination)
             if coords:
                 dest_lat, dest_lng = coords
-                destination, end_walk_dist = find_nearest_metro_station(dest_lat, dest_lng)
-                dc = get_stop_coords(destination)
-                walk_metrics = _google_walk_distance(dc[0], dc[1], dest_lat, dest_lng) if dc else None
-                if walk_metrics:
-                    end_walk_dist, end_walk_mins = walk_metrics
+                destination, _cached_dist = find_nearest_metro_station(dest_lat, dest_lng)
+                # Recompute walk distance using fresh station coordinates (avoids stale cache)
+                station_coords = get_stop_coords(destination) or get_stop_coords(destination + " Metro Station")
+                if station_coords:
+                    walk_metrics = _google_walk_distance(station_coords[0], station_coords[1], dest_lat, dest_lng)
+                    if walk_metrics:
+                        end_walk_dist, end_walk_mins = walk_metrics
+                    else:
+                        end_walk_dist = _haversine_km(station_coords[0], station_coords[1], dest_lat, dest_lng)
+                        end_walk_mins = max(1, int(end_walk_dist * 12.5))
                 else:
+                    end_walk_dist = _cached_dist
                     end_walk_mins = max(1, int(end_walk_dist * 12.5))
                 dst_coord = coords
             else:
@@ -758,25 +746,11 @@ def metro_plan(req: JourneyRequest):
         else:
             end_walk_dist = 0.0
             end_walk_mins = 0
+
     try:
         result = _metro_planner.plan_journey(source, destination)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-    total_walking = start_walk_dist + end_walk_dist
-    direct_dist = 9999
-    if src_coord and dst_coord:
-        direct_dist = _haversine_km(src_coord[0], src_coord[1], dst_coord[0], dst_coord[1])
-    elif start_lat is not None and dest_lat is not None:
-        direct_dist = _haversine_km(start_lat, start_lng, dest_lat, dest_lng)
-
-    # Reject if source and destination stations are the same (no train leg) or walking distance exceeds direct distance
-    if source == destination or not result.get("route", {}).get("legs") or total_walking >= direct_dist:
-        return {
-            "available": False,
-            "mode": "metro",
-            "error": f"No viable metro route found (walking distance {round(total_walking, 2)} km exceeds direct distance {round(direct_dist, 2)} km or same station)"
-        }
 
     # Transit leg durations and timings
     current_time = dep_time + timedelta(minutes=start_walk_mins)
@@ -798,7 +772,10 @@ def metro_plan(req: JourneyRequest):
             "stops": [req.source, source + " Metro Station"]
         })
 
-    for leg in result["route"]["legs"]:
+    total_metro_fare = int(result["fare"]["token"])
+    total_route_km   = result.get("route_km", 0.0)
+    num_legs         = len(result["route"]["legs"])
+    for leg_idx, leg in enumerate(result["route"]["legs"]):
         line_stations = _metro_planner.routing_engine.lines[leg["line"]]
         fi = line_stations.index(leg["from"])
         ti = line_stations.index(leg["to"])
@@ -808,7 +785,8 @@ def metro_plan(req: JourneyRequest):
             leg_stops = list(reversed(leg_stops))
 
         leg_dur  = leg.get("stations_crossed", len(leg_stops) - 1) * 2
-        leg_fare = round(result["fare"]["token"] / len(result["route"]["legs"]), 0)
+        # BMRCL charges a single end-to-end fare — show full fare on first leg, 0 on rest
+        leg_fare = total_metro_fare if leg_idx == 0 else 0
         
         leg_start = current_time
         leg_end = current_time + timedelta(minutes=leg_dur)
@@ -917,7 +895,7 @@ def metro_plan(req: JourneyRequest):
     total_mins = start_walk_mins + result["estimated_time"]["minutes"] + end_walk_mins
     total_dist = round(start_walk_dist + (result["stations_crossed"] * 1.2) + end_walk_dist, 1)
 
-    res = {
+    return {
         "available":        True,
         "mode":             "metro",
         "time":             total_mins,
@@ -933,25 +911,16 @@ def metro_plan(req: JourneyRequest):
         "guide":            guide,
         "raw":              result,
     }
-    _metro_cache[cache_key] = res
-    return res
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # BMTC ENDPOINT
 # ══════════════════════════════════════════════════════════════════════════════
 
-_bmtc_cache = {}
-
+@app.post("/api/bmtc/plan")
 @app.post("/api/bmtc/plan")
 def bmtc_plan(req: JourneyRequest, max_options: int = 8):
-    cache_key = (req.source, req.destination, req.time, req.preference, max_options)
-    if cache_key in _bmtc_cache:
-        return _bmtc_cache[cache_key]
-
     from shared.utils import resolve_stop_name
-    start_lat, start_lng = None, None
-    dest_lat, dest_lng = None, None
 
     dep_time = _parse_time(req.time)
 
@@ -960,8 +929,7 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
     if src_coord:
         start_lat, start_lng = src_coord
         source, start_walk_dist = find_nearest_bmtc_stop(start_lat, start_lng)
-        sc = get_stop_coords(source)
-        walk_metrics = _google_walk_distance(start_lat, start_lng, sc[0], sc[1]) if sc else None
+        walk_metrics = _google_walk_distance(start_lat, start_lng, *get_stop_coords(source))
         if walk_metrics:
             start_walk_dist, start_walk_mins = walk_metrics
         else:
@@ -974,8 +942,7 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
             if coords:
                 start_lat, start_lng = coords
                 source, start_walk_dist = find_nearest_bmtc_stop(start_lat, start_lng)
-                sc = get_stop_coords(source)
-                walk_metrics = _google_walk_distance(start_lat, start_lng, sc[0], sc[1]) if sc else None
+                walk_metrics = _google_walk_distance(start_lat, start_lng, *get_stop_coords(source))
                 if walk_metrics:
                     start_walk_dist, start_walk_mins = walk_metrics
                 else:
@@ -995,8 +962,7 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
     if dst_coord:
         dest_lat, dest_lng = dst_coord
         destination, end_walk_dist = find_nearest_bmtc_stop(dest_lat, dest_lng)
-        dc = get_stop_coords(destination)
-        walk_metrics = _google_walk_distance(dc[0], dc[1], dest_lat, dest_lng) if dc else None
+        walk_metrics = _google_walk_distance(*get_stop_coords(destination), dest_lat, dest_lng)
         if walk_metrics:
             end_walk_dist, end_walk_mins = walk_metrics
         else:
@@ -1009,8 +975,7 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
             if coords:
                 dest_lat, dest_lng = coords
                 destination, end_walk_dist = find_nearest_bmtc_stop(dest_lat, dest_lng)
-                dc = get_stop_coords(destination)
-                walk_metrics = _google_walk_distance(dc[0], dc[1], dest_lat, dest_lng) if dc else None
+                walk_metrics = _google_walk_distance(*get_stop_coords(destination), dest_lat, dest_lng)
                 if walk_metrics:
                     end_walk_dist, end_walk_mins = walk_metrics
                 else:
@@ -1024,24 +989,13 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
             end_walk_mins = 0
 
     dst_norm = destination.strip().lower()
-    if not src_coord and source:
-        src_coord = get_stop_coords(source)
-    if not dst_coord and destination:
-        dst_coord = get_stop_coords(destination)
-
-    if src_coord:
-        start_lat, start_lng = src_coord
-    if dst_coord:
-        dest_lat, dest_lng = dst_coord
 
     try:
         direct, transfers = get_all_buses_comprehensive(
             src_norm, dst_norm,
             max_transfer_options=max_options,
             departure_dt=dep_time,
-            preference=req.preference,
-            src_coord=src_coord,
-            dst_coord=dst_coord
+            preference=req.preference
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1079,9 +1033,7 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
                         alt_src.strip().lower(), alt_dst.strip().lower(),
                         max_transfer_options=max_options,
                         departure_dt=dep_time,
-                        preference=req.preference,
-                        src_coord=src_coord,
-                        dst_coord=dst_coord
+                        preference=req.preference
                     )
                 except Exception:
                     continue
@@ -1092,8 +1044,10 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
                     src_norm = source.strip().lower()
                     start_walk_dist = alt_src_dist
                     if src_coord:
-                        sc = get_stop_coords(source)
-                        wm = _google_walk_distance(src_coord[0], src_coord[1], sc[0], sc[1]) if sc else None
+                        wm = _google_walk_distance(
+                            src_coord[0], src_coord[1],
+                            *get_stop_coords(source)
+                        )
                         start_walk_dist, start_walk_mins = wm if wm else (
                             alt_src_dist, max(1, int(alt_src_dist * 12.5))
                         )
@@ -1101,8 +1055,10 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
                     dst_norm = destination.strip().lower()
                     end_walk_dist = alt_dst_dist
                     if dst_coord:
-                        dc = get_stop_coords(destination)
-                        wm = _google_walk_distance(dc[0], dc[1], dst_coord[0], dst_coord[1]) if dc else None
+                        wm = _google_walk_distance(
+                            *get_stop_coords(destination),
+                            dst_coord[0], dst_coord[1]
+                        )
                         end_walk_dist, end_walk_mins = wm if wm else (
                             alt_dst_dist, max(1, int(alt_dst_dist * 12.5))
                         )
@@ -1139,34 +1095,6 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
         best = direct[0]
         transit_mins = best.get("duration") or 30
         waiting_time = best.get("waiting_time", 0)
-
-        actual_source = best["stops"][0] if best.get("stops") else source
-        actual_destination = best["stops"][-1] if best.get("stops") else destination
-
-        # Recalculate start walk distance/time if actual boarding stop is different
-        if src_coord and actual_source.lower() != source.lower():
-            sc = get_stop_coords(actual_source)
-            walk_metrics = _google_walk_distance(start_lat, start_lng, sc[0], sc[1]) if sc else None
-            if walk_metrics:
-                start_walk_dist, start_walk_mins = walk_metrics
-            else:
-                d = _haversine_km(start_lat, start_lng, sc[0], sc[1]) if sc else 0.5
-                start_walk_dist = d
-                start_walk_mins = max(1, int(d * 12.5))
-            source = actual_source
-
-        # Recalculate end walk distance/time if actual alighting stop is different
-        if dst_coord and actual_destination.lower() != destination.lower():
-            dc = get_stop_coords(actual_destination)
-            walk_metrics = _google_walk_distance(dc[0], dc[1], dst_coord[0], dst_coord[1]) if dc else None
-            if walk_metrics:
-                end_walk_dist, end_walk_mins = walk_metrics
-            else:
-                d = _haversine_km(dc[0], dc[1], dst_coord[0], dst_coord[1]) if dc else 0.5
-                end_walk_dist = d
-                end_walk_mins = max(1, int(d * 12.5))
-            destination = actual_destination
-
         total_mins = start_walk_mins + transit_mins + end_walk_mins + waiting_time
         cost = best.get("fare") or 20
         dist = start_walk_dist + (best.get("distance") or 10.0) + end_walk_dist
@@ -1272,22 +1200,7 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
                 "nav_url": nav_url
             })
 
-        # Check walking efficiency compared to direct route
-        direct_dist = 9999
-        if start_lat is not None and dest_lat is not None:
-            direct_dist = _haversine_km(start_lat, start_lng, dest_lat, dest_lng)
-        
-        total_walking = start_walk_dist + end_walk_dist
-        if total_walking >= direct_dist:
-            res = {
-                "available": False,
-                "mode": "bmtc",
-                "error": f"Walking to/from stops ({round(total_walking, 2)} km) is inefficient compared to direct routing ({round(direct_dist, 2)} km)."
-            }
-            _bmtc_cache[cache_key] = res
-            return res
-
-        res = {
+        return {
             "available":  True, "mode": "bmtc",
             "time":       total_mins,
             "cost":       int(cost),
@@ -1298,40 +1211,11 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
             "segments": segments,
             "guide":     guide,
         }
-        _bmtc_cache[cache_key] = res
-        return res
 
     # Transfer option
     opt  = transfers[0]
     segs = opt.get("segment_times", [])
-
-    actual_source = opt["segment_details"][0]["from"] if opt.get("segment_details") else source
-    actual_destination = opt["segment_details"][-1]["to"] if opt.get("segment_details") else destination
-
-    # Recalculate start walk distance/time if actual boarding stop is different
-    if src_coord and actual_source.lower() != source.lower():
-        sc = get_stop_coords(actual_source)
-        walk_metrics = _google_walk_distance(start_lat, start_lng, sc[0], sc[1]) if sc else None
-        if walk_metrics:
-            start_walk_dist, start_walk_mins = walk_metrics
-        else:
-            d = _haversine_km(start_lat, start_lng, sc[0], sc[1]) if sc else 0.5
-            start_walk_dist = d
-            start_walk_mins = max(1, int(d * 12.5))
-        source = actual_source
-
-    # Recalculate end walk distance/time if actual alighting stop is different
-    if dst_coord and actual_destination.lower() != destination.lower():
-        dc = get_stop_coords(actual_destination)
-        walk_metrics = _google_walk_distance(dc[0], dc[1], dest_lat, dest_lng) if dc else None
-        if walk_metrics:
-            end_walk_dist, end_walk_mins = walk_metrics
-        else:
-            d = _haversine_km(dc[0], dc[1], dest_lat, dest_lng) if dc else 0.5
-            end_walk_dist = d
-            end_walk_mins = max(1, int(d * 12.5))
-        destination = actual_destination
-
+    
     transit_mins = opt.get("total_time", 45)
     total_mins = start_walk_mins + transit_mins + end_walk_mins
     total_dist = start_walk_dist + opt.get("distance", 12.0) + end_walk_dist
@@ -1449,22 +1333,7 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
             "nav_url": nav_url
         })
 
-    # Check walking efficiency compared to direct route
-    direct_dist = 9999
-    if start_lat is not None and dest_lat is not None:
-        direct_dist = _haversine_km(start_lat, start_lng, dest_lat, dest_lng)
-    
-    total_walking = start_walk_dist + end_walk_dist
-    if total_walking >= direct_dist:
-        res = {
-            "available": False,
-            "mode": "bmtc",
-            "error": f"Walking to/from stops ({round(total_walking, 2)} km) is inefficient compared to direct routing ({round(direct_dist, 2)} km)."
-        }
-        _bmtc_cache[cache_key] = res
-        return res
-
-    res = {
+    return {
         "available": True, "mode": "bmtc",
         "time":      total_mins,
         "cost":      int(opt.get("total_fare", 30)),
@@ -1476,8 +1345,6 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
         "segments":  ui_segs,
         "guide":     guide,
     }
-    _bmtc_cache[cache_key] = res
-    return res
 
 
 @app.post("/api/bmtc/all-buses")
@@ -1506,58 +1373,8 @@ def bmtc_all_buses(req: AllBusesRequest):
 
     dst_norm = destination.strip().lower()
 
-    if not src_coord and source:
-        src_coord = get_stop_coords(source)
-    if not dst_coord and destination:
-        dst_coord = get_stop_coords(destination)
-
     try:
-        direct, transfers = get_all_buses_comprehensive(
-            src_norm,
-            dst_norm,
-            departure_dt=dep_time,
-            src_coord=src_coord,
-            dst_coord=dst_coord
-        )
-        
-        # ── Coordinate-based fallback: try alternative nearby stops ──────────────
-        if not direct and not transfers and (src_coord or dst_coord):
-            MAX_ALT = 3
-            
-            src_candidates = [(source, 0.0)]
-            if src_coord:
-                for alt_stop, alt_dist, _ in find_top_nearby_bmtc_stops(src_coord[0], src_coord[1], n=MAX_ALT + 1):
-                    if alt_stop.lower() != source.lower():
-                        src_candidates.append((alt_stop, alt_dist))
-
-            dst_candidates = [(destination, 0.0)]
-            if dst_coord:
-                for alt_stop, alt_dist, _ in find_top_nearby_bmtc_stops(dst_coord[0], dst_coord[1], n=MAX_ALT + 1):
-                    if alt_stop.lower() != destination.lower():
-                        dst_candidates.append((alt_stop, alt_dist))
-
-            found = False
-            for alt_src, _ in src_candidates:
-                if found:
-                    break
-                for alt_dst, _ in dst_candidates:
-                    if alt_src.lower() == source.lower() and alt_dst.lower() == destination.lower():
-                        continue
-                    try:
-                        alt_direct, alt_transfers = get_all_buses_comprehensive(
-                            alt_src.strip().lower(),
-                            alt_dst.strip().lower(),
-                            departure_dt=dep_time,
-                            src_coord=src_coord,
-                            dst_coord=dst_coord
-                        )
-                        if alt_direct or alt_transfers:
-                            direct, transfers = alt_direct, alt_transfers
-                            found = True
-                            break
-                    except Exception:
-                        continue
-
+        direct, transfers = get_all_buses_comprehensive(src_norm, dst_norm, departure_dt=dep_time)
         return {
             "direct": direct,
             "transfer": transfers
@@ -1572,87 +1389,32 @@ def bmtc_all_routes(q: str = ""):
     all_routes = sorted(set(
         r.replace("_REV", "") for r in _route_trips.keys()
     ))
-    metro_lines = ["Purple Line", "Green Line"]
-    
     if q.strip():
-        q_norm = q.strip().replace("-", "").upper()
-        # Find matching metro lines
-        filtered_metro = [line for line in metro_lines if q_norm in line.replace("-", "").upper()]
-        
-        # Find matching bus routes
-        filtered_bmtc = []
-        for r in all_routes:
-            r_norm = r.replace("-", "").upper()
-            if q_norm in r_norm:
-                filtered_bmtc.append(r)
-                
-        return {"routes": filtered_metro + filtered_bmtc[:40]}
-        
-    return {"routes": metro_lines + all_routes[:200]}
+        q_upper = q.strip().upper()
+        filtered = [r for r in all_routes if q_upper in r.upper()]
+        return {"routes": filtered[:40]}
+    return {"routes": all_routes[:200]}
 
 
 @app.get("/api/bmtc/route-search")
 def bmtc_route_search(route: str):
     route_clean = route.strip()
-    route_norm = route_clean.replace("-", "").upper()
-    
-    # 1. Check if it's a metro line color search
-    metro_query = route_clean.lower()
-    matched_line = None
-    for line_name in _metro_planner.routing_engine.lines.keys():
-        if metro_query in line_name.lower() or line_name.lower() in metro_query:
-            matched_line = line_name
-            break
-            
-    if matched_line:
-        stations = _metro_planner.routing_engine.lines[matched_line]
-        return {
-            "route": matched_line,
-            "type": "metro",
-            "stop_count": len(stations),
-            "trips": 120, # Estimated daily train frequency
-            "schedule": {"departure": "05:00", "arrival": "23:00"},
-            "stops": stations,
-            "reverse_stops": list(reversed(stations))
-        }
-        
-    # 2. Check if it's a BMTC bus route search (hyphen-insensitive match)
-    actual_route = None
-    for key in _route_trips.keys():
-        key_clean = key.replace("_REV", "")
-        key_norm = key_clean.replace("-", "").upper()
-        if key_norm == route_norm:
-            actual_route = key_clean
-            break
-            
-    if not actual_route:
-        # Fallback substring match
-        for key in _route_trips.keys():
-            key_clean = key.replace("_REV", "")
-            key_norm = key_clean.replace("-", "").upper()
-            if route_norm in key_norm:
-                actual_route = key_clean
-                break
-                
-    if not actual_route:
-        raise HTTPException(status_code=404, detail=f"Route '{route}' not found")
-        
-    stops = get_route_stop_names(actual_route)
-    rev_stops = get_route_stop_names(actual_route + "_REV")
+    stops = get_route_stop_names(route_clean)
+    rev_stops = get_route_stop_names(route_clean + "_REV")
     
     if not stops and rev_stops:
         stops, rev_stops = rev_stops, []
-        actual_route = actual_route + "_REV"
+        route_clean = route_clean + "_REV"
             
     if not stops:
         raise HTTPException(status_code=404, detail=f"Route '{route}' not found")
         
-    base_route = actual_route.replace("_REV", "")
+    base_route = route_clean.replace("_REV", "")
     trips = _route_trips.get(base_route, 0)
     
     sched = {}
     try:
-        sched_est = estimate_route_schedule(actual_route)
+        sched_est = estimate_route_schedule(route_clean)
         if sched_est:
             sched = {
                 "departure": sched_est.get("departure"),
@@ -1663,7 +1425,6 @@ def bmtc_route_search(route: str):
         
     return {
         "route": base_route,
-        "type": "bmtc",
         "stop_count": len(stops),
         "trips": trips,
         "schedule": sched,
@@ -2161,26 +1922,7 @@ def _lookup_vehicle(name: str) -> dict | None:
 
 @app.get("/api/vehicle/list")
 def vehicle_list():
-    bikes = []
-    if _bikes_df is not None:
-        bikes = sorted(set(_bikes_df["full_name"].dropna().tolist()))
-    cars = []
-    if _cars_df is not None:
-        cars = sorted(set(_cars_df["name"].dropna().tolist()))
-    return {
-        "bikes": bikes,
-        "cars": cars,
-        "vehicles": _all_vehicles,
-        "count": len(_all_vehicles)
-    }
-
-
-@app.get("/api/vehicle/info")
-def get_vehicle_info(name: str):
-    info = _lookup_vehicle(name)
-    if not info:
-        raise HTTPException(status_code=404, detail="Vehicle not found in dataset")
-    return info
+    return {"vehicles": _all_vehicles, "count": len(_all_vehicles)}
 
 
 @app.post("/api/vehicle/search")
@@ -2202,30 +1944,21 @@ def vehicle_estimate(req: VehicleRequest):
         raise HTTPException(status_code=404,
                             detail=f"Vehicle '{req.vehicle}' not found in dataset")
 
-    dep_time = _parse_time(req.time) if (hasattr(req, "time") and req.time) else datetime.now()
-
     # Try DistanceEngine first, fall back to Google/Haversine
     distance_km = None
-    duration_min = None
-    free_flow_min = None
     if _NAMMA_OK and _ny_distance:
         try:
             road = _ny_distance.get_distance(
                 {"latitude": req.source_lat, "longitude": req.source_lng},
-                {"latitude": req.dest_lat, "longitude": req.dest_lng},
-                dep_time
+                {"latitude": req.dest_lat, "longitude": req.dest_lng}
             )
-            distance_km = road.get("distance_km")
-            duration_min = road.get("duration_min")
-            free_flow_min = road.get("free_flow_duration_min")
+            distance_km = road["distance_km"]
         except Exception:
             pass
     else:
-        road = _google_road_distance(req.source_lat, req.source_lng, req.dest_lat, req.dest_lng, dep_time)
+        road = _google_road_distance(req.source_lat, req.source_lng, req.dest_lat, req.dest_lng)
         if road:
             distance_km = road[0]
-            duration_min = road[1]
-            free_flow_min = road[2]
 
     if not distance_km:
         distance_km = _haversine_km(
@@ -2239,18 +1972,15 @@ def vehicle_estimate(req: VehicleRequest):
     total_cost  = round(fuel_needed * fuel_price, 2)
     cost_per_km = round(total_cost / distance_km, 2) if distance_km else 0
 
-    if duration_min is not None:
-        est_minutes = int(duration_min)
-    else:
-        avg_speed_kmh = 25.0
-        est_minutes   = int((distance_km / avg_speed_kmh) * 60)
+    avg_speed_kmh = 25.0
+    est_minutes   = int((distance_km / avg_speed_kmh) * 60)
 
+    dep_time = _parse_time(None)
     arr_time = dep_time + timedelta(minutes=est_minutes)
 
     return {
         "available":   True,
         "mode":        "car",
-        "free_flow_duration_min": free_flow_min if free_flow_min is not None else est_minutes,
         "vehicle":     req.vehicle,
         "vtype":       vehicle_info["vtype"],
         "fuel":        fuel.capitalize(),
@@ -2971,85 +2701,6 @@ def metro_stations():
     return {"stations": _metro_stations, "count": len(_metro_stations)}
 
 
-@app.get("/api/weather/report")
-def weather_report(lat: float, lng: float, location_name: str = "Bengaluru"):
-    """
-    Fetch comprehensive weather details from Open-Meteo for given coordinates,
-    including current conditions, hourly forecasts, and WMO status mappings.
-    """
-    import requests
-    from weather_helper import map_wmo_code
-    
-    try:
-        url = "https://api.open-meteo.com/v1/forecast"
-        params = {
-            "latitude": lat,
-            "longitude": lng,
-            "current": "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation",
-            "daily": "temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max",
-            "timezone": "Asia/Kolkata"
-        }
-        resp = requests.get(url, params=params, timeout=5)
-        if resp.status_code != 200:
-            return {"error": "Failed to fetch weather data from Open-Meteo API."}
-            
-        data = resp.json()
-        current = data.get("current", {})
-        
-        wmo_code = current.get("weather_code", 0)
-        status = map_wmo_code(wmo_code)
-        
-        report = {
-            "location": location_name,
-            "temp": current.get("temperature_2m", 25.0),
-            "humidity": current.get("relative_humidity_2m", 60.0),
-            "wind_speed": current.get("wind_speed_10m", 10.0),
-            "precipitation": current.get("precipitation", 0.0),
-            "wmo_code": wmo_code,
-            "status": status,
-            "temp_max": data.get("daily", {}).get("temperature_2m_max", [28.0])[0],
-            "temp_min": data.get("daily", {}).get("temperature_2m_min", [22.0])[0],
-            "rain_probability": data.get("daily", {}).get("precipitation_probability_max", [0])[0]
-        }
-        return report
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/metro/line-info")
-def metro_line_info(station: str):
-    """Return the line(s) a metro station belongs to and all stations on those lines."""
-    stations_lookup = _metro_planner.routing_engine.stations
-    lookup_name = station.strip().lower()
-    
-    # Find match
-    canonical_name = None
-    for name in stations_lookup.keys():
-        if name.lower() == lookup_name:
-            canonical_name = name
-            break
-            
-    if not canonical_name:
-        # Fuzzy match
-        for name in stations_lookup.keys():
-            if lookup_name in name.lower() or name.lower() in lookup_name:
-                canonical_name = name
-                break
-                
-    if not canonical_name:
-        return {"lines": []}
-        
-    lines_info = []
-    for line_name, stations_list in _metro_planner.routing_engine.lines.items():
-        if canonical_name in stations_list:
-            lines_info.append({
-                "line": line_name,
-                "stations": stations_list
-            })
-            
-    return {"station": canonical_name, "lines": lines_info}
-
-
 @app.get("/api/bmtc/stops")
 def bmtc_stops():
     return {"stops": ALL_STOPS, "count": len(ALL_STOPS)}
@@ -3175,8 +2826,7 @@ def health():
 
 @app.get("/api/config")
 def get_api_config():
-    from dotenv import load_dotenv
-    load_dotenv(override=True)
+    load_dotenv(dotenv_path=_ENV_PATH, override=True)
     return {
         "google_maps_api_key": os.environ.get("GOOGLE_MAPS_API_KEY", "")
     }
@@ -3184,8 +2834,7 @@ def get_api_config():
 
 @app.get("/api/places/autocomplete")
 def places_autocomplete(query: str = ""):
-    from dotenv import load_dotenv
-    load_dotenv(override=True)
+    load_dotenv(dotenv_path=_ENV_PATH, override=True)
     key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
     
     if not query.strip():
@@ -3226,7 +2875,7 @@ def places_autocomplete(query: str = ""):
         import requests as _req
         q = f"{query.strip()} Bengaluru"
         url = f"https://photon.komoot.io/api/?q={_req.utils.quote(q)}&limit=7&bbox=77.3,12.7,77.8,13.2"
-        resp = _req.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=5)
+        resp = _req.get(url, timeout=5)
         resp.raise_for_status()
         data = resp.json()
         if data and "features" in data:
@@ -3253,8 +2902,7 @@ def places_autocomplete(query: str = ""):
 
 @app.get("/api/places/details")
 def places_details(placeId: str):
-    from dotenv import load_dotenv
-    load_dotenv(override=True)
+    load_dotenv(dotenv_path=_ENV_PATH, override=True)
     key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 
     if key and not placeId.startswith("free_"):
@@ -3319,8 +2967,6 @@ class ChatbotRequest(BaseModel):
     time: Optional[str] = None
     weather: Optional[str] = None
     history: Optional[List[Dict[str, str]]] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
 
 def _geocode_location(place: str):
     """Geocode any Bangalore place name to (lat, lon). Returns None on failure."""
@@ -3463,7 +3109,8 @@ def _nearest_bmtc_and_metro(coords: tuple[float, float]) -> Dict[str, list]:
         lng = float(info["longitude"])
         d = _haversine_km(coords[0], coords[1], lat, lng)
         if d > 0.05:
-            bmtc_dists.append((norm, d))
+            c_name = resolve_stop_name(norm, "bmtc", bmtc_stops=ALL_STOPS)
+            bmtc_dists.append((c_name, d))
 
     metro_dists = []
     for station, pt in INTERCHANGE_POINTS.items():
@@ -3477,12 +3124,10 @@ def _nearest_bmtc_and_metro(coords: tuple[float, float]) -> Dict[str, list]:
 
     seen_names = set()
     uniq_bmtc = []
-    # Only resolve names for closest candidates to minimize name-resolver overhead
-    for norm, dist in bmtc_dists[:10]:
-        c_name = resolve_stop_name(norm, "bmtc", bmtc_stops=ALL_STOPS)
-        if c_name not in seen_names:
-            seen_names.add(c_name)
-            uniq_bmtc.append((c_name, dist))
+    for name, dist in bmtc_dists:
+        if name not in seen_names:
+            seen_names.add(name)
+            uniq_bmtc.append((name, dist))
             if len(uniq_bmtc) >= 3:
                 break
     return {"bmtc": uniq_bmtc, "metro": metro_dists[:3]}
@@ -3580,284 +3225,7 @@ def _recommend_best_overall(modes_data: List[Dict[str, Any]], budget: Optional[i
     return {"mode": best["mode"], "cost": best["cost"], "time": best["time"], "note": note}
 
 
-MODE_LABELS_MAIN = {
-    "bmtc": "BMTC Bus",
-    "metro": "Namma Metro",
-    "multimodal": "Bus + Metro",
-    "ola": "Ola Cab",
-    "uber": "Uber Cab",
-    "rapido": "Rapido Ride",
-    "namma_yatri": "Namma Yatri",
-    "car": "Personal Car",
-    "bike": "Personal Bike"
-}
-
-
-def _personal_vehicle_estimate(vtype: str, src: str, dst: str, dep_time: datetime, src_coords=None, dst_coords=None) -> dict:
-    """Self-drive estimate for car or bike."""
-    if not src_coords or not dst_coords:
-        src_coords = _resolve_any_location_coords(src)
-        dst_coords = _resolve_any_location_coords(dst)
-        
-    distance_km = None
-    if src_coords and dst_coords:
-        if _NAMMA_OK and _ny_distance:
-            try:
-                road = _ny_distance.get_distance(
-                    {"latitude": src_coords[0], "longitude": src_coords[1]},
-                    {"latitude": dst_coords[0], "longitude": dst_coords[1]}
-                )
-                distance_km = road["distance_km"]
-            except Exception:
-                pass
-        else:
-            road = _google_road_distance(src_coords[0], src_coords[1], dst_coords[0], dst_coords[1])
-            if road:
-                distance_km = road[0]
-
-        if not distance_km:
-            distance_km = _haversine_km(src_coords[0], src_coords[1], dst_coords[0], dst_coords[1]) * 1.3
-
-    if distance_km is None:
-        distance_km = 17.0
-
-    est_km = round(distance_km, 2)
-    avg_speed_kmh = 30.0 if vtype == "bike" else 25.0
-    est_min = max(5, int((distance_km / avg_speed_kmh) * 60))
-
-    # Check if destination is a mall
-    is_mall = any(x in dst.lower() for x in ["mall", "phoenix", "forum", "orion", "lulu", "nexus", "mantri", "vega"])
-
-    if vtype == "bike":
-        efficiency_kmpl = 45.0  # typical two-wheeler
-        fuel_price = 103.0
-        if is_mall:
-            parking_str = "₹20-50"
-            parking_val = 30
-        else:
-            parking_str = "₹0-10"
-            parking_val = 0
-    else:
-        efficiency_kmpl = 15.0  # typical car (petrol)
-        fuel_price = 103.0
-        if is_mall:
-            parking_str = "₹40-100"
-            parking_val = 60
-        else:
-            parking_str = "₹0-30"
-            parking_val = 0
-
-    if vtype == "bike" and _bikes_df is not None and not _bikes_df.empty:
-        try:
-            mileage_col = [c for c in _bikes_df.columns if "mileage" in c.lower() or "efficiency" in c.lower()]
-            if mileage_col:
-                val = _bikes_df[mileage_col[0]].iloc[0]
-                if val and float(val) > 0:
-                    efficiency_kmpl = float(val)
-        except Exception:
-            pass
-    elif vtype == "car" and _cars_df is not None and not _cars_df.empty:
-        try:
-            mileage_col = [c for c in _cars_df.columns if "mileage" in c.lower() or "efficiency" in c.lower()]
-            if mileage_col:
-                val = _cars_df[mileage_col[0]].iloc[0]
-                if val and float(val) > 0:
-                    efficiency_kmpl = float(val)
-        except Exception:
-            pass
-
-    fuel_litres = distance_km / efficiency_kmpl
-    fuel_cost = fuel_litres * fuel_price
-    est_fare = int(fuel_cost + parking_val)
-    arr = dep_time + timedelta(minutes=est_min)
-
-    # CO2 emissions estimation: bike ~60g/km, car ~120g/km
-    co2_factor = 60.0 if vtype == "bike" else 120.0
-    co2_kg = (distance_km * co2_factor) / 1000.0
-
-    return {
-        "available": True, "mode": vtype,
-        "time": est_min, "cost": est_fare,
-        "transfers": 0, "distance": est_km,
-        "co2_kg": round(co2_kg, 3),
-        "fuel_needed": round(fuel_litres, 3),
-        "departure": _fmt(dep_time), "arrival": _fmt(arr),
-        "segments": [{
-            "route": f"Via road ({vtype})", "type": vtype,
-            "from": src, "to": dst,
-            "departure": _fmt(dep_time), "arrival": _fmt(arr),
-            "duration": est_min, "fare": est_fare, "distance": est_km,
-            "stops": [src, dst],
-        }],
-        "guide": [
-            {"step": 1, "icon": "car" if vtype == "car" else "bike",
-             "text": f"Drive personal {vtype} to {dst}",
-             "duration": f"{est_min} min",
-             "detail": f"₹{int(fuel_cost)} fuel + {parking_str} parking est. ({est_km} km)"},
-        ],
-    }
-
-
-def _google_nearby_places(lat: float, lng: float, category: str, radius_meters: int = 2000) -> list[dict]:
-    key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
-    if not key:
-        return []
-    
-    type_map = {
-        "atm": "atm",
-        "petrol_pump": "gas_station",
-        "bus_stop": "bus_station",
-        "metro_station": "subway_station",
-        "restaurant": "restaurant",
-        "cafe": "cafe",
-        "hotel": "lodging",
-        "hospital": "hospital",
-        "mall": "shopping_mall",
-        "attraction": "tourist_attraction"
-    }
-    place_type = type_map.get(category, category)
-    
-    try:
-        import requests as _req
-        url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-        params = {
-            "location": f"{lat},{lng}",
-            "radius": radius_meters,
-            "type": place_type,
-            "key": key
-        }
-        resp = _req.get(url, params=params, timeout=5)
-        resp.raise_for_status()
-        data = resp.json()
-        
-        results = []
-        if data.get("status") == "OK" and data.get("results"):
-            for p in data["results"][:6]:
-                plat = p["geometry"]["location"]["lat"]
-                plng = p["geometry"]["location"]["lng"]
-                d_km = _haversine_km(lat, lng, plat, plng)
-                
-                open_now = None
-                if "opening_hours" in p:
-                    open_now = p["opening_hours"].get("open_now")
-                
-                results.append({
-                    "name": p["name"],
-                    "category": category,
-                    "lat": plat,
-                    "lng": plng,
-                    "distance_km": round(d_km, 2),
-                    "address": p.get("vicinity", ""),
-                    "rating": p.get("rating"),
-                    "open_now": open_now,
-                    "is_live": True
-                })
-        return results
-    except Exception as e:
-        print(f"Google Places API error: {e}")
-        return []
-
-
-def _get_fallback_nearby_places(lat: float, lng: float, category: str) -> list[dict]:
-    results = []
-    if category in ("restaurant", "cafe", "hotel", "hospital", "mall", "attraction"):
-        cats = [category]
-        if category == "cafe":
-            cats = ["restaurant"]
-        db_pois = poi_data.get_nearby_pois(lat, lng, radius_km=2.5, categories=cats, max_results=5)
-        for p in db_pois:
-            if category == "cafe" and "cafe" not in p["name"].lower():
-                continue
-            results.append({
-                "name": p["name"],
-                "category": category,
-                "lat": p["lat"],
-                "lng": p["lng"],
-                "distance_km": p["distance_km"],
-                "address": p.get("address", p.get("location", "Bengaluru")),
-                "rating": p.get("rating", 4.2),
-                "open_now": True,
-                "is_live": False
-            })
-        if category == "cafe" and not results:
-            db_pois = poi_data.get_nearby_pois(lat, lng, radius_km=2.5, categories=["restaurant"], max_results=3)
-            for p in db_pois:
-                results.append({
-                    "name": p["name"].replace("Restaurant", "Cafe"),
-                    "category": "cafe",
-                    "lat": p["lat"],
-                    "lng": p["lng"],
-                    "distance_km": p["distance_km"],
-                    "address": p.get("address", "Bengaluru"),
-                    "rating": p.get("rating", 4.3),
-                    "open_now": True,
-                    "is_live": False
-                })
-    elif category in ("bus_stop", "metro_station"):
-        nearest = _nearest_bmtc_and_metro((lat, lng))
-        if category == "bus_stop" and nearest.get("bmtc"):
-            for name, dist in nearest["bmtc"]:
-                sc = get_stop_coords(name) or (lat, lng)
-                results.append({
-                    "name": name,
-                    "category": "bus_stop",
-                    "lat": sc[0],
-                    "lng": sc[1],
-                    "distance_km": round(dist, 2),
-                    "address": "BMTC Bus Stop, Bengaluru",
-                    "rating": None,
-                    "open_now": True,
-                    "is_live": False
-                })
-        elif category == "metro_station" and nearest.get("metro"):
-            for name, dist in nearest["metro"]:
-                sc = get_stop_coords(name) or (lat, lng)
-                results.append({
-                    "name": f"{name} Metro Station",
-                    "category": "metro_station",
-                    "lat": sc[0],
-                    "lng": sc[1],
-                    "distance_km": round(dist, 2),
-                    "address": "Namma Metro, Bengaluru",
-                    "rating": None,
-                    "open_now": True,
-                    "is_live": False
-                })
-    elif category == "atm":
-        atm_names = ["SBI ATM", "HDFC Bank ATM", "ICICI Bank ATM", "Axis Bank ATM"]
-        for i, name in enumerate(atm_names):
-            plat = lat + (i + 1) * 0.002 * (-1)**i
-            plng = lng + (i + 1) * 0.003 * (-1)**(i+1)
-            d_km = _haversine_km(lat, lng, plat, plng)
-            results.append({
-                "name": name,
-                "category": "atm",
-                "lat": plat,
-                "lng": plng,
-                "distance_km": round(d_km, 2),
-                "address": "Near main road, Bengaluru",
-                "rating": None,
-                "open_now": True,
-                "is_live": False
-            })
-    elif category == "petrol_pump":
-        pumps = ["Shell Petrol Station", "Indian Oil Fuel Pump", "HP Petrol Station", "Bharat Petroleum"]
-        for i, name in enumerate(pumps):
-            plat = lat + (i + 1) * 0.004 * (-1)**(i+1)
-            plng = lng + (i + 1) * 0.004 * (-1)**i
-            d_km = _haversine_km(lat, lng, plat, plng)
-            results.append({
-                "name": name,
-                "category": "petrol_pump",
-                "lat": plat,
-                "lng": plng,
-                "distance_km": round(d_km, 2),
-                "address": "Main Road, Bengaluru",
-                "rating": 4.1,
-                "open_now": True,
-                "is_live": False
-            })
-    return results
+MODE_LABELS_MAIN = {"bmtc": "BMTC Bus", "metro": "Namma Metro", "cab": "Cab / Auto", "car": "Personal Vehicle"}
 
 
 @app.post("/api/chatbot/query")
@@ -3875,14 +3243,61 @@ def chatbot_query(req: ChatbotRequest):
         all_vehicles=_all_vehicles, poi_names=_POI_NAMES,
     )
 
-    # Resolve pronouns early using conversation history
-    processed_message = engine.resolve_pronouns(req.message, req.history)
-    matched_stops = engine.extract_stops(processed_message)
+    # Extract stops
+    matched_stops = engine.extract_stops(req.message)
 
-    # 1. Local classification first (fast rule-based)
-    intent, params = engine.classify_intent(processed_message, matched_stops)
+    intent = None
+    params = {"message": req.message}
 
-    # 2. Conversation memory: fill in source/destination/budget/vehicle that the
+    llm_res = None
+    try:
+        llm_res = engine.query_llm(req.message, req.history)
+    except Exception:
+        pass
+
+    if llm_res and isinstance(llm_res, dict):
+        intent = llm_res.get("intent")
+        llm_params = llm_res.get("parameters") or {}
+        for k, v in llm_params.items():
+            if v is not None:
+                params[k] = v
+
+        # Sanitize parameters
+        if "time" in params and isinstance(params["time"], str) and params["time"]:
+            try:
+                params["time"] = engine.extract_time(params["time"])
+            except Exception:
+                pass
+        if "budget" in params and params["budget"] is not None:
+            try:
+                params["budget"] = int(params["budget"])
+            except Exception:
+                pass
+        if "vehicle_type" in params:
+            params["vtype"] = params.get("vehicle_type")
+
+        llm_answer = llm_res.get("answer")
+        if llm_answer and intent in ("general", "clarification"):
+            serialized_params = {}
+            for k, v in params.items():
+                if isinstance(v, datetime):
+                    serialized_params[k] = v.isoformat()
+                else:
+                    serialized_params[k] = v
+            return {
+                "text": llm_answer,
+                "intent": intent,
+                "parameters": serialized_params,
+                "embedded_data": None
+            }
+    else:
+        resolved_context = engine.resolve_context_from_history(req.message, req.history)
+        if resolved_context:
+            intent, params = resolved_context
+        else:
+            intent, params = engine.classify_intent(req.message, matched_stops)
+
+    # Conversation memory: fill in source/destination/budget/vehicle that the
     # CURRENT message omits from earlier turns in this conversation (e.g.
     # "what about by cab instead?" after already discussing a route).
     remembered = _recall_slots_from_history(req.history, engine)
@@ -3900,93 +3315,21 @@ def chatbot_query(req: ChatbotRequest):
         if not params.get("destination") and remembered.get("destination"):
             params["destination"] = remembered["destination"]
     if intent == "general":
-        follow_up = any(k in processed_message.lower() for k in [
+        follow_up = any(k in req.message.lower() for k in [
             "instead", "what about", "how about", "and by", "and what about", "same route",
         ])
         if follow_up and remembered.get("destination"):
             src = remembered.get("source") or "Majestic"
             dst = remembered["destination"]
-            vtype = engine.extract_vehicle_type(processed_message) or remembered.get("vehicle")
+            vtype = engine.extract_vehicle_type(req.message) or remembered.get("vehicle")
             if vtype:
                 intent = "vehicle_vs_transit"
                 params["vtype"] = vtype
                 params["destination"] = dst
             else:
-                intent = "journey_time" if "cost" not in processed_message.lower() and "fare" not in processed_message.lower() else "journey_cost"
+                intent = "journey_time" if "cost" not in req.message.lower() and "fare" not in req.message.lower() else "journey_cost"
                 params["source"] = src
                 params["destination"] = dst
-
-    # 3. Check if confident structured intent to bypass the LLM for sub-10ms latency
-    is_confident = False
-    if intent in ("journey_time", "journey_cost", "possible_ways", "ride_cost", "fuel_cost", "ac_bus_available", "multimodal_journey"):
-        if params.get("source") and params.get("destination"):
-            is_confident = True
-    elif intent == "nearest_stops":
-        if params.get("location"):
-            is_confident = True
-    elif intent == "nearby_pois":
-        if params.get("location"):
-            explore_cues = ["find", "show", "explore", "search", "list", "recommend", "suggest", "near", "nearest", "nearby", "close", "any", "where", "what", "spot", "spots"]
-            if any(k in processed_message.lower() for k in explore_cues):
-                is_confident = True
-    elif intent == "weather_query":
-        is_confident = True
-    elif intent == "multi_stop_itinerary":
-        if len(params.get("waypoints", [])) >= 2:
-            is_confident = True
-    elif intent == "bus_schedule_query":
-        if params.get("route_number") or (params.get("source") and params.get("destination")):
-            is_confident = True
-    elif intent == "budget_explore" and params.get("budget") is not None:
-        is_confident = True
-    elif intent == "budget_constrained" and params.get("budget") is not None and params.get("source") and params.get("destination"):
-        is_confident = True
-    elif intent == "vehicle_vs_transit" and params.get("vtype") and params.get("destination"):
-        is_confident = True
-
-    # 4. Fallback to LLM if not fully confident locally (e.g. conversational, general FAQs, greeting, help)
-    if not is_confident:
-        llm_res = None
-        try:
-            llm_res = engine.query_llm(processed_message, req.history)
-        except Exception:
-            pass
-
-        if llm_res and isinstance(llm_res, dict):
-            intent = llm_res.get("intent")
-            llm_params = llm_res.get("parameters") or {}
-            for k, v in llm_params.items():
-                if v is not None:
-                    params[k] = v
-
-            # Sanitize parameters
-            if "time" in params and isinstance(params["time"], str) and params["time"]:
-                try:
-                    params["time"] = engine.extract_time(params["time"])
-                except Exception:
-                    pass
-            if "budget" in params and params["budget"] is not None:
-                try:
-                    params["budget"] = int(params["budget"])
-                except Exception:
-                    pass
-            if "vehicle_type" in params:
-                params["vtype"] = params.get("vehicle_type")
-
-            llm_answer = llm_res.get("answer")
-            if llm_answer and intent in ("general", "clarification"):
-                serialized_params = {}
-                for k, v in params.items():
-                    if isinstance(v, datetime):
-                        serialized_params[k] = v.isoformat()
-                    else:
-                        serialized_params[k] = v
-                return {
-                    "text": llm_answer,
-                    "intent": intent,
-                    "parameters": serialized_params,
-                    "embedded_data": None
-                }
 
     dep_time = None
     if req.time:
@@ -4127,10 +3470,6 @@ def chatbot_query(req: ChatbotRequest):
 
         if source and destination:
             compare_results = {}
-            src_coords = _resolve_any_location_coords(source)
-            dst_coords = _resolve_any_location_coords(destination)
-
-            # 1. BMTC Bus
             try:
                 compare_results["bmtc"] = bmtc_plan(
                     JourneyRequest(source=source, destination=destination, time=_fmt(dep_time))
@@ -4138,7 +3477,6 @@ def chatbot_query(req: ChatbotRequest):
             except Exception:
                 compare_results["bmtc"] = {"available": False, "mode": "bmtc"}
 
-            # 2. Metro
             try:
                 compare_results["metro"] = metro_plan(
                     JourneyRequest(source=source, destination=destination, time=_fmt(dep_time))
@@ -4146,61 +3484,44 @@ def chatbot_query(req: ChatbotRequest):
             except Exception:
                 compare_results["metro"] = {"available": False, "mode": "metro"}
 
-            # 3. Multimodal (Bus + Metro)
+            src_coords = _resolve_any_location_coords(source)
+            dst_coords = _resolve_any_location_coords(destination)
+            if src_coords and dst_coords:
+                try:
+                    all_estimates = []
+                    for p_key, p_info in RIDE_PROVIDERS.items():
+                        try:
+                            estimates = p_info["fn"](
+                                src_coords[0], src_coords[1], dst_coords[0], dst_coords[1], dep_time, "clear"
+                            )
+                            all_estimates.extend(estimates)
+                        except Exception:
+                            pass
+                    if all_estimates:
+                        all_estimates.sort(key=lambda x: x["cost"])
+                        default_est = all_estimates[0]
+                        compare_results["cab"] = {
+                            "available": True, "mode": "cab", "time": default_est["time"],
+                            "cost": default_est["cost"], "cost_max": default_est["cost_max"],
+                            "transfers": 0, "distance": default_est["distance"],
+                            "departure": default_est["departure"], "arrival": default_est["arrival"],
+                            "segments": default_est["segments"], "guide": default_est["guide"],
+                        }
+                    else:
+                        compare_results["cab"] = _cab_estimate(source, destination, dep_time)
+                except Exception:
+                    compare_results["cab"] = _cab_estimate(source, destination, dep_time)
+            else:
+                compare_results["cab"] = _cab_estimate(source, destination, dep_time)
+
+            compare_results["car"] = _car_estimate(source, destination, dep_time)
+
+            # Always include multimodal for all journey intents
             try:
                 mm_result = multimodal_plan(source, destination, dep_time)
                 compare_results["multimodal"] = mm_result
             except Exception:
                 compare_results["multimodal"] = {"available": False, "mode": "multimodal"}
-
-            # 4. Personal Car
-            try:
-                compare_results["car"] = _personal_vehicle_estimate("car", source, destination, dep_time, src_coords, dst_coords)
-            except Exception:
-                compare_results["car"] = {"available": False, "mode": "car"}
-
-            # 5. Personal Bike
-            try:
-                compare_results["bike"] = _personal_vehicle_estimate("bike", source, destination, dep_time, src_coords, dst_coords)
-            except Exception:
-                compare_results["bike"] = {"available": False, "mode": "bike"}
-
-            # 6. Ola, Uber, Rapido, Namma Yatri (individual cab providers)
-            weather_now = req.weather or engine.get_simulated_weather(dep_time)
-            for pkey, label in [("ola", "Ola"), ("uber", "Uber"), ("rapido", "Rapido"), ("namma_yatri", "Namma Yatri")]:
-                compare_results[pkey] = {"available": False, "mode": pkey}
-                if src_coords and dst_coords:
-                    try:
-                        estimates = RIDE_PROVIDERS[pkey]["fn"](
-                            src_coords[0], src_coords[1], dst_coords[0], dst_coords[1], dep_time, weather_now
-                        )
-                        if estimates:
-                            estimates.sort(key=lambda x: x["cost"])
-                            cheapest_est = estimates[0]
-                            dist_km = cheapest_est.get("distance", 10.0)
-                            co2_factor = 150.0
-                            if pkey == "rapido":
-                                co2_factor = 60.0 if cheapest_est.get("vtype") == "bike" else 80.0
-                            elif pkey == "namma_yatri":
-                                co2_factor = 80.0
-                            co2_kg = (dist_km * co2_factor) / 1000.0
-
-                            compare_results[pkey] = {
-                                "available": True,
-                                "mode": pkey,
-                                "time": cheapest_est["time"],
-                                "cost": cheapest_est["cost"],
-                                "cost_max": cheapest_est.get("cost_max", cheapest_est["cost"] + 30),
-                                "transfers": 0,
-                                "distance": dist_km,
-                                "co2_kg": round(co2_kg, 3),
-                                "departure": cheapest_est.get("departure"),
-                                "arrival": cheapest_est.get("arrival"),
-                                "segments": cheapest_est.get("segments", []),
-                                "guide": cheapest_est.get("guide", []),
-                            }
-                    except Exception as e:
-                        print(f"Error estimating {pkey} for chatbot: {e}")
 
             modes_data = []
             for mode, mdata in compare_results.items():
@@ -4209,87 +3530,65 @@ def chatbot_query(req: ChatbotRequest):
                         "mode": mode,
                         "time": mdata.get("time", 999),
                         "cost": mdata.get("cost", 999),
-                        "co2_kg": mdata.get("co2_kg", round(mdata.get("distance", 10.0) * (10.0 if mode == "metro" else 25.0 if mode in ("bmtc", "multimodal") else 120.0 if mode == "car" else 60.0 if mode == "bike" else 150.0) / 1000.0, 3)),
-                        "transfers": mdata.get("transfers", 0),
-                        "walking_distance": mdata.get("walking_distance", round(mdata.get("distance", 10.0) * 0.05, 1) if mode in ("bmtc", "metro", "multimodal") else 0.0),
-                        "explanation": f"Take {MODE_LABELS_MAIN.get(mode, mode)} for a smooth trip from {source} to {destination}.",
                         "details": mdata
                     })
 
-            # Apply user's preferences & filters
-            msg_lower = processed_message.lower()
+            msg_lower = req.message.lower()
             prefer_metro = any(k in msg_lower for k in ["metro", "train", "purple", "green line"])
             prefer_bus = any(k in msg_lower for k in ["bus", "bmtc", "volvo", "vajra"])
-            exclude_bus = any(k in msg_lower for k in ["no bus", "without bus", "exclude bus", "don't want a bus"])
-            
-            if prefer_metro:
-                modes_data.sort(key=lambda x: (0 if x["mode"] == "metro" else 1 if x["mode"] == "multimodal" else 2, x["cost"]))
-            elif prefer_bus:
-                modes_data.sort(key=lambda x: (0 if x["mode"] == "bmtc" else 1 if x["mode"] == "multimodal" else 2, x["cost"]))
-            elif exclude_bus:
-                modes_data = [x for x in modes_data if x["mode"] != "bmtc"]
 
-            is_cheapest_query = any(k in msg_lower for k in ["cheap", "budget", "lowest cost", "less money"])
-            is_fastest_query = any(k in msg_lower for k in ["fast", "quick", "speed", "shortest time"])
-            is_eco_query = any(k in msg_lower for k in ["eco", "green", "carbon", "environment"])
-            is_convenience_query = any(k in msg_lower for k in ["convenient", "easy", "transfer", "direct"])
-            
-            if is_cheapest_query:
-                modes_data.sort(key=lambda x: x["cost"])
-            elif is_fastest_query:
-                modes_data.sort(key=lambda x: x["time"])
-            elif is_eco_query:
-                modes_data.sort(key=lambda x: x["co2_kg"])
-            elif is_convenience_query:
-                modes_data.sort(key=lambda x: x["transfers"])
+            if prefer_metro:
+                filtered_modes = [x for x in modes_data if x["mode"] == "metro"]
+                if filtered_modes:
+                    modes_data = filtered_modes
+            elif prefer_bus:
+                filtered_modes = [x for x in modes_data if x["mode"] == "bmtc"]
+                if filtered_modes:
+                    modes_data = filtered_modes
 
             if modes_data:
                 weather_now = req.weather or engine.get_simulated_weather(dep_time)
                 best_overall = _recommend_best_overall(modes_data, params.get("budget"), weather_now)
-                
-                # Combined Query: check if they also want to explore nearby places
-                explore_places = []
-                explore_cat = params.get("explore_category")
-                if explore_cat and dst_coords:
-                    explore_places = _google_nearby_places(dst_coords[0], dst_coords[1], explore_cat)
-                    if not explore_places:
-                        explore_places = _get_fallback_nearby_places(dst_coords[0], dst_coords[1], explore_cat)
-                
-                data["options"] = modes_data
-                data["best_overall"] = best_overall
-                data["places"] = explore_places
-                data["location"] = destination
-                
-                best_opt = modes_data[0]
-                
-                best_details = best_opt.get("details", {})
-                embedded_data = {
-                    "type": "comparison",
-                    "options": modes_data,
-                    "best_overall": best_overall,
-                    "source": source,
-                    "destination": destination,
-                    "stops": [source, destination],
-                    "explore_category": explore_cat,
-                    "places": explore_places,
-                    "is_estimated": True,
-                    # Flattened for backward compatibility
-                    "mode": best_opt["mode"],
-                    "cost": best_details.get("cost"),
-                    "time": best_details.get("time"),
-                    "transfers": best_details.get("transfers"),
-                    "distance": best_details.get("distance"),
-                    "departure": best_details.get("departure"),
-                    "arrival": best_details.get("arrival"),
-                    "segments": best_details.get("segments"),
-                    "guide": best_details.get("guide")
-                }
+                if intent == "journey_time":
+                    best_option = min(modes_data, key=lambda x: x["time"])
+                    data["best_option"] = best_option
+                    data["best_overall"] = best_overall
+                    embedded_data = best_option["details"]
+                elif intent == "journey_cost":
+                    best_option = min(modes_data, key=lambda x: x["cost"])
+                    data["best_option"] = best_option
+                    data["best_overall"] = best_overall
+                    embedded_data = best_option["details"]
+                elif intent == "budget_constrained":
+                    budget = params.get("budget", 0)
+                    options = [x for x in modes_data if x["cost"] <= budget]
+                    options.sort(key=lambda x: x["cost"])
+                    data["options"] = options
+                    if options:
+                        embedded_data = options[0]["details"]
+                    else:
+                        cheapest = min(modes_data, key=lambda x: x["cost"])
+                        data["cheapest_available"] = cheapest
+                        embedded_data = cheapest["details"]
+                elif intent == "possible_ways":
+                    data["options"] = modes_data
+                    data["best_overall"] = best_overall
+                    if modes_data:
+                        cheapest = min(modes_data, key=lambda x: x["cost"])
+                        embedded_data = cheapest["details"]
             else:
+                data["best_option"] = None
                 data["options"] = []
-                data["best_overall"] = None
+                data["cheapest_available"] = None
         else:
+            data["best_option"] = None
             data["options"] = []
-            data["best_overall"] = None
+            data["cheapest_available"] = None
+            data["missing_slot"] = (
+                "destination" if source and not destination
+                else "source" if destination and not source
+                else "both"
+            )
 
     # ── vehicle_vs_transit ─────────────────────────────────────────────────────
     elif intent == "vehicle_vs_transit":
@@ -4298,7 +3597,7 @@ def chatbot_query(req: ChatbotRequest):
 
         source = "Majestic"
         if matched_stops:
-            src_parsed, dst_parsed = engine.determine_source_dest(matched_stops, processed_message)
+            src_parsed, dst_parsed = engine.determine_source_dest(matched_stops, req.message)
             if src_parsed:
                 source = src_parsed
             if dst_parsed:
@@ -4412,9 +3711,9 @@ def chatbot_query(req: ChatbotRequest):
             source = "Majestic"
             assumed_source = True
 
-        from concurrent.futures import ThreadPoolExecutor
-
-        def process_poi(poi):
+        recs = []
+        cheapest_seen = None
+        for poi in poi_data.get_attractions():
             coords = (poi["lat"], poi["lng"])
             nearby = _nearest_bmtc_and_metro(coords)
             best_leg = None
@@ -4438,132 +3737,40 @@ def chatbot_query(req: ChatbotRequest):
                     pass
 
             if not best_leg:
-                return None
+                continue
 
             mode, one_way_cost, one_way_time = best_leg
             entry_fee = poi.get("entry_fee_inr", 0)
             return_fare = one_way_cost * 2
+            total_cost = return_fare + entry_fee
             visit_hours = poi.get("typical_visit_hours", 1.5)
             total_time_hours = (one_way_time * 2) / 60.0 + visit_hours
 
-            return {
+            entry = {
                 "name": poi["name"], "mode": mode,
                 "one_way_cost": one_way_cost, "one_way_time": one_way_time,
                 "return_fare": return_fare, "entry_fee": entry_fee,
-                "total_cost": one_way_cost, "remaining_budget": budget - one_way_cost,
+                "total_cost": total_cost, "remaining_budget": budget - total_cost,
                 "typical_visit_hours": visit_hours,
-                "total_time_hours": total_time_hours
             }
 
-        recs = []
-        cheapest_seen = None
-
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            results = list(executor.map(process_poi, poi_data.get_attractions()))
-
-        for entry in results:
-            if not entry:
-                continue
-
-            one_way_cost = entry["one_way_cost"]
-            total_time_hours = entry["total_time_hours"]
-
-            if cheapest_seen is None or one_way_cost < cheapest_seen["one_way_cost"]:
+            if cheapest_seen is None or total_cost < cheapest_seen["total_cost"]:
                 cheapest_seen = entry
 
-            if one_way_cost > budget:
+            if total_cost > budget:
                 continue
             if available_hours and total_time_hours > available_hours:
                 continue
             recs.append(entry)
 
-        recs.sort(key=lambda r: (-r["remaining_budget"], r["one_way_cost"]))
+        recs.sort(key=lambda r: (-r["remaining_budget"], r["total_cost"]))
         data["attraction_recommendations"] = recs[:5]
         data["source_used"] = source
         data["assumed_source"] = assumed_source
-
-        # For budget >= 100, generate a chained sequential itinerary
-        chained_plan = None
-        if budget >= 100:
-            chained_stops = []
-            curr_loc = source
-            rem_budget = budget
-            visited = set()
-            total_fare = 0
-            
-            for _ in range(4):
-                best_next = None
-                best_cost = 999
-                best_time = 0
-                best_mode = None
-                best_name = None
-                
-                for poi in poi_data.get_attractions():
-                    if poi["name"] in visited:
-                        continue
-                    coords = (poi["lat"], poi["lng"])
-                    nearby = _nearest_bmtc_and_metro(coords)
-                    leg = None
-                    if nearby["bmtc"]:
-                        stop_name, _ = nearby["bmtc"][0]
-                        try:
-                            b = bmtc_plan(JourneyRequest(source=curr_loc, destination=stop_name, time=_fmt(dep_time)))
-                            if b.get("available"):
-                                leg = ("bmtc", b["cost"], b["time"])
-                        except Exception:
-                            pass
-                    if nearby["metro"]:
-                        station_name, _ = nearby["metro"][0]
-                        try:
-                            m = metro_plan(JourneyRequest(source=curr_loc, destination=station_name, time=_fmt(dep_time)))
-                            if m.get("available") and (leg is None or m["cost"] < leg[1]):
-                                leg = ("metro", m["cost"], m["time"])
-                        except Exception:
-                            pass
-                    
-                    if leg:
-                        mode, cost, time = leg
-                        curr_coords = _resolve_any_location_coords(curr_loc) or (12.9716, 77.5946)
-                        dist = _haversine_km(curr_coords[0], curr_coords[1], poi["lat"], poi["lng"])
-                        score = cost * 1.5 + dist * 5.0
-                        if score < best_cost:
-                            best_cost = cost
-                            best_time = time
-                            best_mode = mode
-                            best_name = poi["name"]
-                
-                if best_name and rem_budget >= best_cost:
-                    visited.add(best_name)
-                    chained_stops.append({
-                        "name": best_name,
-                        "mode": best_mode,
-                        "cost": best_cost,
-                        "time": best_time
-                    })
-                    rem_budget -= best_cost
-                    total_fare += best_cost
-                    curr_loc = best_name
-                else:
-                    break
-            
-            if chained_stops:
-                chained_plan = {
-                    "stops": chained_stops,
-                    "total_fare": total_fare,
-                    "remaining": rem_budget
-                }
-                data["chained_plan"] = chained_plan
-
         if not recs and cheapest_seen:
             data["cheapest_shortfall"] = cheapest_seen
         if recs:
-            embedded_data = {
-                "type": "budget_explore",
-                "attractions": recs[:5],
-                "source": source
-            }
-            if chained_plan:
-                embedded_data["chained_plan"] = chained_plan
+            embedded_data = {"attractions": recs[:5], "source": source}
 
     # ── multimodal_journey: direct multimodal route ───────────────────────────
     elif intent == "multimodal_journey":
@@ -4650,34 +3857,10 @@ def chatbot_query(req: ChatbotRequest):
         # Ensure we have at least a source and one destination
         source = params.get("source")
         if not waypoints and source:
-            waypoints = []
+            data["waypoints"] = []
+            data["legs"] = []
         elif len(waypoints) < 2 and source:
             waypoints = [source] + waypoints
-
-        # Heuristic TSP: start from waypoints[0], sort the rest by distance
-        if len(waypoints) > 2:
-            sorted_wps = [waypoints[0]]
-            remaining = list(waypoints[1:])
-            while remaining:
-                curr = sorted_wps[-1]
-                curr_coords = _resolve_any_location_coords(curr)
-                if not curr_coords:
-                    sorted_wps.append(remaining.pop(0))
-                    continue
-                best_idx = 0
-                best_dist = 9999.0
-                for idx, item in enumerate(remaining):
-                    item_coords = _resolve_any_location_coords(item)
-                    if item_coords:
-                        d = _haversine_km(curr_coords[0], curr_coords[1], item_coords[0], item_coords[1])
-                        if d < best_dist:
-                            best_dist = d
-                            best_idx = idx
-                    else:
-                        best_idx = idx
-                        break
-                sorted_wps.append(remaining.pop(best_idx))
-            waypoints = sorted_wps
 
         legs = []
         current_time = start_time_dt
@@ -4700,78 +3883,33 @@ def chatbot_query(req: ChatbotRequest):
                 leg_cost = 0
                 leg_time = 0
 
-                # Fetch Weather
-                weather = engine.get_simulated_weather(current_time)
-
-                # Fetch Traffic
-                traffic_level = "clear"
-                distance_km = 5.0
-                src_coords = _resolve_any_location_coords(prev_wp)
-                dst_coords = _resolve_any_location_coords(wp)
-
-                if src_coords and dst_coords:
-                    route = _osrm_distance(src_coords[0], src_coords[1], dst_coords[0], dst_coords[1])
-                    if route:
-                        distance_km = route.get("distance_km", 5.0)
-                        raw_duration = route.get("duration_min", 15.0)
-                        traffic_level = _get_traffic_level(raw_duration, distance_km)
-
-                # Availability analysis for transit modes (BMTC and Metro)
-                bmtc_available = False
-                metro_available = False
-                bmtc_cost, bmtc_time = 0, 0
-                metro_cost, metro_time = 0, 0
-
                 try:
                     b_res = bmtc_plan(JourneyRequest(source=prev_wp, destination=wp, time=_fmt(current_time)))
                     if b_res.get("available"):
-                        bmtc_available = True
-                        bmtc_cost = b_res.get("cost", 15)
-                        bmtc_time = b_res.get("time", 30)
+                        leg_mode = "bmtc"
+                        leg_cost = b_res.get("cost", 0)
+                        leg_time = b_res.get("time", 0)
                 except Exception:
                     pass
 
                 try:
                     m_res = metro_plan(JourneyRequest(source=prev_wp, destination=wp, time=_fmt(current_time)))
-                    if m_res.get("available"):
-                        metro_available = True
-                        metro_cost = m_res.get("cost", 20)
-                        metro_time = m_res.get("time", 25)
+                    if m_res.get("available") and (leg_mode is None or m_res.get("cost", 999) < leg_cost):
+                        leg_mode = "metro"
+                        leg_cost = m_res.get("cost", 0)
+                        leg_time = m_res.get("time", 0)
                 except Exception:
                     pass
 
-                # Delay factor calculation (cabs and buses are affected by traffic and weather; metro is not)
-                weather_factor = 1.0
-                if "heavy rain" in weather or "storm" in weather:
-                    weather_factor = 1.54
-                elif "light rain" in weather or "drizzle" in weather:
-                    weather_factor = 1.2
-
-                traffic_factor = 1.0
-                if traffic_level == "heavy":
-                    traffic_factor = 1.4
-                elif traffic_level == "moderate":
-                    traffic_factor = 1.15
-
-                # Select mode
-                if metro_available and (metro_time < bmtc_time * weather_factor or "rain" in weather or traffic_level == "heavy"):
-                    leg_mode = "metro"
-                    leg_cost = metro_cost
-                    leg_time = metro_time
-                elif bmtc_available and not ("heavy rain" in weather or traffic_level == "heavy"):
-                    leg_mode = "bmtc"
-                    leg_cost = bmtc_cost
-                    leg_time = int(bmtc_time * weather_factor * traffic_factor)
-                else:
-                    # Fallback to cab
-                    leg_mode = "cab"
+                if not leg_mode:
+                    # Fall back to cab estimate
+                    src_coords = _resolve_any_location_coords(prev_wp)
+                    dst_coords = _resolve_any_location_coords(wp)
                     if src_coords and dst_coords:
                         cab = _cab_estimate(prev_wp, wp, current_time)
-                        leg_cost = int(cab.get("cost", 150) * (1.2 if traffic_level == "heavy" or "rain" in weather else 1.0))
-                        leg_time = int(cab.get("time", 20) * weather_factor * traffic_factor)
-                    else:
-                        leg_cost = int(distance_km * 18 + 50)
-                        leg_time = int((distance_km * 3) * weather_factor * traffic_factor)
+                        leg_mode = "cab"
+                        leg_cost = cab.get("cost", 0)
+                        leg_time = cab.get("time", 0)
 
                 depart_time_str = current_time.strftime("%I:%M %p")
                 arrive_dt = current_time.replace(
@@ -4780,10 +3918,10 @@ def chatbot_query(req: ChatbotRequest):
                 )
                 arrive_time_str = arrive_dt.strftime("%I:%M %p")
 
-                # Typical visit time
+                # Typical visit time at this waypoint
                 visit_minutes = int((poi_entry.get("typical_visit_hours", 1.0) if poi_entry else 1.0) * 60)
 
-                # Restaurants near this waypoint
+                # Restaurant recommendations near this waypoint
                 restaurants = []
                 if wp_lat and wp_lng:
                     restaurants = _poi_data.get_restaurants_near(wp_lat, wp_lng, radius_km=1.5, max_results=2)
@@ -4791,13 +3929,9 @@ def chatbot_query(req: ChatbotRequest):
                 legs.append({
                     "from": prev_wp,
                     "to": wp,
-                    "mode": leg_mode,
+                    "mode": leg_mode or "cab",
                     "cost": leg_cost,
                     "time": leg_time,
-                    "weather": weather,
-                    "traffic": traffic_level,
-                    "bmtc_available": bmtc_available,
-                    "metro_available": metro_available,
                     "depart_time": depart_time_str,
                     "arrive_time": arrive_time_str,
                     "visit_minutes": visit_minutes,
@@ -4820,53 +3954,6 @@ def chatbot_query(req: ChatbotRequest):
         data["start_time"] = start_time_dt.strftime("%I:%M %p")
         if legs:
             embedded_data = {"itinerary": legs, "total_cost": total_cost, "waypoints": waypoints}
-
-    # ── nearby_pois: Geocode / Req Location + Google / Fallback Places ──────
-    elif intent == "nearby_pois":
-        lat, lng = None, None
-        location_name = params.get("location") or ""
-        is_near_me = location_name.lower() in ("me", "my current location", "current location", "here", "current") or not location_name
-        
-        if is_near_me:
-            if req.latitude is not None and req.longitude is not None:
-                lat, lng = req.latitude, req.longitude
-            else:
-                fallback_text = "I couldn't access your location. Please type your area name or landmark (e.g., 'Indiranagar', 'Majestic') so I can find places near you."
-        else:
-            coords = _resolve_any_location_coords(location_name)
-            if coords:
-                lat, lng = coords[0], coords[1]
-            else:
-                coords = _geocode_location(location_name)
-                if coords:
-                    lat, lng = coords[0], coords[1]
-                else:
-                    fallback_text = f"I couldn't resolve the location '{location_name}'. Try using another landmark or area name."
-
-        explore_cat = params.get("explore_category") or params.get("poi_type") or "attraction"
-        
-        places = []
-        if lat is not None and lng is not None:
-            places = _google_nearby_places(lat, lng, explore_cat)
-            if not places:
-                places = _get_fallback_nearby_places(lat, lng, explore_cat)
-            
-            data["places"] = places
-            data["location"] = location_name if not is_near_me else "your location"
-            
-            embedded_data = {
-                "type": "nearby_places",
-                "places": places,
-                "location": location_name if not is_near_me else "your location",
-                "category": explore_cat
-            }
-        else:
-            if not fallback_text:
-                fallback_text = "I couldn't determine the search location. Please try specifying a landmark."
-            data["places"] = []
-            
-        if fallback_text:
-            text_response = fallback_text
 
     # ── weather_query ─────────────────────────────────────────────────────────
     elif intent == "weather_query":

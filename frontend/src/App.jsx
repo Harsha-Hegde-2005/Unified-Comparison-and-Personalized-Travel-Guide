@@ -8649,10 +8649,16 @@ export default function App() {
   const [useOsm, setUseOsm] = useState(() => {
     if (localStorage.getItem("force_osm") === "true") return true;
     if (localStorage.getItem("force_osm") === "false") return false;
-    return true; // Default to OSM until config is loaded
+    return false; // Default to Google Maps; fall back to OSM only if key is missing/invalid
   });
 
   useEffect(() => {
+    // One-time cleanup: if a valid VITE key is available but force_osm was stuck as "true", clear it
+    const viteKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (viteKey && viteKey !== "YOUR_GOOGLE_MAPS_API_KEY" && localStorage.getItem("force_osm") === "true") {
+      localStorage.removeItem("force_osm");
+    }
+
     const initGmaps = (key) => {
       window.gm_authFailure = () => {
         console.warn("Google Maps authentication failed globally. Falling back to OpenStreetMap.");

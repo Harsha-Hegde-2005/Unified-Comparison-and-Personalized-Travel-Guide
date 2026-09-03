@@ -57,9 +57,31 @@ class GeocodingEngine:
                         "longitude": float(result["geometry"]["location"]["lng"])
                     }
                 else:
-                    print(f"Google Geocoding failed with status {data.get('status')}. Falling back to Nominatim.")
+                    print(f"Google Geocoding failed with status {data.get('status')}. Trying Google Places FindPlace...")
+
+                # Fallback to Google Places FindPlace API (Place API is enabled even if Geocoding API isn't)
+                find_url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
+                find_params = {
+                    "input": f"{place}, Bengaluru",
+                    "inputtype": "textquery",
+                    "fields": "formatted_address,geometry",
+                    "key": gmaps_key
+                }
+                r_find = requests.get(find_url, params=find_params, timeout=5)
+                r_find.raise_for_status()
+                data_find = r_find.json()
+                if data_find.get("status") == "OK" and data_find.get("candidates"):
+                    cand = data_find["candidates"][0]
+                    return {
+                        "place":     place,
+                        "display":   cand.get("formatted_address", place),
+                        "latitude":  float(cand["geometry"]["location"]["lat"]),
+                        "longitude": float(cand["geometry"]["location"]["lng"])
+                    }
+                else:
+                    print(f"Google Places FindPlace status: {data_find.get('status')}. Falling back to Nominatim.")
             except Exception as e:
-                print(f"Google Geocoding error: {e}. Falling back to Nominatim.")
+                print(f"Google Geocoding/Places error: {e}. Falling back to Nominatim.")
 
         queries = self._build_queries(place)
 
