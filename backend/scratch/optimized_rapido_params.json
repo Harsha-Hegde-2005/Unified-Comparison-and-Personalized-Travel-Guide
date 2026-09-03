@@ -1,0 +1,86 @@
+{
+  "rapido_bike": {
+    "base_fare": 27.8,
+    "base_dist": 3.8,
+    "per_km": 9.22,
+    "min_fare": 41.8,
+    "mape": 19.699980196125818
+  },
+  "rapido_scooty": {
+    "base_fare": 28.2,
+    "base_dist": 2.8,
+    "per_km": 10.59,
+    "min_fare": 44.1,
+    "mape": 19.980894837107673
+  },
+  "rapido_bike_women": {
+    "base_fare": 28.3,
+    "base_dist": 3.8,
+    "per_km": 9.09,
+    "min_fare": 41.7,
+    "mape": 19.729655252840914
+  },
+  "rapido_auto_lite": {
+    "base_fare": 31.6,
+    "base_dist": 2.9,
+    "per_km": 12.67,
+    "min_fare": 78.1,
+    "mape": 17.204355956472565
+  },
+  "rapido_auto": {
+    "base_fare": 51.3,
+    "base_dist": 3.3,
+    "per_km": 16.82,
+    "min_fare": 86.3,
+    "mape": 21.510134984521827
+  },
+  "rapido_auto_priority": {
+    "base_fare": 55.4,
+    "base_dist": 2.5,
+    "per_km": 20.58,
+    "min_fare": 112.7,
+    "mape": 19.94054395138633
+  },
+  "rapido_cab": {
+    "base_fare": 76.5,
+    "base_dist": 3.1,
+    "per_km": 14.6,
+    "min_fare": 122.9,
+    "mape": 18.269372464246437
+  },
+  "rapido_cab_ac": {
+    "base_fare": 82.3,
+    "base_dist": 3.1,
+    "per_km": 15.81,
+    "min_fare": 131.6,
+    "mape": 18.612148016592656
+  },
+  "rapido_cab_ac_priority": {
+    "base_fare": 103.6,
+    "base_dist": 3.7,
+    "per_km": 15.41,
+    "min_fare": 139.0,
+    "mape": 18.32944653667116
+  },
+  "rapido_auto_pet": {
+    "base_fare": 104.1,
+    "base_dist": 2.7,
+    "per_km": 15.81,
+    "min_fare": 120.5,
+    "mape": 25.361736127564793
+  },
+  "rapido_cab_premium": {
+    "base_fare": 106.9,
+    "base_dist": 3.2,
+    "per_km": 18.17,
+    "min_fare": 162.0,
+    "mape": 18.167044727007532
+  },
+  "rapido_cab_xl": {
+    "base_fare": 143.4,
+    "base_dist": 4.7,
+    "per_km": 22.47,
+    "min_fare": 182.7,
+    "mape": 19.94787753070803
+  }
+}
