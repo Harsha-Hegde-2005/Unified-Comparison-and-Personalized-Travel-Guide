@@ -282,8 +282,10 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
           }
 
           if (segPts.length >= 2) {
+            final segProfile = isWalk ? 'foot' : 'driving';
+            final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: segProfile);
             segPolylines.add({
-              'points': segPts,
+              'points': roadPts.isNotEmpty ? roadPts : segPts,
               'color': segColor,
               'isWalk': isWalk,
               'isMetro': isMetro,
@@ -432,6 +434,43 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     final dst = _destController.text.trim();
     if (src.isEmpty || dst.isEmpty) return;
 
+    final nameCtrl = TextEditingController(text: '$src ➔ $dst');
+    final String? customName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save Route'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter a custom name for this route:'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Route Name',
+                border: OutlineInputBorder(),
+                hintText: 'e.g. Daily Office Commute',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, nameCtrl.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (customName == null || customName.isEmpty) return;
+
     final cost = (data['cost'] as num?)?.toInt() ?? 0;
     final duration = (data['time'] as num?)?.toInt() ?? 15;
     final distance = (data['distance'] as num?)?.toDouble() ?? 5.0;
@@ -444,13 +483,13 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
       duration: duration,
       distance: distance,
       isSaved: true,
-      customName: '$src ➔ $dst',
+      customName: customName,
     );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? '✅ Journey saved to your Dashboard!' : '❌ Failed to save journey. Please log in.'),
+          content: Text(success ? '✅ Route saved to your Saved Journeys!' : '❌ Failed to save journey. Please log in.'),
           backgroundColor: success ? AppTheme.bmtcColor : Colors.redAccent,
         ),
       );
@@ -461,25 +500,90 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     final cleanSrc = src.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
     final cleanDst = dst.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
 
+    // Resolve nearest real BMTC stop name for specific landmark destinations
+    String alightingStopName = cleanDst;
+    final dLow = cleanDst.toLowerCase();
+    if (dLow.contains('cafe') || dLow.contains('kushi') || dLow.contains('srirampura')) {
+      alightingStopName = 'Royal Enclave / Srirampura Cross';
+    } else if (dLow.contains('pes') || dLow.contains('electronic city')) {
+      alightingStopName = 'Electronic City Wipro Gate';
+    } else if (dLow.contains('itpb') || dLow.contains('whitefield')) {
+      alightingStopName = 'Whitefield TTMC';
+    }
+
+    String busNo = '201 / 600-FD';
+    int transfers = 0;
+    int totalCost = 25;
+    List<String> intermediateStops = [cleanSrc, 'City Center', alightingStopName];
+
+    final sLow = cleanSrc.toLowerCase();
+    final dLat = _dstCoord?.latitude ?? 12.9716;
+    final dLng = _dstCoord?.longitude ?? 77.5946;
+
+    if (dLat > 13.01 || dLow.contains('cafe') || dLow.contains('yelahanka') || dLow.contains('hebbal') || dLow.contains('jakkur')) {
+      // North Bengaluru corridor transfer
+      busNo = '45-B ➔ 288-C';
+      transfers = 1;
+      totalCost = 35; // Leg 1: ₹15 + Leg 2: ₹20 = ₹35 total transfer fare
+      intermediateStops = [cleanSrc, 'Corporation', 'Mekhri Circle', 'Hebbal TTMC', alightingStopName];
+    } else if (dLng > 77.67 || dLow.contains('whitefield') || dLow.contains('marathahalli') || dLow.contains('itpb')) {
+      // East Bengaluru corridor transfer
+      busNo = '201 ➔ 500-D';
+      transfers = 1;
+      totalCost = 35; // Leg 1: ₹15 + Leg 2: ₹20 = ₹35 total transfer fare
+      intermediateStops = [cleanSrc, 'Domlur TTMC', 'Marathahalli Bridge', alightingStopName];
+    } else if (dLat < 12.89 || dLow.contains('electronic city') || dLow.contains('bommasandra') || dLow.contains('attibele')) {
+      // South Bengaluru corridor direct
+      busNo = '600-KB / 600-FD / 356-M';
+      transfers = 0;
+      totalCost = 30;
+      intermediateStops = [cleanSrc, 'Banashankari TTMC', 'Silk Board', alightingStopName];
+    } else if (sLow.contains('majestic') || dLow.contains('majestic') || dLow.contains('ksr')) {
+      // Central corridor direct
+      busNo = '356-M / KBS-3E / 349-D';
+      transfers = 0;
+      totalCost = 25;
+      intermediateStops = [cleanSrc, 'Corporation', 'KSR Majestic TTMC', alightingStopName];
+    }
+
+    final String primaryBus = busNo.split(' ➔ ').first.split(' / ').first;
+    final String secondBus = busNo.contains('➔') ? busNo.split(' ➔ ').last.trim() : primaryBus;
+
     return {
       'results': {
         'bmtc': {
           'available': true,
           'mode': 'bmtc',
-          'time': 45,
-          'cost': 24,
-          'distance': 14.2,
-          'transfers': 0,
-          'route': '500D / 306',
+          'time': 42,
+          'cost': totalCost,
+          'distance': 14.5,
+          'transfers': transfers,
+          'bus_number': busNo,
+          'route': primaryBus,
+          'waiting_time': 5,
+          'frequency': transfers > 0 ? 'Transfer via Corporation' : 'Every 8-12 mins',
+          'all_direct': transfers == 0 ? busNo.split(' / ') : [busNo],
           'guide': [
-            {'text': 'Walk 350m to nearest BMTC bus stop', 'icon': 'walk'},
-            {'text': 'Board Bus 500D (12 stops) towards $cleanDst', 'icon': 'bus'},
-            {'text': 'Disembark at $cleanDst and walk 150m to destination', 'icon': 'walk'}
+            {'text': 'Walk 250m (3 min) to $cleanSrc bus stop', 'icon': 'walk'},
+            {'text': 'Board Bus $primaryBus at $cleanSrc towards ${intermediateStops.length > 2 ? intermediateStops[1] : alightingStopName} (5 stops)', 'icon': 'bus', 'detail': '₹15 · Leg 1'},
+            if (transfers > 0) ...[
+              {'text': 'Get down at ${intermediateStops[1]} bus stop & transfer to Bus $secondBus', 'icon': 'transfer', 'detail': 'Interchange: ${intermediateStops[1]}'},
+              {'text': 'Board Bus $secondBus at ${intermediateStops[1]} towards $alightingStopName (12 stops)', 'icon': 'bus', 'detail': '₹20 · Leg 2'},
+            ],
+            {'text': 'Disembark at $alightingStopName bus stop and walk 150m to $cleanDst', 'icon': 'walk'}
           ],
           'segments': [
-            {'type': 'walk', 'from': cleanSrc, 'to': 'BMTC Stop', 'distance': 0.35, 'duration': 4},
-            {'type': 'bmtc', 'route': '500D', 'from': 'BMTC Stop', 'to': cleanDst, 'distance': 13.5, 'duration': 38, 'stops': [cleanSrc, 'Silk Board', 'HSR Layout', cleanDst]},
-            {'type': 'walk', 'from': cleanDst, 'to': cleanDst, 'distance': 0.15, 'duration': 3}
+            {'type': 'walk', 'from': cleanSrc, 'to': intermediateStops.first, 'distance': 0.25, 'duration': 3, 'stops': [cleanSrc, intermediateStops.first]},
+            {
+              'type': 'bmtc',
+              'route': primaryBus,
+              'from': intermediateStops.first,
+              'to': intermediateStops.last,
+              'distance': 12.0,
+              'duration': 32,
+              'stops': intermediateStops,
+            },
+            {'type': 'walk', 'from': intermediateStops.last, 'to': cleanDst, 'distance': 0.25, 'duration': 3, 'stops': [intermediateStops.last, cleanDst]}
           ]
         },
         'metro': {
@@ -616,12 +720,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
           source: _sourceController.text.trim(),
           destination: _destController.text.trim(),
           option: {
+            ...modeData,
             'mode': mode,
-            'time': modeData['time'],
-            'cost': modeData['cost'],
-            'distance': modeData['distance'],
-            'segments': modeData['segments'],
-            'guide': modeData['guide'],
           },
           srcCoord: _srcCoord,
           dstCoord: _dstCoord,

@@ -103,14 +103,21 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       }
     }
 
-    stops.insert(0, widget.source);
-    stops.add(widget.destination);
+    final cleanSrc = widget.source.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+    final cleanDst = widget.destination.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+
+    stops.insert(0, cleanSrc);
+    stops.add(cleanDst);
 
     final uniqueStops = stops.toSet().toList();
     final res = await ApiService.fetchStopCoords(uniqueStops);
     final coords = res?['coordinates'] as Map<String, dynamic>? ?? {};
 
     final List<ll.LatLng> points = [];
+
+    if (widget.srcCoord != null) {
+      points.add(widget.srcCoord!);
+    }
 
     for (final s in uniqueStops) {
       if (coords.containsKey(s)) {
@@ -126,9 +133,13 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       }
     }
 
+    if (widget.dstCoord != null) {
+      points.add(widget.dstCoord!);
+    }
+
     if (points.isEmpty) {
-      final sFall = _lookupKnownCoord(widget.source) ?? const ll.LatLng(12.9767, 77.5713);
-      final dFall = _lookupKnownCoord(widget.destination) ?? const ll.LatLng(12.9784, 77.6408);
+      final sFall = widget.srcCoord ?? _lookupKnownCoord(cleanSrc) ?? const ll.LatLng(12.9767, 77.5713);
+      final dFall = widget.dstCoord ?? _lookupKnownCoord(cleanDst) ?? const ll.LatLng(12.9784, 77.6408);
       points.addAll([sFall, dFall]);
     }
 
@@ -176,8 +187,10 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           }
 
           if (segPts.length >= 2) {
+            final profile = isWalk ? 'foot' : 'driving';
+            final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: profile);
             segPolylines.add({
-              'points': segPts,
+              'points': roadPts.isNotEmpty ? roadPts : segPts,
               'color': segColor,
               'isWalk': isWalk,
               'isMetro': isMetro,

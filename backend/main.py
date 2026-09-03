@@ -1244,9 +1244,11 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
         step_num += 1
 
         # Board bus guide
+        stop_cnt = len(best.get('stops', []))
+        stop_cnt_str = f"{stop_cnt} stops" if stop_cnt > 1 else "Direct"
         guide.append({
             "step": step_num, "icon": "bus",
-            "text": f"Board Bus {best['route']} (Direct)",
+            "text": f"Board Bus {best['route']} ({stop_cnt_str} towards {destination})",
             "duration": f"{transit_mins} min",
             "detail": f"₹{int(cost)} · Direct"
         })
@@ -1287,16 +1289,27 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
             _bmtc_cache[cache_key] = res
             return res
 
+        all_bus_numbers = [b["route"] for b in direct[:8]]
+        primary_bus = best.get("route") or (all_bus_numbers[0] if all_bus_numbers else "BMTC Bus")
+        display_bus = " / ".join(all_bus_numbers[:3]) if len(all_bus_numbers) > 1 else primary_bus
+        wait_mins = max(3, best.get("waiting_time", 5))
+
         res = {
-            "available":  True, "mode": "bmtc",
-            "time":       total_mins,
-            "cost":       int(cost),
-            "transfers":  0, "distance": round(dist, 1),
-            "departure":  _fmt(dep_time), "arrival": _fmt(dep_time + timedelta(minutes=total_mins)),
-            "waiting_time": best.get("waiting_time", 0),
-            "all_direct": [b["route"] for b in direct[:8]],
-            "segments": segments,
-            "guide":     guide,
+            "available":    True,
+            "mode":         "bmtc",
+            "time":         total_mins,
+            "cost":         int(cost),
+            "transfers":    0,
+            "distance":     round(dist, 1),
+            "departure":    _fmt(dep_time),
+            "arrival":      _fmt(dep_time + timedelta(minutes=total_mins)),
+            "waiting_time": wait_mins,
+            "bus_number":   display_bus,
+            "route":        primary_bus,
+            "frequency":    f"Every {wait_mins}-{wait_mins + 5} mins",
+            "all_direct":   all_bus_numbers,
+            "segments":     segments,
+            "guide":        guide,
         }
         _bmtc_cache[cache_key] = res
         return res
@@ -1415,17 +1428,22 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
     # 2. Transit boardings & transfers
     for i, (seg, st) in enumerate(zip(opt["segments"], segs)):
         st_duration = st.get("duration", 20)
+        seg_stops = list(seg[3]) if len(seg) > 3 else []
+        stop_str = f"{len(seg_stops)} stops" if seg_stops else "Transit"
         guide.append({
             "step": step_num, "icon": "bus",
-            "text": f"Board Bus {seg[0]}",
+            "text": f"Board Bus {seg[0]} at {seg[1]} towards {seg[2]} ({stop_str})",
             "duration": f"{st_duration} min",
             "detail": f"₹{int(st.get('fare', 15))}"
         })
         step_num += 1
         if i < len(opt["segments"]) - 1:
+            next_seg = opt["segments"][i+1]
             guide.append({
                 "step": step_num, "icon": "transfer",
-                "text": f"Transfer at {seg[2]}", "duration": "3–5 min"
+                "text": f"Get down at {seg[2]} bus stop & transfer to Bus {next_seg[0]}",
+                "duration": "3–5 min",
+                "detail": f"Interchange: {seg[2]}"
             })
             step_num += 1
 
@@ -1464,17 +1482,26 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
         _bmtc_cache[cache_key] = res
         return res
 
+    transfer_buses = opt.get("buses", [])
+    transfer_bus_str = " ➔ ".join(transfer_buses) if transfer_buses else "BMTC Transfer"
+    wait_mins = max(3, opt.get("waiting_time", 5))
+
     res = {
-        "available": True, "mode": "bmtc",
-        "time":      total_mins,
-        "cost":      int(opt.get("total_fare", 30)),
-        "transfers": opt.get("transfers", 1),
-        "distance":  round(total_dist, 1),
-        "departure": _fmt(dep_time),
-        "arrival":   _fmt(final_arrival),
-        "waiting_time": opt.get("waiting_time", 0),
-        "segments":  ui_segs,
-        "guide":     guide,
+        "available":    True,
+        "mode":         "bmtc",
+        "time":         total_mins,
+        "cost":         int(opt.get("total_fare", 30)),
+        "transfers":    opt.get("transfers", 1),
+        "distance":     round(total_dist, 1),
+        "departure":    _fmt(dep_time),
+        "arrival":      _fmt(final_arrival),
+        "waiting_time": wait_mins,
+        "bus_number":   transfer_bus_str,
+        "route":        transfer_bus_str,
+        "frequency":    f"Transfer via {transfer_buses[0] if transfer_buses else 'Bus'}",
+        "all_direct":   transfer_buses,
+        "segments":     ui_segs,
+        "guide":        guide,
     }
     _bmtc_cache[cache_key] = res
     return res
@@ -5121,7 +5148,7 @@ class JourneySaveRequest(BaseModel):
     duration: int
     distance: float
     date: str
-    is_saved: Optional[bool] = True
+    is_saved: Optional[bool] = False
     custom_name: Optional[str] = None
 
 class VehicleAddRequest(BaseModel):
@@ -5164,7 +5191,7 @@ def save_user_journey(req: JourneySaveRequest, current_user: User = Depends(get_
         duration=req.duration,
         distance=req.distance,
         date=req.date,
-        is_saved=req.is_saved if req.is_saved is not None else True,
+        is_saved=req.is_saved if req.is_saved is not None else False,
         custom_name=req.custom_name
     )
     db.add(journey)
@@ -5184,9 +5211,9 @@ def delete_user_journey(journey_id: int, current_user: User = Depends(get_curren
 def get_user_dashboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     journeys = db.query(Journey).filter(Journey.user_id == current_user.id).order_by(Journey.id.desc()).all()
     
-    # Separate search history (is_saved = False) and saved routes (is_saved = True)
-    recent_searches = [j for j in journeys if not j.is_saved]
-    saved_routes = [j for j in journeys if j.is_saved]
+    # Separate search history and user-saved routes (which require custom_name)
+    saved_routes = [j for j in journeys if j.is_saved and j.custom_name]
+    recent_searches = [j for j in journeys if not (j.is_saved and j.custom_name)]
     
     total_saved_routes = len(saved_routes)
     total_cost = sum(j.cost for j in saved_routes)
@@ -5197,11 +5224,16 @@ def get_user_dashboard(current_user: User = Depends(get_current_user), db: Sessi
     time_saved_hr = round(sum(0.5 if j.mode == "metro" else 0.2 if j.mode == "bmtc" else 0 for j in saved_routes), 1)
     
     recent_list = []
-    for j in recent_searches[:6]:
+    for j in recent_searches[:5]:
         recent_list.append({
             "id": j.id,
             "from": j.from_stop,
+            "from_stop": j.from_stop,
             "to": j.to_stop,
+            "to_stop": j.to_stop,
+            "mode": j.mode,
+            "cost": j.cost,
+            "duration": j.duration,
             "date": j.date
         })
         
@@ -5210,9 +5242,12 @@ def get_user_dashboard(current_user: User = Depends(get_current_user), db: Sessi
         saved_list.append({
             "id": j.id,
             "from": j.from_stop,
+            "from_stop": j.from_stop,
             "to": j.to_stop,
+            "to_stop": j.to_stop,
             "mode": j.mode,
             "cost": j.cost,
+            "duration": j.duration,
             "date": j.date,
             "custom_name": j.custom_name
         })
@@ -5227,7 +5262,9 @@ def get_user_dashboard(current_user: User = Depends(get_current_user), db: Sessi
     return {
         "stats": stats,
         "recent": recent_list,
-        "saved": saved_list
+        "recent_searches": recent_list,
+        "saved": saved_list,
+        "saved_journeys": saved_list
     }
 
 @app.get("/api/user/vehicles")

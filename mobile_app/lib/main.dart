@@ -175,7 +175,7 @@ class _AppNavigationWrapperState extends State<AppNavigationWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
+    final screens = <Widget>[
       DashboardScreen(
         themeNotifier: widget.themeNotifier,
         mapStyleNotifier: widget.mapStyleNotifier,

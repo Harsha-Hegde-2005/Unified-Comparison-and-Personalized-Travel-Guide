@@ -427,17 +427,21 @@ def get_all_direct_buses(
     if preference.lower() == "cost":
         results.sort(key=lambda x: (
             x.get("fare", 9999),
-            _route_priority(x["route"], src_norm, dst_norm, preference),
+            x.get("total_time", 9999),
             x.get("waiting_time", 9999),
         ))
     elif preference.lower() == "time":
         results.sort(key=lambda x: (
-            _route_priority(x["route"], src_norm, dst_norm, preference)[0],  # vajra penalty first
             x.get("total_time", 9999),
             x.get("waiting_time", 9999),
+            x.get("fare", 9999),
         ))
-    else:
-        results.sort(key=lambda x: (x.get("waiting_time", 9999), _route_priority(x["route"], src_norm, dst_norm, preference)))
+    else:  # comfort / convenience
+        results.sort(key=lambda x: (
+            x.get("waiting_time", 9999),
+            x.get("total_time", 9999),
+            x.get("fare", 9999),
+        ))
     return results
 
 

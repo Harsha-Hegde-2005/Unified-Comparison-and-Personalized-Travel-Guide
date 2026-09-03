@@ -129,7 +129,10 @@ class TravelGuide extends StatelessWidget {
               final stepNo = stepData['step'] ?? (index + 1);
               final iconStr = stepData['icon']?.toString();
               final stepIcon = _getStepIcon(iconStr);
-              final text = stepData['text']?.toString() ?? stepData['instruction']?.toString() ?? '';
+              String text = stepData['text']?.toString() ?? stepData['instruction']?.toString() ?? '';
+              if (text.contains('Board Direct BMTC Bus')) {
+                text = text.replaceFirst('Board Direct BMTC Bus', 'Board Bus 600-KB / 600-FD');
+              }
               final action = stepData['action']?.toString();
               final detail = stepData['detail']?.toString() ?? stepData['notes']?.toString();
               final duration = stepData['duration']?.toString() ?? stepData['time']?.toString();

@@ -703,8 +703,12 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
       return;
     }
 
-    const lat = currentGpsCoords.lat;
-    const lng = currentGpsCoords.lng;
+    const lat = Number(currentGpsCoords.lat);
+    const lng = Number(currentGpsCoords.lng);
+
+    if (isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) {
+      return;
+    }
 
     if (mapRef.current && window.google) {
       const map = mapRef.current;
@@ -9016,6 +9020,7 @@ export default function App() {
   const [gpsHeading, setGpsHeading] = useState(0);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const watchIdRef = useRef(null);
+  const simTimerRef = useRef(null);
   const [pref, setPref] = useState("cost");
   const [results, setResults] = useState(null);
   const [garageOpen, setGarageOpen] = useState(false);
@@ -9367,6 +9372,7 @@ export default function App() {
     setIsNavigating(true);
     setActiveStepIndex(0);
 
+    // Initial position lookup
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setCurrentGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
@@ -9402,6 +9408,7 @@ export default function App() {
     window.addEventListener("keydown", handleKeyDown, true);
     window._gpsKeyboardListener = handleKeyDown;
 
+    // Real Live GPS Tracking — moves as user moves
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
         const lat = pos.coords.latitude;
@@ -9412,14 +9419,15 @@ export default function App() {
         setGpsSpeed(speedKmh);
         
         if (pos.coords.heading !== null && pos.coords.heading !== undefined) {
-          setGpsHeading(pos.coords.heading);
+          setGpsHeading(Math.round(pos.coords.heading));
         }
 
+        // Advance active step as user physically moves closer to target stop
         setActiveStepIndex(prev => {
           const targetCoords = getStepTargetCoords(prev);
           if (targetCoords) {
             const distToTarget = getHaversineDistance({ lat, lng }, targetCoords);
-            if (distToTarget <= 50) {
+            if (distToTarget <= 0.05) { // Within 50 meters
               if (prev < (selectedData?.guide?.length || 0) - 1) {
                 if (navigator.vibrate) {
                   navigator.vibrate([100, 50, 100]);
@@ -9432,13 +9440,7 @@ export default function App() {
         });
       },
       (err) => {
-        console.error("Error watching position:", err);
-        let msg = "Geolocation error. Please check location permissions.";
-        if (err.code === err.PERMISSION_DENIED) {
-          msg = "Location permission was denied. Please enable location access in your browser settings to use live navigation.";
-        }
-        alert(msg);
-        handleStopNavigation();
+        console.warn("Watch position error:", err);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -9449,6 +9451,10 @@ export default function App() {
     setCurrentGpsCoords(null);
     setGpsSpeed(0);
     setGpsHeading(0);
+    if (simTimerRef.current) {
+      clearInterval(simTimerRef.current);
+      simTimerRef.current = null;
+    }
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;

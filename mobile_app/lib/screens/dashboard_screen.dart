@@ -200,12 +200,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ? (filePath.startsWith('http') ? filePath : '${ApiService.baseUrl}$filePath')
         : '${ApiService.baseUrl}/api/user/documents/$docId/file';
 
-    if (kIsWeb) {
-      try {
-        html.window.open(fileUrl, '_blank');
-      } catch (_) {}
-    }
-
     final dType = doc['doc_type'] ?? doc['name'] ?? doc['document_type'] ?? 'Document';
     final dNum = doc['doc_number'] ?? doc['number'] ?? '';
     final dExpiry = doc['expiry_date']?.toString();
@@ -321,7 +315,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final textColor = AppTheme.getText(isDark);
     final mutedColor = AppTheme.getMuted(isDark);
 
-    final journeys = _dashboardData?['saved_journeys'] as List<dynamic>? ?? [];
+    final savedJourneys = (_dashboardData?['saved'] as List<dynamic>?) ?? (_dashboardData?['saved_journeys'] as List<dynamic>?) ?? [];
+
+    final rawRecent = (_dashboardData?['recent'] as List<dynamic>?) ?? (_dashboardData?['recent_searches'] as List<dynamic>?);
+    final List<Map<String, String>> recentJourneys = [];
+    if (rawRecent != null && rawRecent.isNotEmpty) {
+      for (final item in rawRecent) {
+        if (item is Map) {
+          final src = item['source']?.toString() ?? item['from_stop']?.toString() ?? item['from']?.toString() ?? '';
+          final dst = item['destination']?.toString() ?? item['to_stop']?.toString() ?? item['to']?.toString() ?? '';
+          if (src.isNotEmpty && dst.isNotEmpty) {
+            recentJourneys.add({'source': src, 'destination': dst});
+          }
+        }
+      }
+    }
+    if (recentJourneys.isEmpty) {
+      recentJourneys.addAll(RecentSearchesStore.searches);
+    }
+    final displayRecent = recentJourneys.take(5).toList();
+
     final totalCO2 = _dashboardData?['total_co2_saved'] ?? 42.5;
     final trees = (totalCO2 / 20.0).toStringAsFixed(1);
 
@@ -555,46 +568,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }),
               ],
             ),
-            // 3.5 Recent Searches (Store top 5 recent searches)
-            Text('RECENT SEARCHES (TOP 5)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: RecentSearchesStore.searches.map((rs) {
-                final src = rs['source'] ?? '';
-                final dst = rs['destination'] ?? '';
-                if (src.isEmpty || dst.isEmpty) return const SizedBox.shrink();
+            const SizedBox(height: 18),
 
-                return InkWell(
-                  onTap: () {
-                    widget.onNavigateToPlanWithRoute({'source': src, 'destination': dst});
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.getBorder(isDark)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.history_rounded, size: 14, color: AppTheme.bmtcColor),
-                        const SizedBox(width: 6),
-                        Text(
-                          '$src ➔ $dst',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right_rounded, size: 14, color: AppTheme.bmtcColor),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
+            // 3.5 Recent Journeys (Recent 5)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('RECENT JOURNEYS (RECENT 5)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
+                if (displayRecent.isNotEmpty)
+                  Text('${displayRecent.length} Recent', style: TextStyle(fontSize: 11, color: mutedColor)),
+              ],
             ),
+            const SizedBox(height: 10),
+            if (displayRecent.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.getBorder(isDark)),
+                ),
+                child: Center(
+                  child: Text('No recent search journeys found.', style: TextStyle(fontSize: 12, color: mutedColor)),
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: displayRecent.map((rs) {
+                  final src = rs['source'] ?? '';
+                  final dst = rs['destination'] ?? '';
+                  if (src.isEmpty || dst.isEmpty) return const SizedBox.shrink();
+
+                  return InkWell(
+                    onTap: () {
+                      widget.onNavigateToPlanWithRoute({'source': src, 'destination': dst});
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.getBorder(isDark)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.history_rounded, size: 14, color: AppTheme.bmtcColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$src ➔ $dst',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.chevron_right_rounded, size: 14, color: AppTheme.bmtcColor),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
             const SizedBox(height: 20),
 
             // 4. Saved Journeys
@@ -602,13 +637,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('SAVED JOURNEYS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
-                if (journeys.isNotEmpty)
-                  Text('${journeys.length} Saved', style: TextStyle(fontSize: 11, color: mutedColor)),
+                if (savedJourneys.isNotEmpty)
+                  Text('${savedJourneys.length} Saved', style: TextStyle(fontSize: 11, color: mutedColor)),
               ],
             ),
             const SizedBox(height: 10),
 
-            if (journeys.isEmpty)
+            if (savedJourneys.isEmpty)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -621,7 +656,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               )
             else
-              ...journeys.map((j) {
+              ...savedJourneys.map((j) {
                 final from = j['from_stop'] ?? j['from'] ?? 'Majestic';
                 final to = j['to_stop'] ?? j['to'] ?? 'Indiranagar';
                 final mode = j['mode'] ?? 'bmtc';

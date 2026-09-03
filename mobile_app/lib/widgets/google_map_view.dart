@@ -84,7 +84,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
         try {
           final bounds = fm.LatLngBounds.fromPoints(allPoints);
           _mapController.fitCamera(
-            fm.CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(32)),
+            fm.CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(32), maxZoom: 17),
           );
         } catch (_) {}
       });
@@ -161,25 +161,6 @@ class _GoogleMapViewState extends State<GoogleMapView> {
             ),
           );
 
-          // Render station dots along the transit line
-          for (int i = 0; i < pts.length; i++) {
-            final pt = pts[i];
-            markers.add(
-              fm.Marker(
-                point: pt,
-                width: 14,
-                height: 14,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: col, width: 3),
-                    boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3)],
-                  ),
-                ),
-              ),
-            );
-          }
         }
       }
     }
@@ -194,8 +175,10 @@ class _GoogleMapViewState extends State<GoogleMapView> {
       );
     }
 
-    // Source Pin (Green)
-    final src = widget.srcPoint ?? (widget.points.isNotEmpty ? widget.points.first : null);
+    // Source Pin (Green) - Connected directly to polyline start
+    final src = (mapPolylines.isNotEmpty && mapPolylines.first.points.isNotEmpty)
+        ? mapPolylines.first.points.first
+        : (widget.points.isNotEmpty ? widget.points.first : widget.srcPoint);
     if (src != null) {
       markers.add(
         fm.Marker(
@@ -215,8 +198,10 @@ class _GoogleMapViewState extends State<GoogleMapView> {
       );
     }
 
-    // Destination Pin (Red)
-    final dst = widget.dstPoint ?? (widget.points.length > 1 ? widget.points.last : null);
+    // Destination Pin (Red) - Connected directly to polyline end
+    final dst = (mapPolylines.isNotEmpty && mapPolylines.last.points.isNotEmpty)
+        ? mapPolylines.last.points.last
+        : (widget.points.isNotEmpty ? widget.points.last : widget.dstPoint);
     if (dst != null && dst != src) {
       markers.add(
         fm.Marker(
@@ -285,6 +270,9 @@ class _GoogleMapViewState extends State<GoogleMapView> {
                 fm.TileLayer(
                   urlTemplate: _getTileUrl(isDark),
                   userAgentPackageName: 'com.google.maps.bmtc',
+                  maxZoom: 19,
+                  minZoom: 3,
+                  maxNativeZoom: 18,
                 ),
                 if (mapPolylines.isNotEmpty)
                   fm.PolylineLayer(

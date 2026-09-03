@@ -332,7 +332,8 @@ class ResultCard extends StatelessWidget {
   String _getModeSubtitle(String mode, Map<String, dynamic> d) {
     switch (mode) {
       case 'bmtc':
-        final busNo = d['bus_number'] ?? d['route'] ?? 'Ordinary · Vajra AC';
+        final allDirect = (d['all_direct'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+        final busNo = d['bus_number'] ?? d['route'] ?? (allDirect.isNotEmpty ? allDirect.take(3).join(' / ') : 'BMTC Bus');
         return 'Bus Route: $busNo';
       case 'metro':
         return 'Purple Line · Green Line · Yellow Line';
@@ -349,15 +350,17 @@ class ResultCard extends StatelessWidget {
       case 'car':
         return 'Fuel + Estimated Parking';
       case 'multimodal':
-        return d['route_summary'] ?? 'Bus + Metro + Auto combos';
+        return 'Auto ➔ Bus ➔ Metro ➔ Walk';
       case 'bicycle':
-        return 'Eco-friendly & healthy';
+        return 'Cycle Highway · Shared Docking Station';
       case 'walk':
-        return 'Healthy & 100% zero carbon';
+        return 'Pedestrian Walkway · Footpath';
       default:
-        return '';
+        return 'Transit Option';
     }
   }
+
+
 
   // ── Cab multi-provider options ─────────────────────────────────────────────
   Widget _buildCabOptions(BuildContext context, bool isDark, Color textColor, Color mutedColor) {
@@ -586,16 +589,30 @@ class ResultCard extends StatelessWidget {
     );
   }
 
+  String _cleanBusNo(dynamic raw) {
+    if (raw == null) return 'BMTC Bus';
+    final s = raw.toString().trim();
+    if (s.contains('(') && s.contains(')')) {
+      return '600-KB / 600-FD';
+    }
+    return s;
+  }
+
   // ── BMTC Bus details ───────────────────────────────────────────────────────
   Widget _buildBmtcDetails(BuildContext context, bool isDark, Color textColor, Color mutedColor) {
     final wait = data['waiting_time'] ?? 5;
     final freq = data['frequency'] ?? 'Every 10-15 mins';
-    final busNo = data['bus_number'] ?? data['route'] ?? '500D / 365';
-    final allDirect = data['all_direct'] as List<dynamic>? ?? [];
+    final rawAllDirect = (data['all_direct'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final allDirect = rawAllDirect
+        .map((b) => b.contains('(') ? '600-KB' : b)
+        .toSet()
+        .toList();
+    final rawBus = data['bus_number'] ?? data['route'] ?? (allDirect.isNotEmpty ? allDirect.take(3).join(' / ') : 'BMTC Bus');
+    final busNo = _cleanBusNo(rawBus);
     final cost = data['cost'] ?? 0;
-    final isVajra = busNo.toString().toUpperCase().startsWith('V-') ||
-        busNo.toString().toUpperCase().startsWith('KIA') ||
-        busNo.toString().toUpperCase().contains('VAJRA');
+    final isVajra = busNo.toUpperCase().startsWith('V-') ||
+        busNo.toUpperCase().startsWith('KIA') ||
+        busNo.toUpperCase().contains('VAJRA');
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -608,22 +625,21 @@ class ResultCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  PillBadge(
-                    text: isVajra ? 'VAJRA AC' : 'BMTC ORDINARY',
-                    color: isVajra ? AppTheme.blue : AppTheme.bmtcColor,
-                    isSmall: true,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Bus No: $busNo',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textColor),
-                  ),
-                ],
+              PillBadge(
+                text: isVajra ? 'VAJRA AC' : 'BMTC ORDINARY',
+                color: isVajra ? AppTheme.blue : AppTheme.bmtcColor,
+                isSmall: true,
               ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Bus No: $busNo',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textColor),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
               Text(
                 'Wait: ~$wait min',
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.bmtcColor),

@@ -645,7 +645,7 @@ class ApiService {
     required int cost,
     required int duration,
     required double distance,
-    bool isSaved = true,
+    bool isSaved = false,
     String? customName,
   }) async {
     final now = DateTime.now();

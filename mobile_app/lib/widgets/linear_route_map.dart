@@ -55,7 +55,10 @@ class LinearRouteMap extends StatelessWidget {
       if (seg is! Map<String, dynamic>) continue;
 
       final type = seg['type']?.toString().toLowerCase() ?? '';
-      final routeName = seg['route']?.toString() ?? '';
+      String routeName = seg['route']?.toString() ?? '';
+      if (routeName.startsWith('BMTC Bus (')) {
+        routeName = 'BMTC Bus';
+      }
       final isWalk = type == 'walk' || routeName.toLowerCase().contains('walk');
       final isMetro = type == 'metro';
 
