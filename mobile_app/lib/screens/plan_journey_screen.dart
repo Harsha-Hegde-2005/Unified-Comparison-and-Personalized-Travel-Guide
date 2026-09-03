@@ -9,7 +9,9 @@ import '../widgets/linear_route_map.dart';
 import '../widgets/places_autocomplete_field.dart';
 import '../widgets/google_map_view.dart';
 import '../widgets/modals.dart';
+import '../widgets/app_settings_modal.dart';
 import '../utils/geolocation_helper.dart';
+import '../services/recent_searches_store.dart';
 import 'route_details_screen.dart';
 
 class PlanJourneyScreen extends StatefulWidget {
@@ -51,6 +53,7 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
   // Map state
   final fm.MapController _mapController = fm.MapController();
   List<ll.LatLng> _mapPolylinePoints = [];
+  List<Map<String, dynamic>> _mapSegmentPolylines = [];
   bool _showMap = true;
 
   // Proactive Offers
@@ -108,11 +111,24 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
   Future<void> _loadUserVehicles() async {
     final vehs = await ApiService.fetchVehicles();
     if (vehs != null && mounted) {
-      setState(() => _userVehicles = vehs);
+      setState(() {
+        _userVehicles = vehs;
+        if (_userVehicles.isNotEmpty && _selectedVehicle == null) {
+          _selectedVehicle = _userVehicles.first['name']?.toString();
+        }
+      });
     }
   }
 
   ll.LatLng? _lookupKnownCoord(String name) {
+    final match = RegExp(r'(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)').firstMatch(name);
+    if (match != null) {
+      final lat = double.tryParse(match.group(1)!);
+      final lng = double.tryParse(match.group(2)!);
+      if (lat != null && lng != null) {
+        return ll.LatLng(lat, lng);
+      }
+    }
     final n = name.trim().toLowerCase();
     for (final entry in _knownCoords.entries) {
       if (n.contains(entry.key) || entry.key.contains(n)) {
@@ -126,26 +142,27 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     setState(() => _isFetchingLocation = true);
 
     try {
-      final pos = (await GeolocationHelper.getCurrentPosition().timeout(
-        const Duration(seconds: 2),
-        onTimeout: () => const ll.LatLng(12.9352, 77.5358),
-      )) ?? const ll.LatLng(12.9352, 77.5358);
+      final pos = await GeolocationHelper.getCurrentPosition();
+      if (pos != null) {
+        _srcCoord = pos;
 
-      _srcCoord = pos;
+        String? placeName;
+        try {
+          placeName = await ApiService.reverseGeocode(pos.latitude, pos.longitude)
+              .timeout(const Duration(seconds: 5));
+        } catch (_) {}
 
-      String? placeName;
-      try {
-        placeName = await ApiService.reverseGeocode(pos.latitude, pos.longitude)
-            .timeout(const Duration(milliseconds: 1500));
-      } catch (_) {}
-
-      if (mounted) {
-        setState(() {
-          _sourceController.text = placeName ?? 'Current Location (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})';
-        });
-        _updateMapPoints();
-        if (_destController.text.trim().isNotEmpty) {
-          _doSearch();
+        if (mounted) {
+          final textLabel = placeName != null
+              ? '$placeName (${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)})'
+              : 'Current Location (${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)})';
+          setState(() {
+            _sourceController.text = textLabel;
+          });
+          _updateMapPoints();
+          if (_destController.text.trim().isNotEmpty) {
+            _doSearch();
+          }
         }
       }
     } catch (_) {} finally {
@@ -156,12 +173,12 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
   }
 
   Future<void> _updateMapPoints() async {
-    if (_results == null || _selectedMode == null) return;
-    final modeData = _results![_selectedMode] as Map<String, dynamic>?;
-    if (modeData == null) return;
+    final modeData = (_results != null && _selectedMode != null)
+        ? _results![_selectedMode] as Map<String, dynamic>?
+        : null;
 
     final List<String> intermediateStops = [];
-    if (modeData['segments'] is List) {
+    if (modeData != null && modeData['segments'] is List) {
       for (final seg in modeData['segments']) {
         if (seg is Map<String, dynamic>) {
           if (seg['from'] != null) intermediateStops.add(seg['from'].toString());
@@ -176,15 +193,18 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     }
 
     final uniqueStops = intermediateStops.toSet().toList();
-    final res = await ApiService.fetchStopCoords(uniqueStops);
-    final coords = res?['coordinates'] as Map<String, dynamic>? ?? {};
+    Map<String, dynamic> coords = {};
+    if (uniqueStops.isNotEmpty) {
+      final res = await ApiService.fetchStopCoords(uniqueStops);
+      coords = res?['coordinates'] as Map<String, dynamic>? ?? {};
+    }
 
     final List<ll.LatLng> points = [];
 
-    // 1. Exact Source Coordinate Priority (Current Location / High-Precision Search)
+    // 1. Source Coordinate
     if (_srcCoord != null) {
       points.add(_srcCoord!);
-    } else {
+    } else if (_sourceController.text.trim().isNotEmpty) {
       final sFall = await ApiService.geocodeHighPrecision(_sourceController.text.trim()) ??
           _lookupKnownCoord(_sourceController.text.trim()) ??
           const ll.LatLng(12.9767, 77.5713);
@@ -200,18 +220,19 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
         final lng = (c['lng'] as num?)?.toDouble();
         if (lat != null && lng != null) {
           final pt = ll.LatLng(lat, lng);
-          if ((pt.latitude - _srcCoord!.latitude).abs() > 0.0005 ||
-              (pt.longitude - _srcCoord!.longitude).abs() > 0.0005) {
+          if (points.isEmpty ||
+              (pt.latitude - points.first.latitude).abs() > 0.0005 ||
+              (pt.longitude - points.first.longitude).abs() > 0.0005) {
             points.add(pt);
           }
         }
       }
     }
 
-    // 3. Exact Destination Coordinate Priority
+    // 3. Destination Coordinate
     if (_dstCoord != null) {
       points.add(_dstCoord!);
-    } else {
+    } else if (_destController.text.trim().isNotEmpty) {
       final dFall = await ApiService.geocodeHighPrecision(_destController.text.trim()) ??
           _lookupKnownCoord(_destController.text.trim()) ??
           const ll.LatLng(12.9784, 77.6408);
@@ -219,14 +240,84 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
       points.add(dFall);
     }
 
+    // 4. Segment-by-Segment Polylines
+    final List<Map<String, dynamic>> segPolylines = [];
+    if (modeData != null && modeData['segments'] is List) {
+      final segs = modeData['segments'] as List<dynamic>;
+      for (final seg in segs) {
+        if (seg is Map<String, dynamic>) {
+          final segType = seg['type']?.toString() ?? '';
+          final routeName = seg['route']?.toString() ?? '';
+          final isWalk = segType == 'walk' || routeName.toLowerCase().contains('walk');
+          final isMetro = segType == 'metro' || routeName.toLowerCase().contains('line');
+
+          Color segColor = AppTheme.getModeColor(_selectedMode ?? 'bmtc');
+          if (isMetro) {
+            final r = routeName.toLowerCase();
+            if (r.contains('green')) {
+              segColor = const Color(0xFF22C55E);
+            } else if (r.contains('purple')) {
+              segColor = const Color(0xFF8B5CF6);
+            } else if (r.contains('yellow')) {
+              segColor = const Color(0xFFEAB308);
+            } else {
+              segColor = const Color(0xFF8B5CF6);
+            }
+          } else if (isWalk) {
+            segColor = const Color(0xFF6B7A99);
+          }
+
+          final List<ll.LatLng> segPts = [];
+          final segStops = (seg['stops'] as List<dynamic>?) ?? [];
+          for (final s in segStops) {
+            final sStr = s.toString();
+            if (coords.containsKey(sStr)) {
+              final c = coords[sStr] as Map<String, dynamic>;
+              final lat = (c['lat'] as num?)?.toDouble();
+              final lng = (c['lng'] as num?)?.toDouble();
+              if (lat != null && lng != null) {
+                segPts.add(ll.LatLng(lat, lng));
+              }
+            }
+          }
+
+          if (segPts.length >= 2) {
+            final segProfile = isWalk ? 'foot' : 'driving';
+            final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: segProfile);
+            segPolylines.add({
+              'points': roadPts.isNotEmpty ? roadPts : segPts,
+              'color': segColor,
+              'isWalk': isWalk,
+              'isMetro': isMetro,
+              'routeName': routeName,
+            });
+          }
+        }
+      }
+    }
+
+    final profile = (_selectedMode == 'walk' || _selectedMode == 'bicycle') ? 'foot' : 'driving';
+    final roadPolyline = (points.length >= 2)
+        ? await ApiService.fetchRoadPolyline(points, profile: profile)
+        : points;
+
     if (mounted) {
-      setState(() => _mapPolylinePoints = points);
-      if (_mapPolylinePoints.length >= 2) {
+      setState(() {
+        _mapSegmentPolylines = segPolylines;
+        _mapPolylinePoints = roadPolyline.isNotEmpty ? roadPolyline : points;
+      });
+      final activePoints = _mapPolylinePoints.isNotEmpty
+          ? _mapPolylinePoints
+          : (_mapSegmentPolylines.isNotEmpty
+              ? _mapSegmentPolylines.expand((s) => (s['points'] as List<ll.LatLng>)).toList()
+              : points);
+
+      if (activePoints.length >= 2) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           try {
-            final bounds = fm.LatLngBounds.fromPoints(_mapPolylinePoints);
+            final bounds = fm.LatLngBounds.fromPoints(activePoints);
             _mapController.fitCamera(
-              fm.CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(35)),
+              fm.CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
             );
           } catch (_) {}
         });
@@ -245,6 +336,18 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     if (_dstCoord == null && dst.isNotEmpty) {
       _dstCoord = await ApiService.geocodeHighPrecision(dst);
     }
+
+    // Format high-precision coordinate label inside input text fields (matching website)
+    if (_srcCoord != null && !_sourceController.text.contains('(')) {
+      _sourceController.text =
+          '${_sourceController.text.trim()} (${_srcCoord!.latitude.toStringAsFixed(6)}, ${_srcCoord!.longitude.toStringAsFixed(6)})';
+    }
+    if (_dstCoord != null && !_destController.text.contains('(')) {
+      _destController.text =
+          '${_destController.text.trim()} (${_dstCoord!.latitude.toStringAsFixed(6)}, ${_dstCoord!.longitude.toStringAsFixed(6)})';
+    }
+
+    RecentSearchesStore.addSearch(src, dst);
 
     setState(() {
       _isLoading = true;
@@ -313,31 +416,174 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     });
 
     _updateMapPoints();
+
+    // Persist search history to backend DB per user account
+    ApiService.saveJourney(
+      fromStop: src,
+      toStop: dst,
+      mode: topMode ?? 'multimodal',
+      cost: (resultsMap['multimodal']?['cost'] as num?)?.toInt() ?? 25,
+      duration: (resultsMap['multimodal']?['time'] as num?)?.toInt() ?? 20,
+      distance: dist,
+      isSaved: false,
+    );
+  }
+
+  Future<void> _saveCurrentJourney(String modeKey, Map<String, dynamic> data) async {
+    final src = _sourceController.text.trim();
+    final dst = _destController.text.trim();
+    if (src.isEmpty || dst.isEmpty) return;
+
+    final nameCtrl = TextEditingController(text: '$src ➔ $dst');
+    final String? customName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save Route'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter a custom name for this route:'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Route Name',
+                border: OutlineInputBorder(),
+                hintText: 'e.g. Daily Office Commute',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, nameCtrl.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (customName == null || customName.isEmpty) return;
+
+    final cost = (data['cost'] as num?)?.toInt() ?? 0;
+    final duration = (data['time'] as num?)?.toInt() ?? 15;
+    final distance = (data['distance'] as num?)?.toDouble() ?? 5.0;
+
+    final success = await ApiService.saveJourney(
+      fromStop: src,
+      toStop: dst,
+      mode: modeKey,
+      cost: cost,
+      duration: duration,
+      distance: distance,
+      isSaved: true,
+      customName: customName,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? '✅ Route saved to your Saved Journeys!' : '❌ Failed to save journey. Please log in.'),
+          backgroundColor: success ? AppTheme.bmtcColor : Colors.redAccent,
+        ),
+      );
+    }
   }
 
   Map<String, dynamic> _buildFallbackResults(String src, String dst) {
     final cleanSrc = src.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
     final cleanDst = dst.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
 
+    // Resolve nearest real BMTC stop name for specific landmark destinations
+    String alightingStopName = cleanDst;
+    final dLow = cleanDst.toLowerCase();
+    if (dLow.contains('cafe') || dLow.contains('kushi') || dLow.contains('srirampura')) {
+      alightingStopName = 'Royal Enclave / Srirampura Cross';
+    } else if (dLow.contains('pes') || dLow.contains('electronic city')) {
+      alightingStopName = 'Electronic City Wipro Gate';
+    } else if (dLow.contains('itpb') || dLow.contains('whitefield')) {
+      alightingStopName = 'Whitefield TTMC';
+    }
+
+    String busNo = '201 / 600-FD';
+    int transfers = 0;
+    int totalCost = 25;
+    List<String> intermediateStops = [cleanSrc, 'City Center', alightingStopName];
+
+    final sLow = cleanSrc.toLowerCase();
+    final dLat = _dstCoord?.latitude ?? 12.9716;
+    final dLng = _dstCoord?.longitude ?? 77.5946;
+
+    if (dLat > 13.01 || dLow.contains('cafe') || dLow.contains('yelahanka') || dLow.contains('hebbal') || dLow.contains('jakkur')) {
+      // North Bengaluru corridor transfer
+      busNo = '45-B ➔ 288-C';
+      transfers = 1;
+      totalCost = 35; // Leg 1: ₹15 + Leg 2: ₹20 = ₹35 total transfer fare
+      intermediateStops = [cleanSrc, 'Corporation', 'Mekhri Circle', 'Hebbal TTMC', alightingStopName];
+    } else if (dLng > 77.67 || dLow.contains('whitefield') || dLow.contains('marathahalli') || dLow.contains('itpb')) {
+      // East Bengaluru corridor transfer
+      busNo = '201 ➔ 500-D';
+      transfers = 1;
+      totalCost = 35; // Leg 1: ₹15 + Leg 2: ₹20 = ₹35 total transfer fare
+      intermediateStops = [cleanSrc, 'Domlur TTMC', 'Marathahalli Bridge', alightingStopName];
+    } else if (dLat < 12.89 || dLow.contains('electronic city') || dLow.contains('bommasandra') || dLow.contains('attibele')) {
+      // South Bengaluru corridor direct
+      busNo = '600-KB / 600-FD / 356-M';
+      transfers = 0;
+      totalCost = 30;
+      intermediateStops = [cleanSrc, 'Banashankari TTMC', 'Silk Board', alightingStopName];
+    } else if (sLow.contains('majestic') || dLow.contains('majestic') || dLow.contains('ksr')) {
+      // Central corridor direct
+      busNo = '356-M / KBS-3E / 349-D';
+      transfers = 0;
+      totalCost = 25;
+      intermediateStops = [cleanSrc, 'Corporation', 'KSR Majestic TTMC', alightingStopName];
+    }
+
+    final String primaryBus = busNo.split(' ➔ ').first.split(' / ').first;
+    final String secondBus = busNo.contains('➔') ? busNo.split(' ➔ ').last.trim() : primaryBus;
+
     return {
       'results': {
         'bmtc': {
           'available': true,
           'mode': 'bmtc',
-          'time': 45,
-          'cost': 24,
-          'distance': 14.2,
-          'transfers': 0,
-          'route': '500D / 306',
+          'time': 42,
+          'cost': totalCost,
+          'distance': 14.5,
+          'transfers': transfers,
+          'bus_number': busNo,
+          'route': primaryBus,
+          'waiting_time': 5,
+          'frequency': transfers > 0 ? 'Transfer via Corporation' : 'Every 8-12 mins',
+          'all_direct': transfers == 0 ? busNo.split(' / ') : [busNo],
           'guide': [
-            {'text': 'Walk 350m to nearest BMTC bus stop', 'icon': 'walk'},
-            {'text': 'Board Bus 500D (12 stops) towards $cleanDst', 'icon': 'bus'},
-            {'text': 'Disembark at $cleanDst and walk 150m to destination', 'icon': 'walk'}
+            {'text': 'Walk 250m (3 min) to $cleanSrc bus stop', 'icon': 'walk'},
+            {'text': 'Board Bus $primaryBus at $cleanSrc towards ${intermediateStops.length > 2 ? intermediateStops[1] : alightingStopName} (5 stops)', 'icon': 'bus', 'detail': '₹15 · Leg 1'},
+            if (transfers > 0) ...[
+              {'text': 'Get down at ${intermediateStops[1]} bus stop & transfer to Bus $secondBus', 'icon': 'transfer', 'detail': 'Interchange: ${intermediateStops[1]}'},
+              {'text': 'Board Bus $secondBus at ${intermediateStops[1]} towards $alightingStopName (12 stops)', 'icon': 'bus', 'detail': '₹20 · Leg 2'},
+            ],
+            {'text': 'Disembark at $alightingStopName bus stop and walk 150m to $cleanDst', 'icon': 'walk'}
           ],
           'segments': [
-            {'type': 'walk', 'from': cleanSrc, 'to': 'BMTC Stop', 'distance': 0.35, 'duration': 4},
-            {'type': 'bmtc', 'route': '500D', 'from': 'BMTC Stop', 'to': cleanDst, 'distance': 13.5, 'duration': 38, 'stops': [cleanSrc, 'Silk Board', 'HSR Layout', cleanDst]},
-            {'type': 'walk', 'from': cleanDst, 'to': cleanDst, 'distance': 0.15, 'duration': 3}
+            {'type': 'walk', 'from': cleanSrc, 'to': intermediateStops.first, 'distance': 0.25, 'duration': 3, 'stops': [cleanSrc, intermediateStops.first]},
+            {
+              'type': 'bmtc',
+              'route': primaryBus,
+              'from': intermediateStops.first,
+              'to': intermediateStops.last,
+              'distance': 12.0,
+              'duration': 32,
+              'stops': intermediateStops,
+            },
+            {'type': 'walk', 'from': intermediateStops.last, 'to': cleanDst, 'distance': 0.25, 'duration': 3, 'stops': [intermediateStops.last, cleanDst]}
           ]
         },
         'metro': {
@@ -434,35 +680,6 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     _doSearch();
   }
 
-  Future<void> _saveJourney(String mode) async {
-    final modeData = _results?[mode] as Map<String, dynamic>?;
-    if (modeData == null) return;
-
-    final defaultName = '${_sourceController.text.trim()} to ${_destController.text.trim()}';
-    final nickname = await showSaveJourneyDialog(context, defaultName);
-    if (nickname == null) return;
-
-    final res = await ApiService.saveJourney({
-      'from_stop': _sourceController.text.trim(),
-      'to_stop': _destController.text.trim(),
-      'mode': mode,
-      'cost': modeData['cost'] ?? 0,
-      'duration': modeData['time'] ?? 0,
-      'distance': (modeData['distance'] as num?)?.toDouble() ?? 0.0,
-      'custom_name': nickname,
-      'is_saved': true,
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(res != null ? '🎉 Journey "$nickname" saved!' : 'Failed to save journey.'),
-          backgroundColor: AppTheme.bmtcColor,
-        ),
-      );
-    }
-  }
-
   void _openTimelineModal(Map<String, dynamic> modeData, String mode) {
     showModalBottomSheet(
       context: context,
@@ -503,12 +720,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
           source: _sourceController.text.trim(),
           destination: _destController.text.trim(),
           option: {
+            ...modeData,
             'mode': mode,
-            'time': modeData['time'],
-            'cost': modeData['cost'],
-            'distance': modeData['distance'],
-            'segments': modeData['segments'],
-            'guide': modeData['guide'],
           },
           srcCoord: _srcCoord,
           dstCoord: _dstCoord,
@@ -540,279 +753,273 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
             onPressed: () => setState(() => _showMap = !_showMap),
           ),
           IconButton(
-            icon: const Icon(Icons.calculate_outlined),
-            tooltip: 'Fare Calculator',
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => const FareCalculatorModal(),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.wb_sunny_outlined),
-            tooltip: 'Weather Report',
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => const WeatherReportModal(),
-              );
-            },
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'App Settings',
+            onPressed: () => showAppSettingsModal(context),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _doSearch,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
-          children: [
-            // 1. Search Box with Google Places & Stops Autocomplete
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppTheme.getBorder(isDark)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final hasResults = _results != null ||
+                _errorMessage != null ||
+                _isLoading ||
+                _showWalkOffer ||
+                _showBicycleOffer ||
+                _showDelayOffer;
+
+            final formEstimatedHeight = _userVehicles.isNotEmpty ? 290.0 : 245.0;
+            final calculatedMapHeight =
+                (constraints.maxHeight - formEstimatedHeight - 38.0).clamp(220.0, 1200.0);
+            final dynamicMapHeight = hasResults ? 240.0 : calculatedMapHeight;
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+              children: [
+                // 1. Search Box with Google Places & Stops Autocomplete
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppTheme.getBorder(isDark)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: Column(
-                            children: [
-                              // Source Autocomplete
-                              PlacesAutocompleteField(
-                                controller: _sourceController,
-                                label: 'FROM (ORIGIN)',
-                                hint: 'e.g. Majestic, Indiranagar, Electronic City',
-                                icon: Icons.trip_origin_rounded,
-                                iconColor: AppTheme.green,
-                                onPlaceSelected: (name, lat, lng) {
-                                  if (lat != null && lng != null) {
-                                    _srcCoord = ll.LatLng(lat, lng);
-                                  }
-                                  _doSearch();
-                                },
-                              ),
-                              const SizedBox(height: 4),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: InkWell(
-                                  onTap: _isFetchingLocation ? null : _fetchCurrentLocation,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 2),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (_isFetchingLocation)
-                                          const SizedBox(
-                                            width: 12,
-                                            height: 12,
-                                            child: CircularProgressIndicator(strokeWidth: 1.5, color: AppTheme.blue),
-                                          )
-                                        else
-                                          const Icon(Icons.my_location_rounded, size: 12, color: AppTheme.blue),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          _isFetchingLocation ? 'Fetching Live GPS Location...' : 'Use Current Location',
-                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.blue),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  // Source Autocomplete
+                                  PlacesAutocompleteField(
+                                    controller: _sourceController,
+                                    label: 'FROM (ORIGIN)',
+                                    hint: 'e.g. Majestic, Indiranagar, Electronic City',
+                                    icon: Icons.trip_origin_rounded,
+                                    iconColor: AppTheme.green,
+                                    onPlaceSelected: (name, lat, lng) {
+                                      if (lat != null && lng != null) {
+                                        _srcCoord = ll.LatLng(lat, lng);
+                                      }
+                                      _doSearch();
+                                    },
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: InkWell(
+                                      onTap: _isFetchingLocation ? null : _fetchCurrentLocation,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 2),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (_isFetchingLocation)
+                                              const SizedBox(
+                                                width: 12,
+                                                height: 12,
+                                                child: CircularProgressIndicator(strokeWidth: 1.5, color: AppTheme.blue),
+                                              )
+                                            else
+                                              const Icon(Icons.my_location_rounded, size: 12, color: AppTheme.blue),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              _isFetchingLocation ? 'Fetching Live GPS Location...' : 'Use Current Location',
+                                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.blue),
+                                            ),
+                                          ],
                                         ),
-                                      ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Destination Autocomplete
+                                  PlacesAutocompleteField(
+                                    controller: _destController,
+                                    label: 'TO (DESTINATION)',
+                                    hint: 'e.g. Whitefield, Koramangala, Silk Board',
+                                    icon: Icons.location_on_rounded,
+                                    iconColor: AppTheme.red,
+                                    onPlaceSelected: (name, lat, lng) {
+                                      if (lat != null && lng != null) {
+                                        _dstCoord = ll.LatLng(lat, lng);
+                                      }
+                                      _doSearch();
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Swap button
+                            IconButton.filledTonal(
+                              style: IconButton.styleFrom(
+                                backgroundColor: AppTheme.getAccent(isDark).withValues(alpha: 0.12),
+                                foregroundColor: AppTheme.getAccent(isDark),
+                                shape: const CircleBorder(),
+                                padding: const EdgeInsets.all(12),
+                              ),
+                              onPressed: _swapStops,
+                              icon: const Icon(Icons.swap_vert_rounded, size: 20),
+                              tooltip: 'Swap locations',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Filter Row: Time, Preference, Search Button
+                        Row(
+                          children: [
+                            // Time
+                            Expanded(
+                              flex: 3,
+                              child: InkWell(
+                                onTap: () async {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime: TimeOfDay.now(),
+                                  );
+                                  if (time != null) {
+                                    setState(() {
+                                      _timeController.text =
+                                          "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+                                    });
+                                  }
+                                },
+                                child: IgnorePointer(
+                                  child: TextField(
+                                    controller: _timeController,
+                                    decoration: InputDecoration(
+                                      labelText: 'TIME',
+                                      isDense: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                      prefixIcon: const Icon(Icons.access_time_rounded, size: 16),
+                                      suffixIcon: TextButton(
+                                        onPressed: () {
+                                          final now = DateTime.now();
+                                          setState(() {
+                                            _timeController.text =
+                                                "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+                                          });
+                                        },
+                                        child: const Text('Now', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                      ),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              // Destination Autocomplete
-                              PlacesAutocompleteField(
-                                controller: _destController,
-                                label: 'TO (DESTINATION)',
-                                hint: 'e.g. Whitefield, Koramangala, Silk Board',
-                                icon: Icons.location_on_rounded,
-                                iconColor: AppTheme.red,
-                                onPlaceSelected: (name, lat, lng) {
-                                  if (lat != null && lng != null) {
-                                    _dstCoord = ll.LatLng(lat, lng);
-                                  }
-                                  _doSearch();
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Swap button
-                        IconButton.filledTonal(
-                          style: IconButton.styleFrom(
-                            backgroundColor: AppTheme.getAccent(isDark).withValues(alpha: 0.12),
-                            foregroundColor: AppTheme.getAccent(isDark),
-                            shape: const CircleBorder(),
-                            padding: const EdgeInsets.all(12),
-                          ),
-                          onPressed: _swapStops,
-                          icon: const Icon(Icons.swap_vert_rounded, size: 20),
-                          tooltip: 'Swap locations',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                            ),
+                            const SizedBox(width: 8),
 
-                    // Filter Row: Time, Preference, Search Button
-                    Row(
-                      children: [
-                        // Time
-                        Expanded(
-                          flex: 3,
-                          child: InkWell(
-                            onTap: () async {
-                              final time = await showTimePicker(
-                                context: context,
-                                initialTime: TimeOfDay.now(),
-                              );
-                              if (time != null) {
-                                setState(() {
-                                  _timeController.text =
-                                      "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
-                                });
-                              }
-                            },
-                            child: IgnorePointer(
-                              child: TextField(
-                                controller: _timeController,
+                            // Preference
+                            Expanded(
+                              flex: 3,
+                              child: DropdownButtonFormField<String>(
+                                initialValue: _preference,
+                                isDense: true,
                                 decoration: InputDecoration(
-                                  labelText: 'TIME',
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                  prefixIcon: const Icon(Icons.access_time_rounded, size: 16),
-                                  suffixIcon: TextButton(
-                                    onPressed: () {
-                                      final now = DateTime.now();
-                                      setState(() {
-                                        _timeController.text =
-                                            "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
-                                      });
-                                    },
-                                    child: const Text('Now', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ),
+                                  labelText: 'PREFERENCE',
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
+                                items: const [
+                                  DropdownMenuItem(value: 'cost', child: Text('Cheapest', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'time', child: Text('Fastest', style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(value: 'convenience', child: Text('Convenience', style: TextStyle(fontSize: 12))),
+                                ],
+                                onChanged: (v) {
+                                  if (v != null) setState(() => _preference = v);
+                                },
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
+                            const SizedBox(width: 8),
 
-                        // Preference
-                        Expanded(
-                          flex: 3,
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _preference,
-                            isDense: true,
-                            decoration: InputDecoration(
-                              labelText: 'PREFERENCE',
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            // Search Button
+                            SizedBox(
+                              height: 44,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.bmtcColor,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                ),
+                                onPressed: _isLoading ? null : _doSearch,
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.search_rounded, size: 20),
+                              ),
                             ),
-                            items: const [
-                              DropdownMenuItem(value: 'cost', child: Text('Cheapest', style: TextStyle(fontSize: 12))),
-                              DropdownMenuItem(value: 'time', child: Text('Fastest', style: TextStyle(fontSize: 12))),
-                              DropdownMenuItem(value: 'convenience', child: Text('Convenience', style: TextStyle(fontSize: 12))),
+                          ],
+                        ),
+
+                        // User Vehicle Selector
+                        if (_userVehicles.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              const Icon(Icons.garage_rounded, size: 16, color: AppTheme.carColor),
+                              const SizedBox(width: 6),
+                              Text('Personal Vehicle:', style: TextStyle(fontSize: 11, color: mutedColor)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: DropdownButton<String>(
+                                  isExpanded: true,
+                                  value: _selectedVehicle ?? (_userVehicles.isNotEmpty ? _userVehicles.first['name']?.toString() : null),
+                                  underline: const SizedBox.shrink(),
+                                  items: [
+                                    ..._userVehicles.map((v) => DropdownMenuItem(
+                                          value: v['name']?.toString(),
+                                          child: Text('${v['name']} (${v['fuel_type']})', style: const TextStyle(fontSize: 12)),
+                                        )),
+                                  ],
+                                  onChanged: (val) {
+                                    setState(() => _selectedVehicle = val);
+                                    _doSearch();
+                                  },
+                                ),
+                              ),
                             ],
-                            onChanged: (v) {
-                              if (v != null) setState(() => _preference = v);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Search Button
-                        SizedBox(
-                          height: 44,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.bmtcColor,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                            ),
-                            onPressed: _isLoading ? null : _doSearch,
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.search_rounded, size: 20),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // User Vehicle Selector
-                    if (_userVehicles.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          const Icon(Icons.garage_rounded, size: 16, color: AppTheme.carColor),
-                          const SizedBox(width: 6),
-                          Text('Personal Vehicle:', style: TextStyle(fontSize: 11, color: mutedColor)),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButton<String>(
-                              isExpanded: true,
-                              value: _selectedVehicle,
-                              hint: const Text('Default Petrol Car', style: TextStyle(fontSize: 12)),
-                              underline: const SizedBox.shrink(),
-                              items: [
-                                const DropdownMenuItem(value: null, child: Text('Default Car (14 km/l)', style: TextStyle(fontSize: 12))),
-                                ..._userVehicles.map((v) => DropdownMenuItem(
-                                      value: v['name']?.toString(),
-                                      child: Text('${v['name']} (${v['fuel_type']})', style: const TextStyle(fontSize: 12)),
-                                    )),
-                              ],
-                              onChanged: (val) {
-                                setState(() => _selectedVehicle = val);
-                                _doSearch();
-                              },
-                            ),
                           ),
                         ],
-                      ),
-                    ],
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 14),
+                const SizedBox(height: 14),
 
-            // 2. Interactive Google Route Map Display (Always Visible)
-            if (_showMap) ...[
-              GoogleMapView(
-                points: _mapPolylinePoints,
-                srcPoint: _srcCoord,
-                dstPoint: _dstCoord,
-                routeColor: modeColor,
-                height: 210,
-              ),
-              const SizedBox(height: 14),
-            ],
+                // 2. Interactive Google Route Map Display (Always Visible - Scaled to fill space down to bottom tabs)
+                if (_showMap) ...[
+                  GoogleMapView(
+                    points: _mapPolylinePoints,
+                    segmentPolylines: _mapSegmentPolylines,
+                    srcPoint: _srcCoord,
+                    dstPoint: _dstCoord,
+                    routeColor: modeColor,
+                    height: dynamicMapHeight,
+                  ),
+                  if (hasResults) const SizedBox(height: 14),
+                ],
 
             // 3. Proactive Smart Offers (< 1.5km Walk & < 3.0km Bicycle)
             if (_showWalkOffer)
@@ -979,6 +1186,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                     modeKey: m,
                     data: d,
                     isSelected: _selectedMode == m,
+                    source: _sourceController.text.trim(),
+                    destination: _destController.text.trim(),
                     onSelect: () {
                       setState(() => _selectedMode = m);
                       _updateMapPoints();
@@ -987,7 +1196,7 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                     onSelectCabVehicle: (v) => setState(() => _selectedCabVehicle = v),
                     selectedMultimodalOption: _selectedMultimodalOption,
                     onSelectMultimodalOption: (opt) => setState(() => _selectedMultimodalOption = opt),
-                    onSaveJourney: () => _saveJourney(m),
+                    onSaveJourney: () => _saveCurrentJourney(m, d),
                     onNavigate: () => _openDetailsScreen(d, m),
                     onViewTimeline: () => _openTimelineModal(d, m),
                   );
@@ -995,13 +1204,22 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
               ],
             ],
           ],
-        ),
-      ),
-    );
+        );
+      },
+    ),
+  ),
+);
   }
 
   List<String> _getSortedModes() {
-    final standard = ['bmtc', 'metro', 'cab', 'car', 'multimodal', 'bicycle', 'walk'];
+    final standard = ['bmtc', 'metro', 'cab', 'namma_yatri', 'uber', 'ola', 'rapido', 'car', 'multimodal', 'bicycle', 'walk'];
+    if (_results != null) {
+      for (final k in _results!.keys) {
+        if (!standard.contains(k) && _results![k]?['available'] == true) {
+          standard.add(k);
+        }
+      }
+    }
     if (_recommendations.isEmpty) return standard;
 
     final sorted = <String>[];

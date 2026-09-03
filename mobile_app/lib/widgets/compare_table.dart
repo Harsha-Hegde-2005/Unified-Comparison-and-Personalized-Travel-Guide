@@ -23,7 +23,12 @@ class CompareTable extends StatelessWidget {
     final mutedColor = AppTheme.getMuted(isDark);
 
     final List<Map<String, dynamic>> rows = [];
-    final modes = ['bmtc', 'metro', 'cab', 'car', 'multimodal', 'bicycle', 'walk'];
+    final modes = ['bmtc', 'metro', 'cab', 'namma_yatri', 'uber', 'ola', 'rapido', 'car', 'multimodal', 'bicycle', 'walk'];
+    for (final k in results.keys) {
+      if (!modes.contains(k) && results[k]?['available'] == true) {
+        modes.add(k);
+      }
+    }
 
     for (final m in modes) {
       final data = results[m] as Map<String, dynamic>?;
@@ -36,7 +41,9 @@ class CompareTable extends StatelessWidget {
       var emissions = (data['emissions'] as num?)?.toDouble() ?? 0.0;
 
       // Extract specific provider / option details if available
-      if (m == 'cab' && data['all_estimates'] is List && (data['all_estimates'] as List).isNotEmpty) {
+      if ((m == 'cab' || m == 'namma_yatri' || m == 'uber' || m == 'ola' || m == 'rapido') &&
+          data['all_estimates'] is List &&
+          (data['all_estimates'] as List).isNotEmpty) {
         final firstEst = (data['all_estimates'] as List).first as Map<String, dynamic>;
         cost = firstEst['cost'] ?? cost;
         time = firstEst['time'] ?? time;
@@ -49,7 +56,7 @@ class CompareTable extends StatelessWidget {
       }
 
       String comfort = '⭐⭐⭐';
-      if (m == 'cab' || m == 'car') {
+      if (m == 'cab' || m == 'car' || m == 'namma_yatri' || m == 'uber' || m == 'ola' || m == 'rapido') {
         comfort = '⭐⭐⭐⭐⭐';
       } else if (m == 'metro') {
         comfort = '⭐⭐⭐⭐';

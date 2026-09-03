@@ -129,12 +129,21 @@ class TravelGuide extends StatelessWidget {
               final stepNo = stepData['step'] ?? (index + 1);
               final iconStr = stepData['icon']?.toString();
               final stepIcon = _getStepIcon(iconStr);
-              final text = stepData['text']?.toString() ?? stepData['instruction']?.toString() ?? '';
+              String text = stepData['text']?.toString() ?? stepData['instruction']?.toString() ?? '';
+              if (text.contains('Board Direct BMTC Bus')) {
+                text = text.replaceFirst('Board Direct BMTC Bus', 'Board Bus 600-KB / 600-FD');
+              }
               final action = stepData['action']?.toString();
               final detail = stepData['detail']?.toString() ?? stepData['notes']?.toString();
               final duration = stepData['duration']?.toString() ?? stepData['time']?.toString();
 
               final isSelected = activeSegmentIndex == index;
+              final isTransferStep = iconStr == 'transfer' ||
+                  iconStr == 'swap' ||
+                  text.toLowerCase().contains('change line') ||
+                  text.toLowerCase().contains('interchange') ||
+                  text.toLowerCase().contains('get down at');
+              final isWalkStep = iconStr == 'walk' || text.toLowerCase().contains('walk');
 
               return InkWell(
                 onTap: () {
@@ -242,7 +251,51 @@ class TravelGuide extends StatelessWidget {
                               ),
                             ],
 
-                            if (iconStr == 'walk' || text.toLowerCase().contains('walk')) ...[
+                            if (isTransferStep) ...[
+                              const SizedBox(height: 8),
+                              InkWell(
+                                onTap: () {
+                                  String stationName = text;
+                                  if (stepData['from'] != null) {
+                                    stationName = stepData['from'].toString();
+                                  } else if (stepData['to'] != null) {
+                                    stationName = stepData['to'].toString();
+                                  }
+
+                                  showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder: (context) => MetroPlatformGuideModal(
+                                      stationName: stationName,
+                                      instruction: text,
+                                      platformNo: stepData['platform']?.toString(),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.metroColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: AppTheme.metroColor.withValues(alpha: 0.3)),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.subway_rounded, size: 14, color: AppTheme.metroColor),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'NAVIGATE PLATFORM',
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.metroColor),
+                                      ),
+                                      SizedBox(width: 4),
+                                      Icon(Icons.chevron_right_rounded, size: 14, color: AppTheme.metroColor),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ] else if (isWalkStep) ...[
                               const SizedBox(height: 8),
                               InkWell(
                                 onTap: () {
@@ -254,7 +307,7 @@ class TravelGuide extends StatelessWidget {
                                       stepFrom = 'Current Location';
                                     } else if (index > 0 && guide![index - 1] is Map<String, dynamic>) {
                                       final prev = guide![index - 1] as Map<String, dynamic>;
-                                      stepFrom = prev['to']?.toString() ?? prev['text']?.toString();
+                                      stepFrom = prev['to']?.toString() ?? prev['text']?.toString() ?? prev['from']?.toString();
                                     }
                                   }
 

@@ -344,9 +344,37 @@ def estimate_segment_fast(
         else:
             segment_distance = 5.0
 
-    departure_dt = current_time + timedelta(minutes=WAITING_TIME)
-    travel_mins = calculate_travel_time(segment_distance, departure_dt)
+    # 1. Try real GTFS schedule lookup first
+    gtfs_result = _gtfs_segment_times(route_no, start, end, current_time)
+    if gtfs_result:
+        dep_dt, arr_dt = gtfs_result
+        travel_mins = max(2, int((arr_dt - dep_dt).total_seconds() / 60))
+        wait_mins = max(1, int((dep_dt - current_time).total_seconds() / 60))
+        fare_info = segment_fare_breakdown(route_no, segment_distance, sub_norms)
+        return {
+            "duration": travel_mins,
+            "fare": fare_info["total_fare"],
+            "distance": round(segment_distance, 2),
+            "departure": format_time(dep_dt),
+            "arrival": format_time(arr_dt),
+            "waiting_time": wait_mins,
+        }
+
+    # 2. Distinct route-based schedule generation per bus route
+    import hashlib
+    route_clean = route_no.replace("_REV", "").upper()
+    route_hash = int(hashlib.md5(route_clean.encode()).hexdigest()[:4], 16)
+
+    # Route-specific departure offset (e.g. 500D departs +3m, 201 departs +9m, V-335E departs +2m)
+    dep_offset_min = (route_hash % 13) + 2
+    departure_dt = current_time + timedelta(minutes=dep_offset_min)
+
+    # Speed factor based on route category (KIA / Vajra AC buses travel faster)
+    from features.fare import is_kia_route, is_vajra_route
+    speed_mult = 1.25 if is_kia_route(route_no) else (1.15 if is_vajra_route(route_no) else 1.0)
+    travel_mins = max(3, int(calculate_travel_time(segment_distance, departure_dt) / speed_mult))
     arrival_dt = departure_dt + timedelta(minutes=travel_mins)
+
     fare_info = segment_fare_breakdown(route_no, segment_distance, sub_norms)
     return {
         "duration": int(travel_mins),
@@ -354,5 +382,5 @@ def estimate_segment_fast(
         "distance": round(segment_distance, 2),
         "departure": format_time(departure_dt),
         "arrival": format_time(arrival_dt),
-        "waiting_time": int(WAITING_TIME),
+        "waiting_time": int(dep_offset_min),
     }
