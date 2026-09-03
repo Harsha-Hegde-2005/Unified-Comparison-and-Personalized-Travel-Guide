@@ -80,6 +80,204 @@ const MC = {
 };
 
 /* ─────────────────────────────────────────────────────────────
+   POPULAR VEHICLE MODELS CATALOG
+───────────────────────────────────────────────────────────── */
+const POPULAR_VEHICLES = [
+  // Toyota
+  { brand: "Toyota", name: "Toyota Innova Crysta", fuel: "Diesel", eff: 12.0, type: "car" },
+  { brand: "Toyota", name: "Toyota Innova Hycross", fuel: "Petrol", eff: 16.1, type: "car" },
+  { brand: "Toyota", name: "Toyota Innova Hycross Hybrid", fuel: "Petrol", eff: 23.2, type: "car" },
+  { brand: "Toyota", name: "Toyota Fortuner", fuel: "Diesel", eff: 10.5, type: "car" },
+  { brand: "Toyota", name: "Toyota Fortuner Petrol", fuel: "Petrol", eff: 9.0, type: "car" },
+  { brand: "Toyota", name: "Toyota Fortuner Legender", fuel: "Diesel", eff: 10.5, type: "car" },
+  { brand: "Toyota", name: "Toyota Urban Cruiser Hyryder", fuel: "Petrol", eff: 21.1, type: "car" },
+  { brand: "Toyota", name: "Toyota Urban Cruiser Hyryder Hybrid", fuel: "Petrol", eff: 27.9, type: "car" },
+  { brand: "Toyota", name: "Toyota Glanza", fuel: "Petrol", eff: 22.3, type: "car" },
+  { brand: "Toyota", name: "Toyota Glanza CNG", fuel: "CNG", eff: 30.6, type: "car" },
+  { brand: "Toyota", name: "Toyota Rumion", fuel: "Petrol", eff: 20.5, type: "car" },
+  { brand: "Toyota", name: "Toyota Rumion CNG", fuel: "CNG", eff: 26.1, type: "car" },
+  { brand: "Toyota", name: "Toyota Hilux", fuel: "Diesel", eff: 10.0, type: "car" },
+  { brand: "Toyota", name: "Toyota Camry Hybrid", fuel: "Petrol", eff: 19.1, type: "car" },
+  { brand: "Toyota", name: "Toyota Vellfire Hybrid", fuel: "Petrol", eff: 19.2, type: "car" },
+  { brand: "Toyota", name: "Toyota Land Cruiser 300", fuel: "Diesel", eff: 8.5, type: "car" },
+  { brand: "Toyota", name: "Toyota Corolla Altis", fuel: "Petrol", eff: 15.0, type: "car" },
+  { brand: "Toyota", name: "Toyota Corolla Altis Diesel", fuel: "Diesel", eff: 21.3, type: "car" },
+  { brand: "Toyota", name: "Toyota Etios", fuel: "Diesel", eff: 23.5, type: "car" },
+  { brand: "Toyota", name: "Toyota Etios Liva", fuel: "Petrol", eff: 17.5, type: "car" },
+  { brand: "Toyota", name: "Toyota Yaris", fuel: "Petrol", eff: 17.1, type: "car" },
+  { brand: "Toyota", name: "Toyota RAV4 Hybrid", fuel: "Petrol", eff: 21.5, type: "car" },
+  { brand: "Toyota", name: "Toyota Prius", fuel: "Petrol", eff: 24.5, type: "car" },
+  { brand: "Toyota", name: "Toyota bZ4X EV", fuel: "EV", eff: 6.2, type: "car" },
+
+  // Maruti Suzuki
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Swift", fuel: "Petrol", eff: 24.8, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Swift CNG", fuel: "CNG", eff: 32.8, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Baleno", fuel: "Petrol", eff: 22.3, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Baleno CNG", fuel: "CNG", eff: 30.6, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Brezza", fuel: "Petrol", eff: 17.3, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Brezza CNG", fuel: "CNG", eff: 25.5, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Fronx", fuel: "Petrol", eff: 21.5, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Fronx CNG", fuel: "CNG", eff: 28.5, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Grand Vitara", fuel: "Petrol", eff: 21.1, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Grand Vitara Hybrid", fuel: "Petrol", eff: 27.9, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Ertiga", fuel: "Petrol", eff: 20.5, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Ertiga CNG", fuel: "CNG", eff: 26.1, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Dzire", fuel: "Petrol", eff: 24.5, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Dzire CNG", fuel: "CNG", eff: 33.7, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Wagon R", fuel: "Petrol", eff: 24.3, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Wagon R CNG", fuel: "CNG", eff: 34.0, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Alto K10", fuel: "Petrol", eff: 24.9, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Alto K10 CNG", fuel: "CNG", eff: 33.8, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Jimny", fuel: "Petrol", eff: 16.9, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Celerio", fuel: "Petrol", eff: 25.2, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Invicto Hybrid", fuel: "Petrol", eff: 23.2, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki XL6", fuel: "Petrol", eff: 20.9, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Ciaz", fuel: "Petrol", eff: 20.6, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Ignis", fuel: "Petrol", eff: 20.8, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Eeco", fuel: "Petrol", eff: 19.7, type: "car" },
+  { brand: "Maruti Suzuki", name: "Maruti Suzuki Eeco CNG", fuel: "CNG", eff: 27.0, type: "car" },
+
+  // Hyundai
+  { brand: "Hyundai", name: "Hyundai Creta", fuel: "Petrol", eff: 17.4, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Creta Diesel", fuel: "Diesel", eff: 21.8, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Venue", fuel: "Petrol", eff: 17.5, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Venue Diesel", fuel: "Diesel", eff: 22.7, type: "car" },
+  { brand: "Hyundai", name: "Hyundai i20", fuel: "Petrol", eff: 20.0, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Grand i10 Nios", fuel: "Petrol", eff: 20.7, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Grand i10 Nios CNG", fuel: "CNG", eff: 27.3, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Exter", fuel: "Petrol", eff: 19.4, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Exter CNG", fuel: "CNG", eff: 27.1, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Verna", fuel: "Petrol", eff: 18.6, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Alcazar", fuel: "Diesel", eff: 18.1, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Tucson", fuel: "Diesel", eff: 18.0, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Ioniq 5 EV", fuel: "EV", eff: 6.5, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Kona Electric", fuel: "EV", eff: 6.2, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Aura", fuel: "Petrol", eff: 20.5, type: "car" },
+  { brand: "Hyundai", name: "Hyundai Aura CNG", fuel: "CNG", eff: 28.0, type: "car" },
+
+  // Tata
+  { brand: "Tata", name: "Tata Nexon", fuel: "Petrol", eff: 17.4, type: "car" },
+  { brand: "Tata", name: "Tata Nexon Diesel", fuel: "Diesel", eff: 23.2, type: "car" },
+  { brand: "Tata", name: "Tata Nexon EV", fuel: "EV", eff: 7.2, type: "car" },
+  { brand: "Tata", name: "Tata Punch", fuel: "Petrol", eff: 20.0, type: "car" },
+  { brand: "Tata", name: "Tata Punch CNG", fuel: "CNG", eff: 26.9, type: "car" },
+  { brand: "Tata", name: "Tata Punch EV", fuel: "EV", eff: 7.5, type: "car" },
+  { brand: "Tata", name: "Tata Harrier", fuel: "Diesel", eff: 16.8, type: "car" },
+  { brand: "Tata", name: "Tata Safari", fuel: "Diesel", eff: 16.3, type: "car" },
+  { brand: "Tata", name: "Tata Curvv", fuel: "Petrol", eff: 18.0, type: "car" },
+  { brand: "Tata", name: "Tata Curvv EV", fuel: "EV", eff: 7.0, type: "car" },
+  { brand: "Tata", name: "Tata Tiago", fuel: "Petrol", eff: 20.0, type: "car" },
+  { brand: "Tata", name: "Tata Tiago CNG", fuel: "CNG", eff: 26.4, type: "car" },
+  { brand: "Tata", name: "Tata Tiago EV", fuel: "EV", eff: 7.8, type: "car" },
+  { brand: "Tata", name: "Tata Tigor", fuel: "Petrol", eff: 19.6, type: "car" },
+  { brand: "Tata", name: "Tata Tigor EV", fuel: "EV", eff: 7.6, type: "car" },
+  { brand: "Tata", name: "Tata Altroz", fuel: "Petrol", eff: 19.3, type: "car" },
+  { brand: "Tata", name: "Tata Altroz Diesel", fuel: "Diesel", eff: 23.6, type: "car" },
+  { brand: "Tata", name: "Tata Altroz CNG", fuel: "CNG", eff: 26.2, type: "car" },
+
+  // Mahindra
+  { brand: "Mahindra", name: "Mahindra Thar", fuel: "Diesel", eff: 15.2, type: "car" },
+  { brand: "Mahindra", name: "Mahindra Thar Petrol", fuel: "Petrol", eff: 12.4, type: "car" },
+  { brand: "Mahindra", name: "Mahindra Thar Roxx", fuel: "Diesel", eff: 14.5, type: "car" },
+  { brand: "Mahindra", name: "Mahindra Scorpio-N", fuel: "Diesel", eff: 15.0, type: "car" },
+  { brand: "Mahindra", name: "Mahindra Scorpio Classic", fuel: "Diesel", eff: 14.4, type: "car" },
+  { brand: "Mahindra", name: "Mahindra XUV700", fuel: "Diesel", eff: 16.5, type: "car" },
+  { brand: "Mahindra", name: "Mahindra XUV700 Petrol", fuel: "Petrol", eff: 12.8, type: "car" },
+  { brand: "Mahindra", name: "Mahindra XUV 3XO", fuel: "Petrol", eff: 18.8, type: "car" },
+  { brand: "Mahindra", name: "Mahindra XUV 3XO Diesel", fuel: "Diesel", eff: 20.6, type: "car" },
+  { brand: "Mahindra", name: "Mahindra XUV400 EV", fuel: "EV", eff: 6.8, type: "car" },
+  { brand: "Mahindra", name: "Mahindra Bolero", fuel: "Diesel", eff: 16.0, type: "car" },
+  { brand: "Mahindra", name: "Mahindra Bolero Neo", fuel: "Diesel", eff: 17.2, type: "car" },
+
+  // Kia
+  { brand: "Kia", name: "Kia Seltos", fuel: "Petrol", eff: 17.0, type: "car" },
+  { brand: "Kia", name: "Kia Seltos Diesel", fuel: "Diesel", eff: 20.7, type: "car" },
+  { brand: "Kia", name: "Kia Sonet", fuel: "Petrol", eff: 18.4, type: "car" },
+  { brand: "Kia", name: "Kia Sonet Diesel", fuel: "Diesel", eff: 22.3, type: "car" },
+  { brand: "Kia", name: "Kia Carens", fuel: "Petrol", eff: 16.5, type: "car" },
+  { brand: "Kia", name: "Kia Carens Diesel", fuel: "Diesel", eff: 21.3, type: "car" },
+  { brand: "Kia", name: "Kia EV6", fuel: "EV", eff: 6.4, type: "car" },
+  { brand: "Kia", name: "Kia Carnival", fuel: "Diesel", eff: 14.8, type: "car" },
+
+  // Honda
+  { brand: "Honda", name: "Honda City", fuel: "Petrol", eff: 17.8, type: "car" },
+  { brand: "Honda", name: "Honda City e:HEV Hybrid", fuel: "Petrol", eff: 27.1, type: "car" },
+  { brand: "Honda", name: "Honda Elevate", fuel: "Petrol", eff: 16.9, type: "car" },
+  { brand: "Honda", name: "Honda Amaze", fuel: "Petrol", eff: 18.6, type: "car" },
+  { brand: "Honda", name: "Honda Civic", fuel: "Petrol", eff: 16.5, type: "car" },
+
+  // Volkswagen & Skoda
+  { brand: "Volkswagen", name: "Volkswagen Virtus", fuel: "Petrol", eff: 19.4, type: "car" },
+  { brand: "Volkswagen", name: "Volkswagen Taigun", fuel: "Petrol", eff: 18.2, type: "car" },
+  { brand: "Volkswagen", name: "Volkswagen Polo", fuel: "Petrol", eff: 18.2, type: "car" },
+  { brand: "Skoda", name: "Skoda Slavia", fuel: "Petrol", eff: 19.4, type: "car" },
+  { brand: "Skoda", name: "Skoda Kushaq", fuel: "Petrol", eff: 18.2, type: "car" },
+  { brand: "Skoda", name: "Skoda Kylaq", fuel: "Petrol", eff: 19.0, type: "car" },
+  { brand: "Skoda", name: "Skoda Octavia", fuel: "Petrol", eff: 15.8, type: "car" },
+  { brand: "Skoda", name: "Skoda Superb", fuel: "Petrol", eff: 15.1, type: "car" },
+  { brand: "Skoda", name: "Skoda Kodiaq", fuel: "Petrol", eff: 12.7, type: "car" },
+
+  // MG
+  { brand: "MG", name: "MG Hector", fuel: "Petrol", eff: 13.7, type: "car" },
+  { brand: "MG", name: "MG Hector Diesel", fuel: "Diesel", eff: 15.5, type: "car" },
+  { brand: "MG", name: "MG Astor", fuel: "Petrol", eff: 15.4, type: "car" },
+  { brand: "MG", name: "MG Windsor EV", fuel: "EV", eff: 7.5, type: "car" },
+  { brand: "MG", name: "MG ZS EV", fuel: "EV", eff: 7.0, type: "car" },
+  { brand: "MG", name: "MG Comet EV", fuel: "EV", eff: 8.5, type: "car" },
+
+  // Tesla & Luxury
+  { brand: "Tesla", name: "Tesla Model 3", fuel: "EV", eff: 7.5, type: "car" },
+  { brand: "Tesla", name: "Tesla Model Y", fuel: "EV", eff: 6.8, type: "car" },
+  { brand: "Tesla", name: "Tesla Model S", fuel: "EV", eff: 6.2, type: "car" },
+  { brand: "Tesla", name: "Tesla Model X", fuel: "EV", eff: 5.5, type: "car" },
+  { brand: "BMW", name: "BMW 3 Series", fuel: "Petrol", eff: 15.3, type: "car" },
+  { brand: "BMW", name: "BMW 3 Series Diesel", fuel: "Diesel", eff: 20.3, type: "car" },
+  { brand: "BMW", name: "BMW X1", fuel: "Petrol", eff: 16.3, type: "car" },
+  { brand: "BMW", name: "BMW i4 EV", fuel: "EV", eff: 6.5, type: "car" },
+  { brand: "Mercedes", name: "Mercedes-Benz C-Class", fuel: "Petrol", eff: 16.9, type: "car" },
+  { brand: "Mercedes", name: "Mercedes-Benz C-Class Diesel", fuel: "Diesel", eff: 23.0, type: "car" },
+  { brand: "Mercedes", name: "Mercedes-Benz GLA", fuel: "Petrol", eff: 17.4, type: "car" },
+  { brand: "Mercedes", name: "Mercedes-Benz EQE EV", fuel: "EV", eff: 5.8, type: "car" },
+  { brand: "Audi", name: "Audi A4", fuel: "Petrol", eff: 17.4, type: "car" },
+  { brand: "Audi", name: "Audi Q3", fuel: "Petrol", eff: 15.0, type: "car" },
+  { brand: "Audi", name: "Audi Q5", fuel: "Petrol", eff: 13.4, type: "car" },
+
+  // Two Wheelers (Bikes / Scooters / EVs)
+  { brand: "Royal Enfield", name: "Royal Enfield Classic 350", fuel: "Petrol", eff: 37.0, type: "bike" },
+  { brand: "Royal Enfield", name: "Royal Enfield Hunter 350", fuel: "Petrol", eff: 36.2, type: "bike" },
+  { brand: "Royal Enfield", name: "Royal Enfield Bullet 350", fuel: "Petrol", eff: 37.0, type: "bike" },
+  { brand: "Royal Enfield", name: "Royal Enfield Himalayan 450", fuel: "Petrol", eff: 30.0, type: "bike" },
+  { brand: "Royal Enfield", name: "Royal Enfield Meteor 350", fuel: "Petrol", eff: 35.0, type: "bike" },
+  { brand: "Honda", name: "Honda Activa 6G", fuel: "Petrol", eff: 50.0, type: "bike" },
+  { brand: "Honda", name: "Honda Shine 125", fuel: "Petrol", eff: 55.0, type: "bike" },
+  { brand: "Honda", name: "Honda SP 125", fuel: "Petrol", eff: 60.0, type: "bike" },
+  { brand: "Hero", name: "Hero Splendor Plus", fuel: "Petrol", eff: 65.0, type: "bike" },
+  { brand: "Hero", name: "Hero HF Deluxe", fuel: "Petrol", eff: 65.0, type: "bike" },
+  { brand: "Hero", name: "Hero Xpulse 200", fuel: "Petrol", eff: 40.0, type: "bike" },
+  { brand: "TVS", name: "TVS Jupiter", fuel: "Petrol", eff: 50.0, type: "bike" },
+  { brand: "TVS", name: "TVS Apache RTR 160", fuel: "Petrol", eff: 45.0, type: "bike" },
+  { brand: "TVS", name: "TVS Raider 125", fuel: "Petrol", eff: 57.0, type: "bike" },
+  { brand: "TVS", name: "TVS Ntorq 125", fuel: "Petrol", eff: 47.0, type: "bike" },
+  { brand: "TVS", name: "TVS iQube EV", fuel: "EV", eff: 25.0, type: "bike" },
+  { brand: "Bajaj", name: "Bajaj Pulsar 150", fuel: "Petrol", eff: 47.0, type: "bike" },
+  { brand: "Bajaj", name: "Bajaj Pulsar NS200", fuel: "Petrol", eff: 36.0, type: "bike" },
+  { brand: "Bajaj", name: "Bajaj Platina 110", fuel: "Petrol", eff: 70.0, type: "bike" },
+  { brand: "Bajaj", name: "Bajaj Chetak EV", fuel: "EV", eff: 24.0, type: "bike" },
+  { brand: "Yamaha", name: "Yamaha MT-15", fuel: "Petrol", eff: 48.0, type: "bike" },
+  { brand: "Yamaha", name: "Yamaha R15 V4", fuel: "Petrol", eff: 45.0, type: "bike" },
+  { brand: "Suzuki", name: "Suzuki Access 125", fuel: "Petrol", eff: 50.0, type: "bike" },
+  { brand: "Suzuki", name: "Suzuki Burgman Street", fuel: "Petrol", eff: 48.0, type: "bike" },
+  { brand: "KTM", name: "KTM Duke 200", fuel: "Petrol", eff: 35.0, type: "bike" },
+  { brand: "KTM", name: "KTM Duke 390", fuel: "Petrol", eff: 28.0, type: "bike" },
+  { brand: "Ather", name: "Ather 450X EV", fuel: "EV", eff: 28.0, type: "bike" },
+  { brand: "Ather", name: "Ather Rizta EV", fuel: "EV", eff: 27.0, type: "bike" },
+  { brand: "Ola", name: "Ola S1 Pro EV", fuel: "EV", eff: 26.0, type: "bike" },
+  { brand: "Ola", name: "Ola S1 Air EV", fuel: "EV", eff: 28.0, type: "bike" },
+  { brand: "Simple", name: "Simple One EV", fuel: "EV", eff: 30.0, type: "bike" },
+  { brand: "Cycle", name: "Bicycle / Cycle", fuel: "EV", eff: 999.0, type: "bike" },
+];
+
+/* ─────────────────────────────────────────────────────────────
    ICONS
 ───────────────────────────────────────────────────────────── */
 const P = {
@@ -5629,6 +5827,54 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
   const [vname, setVname] = useState("");
   const [vfuel, setVfuel] = useState("Petrol");
   const [veff, setVeff] = useState("");
+  const [showVehDropdown, setShowVehDropdown] = useState(false);
+  const [vehHighlightIndex, setVehHighlightIndex] = useState(-1);
+
+  const matchingVehicles = useMemo(() => {
+    const q = (vname || "").trim().toLowerCase();
+    if (!q) {
+      // Default suggested popular vehicles
+      return POPULAR_VEHICLES.filter(v => 
+        ["Toyota Innova Hycross Hybrid", "Toyota Fortuner", "Maruti Suzuki Swift", "Hyundai Creta", "Tata Nexon EV", "Mahindra Thar", "Honda City", "Honda Activa 6G", "Ather 450X EV", "Royal Enfield Classic 350"].includes(v.name)
+      );
+    }
+    return POPULAR_VEHICLES.filter(v => 
+      v.name.toLowerCase().includes(q) ||
+      v.fuel.toLowerCase().includes(q) ||
+      (v.brand && v.brand.toLowerCase().includes(q))
+    ).slice(0, 12);
+  }, [vname]);
+
+  const handleSelectPresetVehicle = (v) => {
+    setVname(v.name);
+    setVfuel(v.fuel);
+    setVeff(v.eff.toString());
+    setShowVehDropdown(false);
+    setVehHighlightIndex(-1);
+  };
+
+  const handleVehInputKeyDown = (e) => {
+    if (!showVehDropdown || matchingVehicles.length === 0) {
+      if (e.key === "ArrowDown") {
+        setShowVehDropdown(true);
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setVehHighlightIndex(prev => (prev + 1) % matchingVehicles.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setVehHighlightIndex(prev => (prev <= 0 ? matchingVehicles.length - 1 : prev - 1));
+    } else if (e.key === "Enter") {
+      if (vehHighlightIndex >= 0 && vehHighlightIndex < matchingVehicles.length) {
+        e.preventDefault();
+        handleSelectPresetVehicle(matchingVehicles[vehHighlightIndex]);
+      }
+    } else if (e.key === "Escape") {
+      setShowVehDropdown(false);
+    }
+  };
 
   // Document form state
   const [docType, setDocType] = useState("Driving License");
@@ -6100,13 +6346,138 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
             <form onSubmit={handleAddVehicle} style={{ background: C.dim, borderRadius: 16, padding: 16, marginBottom: 16, border: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 12, textTransform: "uppercase" }}>New Vehicle Specs</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <input 
-                  value={vname} 
-                  onChange={e => setVname(e.target.value)} 
-                  placeholder="Vehicle Model, e.g. Tesla Model Y" 
-                  required 
-                  style={{ width: "100%", background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }} 
-                />
+                {/* Vehicle Model with Autocomplete Dropdown */}
+                <div style={{ position: "relative", width: "100%" }}>
+                  <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
+                    <input 
+                      value={vname} 
+                      onChange={e => {
+                        setVname(e.target.value);
+                        setShowVehDropdown(true);
+                        setVehHighlightIndex(-1);
+                      }} 
+                      onFocus={() => setShowVehDropdown(true)}
+                      onKeyDown={handleVehInputKeyDown}
+                      placeholder="Vehicle Model, e.g. Toyota Innova, Swift, Thar" 
+                      required 
+                      autoComplete="off"
+                      style={{ 
+                        width: "100%", 
+                        background: C.surface, 
+                        border: `1.5px solid ${showVehDropdown ? C.accent : C.border2}`, 
+                        borderRadius: 10, 
+                        color: C.text, 
+                        padding: "10px 36px 10px 12px", 
+                        fontSize: 13, 
+                        outline: "none", 
+                        fontFamily: "inherit",
+                        transition: "border-color 0.2s"
+                      }} 
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowVehDropdown(!showVehDropdown)}
+                      style={{
+                        position: "absolute",
+                        right: 8,
+                        background: "none",
+                        border: "none",
+                        color: C.muted,
+                        cursor: "pointer",
+                        padding: "4px",
+                        display: "flex",
+                        alignItems: "center"
+                      }}
+                      title="Browse vehicle models"
+                    >
+                      <Ic n="chevron" s={14} c={C.muted} style={{ transform: showVehDropdown ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+                    </button>
+                  </div>
+
+                  {/* Dropdown Suggestions */}
+                  {showVehDropdown && matchingVehicles.length > 0 && (
+                    <>
+                      <div 
+                        onClick={() => setShowVehDropdown(false)} 
+                        style={{ position: "fixed", inset: 0, zIndex: 999 }} 
+                      />
+                      <div 
+                        style={{ 
+                          position: "absolute", 
+                          top: "calc(100% + 6px)", 
+                          left: 0, 
+                          right: 0, 
+                          zIndex: 1000, 
+                          background: C.surface, 
+                          border: `1.5px solid ${C.border2}`, 
+                          borderRadius: 14, 
+                          boxShadow: "0 14px 34px rgba(0,0,0,0.45)", 
+                          maxHeight: 240, 
+                          overflowY: "auto",
+                          padding: 6
+                        }}
+                      >
+                        <div style={{ padding: "6px 10px", fontSize: 10, fontWeight: 800, color: C.muted, textTransform: "uppercase", letterSpacing: "0.5px", borderBottom: `1px solid ${C.border}`, marginBottom: 4, display: "flex", justifyContent: "space-between" }}>
+                          <span>{vname.trim() ? `Matching Models (${matchingVehicles.length})` : "Popular Vehicles"}</span>
+                          <span style={{ color: C.accent, fontWeight: 700 }}>Click to auto-fill</span>
+                        </div>
+                        {matchingVehicles.map((v, idx) => {
+                          const isHighlighted = idx === vehHighlightIndex;
+                          const fuelBadgeColor = v.fuel === "EV" ? "#10b981" : v.fuel === "Diesel" ? "#f59e0b" : v.fuel === "CNG" ? "#06b6d4" : "#8b5cf6";
+                          const fuelBadgeBg = v.fuel === "EV" ? "rgba(16, 185, 129, 0.12)" : v.fuel === "Diesel" ? "rgba(245, 158, 11, 0.12)" : v.fuel === "CNG" ? "rgba(6, 182, 212, 0.12)" : "rgba(139, 92, 246, 0.12)";
+                          const iconSymbol = v.type === "bike" ? "🏍️" : v.fuel === "EV" ? "⚡" : "🚗";
+
+                          return (
+                            <div
+                              key={v.name + v.fuel + idx}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                handleSelectPresetVehicle(v);
+                              }}
+                              onMouseEnter={() => setVehHighlightIndex(idx)}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                padding: "8px 10px",
+                                borderRadius: 10,
+                                cursor: "pointer",
+                                background: isHighlighted ? C.dim : "transparent",
+                                border: isHighlighted ? `1px solid ${C.border}` : "1px solid transparent",
+                                transition: "all 0.15s ease",
+                                gap: 10
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+                                <span style={{ fontSize: 14 }}>{iconSymbol}</span>
+                                <span style={{ fontSize: 12.5, fontWeight: 600, color: C.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {v.name}
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                <span style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  padding: "2px 7px",
+                                  borderRadius: 6,
+                                  color: fuelBadgeColor,
+                                  background: fuelBadgeBg,
+                                  border: `1px solid ${fuelBadgeColor}33`
+                                }}>
+                                  {v.fuel}
+                                </span>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: C.muted }}>
+                                  {v.eff} {v.fuel === "EV" ? "km/kWh" : "km/L"}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
                 <div style={{ display: "flex", gap: 10 }}>
                   <select 
                     value={vfuel} 

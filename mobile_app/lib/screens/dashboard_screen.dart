@@ -104,65 +104,140 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  static const List<Map<String, dynamic>> _popularVehicles = [
+    {'name': 'Toyota Innova Crysta', 'fuel': 'Diesel', 'eff': 12.0},
+    {'name': 'Toyota Innova Hycross', 'fuel': 'Petrol', 'eff': 16.1},
+    {'name': 'Toyota Innova Hycross Hybrid', 'fuel': 'Petrol', 'eff': 23.2},
+    {'name': 'Toyota Fortuner', 'fuel': 'Diesel', 'eff': 10.5},
+    {'name': 'Toyota Fortuner Petrol', 'fuel': 'Petrol', 'eff': 9.0},
+    {'name': 'Toyota Urban Cruiser Hyryder', 'fuel': 'Petrol', 'eff': 21.1},
+    {'name': 'Toyota Urban Cruiser Hyryder Hybrid', 'fuel': 'Petrol', 'eff': 27.9},
+    {'name': 'Toyota Glanza', 'fuel': 'Petrol', 'eff': 22.3},
+    {'name': 'Toyota Glanza CNG', 'fuel': 'CNG', 'eff': 30.6},
+    {'name': 'Toyota Rumion', 'fuel': 'Petrol', 'eff': 20.5},
+    {'name': 'Toyota Hilux', 'fuel': 'Diesel', 'eff': 10.0},
+    {'name': 'Toyota Camry Hybrid', 'fuel': 'Petrol', 'eff': 19.1},
+    {'name': 'Maruti Suzuki Swift', 'fuel': 'Petrol', 'eff': 24.8},
+    {'name': 'Maruti Suzuki Baleno', 'fuel': 'Petrol', 'eff': 22.3},
+    {'name': 'Maruti Suzuki Brezza', 'fuel': 'Petrol', 'eff': 17.3},
+    {'name': 'Maruti Suzuki Grand Vitara', 'fuel': 'Petrol', 'eff': 21.1},
+    {'name': 'Hyundai Creta', 'fuel': 'Petrol', 'eff': 17.4},
+    {'name': 'Hyundai Venue', 'fuel': 'Petrol', 'eff': 17.5},
+    {'name': 'Tata Nexon', 'fuel': 'Petrol', 'eff': 17.4},
+    {'name': 'Tata Nexon EV', 'fuel': 'Electric', 'eff': 7.2},
+    {'name': 'Tata Punch', 'fuel': 'Petrol', 'eff': 20.0},
+    {'name': 'Mahindra Thar', 'fuel': 'Diesel', 'eff': 15.2},
+    {'name': 'Mahindra XUV700', 'fuel': 'Diesel', 'eff': 16.5},
+    {'name': 'Mahindra Scorpio-N', 'fuel': 'Diesel', 'eff': 15.0},
+    {'name': 'Kia Seltos', 'fuel': 'Petrol', 'eff': 17.0},
+    {'name': 'Honda City', 'fuel': 'Petrol', 'eff': 17.8},
+    {'name': 'Honda Elevate', 'fuel': 'Petrol', 'eff': 16.9},
+    {'name': 'Honda Activa 6G', 'fuel': 'Petrol', 'eff': 50.0},
+    {'name': 'Royal Enfield Classic 350', 'fuel': 'Petrol', 'eff': 37.0},
+    {'name': 'Ather 450X EV', 'fuel': 'Electric', 'eff': 28.0},
+    {'name': 'Ola S1 Pro EV', 'fuel': 'Electric', 'eff': 26.0},
+  ];
+
   void _showAddVehicleDialog() {
-    final nameCtrl = TextEditingController();
+    TextEditingController nameCtrl = TextEditingController();
     String fuelType = 'Petrol';
     final effCtrl = TextEditingController(text: '15.0');
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Vehicle to Garage'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Vehicle Name (e.g. Honda City)', border: OutlineInputBorder()),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add Vehicle to Garage'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Autocomplete<Map<String, dynamic>>(
+                      displayStringForOption: (opt) => opt['name'] as String,
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        if (textEditingValue.text.isEmpty) {
+                          return _popularVehicles.take(6);
+                        }
+                        final q = textEditingValue.text.toLowerCase();
+                        return _popularVehicles.where((v) =>
+                            (v['name'] as String).toLowerCase().contains(q) ||
+                            (v['fuel'] as String).toLowerCase().contains(q));
+                      },
+                      onSelected: (Map<String, dynamic> selection) {
+                        setDialogState(() {
+                          final f = selection['fuel'] as String;
+                          fuelType = f == 'EV' ? 'Electric' : f;
+                          effCtrl.text = (selection['eff'] as double).toString();
+                        });
+                      },
+                      fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                        nameCtrl = textEditingController;
+                        return TextField(
+                          controller: textEditingController,
+                          focusNode: focusNode,
+                          decoration: const InputDecoration(
+                            labelText: 'Vehicle Model (e.g. Toyota Innova, Swift)',
+                            border: OutlineInputBorder(),
+                            suffixIcon: Icon(Icons.arrow_drop_down),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: fuelType,
+                      decoration: const InputDecoration(labelText: 'Fuel Type', border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(value: 'Petrol', child: Text('Petrol')),
+                        DropdownMenuItem(value: 'Diesel', child: Text('Diesel')),
+                        DropdownMenuItem(value: 'Electric', child: Text('Electric (EV)')),
+                        DropdownMenuItem(value: 'CNG', child: Text('CNG')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() {
+                            fuelType = v;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: effCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: fuelType == 'Electric' ? 'Efficiency (km/kWh)' : 'Efficiency (km/L)',
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: fuelType,
-                decoration: const InputDecoration(labelText: 'Fuel Type', border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'Petrol', child: Text('Petrol')),
-                  DropdownMenuItem(value: 'Diesel', child: Text('Diesel')),
-                  DropdownMenuItem(value: 'Electric', child: Text('Electric (EV)')),
-                  DropdownMenuItem(value: 'CNG', child: Text('CNG')),
-                ],
-                onChanged: (v) {
-                  if (v != null) fuelType = v;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: effCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Efficiency (km/l or km/kWh)', border: OutlineInputBorder()),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameCtrl.text.trim();
-                final eff = double.tryParse(effCtrl.text.trim()) ?? 14.0;
-                if (name.isNotEmpty) {
-                  await ApiService.addVehicle(name, fuelType, eff);
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                  }
-                  _loadData();
-                }
-              },
-              child: const Text('Add'),
-            ),
-          ],
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () async {
+                    final name = nameCtrl.text.trim();
+                    final eff = double.tryParse(effCtrl.text.trim()) ?? 14.0;
+                    if (name.isNotEmpty) {
+                      await ApiService.addVehicle(name, fuelType == 'Electric' ? 'EV' : fuelType, eff);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                      _loadData();
+                    }
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
+  }
   }
 
   void _showAddDocumentDialog() {
