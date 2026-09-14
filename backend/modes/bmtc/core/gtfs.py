@@ -197,8 +197,14 @@ def get_route_next_departure(
     if not _gtfs_data or not _route_departures:
         return None
 
-    base_route = route_no.replace("_REV", "")
-    route_table = _route_departures.get(base_route)
+    base_route = route_no.replace("_REV", "").strip()
+    clean_base = base_route.split()[0] if base_route else base_route
+    route_table = (
+        _route_departures.get(base_route) or
+        _route_departures.get(clean_base) or
+        _route_departures.get(clean_base.replace("-", "")) or
+        _route_departures.get(route_no)
+    )
     if not route_table:
         return None
 

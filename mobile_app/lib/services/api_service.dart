@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Central API service that mirrors every endpoint used by the website frontend.
 /// All methods are static. The [baseUrl] can be updated at runtime from the
@@ -11,7 +12,7 @@ class ApiService {
 
   static String get defaultBaseUrl {
     if (kIsWeb) return 'http://localhost:8000';
-    if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:8000';
+    if (defaultTargetPlatform == TargetPlatform.android) return 'http://192.168.0.103:8000';
     return 'http://127.0.0.1:8000';
   }
 
@@ -24,15 +25,52 @@ class ApiService {
 
   static Map<String, String> get authHeaders => {
         'Content-Type': 'application/json',
+        'Bypass-Tunnel-Reminder': 'true',
+        'User-Agent': 'BMTC_Mobile_App',
         if (token != null) 'Authorization': 'Bearer $token',
       };
+
+  static Future<void> saveSession(String userToken, String username) async {
+    token = userToken;
+    loggedInUsername = username;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_token', userToken);
+      await prefs.setString('logged_in_username', username);
+      await prefs.setBool('is_logged_in', true);
+    } catch (_) {}
+  }
+
+  static Future<String?> loadSavedSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+      if (isLoggedIn) {
+        token = prefs.getString('user_token');
+        loggedInUsername = prefs.getString('logged_in_username') ?? 'Commuter';
+        return loggedInUsername;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  static Future<void> logoutSession() async {
+    token = null;
+    loggedInUsername = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_token');
+      await prefs.remove('logged_in_username');
+      await prefs.setBool('is_logged_in', false);
+    } catch (_) {}
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>?> _get(String path) async {
     try {
       final res = await http
-          .get(Uri.parse('$baseUrl$path'))
+          .get(Uri.parse('$baseUrl$path'), headers: authHeaders)
           .timeout(const Duration(seconds: 12));
       if (res.statusCode == 200) {
         return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
@@ -58,7 +96,7 @@ class ApiService {
       final res = await http
           .post(
             Uri.parse('$baseUrl$path'),
-            headers: {'Content-Type': 'application/json'},
+            headers: authHeaders,
             body: json.encode(body),
           )
           .timeout(const Duration(seconds: 45));
@@ -103,56 +141,72 @@ class ApiService {
   static Future<Map<String, dynamic>> login({
     required String username,
     required String password,
+    bool isRetry = false,
   }) async {
     final url = Uri.parse('$baseUrl/api/auth/login');
     try {
       final res = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: authHeaders,
             body: json.encode({'username': username, 'password': password}),
           )
           .timeout(const Duration(seconds: 10));
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
-        token = data['access_token'];
-        loggedInUsername = data['username'];
+        final userToken = data['access_token'] as String;
+        final uName = data['username'] as String;
+        await saveSession(userToken, uName);
         return {'success': true, 'username': loggedInUsername};
       } else {
         final err = json.decode(res.body);
         return {'success': false, 'error': err['detail'] ?? 'Invalid credentials'};
       }
     } catch (e) {
-      return {'success': false, 'error': 'Cannot connect to backend'};
+      if (!isRetry) {
+        final reconnected = await checkHealth();
+        if (reconnected) {
+          return login(username: username, password: password, isRetry: true);
+        }
+      }
+      return {'success': false, 'error': 'Cannot connect to backend server ($baseUrl)'};
     }
   }
 
   static Future<Map<String, dynamic>> signup({
     required String username,
     required String password,
+    bool isRetry = false,
   }) async {
     final url = Uri.parse('$baseUrl/api/auth/signup');
     try {
       final res = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: authHeaders,
             body: json.encode({'username': username, 'password': password}),
           )
           .timeout(const Duration(seconds: 10));
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
-        token = data['access_token'];
-        loggedInUsername = data['username'];
+        final userToken = data['access_token'] as String;
+        final uName = data['username'] as String;
+        await saveSession(userToken, uName);
         return {'success': true, 'username': loggedInUsername};
       } else {
         final err = json.decode(res.body);
         return {'success': false, 'error': err['detail'] ?? 'Registration failed'};
       }
     } catch (e) {
-      return {'success': false, 'error': 'Cannot connect to backend'};
+      if (!isRetry) {
+        final reconnected = await checkHealth();
+        if (reconnected) {
+          return signup(username: username, password: password, isRetry: true);
+        }
+      }
+      return {'success': false, 'error': 'Cannot connect to backend server ($baseUrl)'};
     }
   }
 
@@ -729,17 +783,37 @@ class ApiService {
       _deleteAuth('/api/user/documents/$docId');
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // HEALTH CHECK
+  // HEALTH CHECK & AUTO FAILOVER
   // ═══════════════════════════════════════════════════════════════════════════
 
-  static Future<bool> checkHealth() async {
+  static final List<String> candidateUrls = [
+    'https://light-hairs-go.loca.lt',
+    'http://192.168.0.103:8000',
+    'http://localhost:8000',
+  ];
+
+  static Future<bool> _testUrl(String targetUrl) async {
     try {
-      final res = await http
-          .get(Uri.parse('$baseUrl/api/health'))
-          .timeout(const Duration(seconds: 5));
+      final res = await http.get(
+        Uri.parse('$targetUrl/api/cab/providers'),
+        headers: authHeaders,
+      ).timeout(const Duration(seconds: 5));
       return res.statusCode == 200;
     } catch (_) {
       return false;
     }
+  }
+
+  static Future<bool> checkHealth() async {
+    if (await _testUrl(baseUrl)) return true;
+
+    for (final candidate in candidateUrls) {
+      if (candidate != baseUrl && await _testUrl(candidate)) {
+        baseUrl = candidate;
+        debugPrint("ApiService auto-switched active baseUrl to: $baseUrl");
+        return true;
+      }
+    }
+    return false;
   }
 }

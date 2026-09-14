@@ -23,7 +23,12 @@ def _load_route_trips() -> dict[str, int]:
         trips_df = pd.read_csv(GTFS_TRIPS, dtype={"route_id": str, "trip_id": str})
         routes_df = pd.read_csv(GTFS_ROUTES, dtype={"route_id": str, "route_short_name": str})
         merged = trips_df.merge(routes_df[["route_id", "route_short_name"]], on="route_id", how="left")
-        return merged.groupby("route_short_name").size().to_dict()
+        res = merged.groupby("route_short_name").size().to_dict()
+        for k, v in list(res.items()):
+            if isinstance(k, str):
+                res[k.upper()] = v
+                res[k.replace("-", "").upper()] = v
+        return res
     except Exception:
         return {}
 
@@ -555,15 +560,28 @@ def _fast_transfer_options(
     if not src_route_pairs or not dst_route_pairs:
         return tuple()
 
-    # Sort source and destination route pairs by frequency (trips_per_day) descending
-    # checking route_no, stripped _REV, and base_route so 600-F_REV gets full 133 trips priority
+    def _clean_route_base(rno: str) -> str:
+        if not rno:
+            return ""
+        clean = str(rno).replace("_REV", "").strip()
+        return clean.split()[0] if clean else clean
+
     def _get_trips(route_dict):
         rno = route_dict.get("route_no", "")
         base = route_dict.get("base_route", "")
-        return _route_trips.get(rno, _route_trips.get(rno.replace("_REV", ""), _route_trips.get(base, 0)))
+        crno = _clean_route_base(rno)
+        cbase = _clean_route_base(base)
+        return max(
+            _route_trips.get(rno, 0),
+            _route_trips.get(rno.replace("_REV", ""), 0),
+            _route_trips.get(base, 0),
+            _route_trips.get(crno, 0),
+            _route_trips.get(cbase, 0),
+            _route_trips.get(crno.replace("-", ""), 0),
+        )
 
-    src_route_pairs.sort(key=lambda pair: _get_trips(pair[0]), reverse=True)
-    dst_route_pairs.sort(key=lambda pair: _get_trips(pair[0]), reverse=True)
+    src_route_pairs.sort(key=lambda pair: (0 if pair[1] == src_norm else 1, -_get_trips(pair[0])))
+    dst_route_pairs.sort(key=lambda pair: (0 if pair[1] == dst_norm else 1, -_get_trips(pair[0])))
 
     src_route_pairs = src_route_pairs[:80]
     dst_route_pairs = dst_route_pairs[:80]

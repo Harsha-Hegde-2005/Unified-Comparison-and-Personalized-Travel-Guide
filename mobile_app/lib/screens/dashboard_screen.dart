@@ -2,8 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-// ignore: avoid_web_libraries_in_flutter, deprecated_member_use
-import 'dart:html' as html;
+import '../utils/web_helper/web_helper.dart';
 import '../services/api_service.dart';
 import '../services/recent_searches_store.dart';
 import '../theme.dart';
@@ -285,9 +284,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               onPressed: () {
                 if (kIsWeb) {
-                  try {
-                    html.window.open(fileUrl, '_blank');
-                  } catch (_) {}
+                  WebHelper.openUrl(fileUrl);
                 }
               },
               icon: const Icon(Icons.open_in_new_rounded, size: 16),
@@ -986,28 +983,13 @@ class _AddDocumentDialogState extends State<_AddDocumentDialog> {
 
   void _pickDocumentFile() {
     if (kIsWeb) {
-      try {
-        final uploadInput = html.FileUploadInputElement()..accept = '.pdf,.png,.jpg,.jpeg,.doc,.docx';
-        uploadInput.click();
-        uploadInput.onChange.listen((e) {
-          final files = uploadInput.files;
-          if (files != null && files.isNotEmpty) {
-            final file = files[0];
-            final reader = html.FileReader();
-            reader.readAsArrayBuffer(file);
-            reader.onLoadEnd.listen((e) {
-              final result = reader.result;
-              if (result is Uint8List) {
-                setState(() {
-                  _attachedFileName = file.name;
-                  _attachedBytes = result.toList();
-                });
-              }
-            });
-          }
+      WebHelper.triggerFileUpload((filename, bytes) {
+        setState(() {
+          _attachedFileName = filename;
+          _attachedBytes = bytes;
         });
-        return;
-      } catch (_) {}
+      });
+      return;
     }
 
     final cleanType = (_docType == 'Other' ? (_customDocTypeCtrl.text.trim().isNotEmpty ? _customDocTypeCtrl.text.trim() : 'Document') : _docType)

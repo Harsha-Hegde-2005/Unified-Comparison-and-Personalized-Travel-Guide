@@ -357,7 +357,7 @@ def find_top_nearby_bmtc_stops(lat: float, lng: float, n: int = 5) -> list[tuple
         norm_key = norm.strip().lower()
         route_count = len(_routes_by_stop.get(norm_key, []))
         if route_count > 0:
-            score = route_count / ((dist + 0.05) ** 2)
+            score = (1.0 / (dist + 0.05)) * (1.0 + 0.05 * min(route_count, 30))
         else:
             score = 0.01 / (dist + 0.05)
         canon = canonical_stop_name(norm)
@@ -1034,11 +1034,13 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
     if dst_coord:
         dest_lat, dest_lng = dst_coord
 
+    bus_dep_dt = dep_time + timedelta(minutes=start_walk_mins)
+
     try:
         direct, transfers = get_all_buses_comprehensive(
             src_norm, dst_norm,
             max_transfer_options=max_options,
-            departure_dt=dep_time,
+            departure_dt=bus_dep_dt,
             preference=req.preference,
             src_coord=src_coord,
             dst_coord=dst_coord
@@ -1075,10 +1077,12 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
                 if alt_src.lower() == source.lower() and alt_dst.lower() == destination.lower():
                     continue  # already tried this combination
                 try:
+                    alt_walk_mins = max(1, int(alt_src_dist * 12.5)) if src_coord else start_walk_mins
+                    alt_bus_dep_dt = dep_time + timedelta(minutes=alt_walk_mins)
                     alt_direct, alt_transfers = get_all_buses_comprehensive(
                         alt_src.strip().lower(), alt_dst.strip().lower(),
                         max_transfer_options=max_options,
-                        departure_dt=dep_time,
+                        departure_dt=alt_bus_dep_dt,
                         preference=req.preference,
                         src_coord=src_coord,
                         dst_coord=dst_coord
@@ -1280,7 +1284,7 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
             direct_dist = _haversine_km(start_lat, start_lng, dest_lat, dest_lng)
         
         total_walking = start_walk_dist + end_walk_dist
-        if total_walking >= direct_dist:
+        if total_walking >= direct_dist * 2.5 and (start_walk_dist > 3.0 or end_walk_dist > 3.0):
             res = {
                 "available": False,
                 "mode": "bmtc",
@@ -1367,20 +1371,25 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
         })
 
     # Shift transit segments
+    current_transit_time = dep_time + timedelta(minutes=start_walk_mins)
     for i, (seg, st) in enumerate(zip(opt["segments"], segs)):
         st_duration = st.get("duration", 20)
+        wait_for_seg = st.get("waiting_time", 0)
+        seg_dep_dt = current_transit_time + timedelta(minutes=wait_for_seg)
+        seg_arr_dt = seg_dep_dt + timedelta(minutes=st_duration)
         
         ui_segs.append({
             "route":     seg[0], "type": "bmtc",
             "from":      seg[1], "to": seg[2],
-            "departure": st.get("departure"), "arrival": st.get("arrival"),
+            "departure": _fmt(seg_dep_dt), "arrival": _fmt(seg_arr_dt),
             "duration":  st_duration,
             "fare":      int(st.get("fare", 15)),
             "distance":  st.get("distance", 5.0),
             "stops":     list(seg[3]) if len(seg) > 3 else [seg[1], seg[2]],
         })
+        current_transit_time = seg_arr_dt
 
-    final_transit_arrival = dep_time + timedelta(minutes=start_walk_mins + transit_mins)
+    final_transit_arrival = current_transit_time
 
     # Append ending walk segment
     if dst_coord:
@@ -1473,7 +1482,7 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
         direct_dist = _haversine_km(start_lat, start_lng, dest_lat, dest_lng)
     
     total_walking = start_walk_dist + end_walk_dist
-    if total_walking >= direct_dist:
+    if total_walking >= direct_dist * 2.5 and (start_walk_dist > 3.0 or end_walk_dist > 3.0):
         res = {
             "available": False,
             "mode": "bmtc",
@@ -1513,11 +1522,18 @@ def bmtc_all_buses(req: AllBusesRequest):
     
     dep_time = _parse_time(req.time)
 
+    start_walk_mins = 0
     # 1. Parse source coordinate / resolve stop
     src_coord = parse_coords(req.source)
     if src_coord:
         start_lat, start_lng = src_coord
-        source, _ = find_nearest_bmtc_stop(start_lat, start_lng)
+        source, start_walk_dist = find_nearest_bmtc_stop(start_lat, start_lng)
+        sc = get_stop_coords(source)
+        walk_metrics = _google_walk_distance(start_lat, start_lng, sc[0], sc[1]) if sc else None
+        if walk_metrics:
+            _, start_walk_mins = walk_metrics
+        else:
+            start_walk_mins = max(1, int(start_walk_dist * 12.5))
     else:
         source = resolve_stop_name(req.source, "bmtc", bmtc_stops=ALL_STOPS)
 
@@ -1538,11 +1554,13 @@ def bmtc_all_buses(req: AllBusesRequest):
     if not dst_coord and destination:
         dst_coord = get_stop_coords(destination)
 
+    bus_dep_dt = dep_time + timedelta(minutes=start_walk_mins)
+
     try:
         direct, transfers = get_all_buses_comprehensive(
             src_norm,
             dst_norm,
-            departure_dt=dep_time,
+            departure_dt=bus_dep_dt,
             src_coord=src_coord,
             dst_coord=dst_coord
         )
@@ -1847,6 +1865,7 @@ def bmtc_route_timetable(route: str, stop: Optional[str] = None):
     # 2. Check if requested stop is served by this route
     route_stop_names = [canonical_stop_name(s) for s in stop_norms]
     board_stop = route_stop_names[0] if route_stop_names else "Starting Stop"
+    matched_stop_idx = 0
 
     if stop and stop.strip():
         resolved_s = resolve_stop_name(stop, "bmtc", bmtc_stops=ALL_STOPS) or stop.strip()
@@ -1865,14 +1884,29 @@ def bmtc_route_timetable(route: str, stop: Optional[str] = None):
                 detail=f"Bus {actual_route} does not stop at '{stop}'. It operates between '{route_stop_names[0]}' and '{route_stop_names[-1]}'."
             )
 
-    # 3. Compute real GTFS departures matching actual trip_count for this route
+    # 3. Compute offset travel time from starting terminal to board_stop
+    stop_offset_mins = 0
+    if matched_stop_idx > 0:
+        from modes.bmtc.core.graph import haversine
+        total_dist_km = 0.0
+        for i in range(matched_stop_idx):
+            c1 = get_stop_coords(stop_norms[i])
+            c2 = get_stop_coords(stop_norms[i+1])
+            if c1 and c2:
+                total_dist_km += haversine(c1[0], c1[1], c2[0], c2[1])
+        if total_dist_km > 0:
+            stop_offset_mins = max(1, int(total_dist_km / 22.0 * 60))
+        else:
+            stop_offset_mins = max(1, int(matched_stop_idx * 2.5))
+
+    # 4. Compute real GTFS departures matching actual trip_count for this route
     base_route = actual_route.replace("_REV", "")
     trip_count = _route_trips.get(base_route, _route_trips.get(actual_route, 0))
     
     gtfs_departures = []
     import hashlib
     seed = int(hashlib.md5(base_route.encode()).hexdigest()[:4], 16)
-    start_min = 320 + (seed % 25) # e.g. 05:20 AM for 600-FD
+    start_min = 320 + (seed % 25) + stop_offset_mins # e.g. 05:20 AM for 600-FD
     
     if trip_count > 0:
         if trip_count <= 6:

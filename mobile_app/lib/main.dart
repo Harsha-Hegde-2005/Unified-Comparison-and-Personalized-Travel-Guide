@@ -5,6 +5,7 @@ import 'screens/login_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/plan_journey_screen.dart';
 import 'screens/transit_hub_screen.dart';
+import 'services/api_service.dart';
 import 'theme.dart';
 
 void main() {
@@ -23,8 +24,24 @@ class _MyAppState extends State<MyApp> {
   final ValueNotifier<String> mapStyleNotifier = ValueNotifier('standard');
   final ValueNotifier<String> mapProviderNotifier = ValueNotifier('google');
 
-  bool _isLoggedIn = false;
-  String _currentUsername = '';
+  bool _isLoggedIn = true;
+  String _currentUsername = 'Commuter';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedUser();
+  }
+
+  Future<void> _loadSavedUser() async {
+    final savedUser = await ApiService.loadSavedSession();
+    if (savedUser != null && mounted) {
+      setState(() {
+        _isLoggedIn = true;
+        _currentUsername = savedUser;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,8 +131,9 @@ class _MyAppState extends State<MyApp> {
                   mapStyleNotifier: mapStyleNotifier,
                   mapProviderNotifier: mapProviderNotifier,
                   username: _currentUsername,
-                  onOpenLogin: () {
-                    setState(() => _isLoggedIn = false);
+                  onOpenLogin: () async {
+                    await ApiService.logoutSession();
+                    if (mounted) setState(() => _isLoggedIn = false);
                   },
                 )
               : LoginScreen(

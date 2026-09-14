@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import '../theme.dart';
 import 'modals.dart';
 
@@ -8,6 +9,8 @@ class TravelGuide extends StatelessWidget {
   final Color color;
   final int? activeSegmentIndex;
   final ValueChanged<int>? onStepTapped;
+  final ll.LatLng? srcCoord;
+  final ll.LatLng? dstCoord;
 
   const TravelGuide({
     super.key,
@@ -15,6 +18,8 @@ class TravelGuide extends StatelessWidget {
     required this.color,
     this.activeSegmentIndex,
     this.onStepTapped,
+    this.srcCoord,
+    this.dstCoord,
   });
 
   IconData _getStepIcon(String? iconType) {
@@ -331,6 +336,8 @@ class TravelGuide extends StatelessWidget {
                                       instruction: text,
                                       fromLocation: stepFrom,
                                       toLocation: stepTo,
+                                      fromCoord: index == 0 ? srcCoord : null,
+                                      toCoord: index == guide!.length - 1 ? dstCoord : null,
                                       duration: duration,
                                     ),
                                   );

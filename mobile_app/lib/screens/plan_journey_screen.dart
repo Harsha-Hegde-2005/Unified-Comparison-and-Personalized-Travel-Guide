@@ -1038,6 +1038,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                       instruction: 'Walk to ${_destController.text.trim()}',
                       fromLocation: _sourceController.text.trim(),
                       toLocation: _destController.text.trim(),
+                      fromCoord: _srcCoord,
+                      toCoord: _dstCoord,
                     ),
                   );
                 },
@@ -1058,6 +1060,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                       instruction: 'Cycle to ${_destController.text.trim()}',
                       fromLocation: _sourceController.text.trim(),
                       toLocation: _destController.text.trim(),
+                      fromCoord: _srcCoord,
+                      toCoord: _dstCoord,
                     ),
                   );
                 },

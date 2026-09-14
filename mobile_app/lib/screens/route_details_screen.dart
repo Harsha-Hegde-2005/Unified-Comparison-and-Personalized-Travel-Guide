@@ -531,6 +531,8 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
               onStepTapped: (idx) {
                 setState(() => _activeSegmentIndex = idx);
               },
+              srcCoord: widget.srcCoord,
+              dstCoord: widget.dstCoord,
             ),
             const SizedBox(height: 20),
           ],

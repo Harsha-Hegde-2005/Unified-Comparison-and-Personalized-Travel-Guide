@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../utils/geolocation_helper.dart';
+import '../utils/tts_helper.dart';
 import 'places_autocomplete_field.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -1129,6 +1131,8 @@ class WalkNavigationModal extends StatefulWidget {
   final String instruction;
   final String? fromLocation;
   final String? toLocation;
+  final ll.LatLng? fromCoord;
+  final ll.LatLng? toCoord;
   final String? duration;
 
   const WalkNavigationModal({
@@ -1136,6 +1140,8 @@ class WalkNavigationModal extends StatefulWidget {
     required this.instruction,
     this.fromLocation,
     this.toLocation,
+    this.fromCoord,
+    this.toCoord,
     this.duration,
   });
 
@@ -1148,6 +1154,16 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
   List<ll.LatLng> _walkPoints = [];
   ll.LatLng? _liveUserGps;
   StreamSubscription<ll.LatLng>? _gpsSubscription;
+
+  bool _isDemoSimulating = false;
+  double _progressRatio = 0.0; // 0.0 to 1.0 based on real GPS or simulation
+  Timer? _simTimer;
+  Timer? _flowTimer;
+  double _flowPhase = 0.0;
+  ll.LatLng? _animatedArrowPos;
+  double _animatedArrowBearing = 0.0;
+  int _activeStepIndex = 0;
+  double _totalRouteMeters = 120.0;
 
   static const Map<String, ll.LatLng> _knownCoords = {
     'majestic': ll.LatLng(12.9767, 77.5713),
@@ -1202,29 +1218,150 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
     super.initState();
     _loadWalkCoords();
     _startGpsTracking();
+    _startFlowAnimation();
   }
 
   @override
   void dispose() {
+    _simTimer?.cancel();
+    _flowTimer?.cancel();
     _gpsSubscription?.cancel();
     super.dispose();
   }
 
+  void _startFlowAnimation() {
+    _flowTimer?.cancel();
+    _flowTimer = Timer.periodic(const Duration(milliseconds: 60), (timer) {
+      if (mounted && _walkPoints.length >= 2) {
+        setState(() {
+          _flowPhase = (_flowPhase + 0.015) % 1.0;
+        });
+      }
+    });
+  }
+
   void _startGpsTracking() {
+    _gpsSubscription?.cancel();
     _gpsSubscription = GeolocationHelper.watchPositionStream().listen((pos) {
       if (mounted) {
-        setState(() {
-          _liveUserGps = pos;
-        });
+        _onUserLocationUpdated(pos);
       }
     });
     GeolocationHelper.getCurrentPosition().then((pos) {
       if (pos != null && mounted) {
-        setState(() {
-          _liveUserGps = pos;
-        });
+        _onUserLocationUpdated(pos);
       }
     });
+  }
+
+  void _onUserLocationUpdated(ll.LatLng pos) {
+    if (_isDemoSimulating) return;
+
+    if (mounted) {
+      setState(() {
+        _liveUserGps = pos;
+        if (_walkPoints.length >= 2) {
+          final info = _getTraversedInfoAlongPolyline(_walkPoints, pos);
+          final totalM = _totalRouteMeters > 0 ? _totalRouteMeters : 120.0;
+          _progressRatio = (info.traversedMeters / totalM).clamp(0.0, 1.0);
+
+          _animatedArrowPos = info.projectedPoint;
+          _animatedArrowBearing = info.bearing;
+
+          if (_realWalkSteps.isNotEmpty) {
+            _activeStepIndex = (_progressRatio * _realWalkSteps.length).floor().clamp(0, _realWalkSteps.length - 1);
+          }
+        } else {
+          _animatedArrowPos = pos;
+        }
+      });
+    }
+  }
+
+  ({double traversedMeters, ll.LatLng projectedPoint, double bearing}) _getTraversedInfoAlongPolyline(List<ll.LatLng> points, ll.LatLng userPos) {
+    if (points.length < 2) {
+      return (traversedMeters: 0.0, projectedPoint: points.isNotEmpty ? points.first : userPos, bearing: 0.0);
+    }
+
+    double minDistanceToPolyline = double.infinity;
+    double traversedDistance = 0.0;
+    double bestTraversedDistance = 0.0;
+    ll.LatLng bestProjectedPoint = points.first;
+    double bestBearing = 0.0;
+
+    for (int i = 0; i < points.length - 1; i++) {
+      final p1 = points[i];
+      final p2 = points[i + 1];
+      final segLen = _calculateDirectDistanceKm(p1, p2) * 1000.0;
+
+      final proj = _projectPointOnSegment(p1, p2, userPos);
+      final distToSeg = _calculateDirectDistanceKm(userPos, proj.point) * 1000.0;
+
+      if (distToSeg < minDistanceToPolyline) {
+        minDistanceToPolyline = distToSeg;
+        bestTraversedDistance = traversedDistance + (proj.fraction * segLen);
+        bestProjectedPoint = proj.point;
+        bestBearing = _calculateBearing(p1, p2);
+      }
+
+      traversedDistance += segLen;
+    }
+
+    return (
+      traversedMeters: bestTraversedDistance,
+      projectedPoint: bestProjectedPoint,
+      bearing: bestBearing,
+    );
+  }
+
+  ({ll.LatLng point, double fraction}) _projectPointOnSegment(ll.LatLng p1, ll.LatLng p2, ll.LatLng p) {
+    final dLat = p2.latitude - p1.latitude;
+    final dLng = p2.longitude - p1.longitude;
+    final lenSq = dLat * dLat + dLng * dLng;
+
+    if (lenSq < 0.000000001) {
+      return (point: p1, fraction: 0.0);
+    }
+
+    final uLat = p.latitude - p1.latitude;
+    final uLng = p.longitude - p1.longitude;
+
+    final t = ((uLat * dLat + uLng * dLng) / lenSq).clamp(0.0, 1.0);
+    final projPoint = ll.LatLng(p1.latitude + t * dLat, p1.longitude + t * dLng);
+    return (point: projPoint, fraction: t);
+  }
+
+  List<fm.Marker> _buildFlowingPathDots() {
+    if (_walkPoints.length < 2) return [];
+    final List<fm.Marker> markers = [];
+    const int numDots = 7;
+
+    for (int i = 0; i < numDots; i++) {
+      final t = (_flowPhase + (i / numDots)) % 1.0;
+      final pos = _interpolatePointAlongPolyline(_walkPoints, t);
+      markers.add(
+        fm.Marker(
+          point: pos,
+          width: 12,
+          height: 12,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppTheme.walkColor,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.walkColor.withValues(alpha: 0.7),
+                  blurRadius: 6,
+                  spreadRadius: 1,
+                ),
+              ],
+              border: Border.all(color: Colors.white, width: 1.5),
+            ),
+          ),
+        ),
+      );
+    }
+    return markers;
   }
 
   ll.LatLng? _lookup(String text) {
@@ -1235,95 +1372,230 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
     return null;
   }
 
+  ll.LatLng? _extractCoordFromString(String text) {
+    final match = RegExp(r'(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)').firstMatch(text);
+    if (match != null) {
+      final lat = double.tryParse(match.group(1) ?? '');
+      final lng = double.tryParse(match.group(2) ?? '');
+      if (lat != null && lng != null) {
+        return ll.LatLng(lat, lng);
+      }
+    }
+    return null;
+  }
+
+  String _cleanPlaceName(String text) {
+    const cleanPrefixRegex = r'^(Walk\s+(to|from)|Get\s+down\s+at|Disembark\s+at|Board\s+(the\s+)?|Head\s+out\s+(towards|from)|Change\s+lines\s+at)\s+';
+    final cleaned = text
+        .replaceAll(RegExp(cleanPrefixRegex, caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\([^)]*\)'), '')
+        .trim();
+    return cleaned.isNotEmpty ? cleaned : text.trim();
+  }
+
+  double _calculateDirectDistanceKm(ll.LatLng p1, ll.LatLng p2) {
+    const d2r = 0.017453292519943295;
+    final lat1 = p1.latitude * d2r;
+    final lat2 = p2.latitude * d2r;
+    final dLat = (p2.latitude - p1.latitude) * d2r;
+    final dLng = (p2.longitude - p1.longitude) * d2r;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) + math.cos(lat1) * math.cos(lat2) * math.sin(dLng / 2) * math.sin(dLng / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return 6371 * c;
+  }
+
+  double _computeTotalDistance(List<ll.LatLng> points) {
+    double total = 0.0;
+    for (int i = 0; i < points.length - 1; i++) {
+      total += _calculateDirectDistanceKm(points[i], points[i + 1]) * 1000.0;
+    }
+    return total > 0 ? total : 120.0;
+  }
+
+  double _calculateBearing(ll.LatLng start, ll.LatLng end) {
+    const d2r = math.pi / 180;
+    const r2d = 180 / math.pi;
+    final lat1 = start.latitude * d2r;
+    final lat2 = end.latitude * d2r;
+    final dLng = (end.longitude - start.longitude) * d2r;
+    final y = math.sin(dLng) * math.cos(lat2);
+    final x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dLng);
+    final brng = math.atan2(y, x) * r2d;
+    return (brng + 360) % 360;
+  }
+
+  ll.LatLng _interpolatePointAlongPolyline(List<ll.LatLng> points, double progressRatio) {
+    if (points.isEmpty) return const ll.LatLng(12.9716, 77.5946);
+    if (points.length == 1 || progressRatio <= 0) {
+      if (points.length >= 2) {
+        _animatedArrowBearing = _calculateBearing(points[0], points[1]);
+      }
+      return points.first;
+    }
+    if (progressRatio >= 1.0) {
+      if (points.length >= 2) {
+        _animatedArrowBearing = _calculateBearing(points[points.length - 2], points.last);
+      }
+      return points.last;
+    }
+
+    final totalM = _totalRouteMeters;
+    final targetM = totalM * progressRatio;
+
+    double accumulatedM = 0.0;
+    for (int i = 0; i < points.length - 1; i++) {
+      final segM = _calculateDirectDistanceKm(points[i], points[i + 1]) * 1000.0;
+      if (accumulatedM + segM >= targetM) {
+        final remainingInSeg = targetM - accumulatedM;
+        final t = segM > 0 ? (remainingInSeg / segM).clamp(0.0, 1.0) : 0.0;
+        final lat = points[i].latitude + (points[i + 1].latitude - points[i].latitude) * t;
+        final lng = points[i].longitude + (points[i + 1].longitude - points[i].longitude) * t;
+        _animatedArrowBearing = _calculateBearing(points[i], points[i + 1]);
+        return ll.LatLng(lat, lng);
+      }
+      accumulatedM += segM;
+    }
+    return points.last;
+  }
+
+  void _stepForwardManual({double meters = 10.0}) {
+    if (_walkPoints.isEmpty) return;
+    final totalM = _totalRouteMeters > 0 ? _totalRouteMeters : 120.0;
+    final deltaRatio = meters / totalM;
+    setState(() {
+      _progressRatio = (_progressRatio + deltaRatio).clamp(0.0, 1.0);
+      _animatedArrowPos = _interpolatePointAlongPolyline(_walkPoints, _progressRatio);
+      if (_realWalkSteps.isNotEmpty) {
+        _activeStepIndex = (_progressRatio * _realWalkSteps.length).floor().clamp(0, _realWalkSteps.length - 1);
+      }
+    });
+
+    if (_animatedArrowPos != null) {
+      try {
+        _mapController.move(_animatedArrowPos!, _mapController.camera.zoom);
+      } catch (_) {}
+    }
+  }
+
+  void _toggleDemoSimulation() {
+    setState(() {
+      _isDemoSimulating = !_isDemoSimulating;
+      if (_progressRatio >= 1.0) {
+        _progressRatio = 0.0;
+      }
+    });
+
+    if (_isDemoSimulating) {
+      _simTimer?.cancel();
+      _simTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+        if (!mounted || !_isDemoSimulating) {
+          timer.cancel();
+          return;
+        }
+
+        setState(() {
+          _progressRatio += 0.025;
+          if (_progressRatio >= 1.0) {
+            _progressRatio = 1.0;
+            _isDemoSimulating = false;
+            timer.cancel();
+          }
+
+          if (_walkPoints.isNotEmpty) {
+            _animatedArrowPos = _interpolatePointAlongPolyline(_walkPoints, _progressRatio);
+            if (_realWalkSteps.isNotEmpty) {
+              _activeStepIndex = (_progressRatio * _realWalkSteps.length).floor().clamp(0, _realWalkSteps.length - 1);
+            }
+          }
+        });
+
+        if (_animatedArrowPos != null) {
+          try {
+            _mapController.move(_animatedArrowPos!, _mapController.camera.zoom);
+          } catch (_) {}
+        }
+      });
+    } else {
+      _simTimer?.cancel();
+      if (_liveUserGps != null) {
+        _onUserLocationUpdated(_liveUserGps!);
+      }
+    }
+  }
+
   List<Map<String, dynamic>> _realWalkSteps = [];
 
-  List<ll.LatLng> _generateCurvedStreetPolyline(ll.LatLng start, ll.LatLng end) {
+  List<ll.LatLng> _generateDirectPedestrianPath(ll.LatLng start, ll.LatLng end) {
     final List<ll.LatLng> points = [start];
     final dLat = end.latitude - start.latitude;
     final dLng = end.longitude - start.longitude;
 
-    if (dLat.abs() < 0.0001 && dLng.abs() < 0.0001) {
-      return [
-        start,
-        ll.LatLng(start.latitude + 0.001, start.longitude + 0.001),
-        ll.LatLng(start.latitude + 0.002, start.longitude + 0.003),
-      ];
+    if (dLat.abs() < 0.00001 && dLng.abs() < 0.00001) {
+      return [start, end];
     }
 
-    final corner1 = ll.LatLng(start.latitude + (dLat * 0.1), start.longitude + (dLng * 0.65));
-    final corner2 = ll.LatLng(start.latitude + (dLat * 0.85), start.longitude + (dLng * 0.65));
+    final mid = ll.LatLng(
+      start.latitude + dLat * 0.5,
+      start.longitude + dLng * 0.5,
+    );
 
-    for (int i = 1; i <= 3; i++) {
-      final t = i / 3.0;
-      points.add(ll.LatLng(
-        start.latitude + (corner1.latitude - start.latitude) * t,
-        start.longitude + (corner1.longitude - start.longitude) * t,
-      ));
-    }
-
-    for (int i = 1; i <= 3; i++) {
-      final t = i / 3.0;
-      points.add(ll.LatLng(
-        corner1.latitude + (corner2.latitude - corner1.latitude) * t,
-        corner1.longitude + (corner2.longitude - corner1.longitude) * t,
-      ));
-    }
-
-    for (int i = 1; i <= 2; i++) {
-      final t = i / 2.0;
-      points.add(ll.LatLng(
-        corner2.latitude + (end.latitude - corner2.latitude) * t,
-        corner2.longitude + (end.longitude - corner2.longitude) * t,
-      ));
-    }
-
+    points.add(mid);
     points.add(end);
     return points;
+  }
+
+  List<Map<String, dynamic>> _generateDirectWalkSteps(String src, String dst, int totalMeters) {
+    final m = totalMeters > 10 ? totalMeters : 120;
+    final leg1 = (m * 0.6).round();
+    final leg2 = m - leg1;
+    final displayDst = dst.isNotEmpty ? dst : 'destination';
+
+    return [
+      {'instruction': 'Head out on pedestrian footpath towards $displayDst', 'distance': '$leg1 m'},
+      {'instruction': 'Walk along pedestrian walkway directly to entrance', 'distance': '$leg2 m'},
+      {'instruction': 'Arrive at $displayDst Entrance', 'distance': '0 m'},
+    ];
   }
 
   Future<void> _loadWalkCoords() async {
     final rawTarget = widget.toLocation ?? widget.instruction;
     final rawOrigin = widget.fromLocation ?? widget.instruction;
 
-    final String cleanPrefixRegex = r'^(Walk\s+(to|from)|Get\s+down\s+at|Disembark\s+at|Board\s+(the\s+)?|Head\s+out\s+(towards|from)|Change\s+lines\s+at)\s+';
-    String targetName = rawTarget
-        .replaceAll(RegExp(cleanPrefixRegex, caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*\([^)]*\)'), '')
-        .trim();
-    String originName = rawOrigin
-        .replaceAll(RegExp(cleanPrefixRegex, caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*\([^)]*\)'), '')
-        .trim();
+    ll.LatLng? startCoord = widget.fromCoord ?? _extractCoordFromString(rawOrigin);
+    ll.LatLng? targetCoord = widget.toCoord ?? _extractCoordFromString(rawTarget);
 
-    // Live GPS position for user tracking overlay
+    final String originName = _cleanPlaceName(rawOrigin);
+    final String targetName = _cleanPlaceName(rawTarget);
+
     final liveGps = _liveUserGps ?? await GeolocationHelper.getCurrentPosition();
 
-    ll.LatLng? startCoord;
-    ll.LatLng? targetCoord;
-
-    // Resolve leg origin coordinate: ONLY use liveGps if originName explicitly contains "current" or "my location"!
-    if (originName.toLowerCase().contains('current') || originName.toLowerCase().contains('my location')) {
-      startCoord = liveGps;
-    } else if (originName.isNotEmpty) {
-      startCoord = await ApiService.geocodeHighPrecision(originName) ?? _lookup(originName);
+    if (startCoord == null) {
+      if (originName.toLowerCase().contains('current') || originName.toLowerCase().contains('my location')) {
+        startCoord = liveGps;
+      } else if (originName.isNotEmpty) {
+        startCoord = await ApiService.geocodeHighPrecision(originName) ?? _lookup(originName);
+      }
     }
 
-    // Resolve leg destination coordinate
-    if (targetName.isNotEmpty) {
-      targetCoord = await ApiService.geocodeHighPrecision(targetName) ?? _lookup(targetName);
+    if (targetCoord == null) {
+      if (targetName.isNotEmpty) {
+        targetCoord = await ApiService.geocodeHighPrecision(targetName) ?? _lookup(targetName);
+      }
     }
 
-    // Fallbacks
     startCoord ??= liveGps ?? const ll.LatLng(12.9767, 77.5713);
-    targetCoord ??= ll.LatLng(startCoord.latitude + 0.003, startCoord.longitude + 0.003);
+    targetCoord ??= ll.LatLng(startCoord.latitude + 0.001, startCoord.longitude + 0.001);
 
-    // Guarantee distinct coordinates so bounds distance > 0
-    if ((startCoord.latitude - targetCoord.latitude).abs() < 0.0001 &&
-        (startCoord.longitude - targetCoord.longitude).abs() < 0.0001) {
-      targetCoord = ll.LatLng(startCoord.latitude + 0.003, startCoord.longitude + 0.003);
+    if ((startCoord.latitude - targetCoord.latitude).abs() < 0.00005 &&
+        (startCoord.longitude - targetCoord.longitude).abs() < 0.00005) {
+      targetCoord = ll.LatLng(startCoord.latitude + 0.001, startCoord.longitude + 0.001);
     }
 
-    // Fetch actual road-following street walking polyline via OSRM Foot API
+    final directDistanceKm = _calculateDirectDistanceKm(startCoord, targetCoord);
+
+    List<ll.LatLng> points = [];
+    List<Map<String, dynamic>> steps = [];
+
     final resWalk = await ApiService.fetchWalkingRoute(
       startCoord.latitude,
       startCoord.longitude,
@@ -1331,49 +1603,65 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
       targetCoord.longitude,
     );
 
-    List<ll.LatLng> points = [];
-    List<Map<String, dynamic>> steps = [];
-
     if (resWalk != null && resWalk['points'] is List && (resWalk['points'] as List).isNotEmpty) {
-      points = List<ll.LatLng>.from(resWalk['points']);
+      final fetchedPoints = List<ll.LatLng>.from(resWalk['points']);
       if (resWalk['steps'] is List) {
         steps = List<Map<String, dynamic>>.from(resWalk['steps']);
       }
+
+      double pathDistanceKm = 0.0;
+      for (int i = 0; i < fetchedPoints.length - 1; i++) {
+        pathDistanceKm += _calculateDirectDistanceKm(fetchedPoints[i], fetchedPoints[i + 1]);
+      }
+
+      if (directDistanceKm < 0.4 && pathDistanceKm > directDistanceKm * 2.2 && pathDistanceKm > 0.3) {
+        points = _generateDirectPedestrianPath(startCoord, targetCoord);
+        steps = _generateDirectWalkSteps(originName, targetName, (directDistanceKm * 1000).round());
+      } else {
+        points = fetchedPoints;
+      }
     }
 
-    if (points.isEmpty || points.length < 5) {
-      points = _generateCurvedStreetPolyline(startCoord, targetCoord);
+    if (points.isEmpty || points.length < 2) {
+      points = _generateDirectPedestrianPath(startCoord, targetCoord);
     }
 
     if (steps.isEmpty) {
-      steps = [
-        {'instruction': 'Head out on pedestrian footpath towards $targetName', 'distance': '120 m'},
-        {'instruction': 'Walk along main road towards station platform entrance', 'distance': '850 m'},
-        {'instruction': 'Cross zebra pedestrian walkway', 'distance': '50 m'},
-        {'instruction': 'Arrive at $targetName Entrance Gate', 'distance': '30 m'},
-      ];
+      steps = _generateDirectWalkSteps(originName, targetName, (directDistanceKm * 1000).round());
     }
 
     if (mounted) {
+      final totalM = _computeTotalDistance(points);
+      final initialPos = points.isNotEmpty ? points.first : null;
+      double initialBearing = 0.0;
+      if (points.length >= 2) {
+        initialBearing = _calculateBearing(points[0], points[1]);
+      }
+
       setState(() {
         _walkPoints = points;
         _realWalkSteps = steps;
+        _totalRouteMeters = totalM;
+        _animatedArrowPos = initialPos;
+        _animatedArrowBearing = initialBearing;
+        _progressRatio = 0.0;
+        _activeStepIndex = 0;
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         try {
           if (_walkPoints.length >= 2) {
-            final f = _walkPoints.first;
-            final l = _walkPoints.last;
-            if ((f.latitude - l.latitude).abs() > 0.0001 || (f.longitude - l.longitude).abs() > 0.0001) {
-              final bounds = fm.LatLngBounds.fromPoints(_walkPoints);
-              _mapController.fitCamera(
-                fm.CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
-              );
-            }
+            final bounds = fm.LatLngBounds.fromPoints(_walkPoints);
+            _mapController.fitCamera(
+              fm.CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
+            );
           }
         } catch (_) {}
       });
+
+      if (_liveUserGps != null) {
+        _onUserLocationUpdated(_liveUserGps!);
+      }
     }
   }
 
@@ -1384,10 +1672,14 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
     final textColor = AppTheme.getText(isDark);
     final mutedColor = AppTheme.getMuted(isDark);
 
-    final targetName = widget.toLocation ?? (widget.instruction.contains('to ') ? widget.instruction.split('to ').last : widget.instruction);
+    final rawTarget = widget.toLocation ?? (widget.instruction.contains('to ') ? widget.instruction.split('to ').last : widget.instruction);
+    final targetName = _cleanPlaceName(rawTarget);
+    final cleanInstruction = widget.instruction.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+    final remainingMeters = ((1.0 - _progressRatio) * _totalRouteMeters).round().clamp(0, 10000);
+    final etaMins = math.max(1, (remainingMeters / 80).round());
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.82,
+      height: MediaQuery.of(context).size.height * 0.84,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: cardBg,
@@ -1416,29 +1708,163 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
             ],
           ),
           const SizedBox(height: 8),
+
+          // Live Navigation Header & Progress Bar Banner
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.walkColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                    : [AppTheme.walkColor.withValues(alpha: 0.12), AppTheme.walkColor.withValues(alpha: 0.05)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.walkColor.withValues(alpha: 0.3)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.navigation_rounded, color: AppTheme.walkColor, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.instruction,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: AppTheme.walkColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 16),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  cleanInstruction,
+                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: textColor),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  _isDemoSimulating
+                                      ? 'Simulating walk to $targetName'
+                                      : 'Live GPS location tracking · Walk to update',
+                                  style: TextStyle(fontSize: 11, color: mutedColor),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        'Live walking path to $targetName',
-                        style: TextStyle(fontSize: 10, color: mutedColor),
-                      ),
-                    ],
+                    ),
+                    const SizedBox(width: 6),
+                    Row(
+                      children: [
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.blue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            minimumSize: const Size(0, 32),
+                          ),
+                          onPressed: () => _stepForwardManual(meters: 10.0),
+                          icon: const Icon(Icons.directions_walk_rounded, size: 14),
+                          label: const Text('+10m STEP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
+                        ),
+                        const SizedBox(width: 6),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isDemoSimulating ? Colors.orange : AppTheme.walkColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            minimumSize: const Size(0, 32),
+                          ),
+                          onPressed: _toggleDemoSimulation,
+                          icon: Icon(_isDemoSimulating ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 14),
+                          label: Text(
+                            _isDemoSimulating ? 'STOP SIM' : 'AUTO WALK',
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Dual Progress Bars Requirement
+                // BAR 1: Overall Journey Progress
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.flag_rounded, size: 13, color: AppTheme.bmtcColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          'JOURNEY COMPLETED: ${((0.5 + _progressRatio * 0.5) * 100).round()}%',
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10, color: AppTheme.bmtcColor, letterSpacing: 0.3),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Overall Route',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: mutedColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (0.5 + _progressRatio * 0.5).clamp(0.0, 1.0),
+                    minHeight: 5,
+                    backgroundColor: AppTheme.bmtcColor.withValues(alpha: 0.15),
+                    color: AppTheme.bmtcColor,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // BAR 2: Walk Leg Progress
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          _isDemoSimulating ? Icons.play_circle_fill_rounded : Icons.directions_walk_rounded,
+                          size: 13,
+                          color: AppTheme.walkColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'WALK LEG COMPLETED: ${(_progressRatio * 100).round()}%',
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10, color: AppTheme.walkColor, letterSpacing: 0.3),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '${remainingMeters}m remaining · ETA $etaMins min',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: mutedColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: _progressRatio.clamp(0.0, 1.0),
+                    minHeight: 5,
+                    backgroundColor: AppTheme.walkColor.withValues(alpha: 0.15),
+                    color: AppTheme.walkColor,
                   ),
                 ),
               ],
@@ -1446,7 +1872,7 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
           ),
           const SizedBox(height: 12),
 
-          // Map view of walking path
+          // Map view of walking path with Moving Flowing Dots and Navigation Marker
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -1454,7 +1880,10 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                 mapController: _mapController,
                 options: fm.MapOptions(
                   initialCenter: _walkPoints.isNotEmpty ? _walkPoints.first : const ll.LatLng(12.9716, 77.5946),
-                  initialZoom: 15.5,
+                  initialZoom: 16.5,
+                  onTap: (tapPosition, latLng) {
+                    _onUserLocationUpdated(latLng);
+                  },
                 ),
                 children: [
                   fm.TileLayer(
@@ -1466,7 +1895,7 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                       polylines: [
                         fm.Polyline(
                           points: _walkPoints,
-                          strokeWidth: 5.0,
+                          strokeWidth: 5.5,
                           color: AppTheme.walkColor,
                           isDotted: true,
                         ),
@@ -1474,6 +1903,9 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                     ),
                   fm.MarkerLayer(
                     markers: [
+                      // Animated Flowing Dots moving along the path towards destination
+                      ..._buildFlowingPathDots(),
+
                       if (_walkPoints.isNotEmpty)
                         fm.Marker(
                           point: _walkPoints.first,
@@ -1494,7 +1926,34 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                             child: Icon(Icons.location_on_rounded, size: 16, color: Colors.white),
                           ),
                         ),
-                      if (_liveUserGps != null)
+
+                      // Directional Navigation Arrow Marker (Tracked with Real GPS or Simulation)
+                      if (_animatedArrowPos != null || _walkPoints.isNotEmpty)
+                        fm.Marker(
+                          point: _animatedArrowPos ?? _walkPoints.first,
+                          width: 44,
+                          height: 44,
+                          child: Transform.rotate(
+                            angle: _animatedArrowBearing * (math.pi / 180),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppTheme.walkColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.walkColor.withValues(alpha: 0.5),
+                                    blurRadius: 10,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.navigation_rounded, size: 22, color: Colors.white),
+                            ),
+                          ),
+                        ),
+
+                      if (_liveUserGps != null && !_isDemoSimulating)
                         fm.Marker(
                           point: _liveUserGps!,
                           width: 34,
@@ -1517,12 +1976,12 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
           ),
           const SizedBox(height: 12),
 
-          // Dynamic Turn-by-Turn Steps
+          // Dynamic Turn-by-Turn Steps with Active Step Highlight
           Text('TURN-BY-TURN WALKING STEPS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: mutedColor)),
           const SizedBox(height: 6),
           Container(
             height: 120,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF161822) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(12),
@@ -1531,13 +1990,15 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: _realWalkSteps.length,
-              separatorBuilder: (context, index) => const Divider(height: 10),
+              separatorBuilder: (context, index) => const Divider(height: 6),
               itemBuilder: (context, index) {
                 final s = _realWalkSteps[index];
+                final isActive = index == _activeStepIndex;
                 return _buildWalkStep(
                   '${index + 1}. ${s['instruction'] ?? ''}',
                   s['distance']?.toString() ?? '',
                   isDark,
+                  isActive: isActive,
                 );
               },
             ),
@@ -1547,16 +2008,52 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
     );
   }
 
-  Widget _buildWalkStep(String title, String dist, bool isDark) {
-    return Row(
-      children: [
-        const Icon(Icons.subdirectory_arrow_right_rounded, size: 16, color: AppTheme.walkColor),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.getText(isDark))),
-        ),
-        Text(dist, style: TextStyle(fontSize: 10, color: AppTheme.getMuted(isDark), fontWeight: FontWeight.bold)),
-      ],
+  Widget _buildWalkStep(String title, String dist, bool isDark, {bool isActive = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: isActive ? AppTheme.walkColor.withValues(alpha: 0.15) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        border: isActive ? Border.all(color: AppTheme.walkColor.withValues(alpha: 0.4)) : null,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isActive ? Icons.navigation_rounded : Icons.subdirectory_arrow_right_rounded,
+            size: 16,
+            color: isActive ? AppTheme.walkColor : AppTheme.getMuted(isDark),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                color: isActive ? AppTheme.walkColor : AppTheme.getText(isDark),
+              ),
+            ),
+          ),
+          if (isActive)
+            Container(
+              margin: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.walkColor,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text('ACTIVE', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+          Text(
+            dist,
+            style: TextStyle(
+              fontSize: 10,
+              color: isActive ? AppTheme.walkColor : AppTheme.getMuted(isDark),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

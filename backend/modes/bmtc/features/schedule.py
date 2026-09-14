@@ -246,14 +246,18 @@ def calculate_segment_times(
         # Calculate headway-based wait time fallback
         import hashlib
         from features.routing import _route_trips
-        route_base = route_no.replace("_REV", "").upper()
-        trips = _route_trips.get(route_base, 0)
+        r_clean = str(route_no).replace("_REV", "").strip()
+        r_prefix = r_clean.split()[0] if r_clean else r_clean
+        trips = max(
+            _route_trips.get(route_no, 0),
+            _route_trips.get(r_clean, 0),
+            _route_trips.get(r_prefix, 0),
+            _route_trips.get(r_prefix.replace("-", ""), 0),
+        )
         if trips > 0:
             OPERATIONAL_MINUTES = 18 * 60
             headway_minutes = OPERATIONAL_MINUTES / trips
-            seed_val = int(hashlib.md5(route_base.encode()).hexdigest()[:4], 16)
-            seed_frac = seed_val / 65535.0
-            wait_mins = max(2.0, min(headway_minutes * seed_frac, headway_minutes))
+            wait_mins = max(2.0, min(headway_minutes * 0.5, 12.0))
             if i > 0:
                 wait_mins = max(TRANSFER_TIME, wait_mins)
         else:
@@ -345,7 +349,9 @@ def estimate_segment_fast(
             segment_distance = 5.0
 
     # 1. Try real GTFS schedule lookup first
-    gtfs_result = _gtfs_segment_times(route_no, start, end, current_time)
+    r_clean = str(route_no).replace("_REV", "").strip()
+    r_prefix = r_clean.split()[0] if r_clean else r_clean
+    gtfs_result = _gtfs_segment_times(r_prefix, start, end, current_time) or _gtfs_segment_times(route_no, start, end, current_time)
     if gtfs_result:
         dep_dt, arr_dt = gtfs_result
         travel_mins = max(2, int((arr_dt - dep_dt).total_seconds() / 60))

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-// ignore: avoid_web_libraries_in_flutter, deprecated_member_use
-import 'dart:html' as html;
+import '../utils/web_helper/web_helper.dart';
 
 class RecentSearchesStore {
   static final List<Map<String, String>> _recentSearches = [
@@ -25,7 +24,7 @@ class RecentSearchesStore {
     _initialized = true;
     if (kIsWeb) {
       try {
-        final saved = html.window.localStorage['bmtc_recent_searches_v2'];
+        final saved = WebHelper.getLocalStorage('bmtc_recent_searches_v2');
         if (saved != null && saved.isNotEmpty) {
           final decoded = json.decode(saved) as List<dynamic>;
           if (decoded.isNotEmpty) {
@@ -89,7 +88,7 @@ class RecentSearchesStore {
   static void _saveToLocalStorage() {
     if (kIsWeb) {
       try {
-        html.window.localStorage['bmtc_recent_searches_v2'] = json.encode(_recentSearches);
+        WebHelper.setLocalStorage('bmtc_recent_searches_v2', json.encode(_recentSearches));
       } catch (_) {}
     }
   }
