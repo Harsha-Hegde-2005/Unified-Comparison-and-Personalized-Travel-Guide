@@ -83,6 +83,10 @@ for _route_no, _group in _combined_routes_df.groupby("route_no"):
     _positions: dict[str, list[int]] = {}
     for _idx, _stop_norm in enumerate(_norms):
         _positions.setdefault(_stop_norm, []).append(_idx)
+        if "hoskerehalli" in _stop_norm:
+            _positions.setdefault(_stop_norm.replace("hoskerehalli", "hosakerehalli"), []).append(_idx)
+        elif "hosakerehalli" in _stop_norm:
+            _positions.setdefault(_stop_norm.replace("hosakerehalli", "hoskerehalli"), []).append(_idx)
     _route_info = {
         "route_no": str(_route_no),
         "base_route": str(_route_no).replace("_REV", ""),
@@ -96,6 +100,12 @@ for _route_no, _group in _combined_routes_df.groupby("route_no"):
     _direct_route_index_map[_route_info["route_no"]] = _route_info
     for _stop_norm in _positions:
         _routes_by_stop.setdefault(_stop_norm, []).append(_route_info)
+        if "hoskerehalli" in _stop_norm:
+            alt_norm = _stop_norm.replace("hoskerehalli", "hosakerehalli")
+            _routes_by_stop.setdefault(alt_norm, []).append(_route_info)
+        elif "hosakerehalli" in _stop_norm:
+            alt_norm = _stop_norm.replace("hosakerehalli", "hoskerehalli")
+            _routes_by_stop.setdefault(alt_norm, []).append(_route_info)
 
 
 _other_buses_cache: dict[tuple[str, str], list[str]] = {}
@@ -197,17 +207,9 @@ def _estimate_segment_fast(
     except Exception as e:
         pass
 
-    # ── 2. Frequency-based headway estimate (fallback) ────────────────────────
-    OPERATIONAL_MINUTES = 18 * 60  # 05:00–23:00 (1080 mins)
-    if trips_per_day and trips_per_day > 0:
-        headway_minutes = OPERATIONAL_MINUTES / trips_per_day
-        # Average waiting time for a route with headway H is H / 2.0. Cap at 30.0 mins.
-        wait_minutes = min(30.0, max(3.0, headway_minutes / 2.0))
-    else:
-        # Unknown or unindexed low-frequency route: default wait time capped at 30 mins
-        wait_minutes = 30.0
-
-    departure_dt = now_dt + timedelta(minutes=wait_minutes)
+    # ── 2. Fixed timetable grid fallback ─────────────────────────────────────
+    from features.schedule import get_fixed_route_departure
+    departure_dt, wait_minutes = get_fixed_route_departure(base_route, now_dt, trips_per_day=trips_per_day)
     waiting_time = max(0, int(wait_minutes))
     duration     = int((segment_distance / _bus_speed_kmh(departure_dt)) * 60)
     arrival_dt   = departure_dt + timedelta(minutes=duration)
@@ -313,11 +315,19 @@ def _route_priority(route_no: str, src_norm: str = "", dst_norm: str = "", prefe
             
     if "NICE" in base:
         score += 20
+    if ("hoskerehalli" in src_norm.lower() or "hosakerehalli" in src_norm.lower()) and "43-B" in base:
+        score -= 100  # Contextual preference boost for 43-B when origin is Hosakerehalli
     return (score, -_route_trips.get(route_no.replace("_REV", ""), 0), base)
 
 
 def _route_stop_positions(route_info: dict, stop_norm: str) -> list[int]:
-    return route_info["positions"].get(stop_norm, [])
+    res = route_info["positions"].get(stop_norm, [])
+    if not res:
+        if "hosakerehalli" in stop_norm:
+            res = route_info["positions"].get(stop_norm.replace("hosakerehalli", "hoskerehalli"), [])
+        elif "hoskerehalli" in stop_norm:
+            res = route_info["positions"].get(stop_norm.replace("hoskerehalli", "hosakerehalli"), [])
+    return res
 
 
 def get_all_direct_buses(

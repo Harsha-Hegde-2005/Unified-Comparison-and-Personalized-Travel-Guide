@@ -42,6 +42,7 @@ class _PlacesAutocompleteFieldState extends State<PlacesAutocompleteField> {
   @override
   void initState() {
     super.initState();
+    ApiService.fetchAllStops(); // Pre-warm stop cache for instant autocomplete
     _focusNode.addListener(() {
       if (!_focusNode.hasFocus && !_isSelecting) {
         Future.delayed(const Duration(milliseconds: 150), () {
@@ -71,9 +72,33 @@ class _PlacesAutocompleteFieldState extends State<PlacesAutocompleteField> {
       return;
     }
 
-    _debounce = Timer(const Duration(milliseconds: 200), () async {
+    // 1. Instant local match from cached stop data (< 5ms)
+    ApiService.fetchAllStops().then((stopsRes) {
       if (!mounted) return;
-      setState(() => _isLoading = true);
+      final all = (stopsRes['all'] as List<dynamic>?)?.cast<String>() ?? [];
+      final qLower = query.toLowerCase();
+      final localMatched = all
+          .where((s) => s.toLowerCase().contains(qLower))
+          .take(6)
+          .map((m) => {
+                'mainText': m,
+                'secondaryText': m.toLowerCase().contains('metro') ? 'Namma Metro Station' : 'BMTC Bus Stop',
+                'placeId': 'stop_$m',
+              })
+          .toList();
+
+      if (localMatched.isNotEmpty && mounted && _focusNode.hasFocus) {
+        setState(() {
+          _suggestions = localMatched;
+          _isLoading = false;
+        });
+        _showOverlay();
+      }
+    });
+
+    // 2. Debounced online autocomplete for general places/landmarks
+    _debounce = Timer(const Duration(milliseconds: 180), () async {
+      if (!mounted) return;
       final res = await ApiService.placesAutocomplete(query);
       if (!mounted) return;
 
@@ -86,33 +111,14 @@ class _PlacesAutocompleteFieldState extends State<PlacesAutocompleteField> {
         }
       }
 
-      // Fallback to local stop search if empty
-      if (parsed.isEmpty) {
-        final stopsRes = await ApiService.fetchAllStops();
-        final all = (stopsRes['all'] as List<dynamic>?)?.cast<String>() ?? [];
-        final matched = all
-            .where((s) => s.toLowerCase().contains(query.toLowerCase()))
-            .take(6)
-            .toList();
-
-        for (final m in matched) {
-          parsed.add({
-            'mainText': m,
-            'secondaryText': m.toLowerCase().contains('metro') ? 'Namma Metro Station' : 'BMTC Bus Stop',
-            'placeId': 'stop_$m',
-          });
+      if (parsed.isNotEmpty && mounted) {
+        setState(() {
+          _isLoading = false;
+          _suggestions = parsed;
+        });
+        if (_focusNode.hasFocus) {
+          _showOverlay();
         }
-      }
-
-      setState(() {
-        _isLoading = false;
-        _suggestions = parsed;
-      });
-
-      if (_suggestions.isNotEmpty && _focusNode.hasFocus) {
-        _showOverlay();
-      } else {
-        _hideOverlay();
       }
     });
   }

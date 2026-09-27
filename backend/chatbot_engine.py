@@ -52,13 +52,13 @@ _GENERIC_STOP_BLOCKLIST = {
 class ChatbotEngine:
     def __init__(
         self,
-        bmtc_stops: List[str],
-        metro_stations: List[str],
+        bmtc_stops: Optional[List[str]] = None,
+        metro_stations: Optional[List[str]] = None,
         all_vehicles: Optional[List[Dict[str, Any]]] = None,
         poi_names: Optional[List[str]] = None,
     ):
-        self.bmtc_stops = bmtc_stops
-        self.metro_stations = metro_stations
+        self.bmtc_stops = bmtc_stops or []
+        self.metro_stations = metro_stations or []
         self.poi_names = poi_names or []
         # Combine and deduplicate stop names -- POIs (colleges, hospitals,
         # tech parks, malls, attractions, hotels, railway stations, airport,
@@ -614,13 +614,16 @@ class ChatbotEngine:
             return "car"
         return None
 
-    def classify_intent(self, raw_text: str, matched_stops: List[str]) -> Tuple[str, Dict[str, Any]]:
+    def classify_intent(self, raw_text: str, matched_stops: Optional[List[str]] = None) -> Tuple[str, Dict[str, Any]]:
         """Classify conversational intent and compile parameters."""
         from location_aliases import normalize_query_text
 
         text = normalize_query_text(raw_text)
         text_lower = text.lower()
         params: Dict[str, Any] = {}
+
+        if matched_stops is None:
+            matched_stops = self.extract_stops(text)
 
         # Resolve source and destination early to distinguish routing requests
         src, dst = self.determine_source_dest(matched_stops, text)
@@ -1004,7 +1007,10 @@ class ChatbotEngine:
 
         elif intent == "weather_query":
             weather = data.get("weather", "clear")
-            time_str = params.get("time", datetime.now()).strftime("%I:%M %p")
+            t_val = params.get("time")
+            if not isinstance(t_val, datetime):
+                t_val = datetime.now()
+            time_str = t_val.strftime("%I:%M %p")
 
             if "heavy rain" in weather or "storm" in weather:
                 return (

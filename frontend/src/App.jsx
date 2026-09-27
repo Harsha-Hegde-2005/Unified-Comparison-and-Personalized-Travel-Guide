@@ -181,6 +181,34 @@ async function apiAllBuses(src, dst, time) {
   return res.json();
 }
 
+function calculateLiveCountdown(depStr, currentStr) {
+  if (!depStr) return null;
+  try {
+    const parts = depStr.split(":");
+    if (parts.length < 2) return null;
+    const dh = parseInt(parts[0], 10);
+    const dm = parseInt(parts[1], 10);
+    if (isNaN(dh) || isNaN(dm)) return null;
+
+    let now;
+    if (currentStr && currentStr.includes(":")) {
+      const cparts = currentStr.split(":");
+      now = parseInt(cparts[0], 10) * 60 + parseInt(cparts[1], 10);
+    } else {
+      const d = new Date();
+      now = d.getHours() * 60 + d.getMinutes();
+    }
+    let dep = dh * 60 + dm;
+    if (dep < now && (now - dep) > 720) {
+      dep += 24 * 60; // Midnight rollover
+    }
+    const diff = dep - now;
+    return diff >= 0 ? diff : 0;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function apiRouteSearch(route) {
   const res = await fetch(`${API_BASE}/api/bmtc/route-search?route=${encodeURIComponent(route)}`);
   if (!res.ok) throw new Error(`API ${res.status}`);
@@ -3708,7 +3736,7 @@ function AllBusesPanel({ src, dst, time, onClose }) {
                         <span>{b.departure}</span>
                         {b.waiting_time !== undefined && b.waiting_time !== null && (
                           <span style={{ background: C.yellow + "22", color: C.yellow, border: `1px solid ${C.yellow}33`, borderRadius: 4, padding: "1px 4px", fontSize: 9, fontWeight: 700 }}>
-                            {b.waiting_time}m wait
+                            {calculateLiveCountdown(b.departure, time) ?? b.waiting_time}m wait
                           </span>
                         )}
                       </div>
@@ -7239,15 +7267,21 @@ function NearbyPlacesDashboard({ data, onSelectPlace }) {
 
 function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
   const [open, setOpen] = useState(false);
+  const [sessionId, setSessionId] = useState(() => localStorage.getItem("bmtc_chatbot_session") || "session_" + Date.now());
   const [messages, setMessages] = useState([
     {
       sender: "bot",
-      text: "Hello! I am your Commuter Assistant. I can help you plan your journey, find options matching your budget, check rain forecast impact, or compare transit vs. driving. Try asking: 'How long does it take from Majestic to Silk Board?' or 'Will it rain at 4 PM?'",
+      text: "Hello! I am your Intelligent Travel Assistant. I can help you plan journeys across BMTC, Namma Metro, Cabs (Ola/Uber/Rapido/Yatri), and personal vehicles. Ask me routes, fares, next bus timings, nearby restaurants/hospitals, or multi-stop day trips!",
+      suggested_followups: ["Cheapest route to Majestic", "Next bus from Hosakerehalli", "Restaurants near Majestic", "Plan 3-stop day trip"]
     }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem("bmtc_chatbot_session", sessionId);
+  }, [sessionId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -7290,6 +7324,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          session_id: sessionId,
           message: text,
           history: messages.map(m => ({ sender: m.sender, text: m.text })),
           latitude,
@@ -7300,12 +7335,17 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
       if (!response.ok) throw new Error("Server error");
       const data = await response.json();
 
+      if (data.session_id) {
+        setSessionId(data.session_id);
+      }
+
       setMessages(prev => [...prev, {
         sender: "bot",
-        text: data.text,
+        text: data.text || data.answer,
         intent: data.intent,
         parameters: data.parameters,
-        embedded_data: data.embedded_data
+        embedded_data: data.embedded_data,
+        suggested_followups: data.suggested_followups || []
       }]);
     } catch (err) {
       setMessages(prev => [...prev, {
@@ -9290,11 +9330,11 @@ export default function App() {
     if (page !== "results" || !isRealTime) return;
 
     const interval = setInterval(() => {
-      refreshSearchResults();
-    }, 30000); // 30 seconds
+      setTime(nowTime());
+    }, 10000); // Update local clock every 10 seconds for live countdowns
 
     return () => clearInterval(interval);
-  }, [page, isRealTime, refreshSearchResults]);
+  }, [page, isRealTime]);
 
   const routeCoordsRef = useRef({});
 

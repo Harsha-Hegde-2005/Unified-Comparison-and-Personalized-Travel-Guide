@@ -106,6 +106,32 @@ HUB_MAPPINGS = {
     "manyatha teck park": {
         "bmtc": "Manyatha Tech Park",
     },
+    "hosakerehalli": {
+        "bmtc": "Hosakerehalli",
+        "metro": "Hosakerehalli",
+    },
+    "hoskerehalli": {
+        "bmtc": "Hosakerehalli",
+        "metro": "Hosakerehalli",
+    },
+    "hosakerehalli cross": {
+        "bmtc": "Hosakerehalli Cross",
+    },
+    "hoskerehalli cross": {
+        "bmtc": "Hosakerehalli Cross",
+    },
+    "hosakerehalli junction": {
+        "bmtc": "Hosakerehalli  Junction",
+    },
+    "hoskerehalli junction": {
+        "bmtc": "Hosakerehalli  Junction",
+    },
+    "hosakerehalli petrol bunk": {
+        "bmtc": "Hosakerehalli Petrol Bunk",
+    },
+    "hoskerehalli petrol bunk": {
+        "bmtc": "Hosakerehalli Petrol Bunk",
+    },
 }
 
 def resolve_stop_name(

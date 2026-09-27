@@ -79,21 +79,25 @@ def generate_fallback_explanations(options: List[Dict[str, Any]], weather: str, 
         time = opt["time"]
         transfers = opt["transfers"]
         
-        if mode == "metro":
+        if mode == "bmtc":
+            if transfers == 0:
+                explanations["bmtc"] = f"Direct BMTC bus service from nearest stop with 0 transfers, taking ~{time} mins at Rs. {cost}."
+            elif weather == "heavy rain":
+                explanations["bmtc"] = f"BMTC Bus is a very budget-friendly option (Rs. {cost}), but heavy rain could cause major road traffic delays and long wait times."
+            elif preference == "cost":
+                explanations["bmtc"] = f"BMTC Bus is the most economical choice at just Rs. {cost}, though it requires {transfers} transfer(s)."
+            elif preference in ("fewest_transfers", "transfers"):
+                explanations["bmtc"] = f"BMTC Bus with {transfers} transfer(s), total duration ~{time} mins."
+            else:
+                explanations["bmtc"] = f"BMTC Bus provides cheap transit at Rs. {cost}, with total travel time ~{time} mins."
+
+        elif mode == "metro":
             if weather in ("light rain", "heavy rain"):
                 explanations["metro"] = "Namma Metro is highly recommended as it completely bypasses road traffic congestion and waterlogging caused by the rain."
-            elif preference == "time":
+            elif preference in ("time", "fastest"):
                 explanations["metro"] = f"Metro is an excellent choice for speed, taking {time} mins and bypassing gridlock on key transit corridors."
             else:
                 explanations["metro"] = f"Metro offers a reliable and eco-friendly trip in {time} mins, avoiding peak traffic delays."
-                
-        elif mode == "bmtc":
-            if weather == "heavy rain":
-                explanations["bmtc"] = f"BMTC Bus is a very budget-friendly option (Rs. {cost}), but heavy rain could cause major road traffic delays and long wait times."
-            elif preference == "cost":
-                explanations["bmtc"] = f"BMTC Bus is the most economical choice at just Rs. {cost}, though it may take longer than rapid rail or private vehicles."
-            else:
-                explanations["bmtc"] = f"BMTC Bus provides cheap transit at Rs. {cost}, but road congestion might extend travel time to {time} mins."
                 
         elif mode == "multimodal":
             if weather == "heavy rain":
@@ -104,7 +108,7 @@ def generate_fallback_explanations(options: List[Dict[str, Any]], weather: str, 
         elif mode == "cab":
             if weather == "heavy rain":
                 explanations["cab"] = "Cab/Auto offers door-to-door comfort keeping you dry, but heavy rain usually triggers surge pricing, low availability, and severe road delays."
-            elif preference == "convenience":
+            elif preference in ("convenience", "comfort"):
                 explanations["cab"] = "Cab/Auto represents the peak convenience choice, providing direct door-to-door transit without any transfer hassle."
             else:
                 explanations["cab"] = f"Cab/Auto offers direct door-to-door routing, but is expensive (Rs. {cost}) and vulnerable to city traffic."
@@ -112,7 +116,7 @@ def generate_fallback_explanations(options: List[Dict[str, Any]], weather: str, 
         elif mode == "car":
             if weather == "heavy rain":
                 explanations["car"] = "Driving your own vehicle is convenient and dry, but you must negotiate heavy traffic, potential waterlogging, and parking searches in the rain."
-            elif preference == "convenience":
+            elif preference in ("convenience", "comfort"):
                 explanations["car"] = "Using your own vehicle gives you maximum schedule flexibility and door-to-door comfort without transfers."
             else:
                 explanations["car"] = f"Private vehicle is quick and direct, but incurs fuel and parking costs (est. Rs. {cost}) plus driving stress."
@@ -198,9 +202,13 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
     
     # 3. Calculate normalized sub-scores (0.0 to 1.0) and composite recommendations
     weight_sets = {
-        "cost": {"cost": 0.60, "time": 0.10, "comfort": 0.05, "eco": 0.05, "weather": 0.10, "traffic": 0.10},
+        "cost": {"cost": 0.55, "time": 0.15, "comfort": 0.05, "eco": 0.05, "weather": 0.10, "traffic": 0.10},
+        "cheapest": {"cost": 0.55, "time": 0.15, "comfort": 0.05, "eco": 0.05, "weather": 0.10, "traffic": 0.10},
         "time": {"cost": 0.10, "time": 0.50, "comfort": 0.05, "eco": 0.05, "weather": 0.10, "traffic": 0.20},
-        "convenience": {"cost": 0.10, "time": 0.15, "comfort": 0.50, "eco": 0.05, "weather": 0.10, "traffic": 0.10},
+        "fastest": {"cost": 0.10, "time": 0.50, "comfort": 0.05, "eco": 0.05, "weather": 0.10, "traffic": 0.20},
+        "convenience": {"cost": 0.10, "time": 0.15, "comfort": 0.45, "eco": 0.05, "weather": 0.15, "traffic": 0.10},
+        "least_walking": {"cost": 0.15, "time": 0.20, "comfort": 0.40, "eco": 0.05, "weather": 0.10, "traffic": 0.10},
+        "fewest_transfers": {"cost": 0.20, "time": 0.25, "comfort": 0.35, "eco": 0.05, "weather": 0.05, "traffic": 0.10},
         "default": {"cost": 0.25, "time": 0.25, "comfort": 0.20, "eco": 0.10, "weather": 0.10, "traffic": 0.10}
     }
     

@@ -367,22 +367,32 @@ class ApiService {
   // STOPS / COORDINATES  (/api/stops/*)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  static Future<Map<String, dynamic>>? _stopsFuture;
+  static Map<String, dynamic>? _cachedStops;
+
   /// Returns combined BMTC + Metro stop list (mirrors apiStops() in frontend)
   static Future<Map<String, dynamic>> fetchAllStops() async {
-    try {
-      final futures = await Future.wait([
-        _get('/api/bmtc/stops'),
-        _get('/api/metro/stations'),
-      ]);
-      final bmtcStops = (futures[0]?['stops'] as List<dynamic>?)?.cast<String>() ?? [];
-      final rawMetro = (futures[1]?['stations'] as List<dynamic>?)?.cast<String>() ?? [];
-      final metroStations = rawMetro.map((s) =>
-          s.endsWith(' Metro Station') ? s : '$s Metro Station').toList();
-      final all = {...bmtcStops, ...metroStations}.toList()..sort();
-      return {'all': all, 'bmtc': bmtcStops, 'metro': metroStations};
-    } catch (_) {
-      return {'all': [], 'bmtc': [], 'metro': []};
+    if (_cachedStops != null && (_cachedStops!['all'] as List).isNotEmpty) {
+      return _cachedStops!;
     }
+    _stopsFuture ??= (() async {
+      try {
+        final futures = await Future.wait([
+          _get('/api/bmtc/stops'),
+          _get('/api/metro/stations'),
+        ]);
+        final bmtcStops = (futures[0]?['stops'] as List<dynamic>?)?.cast<String>() ?? [];
+        final rawMetro = (futures[1]?['stations'] as List<dynamic>?)?.cast<String>() ?? [];
+        final metroStations = rawMetro.map((s) =>
+            s.endsWith(' Metro Station') ? s : '$s Metro Station').toList();
+        final all = {...bmtcStops, ...metroStations}.toList()..sort();
+        _cachedStops = {'all': all, 'bmtc': bmtcStops, 'metro': metroStations};
+        return _cachedStops!;
+      } catch (_) {
+        return {'all': [], 'bmtc': [], 'metro': []};
+      }
+    })();
+    return _stopsFuture!;
   }
 
   static Future<Map<String, dynamic>?> fetchStopCoords(List<String> stops) async {

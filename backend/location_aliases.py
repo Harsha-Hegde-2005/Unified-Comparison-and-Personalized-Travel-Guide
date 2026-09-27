@@ -1,4 +1,4 @@
-﻿"""
+"""
 location_aliases.py
 ====================
 Common Bengaluru location nicknames, misspellings, and shorthand -> canonical
@@ -94,6 +94,12 @@ ALIASES = {
     "hbr layout": "hbr layout",
     "vv puram": "vishveshwarapuram",
     "malleswaram 8th cross": "malleswaram",
+    "hosakerehalli": "hosakerehalli",
+    "hoskerehalli": "hosakerehalli",
+    "hosakerehalli cross": "hosakerehalli cross",
+    "hoskerehalli cross": "hosakerehalli cross",
+    "hosakerehalli junction": "hosakerehalli junction",
+    "hoskerehalli junction": "hosakerehalli junction",
 }
 
 
