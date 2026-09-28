@@ -1,0 +1,99 @@
+{
+  "total_test_cases": 52,
+  "passed_count": 52,
+  "failed_validation_count": 0,
+  "incomplete_reference_count": 0,
+  "no_route_found_count": 0,
+  "error_count": 0,
+  "valid_route_rate_pct": 100.0,
+  "route_coverage_pct": 100.0,
+  "stop_sequence_correctness_pct": 100.0,
+  "transfer_validity_rate_pct": 100.0,
+  "avg_fare_error_inr": 24.58,
+  "avg_gt_fare_error_inr": 38.59,
+  "mean_abs_travel_time_error_min": 51.58,
+  "mean_abs_gt_travel_time_error_min": 45.45,
+  "median_latency_ms": 1014.97,
+  "p95_latency_ms": 8248.9,
+  "timeout_error_rate_pct": 0.0,
+  "missing_route_cases_count": 0,
+  "false_positive_recommendations_count": 0,
+  "breakdown": {
+    "by_journey_type": {
+      "direct": {
+        "total_cases": 45,
+        "passed_count": 45,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2405.22
+      },
+      "transfer": {
+        "total_cases": 7,
+        "passed_count": 7,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 1014.5
+      }
+    },
+    "by_departure_period": {
+      "morning_peak": {
+        "total_cases": 25,
+        "passed_count": 25,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2135.69
+      },
+      "evening_peak": {
+        "total_cases": 13,
+        "passed_count": 13,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2337.79
+      },
+      "off_peak": {
+        "total_cases": 12,
+        "passed_count": 12,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2185.24
+      },
+      "night": {
+        "total_cases": 2,
+        "passed_count": 2,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2664.84
+      }
+    },
+    "by_preference": {
+      "fastest": {
+        "total_cases": 38,
+        "passed_count": 38,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2127.26
+      },
+      "cheapest": {
+        "total_cases": 9,
+        "passed_count": 9,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 3532.24
+      },
+      "fewest_transfers": {
+        "total_cases": 3,
+        "passed_count": 3,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 366.71
+      },
+      "least_walking": {
+        "total_cases": 2,
+        "passed_count": 2,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 805.12
+      }
+    }
+  }
+}

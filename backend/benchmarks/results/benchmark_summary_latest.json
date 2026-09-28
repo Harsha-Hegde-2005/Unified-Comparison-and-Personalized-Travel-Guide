@@ -1,0 +1,137 @@
+{
+  "total_test_cases": 52,
+  "passed_count": 0,
+  "failed_validation_count": 52,
+  "unverified_count": 0,
+  "no_route_found_count": 0,
+  "error_count": 0,
+  "valid_route_rate_pct": 0.0,
+  "route_coverage_pct": 100.0,
+  "stop_sequence_correctness_pct": 0.0,
+  "transfer_validity_rate_pct": 100.0,
+  "avg_fare_error_inr": 10.83,
+  "avg_gt_fare_error_inr": 25.38,
+  "mean_abs_travel_time_error_min": 54.25,
+  "mean_abs_gt_travel_time_error_min": 46.24,
+  "median_latency_ms": 1052.72,
+  "p95_latency_ms": 3802.68,
+  "distributions": {
+    "ref_fare": {
+      "mae": 10.83,
+      "median_ae": 5.0,
+      "max_ae": 45.0,
+      "sample_count": 12,
+      "missing_count": 40
+    },
+    "gt_fare": {
+      "mae": 25.38,
+      "median_ae": 5.0,
+      "max_ae": 251.0,
+      "sample_count": 29,
+      "missing_count": 23
+    },
+    "ref_duration": {
+      "mae": 54.25,
+      "median_ae": 50.0,
+      "max_ae": 160.0,
+      "sample_count": 12,
+      "missing_count": 40
+    },
+    "gt_duration": {
+      "mae": 46.24,
+      "median_ae": 36.0,
+      "max_ae": 145.0,
+      "sample_count": 29,
+      "missing_count": 23
+    }
+  },
+  "latency": {
+    "cold_start_ms": 25138.21,
+    "warm_p50_ms": 1052.72,
+    "warm_p95_ms": 3802.68,
+    "overall_p50_ms": 1052.72,
+    "overall_p95_ms": 3840.26,
+    "warm_sample_count": 51
+  },
+  "timeout_error_rate_pct": 0.0,
+  "missing_route_cases_count": 0,
+  "false_positive_recommendations_count": 52,
+  "breakdown": {
+    "by_journey_type": {
+      "direct": {
+        "total_cases": 45,
+        "passed_count": 0,
+        "valid_rate_pct": 0.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2404.51
+      },
+      "transfer": {
+        "total_cases": 7,
+        "passed_count": 0,
+        "valid_rate_pct": 0.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 1154.29
+      }
+    },
+    "by_departure_period": {
+      "morning_peak": {
+        "total_cases": 25,
+        "passed_count": 0,
+        "valid_rate_pct": 0.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2188.15
+      },
+      "evening_peak": {
+        "total_cases": 13,
+        "passed_count": 0,
+        "valid_rate_pct": 0.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2382.11
+      },
+      "off_peak": {
+        "total_cases": 12,
+        "passed_count": 0,
+        "valid_rate_pct": 0.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2050.56
+      },
+      "night": {
+        "total_cases": 2,
+        "passed_count": 0,
+        "valid_rate_pct": 0.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 3002.56
+      }
+    },
+    "by_preference": {
+      "fastest": {
+        "total_cases": 38,
+        "passed_count": 0,
+        "valid_rate_pct": 0.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2243.38
+      },
+      "cheapest": {
+        "total_cases": 9,
+        "passed_count": 0,
+        "valid_rate_pct": 0.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 3158.55
+      },
+      "fewest_transfers": {
+        "total_cases": 3,
+        "passed_count": 0,
+        "valid_rate_pct": 0.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 359.82
+      },
+      "least_walking": {
+        "total_cases": 2,
+        "passed_count": 0,
+        "valid_rate_pct": 0.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 764.15
+      }
+    }
+  }
+}
