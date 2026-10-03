@@ -61,11 +61,16 @@ finally:
 # ── App setup ─────────────────────────────────────────────────────────────────
 app = FastAPI(title="Bengaluru Unified Transit API", version="1.0")
 
+# Parse CORS origins from ALLOWED_ORIGINS env var or use development defaults
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:8000")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000",
-                   "http://localhost:5174", "*"],
-    allow_methods=["*"], allow_headers=["*"],
+    allow_origins=_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

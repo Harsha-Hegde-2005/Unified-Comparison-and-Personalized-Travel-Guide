@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 
-const API_BASE = "http://localhost:8000";
+import { API_BASE_URL } from "./config";
+
+const API_BASE = API_BASE_URL;
 
 // Helper for Text-To-Speech
 const speakText = (text) => {

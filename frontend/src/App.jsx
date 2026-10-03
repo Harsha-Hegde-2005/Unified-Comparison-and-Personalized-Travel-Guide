@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, Fragment } fr
 import heroImg from "./assets/hero.jpg";
 import RideModeModal from "./RideModeModal";
 
+import { API_BASE_URL } from "./config";
+
 /* ─────────────────────────────────────────────────────────────
    CONFIG
 ───────────────────────────────────────────────────────────── */
-const API_BASE = "http://localhost:8000";
+const API_BASE = API_BASE_URL;
 const getGoogleMapsKey = () => {
   return localStorage.getItem("gmaps_api_key") || window._backendGmapsKey || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY";
 };
@@ -2356,7 +2358,7 @@ function StopsInfoModal({ stops, onClose }) {
     setSelectedStop(null);
     setStopDetails(null);
     try {
-      const res = await fetch(`http://localhost:8000/api/stops/nearby?lat=${lat}&lng=${lng}&radius_m=1200&limit=30`);
+      const res = await fetch(`${API_BASE}/api/stops/nearby?lat=${lat}&lng=${lng}&radius_m=1200&limit=30`);
       const data = await res.json();
       let stopsList = data.stops || [];
       if (filterType === "bmtc") {
@@ -2408,11 +2410,11 @@ function StopsInfoModal({ stops, onClose }) {
     setStopDetails(null);
     try {
       if (stop.type === "metro") {
-        const res = await fetch(`http://localhost:8000/api/metro/line-info?station=${encodeURIComponent(stop.name)}`);
+        const res = await fetch(`${API_BASE}/api/metro/line-info?station=${encodeURIComponent(stop.name)}`);
         const data = await res.json();
         setStopDetails({ type: "metro", info: data });
       } else {
-        const res = await fetch(`http://localhost:8000/api/bmtc/stop-arrivals?stop=${encodeURIComponent(stop.name)}`);
+        const res = await fetch(`${API_BASE}/api/bmtc/stop-arrivals?stop=${encodeURIComponent(stop.name)}`);
         const data = await res.json();
         setStopDetails({ type: "bmtc", info: data });
       }
@@ -2643,7 +2645,7 @@ function WeatherReportModal({ stops, sourceName, destName, onClose }) {
     setLoading(true);
     setWeatherData(null);
     try {
-      const res = await fetch(`http://localhost:8000/api/weather/report?lat=${lat}&lng=${lng}&location_name=${encodeURIComponent(name)}`);
+      const res = await fetch(`${API_BASE}/api/weather/report?lat=${lat}&lng=${lng}&location_name=${encodeURIComponent(name)}`);
       const data = await res.json();
       setWeatherData(data);
     } catch (err) {
@@ -2658,8 +2660,8 @@ function WeatherReportModal({ stops, sourceName, destName, onClose }) {
     setRouteWeather(null);
     try {
       const [srcRes, dstRes] = await Promise.all([
-        fetch(`http://localhost:8000/api/weather/report?lat=${srcLat}&lng=${srcLng}&location_name=${encodeURIComponent(srcName)}`),
-        fetch(`http://localhost:8000/api/weather/report?lat=${dstLat}&lng=${dstLng}&location_name=${encodeURIComponent(dstName)}`)
+        fetch(`${API_BASE}/api/weather/report?lat=${srcLat}&lng=${srcLng}&location_name=${encodeURIComponent(srcName)}`),
+        fetch(`${API_BASE}/api/weather/report?lat=${dstLat}&lng=${dstLng}&location_name=${encodeURIComponent(dstName)}`)
       ]);
       const srcData = await srcRes.json();
       const dstData = await dstRes.json();

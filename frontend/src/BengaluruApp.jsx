@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 
-const API_BASE = "http://localhost:8000";
+import { API_BASE_URL } from "./config";
+
+const API_BASE = API_BASE_URL;
 
 const T = {
   primary:   "#6C3BF5",

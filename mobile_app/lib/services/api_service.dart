@@ -11,6 +11,8 @@ class ApiService {
   // ── Base URL ──────────────────────────────────────────────────────────────
 
   static String get defaultBaseUrl {
+    const envUrl = String.fromEnvironment('API_BASE_URL');
+    if (envUrl.isNotEmpty) return envUrl;
     if (kIsWeb) return 'http://localhost:8000';
     if (defaultTargetPlatform == TargetPlatform.android) return 'http://192.168.0.103:8000';
     return 'http://127.0.0.1:8000';
