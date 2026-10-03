@@ -91,27 +91,13 @@ async def add_gmaps_key_middleware(request, call_next):
 
 @app.on_event("startup")
 async def _startup_preload_gtfs():
-    """Kick off GTFS loading in a background thread and initialize database tables."""
+    """Initialize database tables at startup. GTFS schedule data is lazy-loaded on demand."""
     try:
         from db import init_db
         init_db()
         print("Database initialized successfully.")
     except Exception as dbe:
         print(f"Database init error: {dbe}")
-
-    import threading, sys as _sys
-    _bmtc_dir = os.path.join(_HERE, "modes", "bmtc")
-    def _load():
-        _sys.path.insert(0, _bmtc_dir)
-        try:
-            from core.gtfs import _load_gtfs
-            _load_gtfs()
-        except Exception as e:
-            print(f"GTFS background load error: {e}")
-        finally:
-            if _bmtc_dir in _sys.path:
-                _sys.path.remove(_bmtc_dir)
-    threading.Thread(target=_load, daemon=True, name="gtfs-loader").start()
 
 
 # ── Singletons ────────────────────────────────────────────────────────────────
@@ -5673,7 +5659,6 @@ def get_ride_bus_routes():
 
 @app.get("/api/ride/bus/stops")
 def get_ride_bus_stops(route: str):
-    from shared.utils import get_stop_coords
     stops_list = get_route_stop_names(route)
     if not stops_list:
         stops_list = ["Silk Board", "HSR Layout", "Bellandur", "Marathahalli", "Tin Factory", "Kalyan Nagar", "Hebbal", "Majestic"]
@@ -5691,7 +5676,6 @@ def get_ride_bus_stops(route: str):
 
 @app.get("/api/ride/metro/lines")
 def get_ride_metro_lines():
-    from shared.utils import get_stop_coords
     purple = ["Challaghatta", "Kengeri", "Mysore Road", "Vijayanagar", "Majestic", "MG Road", "Indiranagar", "Baiyappanahalli", "KR Pura", "Whitefield"]
     green = ["Silk Institute", "Yelachenahalli", "Banashankari", "Jayanagar", "Majestic", "Malleshwaram", "Yeshwanthpur", "Nagasandra", "Madavara"]
     

@@ -199,6 +199,9 @@ def get_route_next_departure(
 
     Returns None if no match found or GTFS not loaded.
     """
+    if not _gtfs_loaded:
+        _load_gtfs()
+
     if not _gtfs_data or not _route_departures:
         return None
 
