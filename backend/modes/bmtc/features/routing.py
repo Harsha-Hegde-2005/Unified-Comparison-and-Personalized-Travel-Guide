@@ -107,6 +107,10 @@ for _route_no, _group in _combined_routes_df.groupby("route_no"):
             alt_norm = _stop_norm.replace("hosakerehalli", "hoskerehalli")
             _routes_by_stop.setdefault(alt_norm, []).append(_route_info)
 
+import gc as _gc
+del _combined_routes_df
+_gc.collect()
+
 
 _other_buses_cache: dict[tuple[str, str], list[str]] = {}
 

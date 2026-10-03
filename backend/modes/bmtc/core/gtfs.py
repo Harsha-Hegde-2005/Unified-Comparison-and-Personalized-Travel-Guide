@@ -162,6 +162,11 @@ def _load_gtfs() -> None:
             _route_departures = _route_stop_departures
             print(f"GTFS: departure index built for {len(_route_departures)} routes.")
 
+            # Free heavy intermediate DataFrames from RAM
+            import gc as _gc
+            del st, merged_trips, stop_times, trips, routes
+            _gc.collect()
+
         except FileNotFoundError:
             print("GTFS: files not found — schedule features disabled.")
         except Exception as e:

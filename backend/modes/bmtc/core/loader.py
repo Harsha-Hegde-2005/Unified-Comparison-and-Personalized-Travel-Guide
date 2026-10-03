@@ -18,8 +18,8 @@ Public API (import these, never the cached functions directly):
 from __future__ import annotations
 
 import os as _os
+from functools import lru_cache
 import pandas as pd
-import streamlit as st
 
 from core.config import (
     STOP_LEVEL_CLEANED,
@@ -57,7 +57,7 @@ def _clean_against_gtfs(df: pd.DataFrame) -> pd.DataFrame:
 
 # ── Cached loader — runs exactly once per server session ─────────────────────
 
-@st.cache_resource(show_spinner="Loading BMTC dataset…")
+@lru_cache(maxsize=1)
 def _load_all() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, str], list[str]]:
     """
     Load stops_df, _rev_df, canonical name map, and ALL_STOPS.

@@ -22,7 +22,6 @@ from math import radians, sin, cos, sqrt, atan2
 from functools import lru_cache
 
 import pandas as pd
-import streamlit as st
 
 from core.config import MAX_TRANSFERS, GTFS_TRIPS, GTFS_ROUTES, STOP_CLUSTERS, FAST_QUERY_MODE
 
@@ -40,7 +39,7 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 # ── Cached graph builder — runs exactly once per server session ───────────────
 
-@st.cache_resource(show_spinner="Building route graph…")
+@lru_cache(maxsize=1)
 def _build_everything() -> tuple[dict, dict, dict, dict]:
     """
     Returns (graph, _stop_routes, _raw_km, _route_trips).
