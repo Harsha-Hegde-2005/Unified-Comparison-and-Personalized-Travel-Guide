@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
 import heroImg from "./assets/hero.jpg";
+import RideModeModal from "./RideModeModal";
 
 /* ─────────────────────────────────────────────────────────────
    CONFIG
@@ -5013,7 +5014,7 @@ function StopsInfoPanel({ onClose, stops }) {
 /* ─────────────────────────────────────────────────────────────
    RESULT CARD
 ───────────────────────────────────────────────────────────── */
-function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, setSelectedCabVehicle, selectedMultimodalOption, setSelectedMultimodalOption }) {
+function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, setSelectedCabVehicle, selectedMultimodalOption, setSelectedMultimodalOption, onOpenRideMode }) {
   const [tab, setTab] = useState(null);
   const [cabFilter, setCabFilter] = useState("all");
   const [cabProviderFilter, setCabProviderFilter] = useState("all");
@@ -5104,14 +5105,38 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
           )}
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 20, color: m.color }}>
-            {modeKey === "cab" && data.cost_max && data.cost_max > data.cost
-              ? `₹${data.cost} - ₹${data.cost_max}`
+          <div style={{ fontWeight: 800, fontSize: 18, color: m.color }}>
+            {modeKey === "cab"
+              ? data.cost_max && data.cost_max > data.cost
+                ? `Est. ₹${data.cost} – ₹${data.cost_max}`
+                : `Est. ₹${data.cost}`
               : `₹${data.cost}`}
           </div>
           <div style={{ fontSize: 11, color: C.muted }}>{realDuration} min</div>
         </div>
       </div>
+
+      {/* Cab Fare Estimate Advisory Banner */}
+      {modeKey === "cab" && (
+        <div style={{
+          margin: "0 14px 14px",
+          padding: "12px 14px",
+          borderRadius: 12,
+          background: "rgba(245, 158, 11, 0.08)",
+          border: "1.5px solid rgba(245, 158, 11, 0.3)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 6
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#f59e0b", fontWeight: 800, fontSize: 12 }}>
+            <span>⚠️</span>
+            <span>Cab Fare Estimate Advisory</span>
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>
+            ℹ️ Fare estimate: Due to the unavailability of official and real-time fare slabs, this fare is an approximate estimate based on our available pricing model. Actual prices may vary. Please check the official cab app for the exact fare before booking.
+          </div>
+        </div>
+      )}
 
       {/* Stats strip */}
       <div style={{ margin: "0 14px 14px", background: C.surface, borderRadius: 10, padding: "10px 14px", display: "flex", flexWrap: "wrap" }}>
@@ -5127,6 +5152,109 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
           </div>
         ))}
       </div>
+
+      {/* Short-Distance BMTC Recommendation Advisory */}
+      {modeKey === "bmtc" && (data.distance < 1.0 || data.short_distance_info) && (() => {
+        const info = data.short_distance_info || {};
+        const distKm = data.distance || info.distance_km || 0.7;
+        const walkMins = info.walking_time_mins || Math.round((distKm / 5.0) * 60.0);
+        const avail = info.availability || (data.all_direct && data.all_direct.length >= 3 ? "HIGH" : (data.all_direct && data.all_direct.length === 2 ? "MEDIUM" : (data.all_direct && data.all_direct.length === 1 ? "LOW" : "NONE")));
+        const recom = info.recommendation || (avail === "HIGH" ? "bmtc" : avail === "MEDIUM" ? "both" : "walk");
+
+        const availBg = avail === "HIGH" ? "rgba(16, 185, 129, 0.15)" : avail === "MEDIUM" ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)";
+        const availColor = avail === "HIGH" ? "#10b981" : avail === "MEDIUM" ? "#f59e0b" : "#ef4444";
+
+        return (
+          <div style={{
+            margin: "0 14px 14px",
+            padding: "14px",
+            borderRadius: 12,
+            background: avail === "HIGH" ? "rgba(16, 185, 129, 0.08)" : avail === "MEDIUM" ? "rgba(245, 158, 11, 0.08)" : "rgba(239, 68, 68, 0.08)",
+            border: `1.5px solid ${availColor}44`,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>
+                {info.title || (avail === "HIGH" ? "🚌 BMTC is available frequently" : avail === "MEDIUM" ? "🚌 BMTC is available" : "🚶 Short-distance trip")}
+              </div>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 800,
+                padding: "3px 8px",
+                borderRadius: 6,
+                background: availBg,
+                color: availColor,
+                border: `1px solid ${availColor}66`,
+                letterSpacing: "0.03em"
+              }}>
+                BUS AVAILABILITY: {avail}
+              </span>
+            </div>
+
+            {/* Walking Time Calculation */}
+            <div style={{ fontSize: 12, color: C.text, display: "flex", alignItems: "center", gap: 6, background: C.card + "aa", padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.border}` }}>
+              <span>🚶</span>
+              <span>Walking may take approximately <strong>{walkMins} minutes</strong> ({distKm} km at 5 km/h).</span>
+            </div>
+
+            {/* Bus Availability Info / Message */}
+            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.4 }}>
+              {info.message || (avail === "HIGH"
+                ? `Although the destination is nearby (${distKm} km), multiple BMTC buses are available from your nearby stop. Taking the bus may be convenient.`
+                : avail === "MEDIUM"
+                ? `The destination is close (${distKm} km) and walking may take approximately ${walkMins} minutes. A BMTC bus is available, but you may need to wait.`
+                : avail === "LOW"
+                ? `The destination is only ${distKm} km away. BMTC availability is low at your nearby stop. You may need to wait longer for a bus.`
+                : `Your destination is only ${distKm} km away. No suitable BMTC service was found near your current location.`
+              )}
+            </div>
+
+            {/* Recommendation Box */}
+            <div style={{
+              padding: "9px 12px",
+              borderRadius: 8,
+              background: recom === "bmtc" ? "rgba(16, 185, 129, 0.15)" : recom === "both" ? "rgba(245, 158, 11, 0.15)" : "rgba(59, 130, 246, 0.15)",
+              color: recom === "bmtc" ? "#10b981" : recom === "both" ? "#f59e0b" : "#3b82f6",
+              fontWeight: 800,
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              border: `1px solid ${recom === "bmtc" ? "#10b98144" : recom === "both" ? "#f59e0b44" : "#3b82f644"}`
+            }}>
+              <span>💡</span>
+              <span>{info.recommendation_text || (recom === "bmtc" ? "BMTC recommended" : recom === "both" ? "Both options available (BMTC or Walk)" : "Walking may be more convenient for this short trip")}</span>
+            </div>
+
+            {/* Data Source Disclaimer */}
+            <div style={{ fontSize: 10, color: C.muted, opacity: 0.7, textAlign: "right", fontStyle: "italic" }}>
+              {info.data_source_note || "Based on available route/service data"}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Cab Short-Distance Warning */}
+      {modeKey === "cab" && (data.distance < 1.0 || data.is_short_distance) && (
+        <div style={{
+          margin: "0 14px 14px",
+          padding: "12px 14px",
+          borderRadius: 10,
+          background: "rgba(245, 158, 11, 0.12)",
+          border: "1.5px solid rgba(245, 158, 11, 0.4)",
+          color: "#f59e0b"
+        }}>
+          <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+            <span>⚠️</span> <span>Short-distance trip</span>
+          </div>
+          <div style={{ fontSize: 12, color: C.text, opacity: 0.9, lineHeight: 1.4 }}>
+            {data.short_distance_warning || "The distance is very short. Some drivers may be less likely to accept the request. Consider offering a tip if appropriate."}
+          </div>
+        </div>
+      )}
 
       {/* Cab options section - only visible when selected and modeKey is cab */}
       {(() => {
@@ -5218,9 +5346,13 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
             borderTop: `1px solid ${C.border}`,
             background: C.bg + "55",
           }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 10, letterSpacing: "0.05em" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 6, letterSpacing: "0.05em" }}>
               AVAILABLE VEHICLES & PROVIDERS
             </div>
+            <div style={{ fontSize: 11, color: C.yellow, background: C.yellow + "14", padding: "6px 10px", borderRadius: 8, border: `1px solid ${C.yellow}33`, marginBottom: 10 }}>
+              ℹ️ Estimated fare — Actual pricing may vary based on demand. Check official app for exact fare.
+            </div>
+
 
             {/* Category Filter Pills */}
             <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 8, scrollbarWidth: "none" }}>
@@ -5428,10 +5560,10 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
                           <>
                             <div style={{ fontSize: 15, fontWeight: 900, color: isVehSelected ? m.color : C.text }}>
                               {est.rental
-                                ? `₹${est.cost}/hr`
+                                ? `Est. ₹${est.cost}/hr`
                                 : est.cost_max && est.cost_max > est.cost
-                                  ? `₹${est.cost} - ₹${est.cost_max}`
-                                  : `₹${est.cost}`}
+                                  ? `Est. ₹${est.cost} – ₹${est.cost_max}`
+                                  : `Est. ₹${est.cost}`}
                             </div>
                             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
                               {est.rental ? "Per package" : `⏱ ${est.time} min`}
@@ -5561,6 +5693,41 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
         )}
       </div>
       </div>
+
+      {/* Ride Mode CTA Button for Bus/Metro/Multimodal */}
+      {(modeKey === "bmtc" || modeKey === "metro" || modeKey === "multimodal") && onOpenRideMode && (
+        <div style={{ padding: "0 18px 10px 18px", background: C.card }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              let rideType = modeKey === "metro" ? "METRO" : "BUS";
+              let busNo = data?.all_direct && data.all_direct.length > 0 ? data.all_direct[0] : (data?.segments?.[0]?.route || "500C");
+              let line = modeKey === "metro" ? "Purple Line" : undefined;
+              onOpenRideMode({ type: rideType, busNumber: busNo, line: line });
+            }}
+            style={{
+              width: "100%",
+              padding: "10px",
+              borderRadius: 10,
+              backgroundColor: "#7c3aed",
+              border: "none",
+              color: "#ffffff",
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              boxShadow: "0 4px 12px rgba(124, 58, 237, 0.3)",
+              fontFamily: "inherit"
+            }}
+          >
+            <span>🚀</span>
+            <span>Enter Live Ride Mode for this Trip</span>
+          </button>
+        </div>
+      )}
 
       {/* Select bar */}
       <div style={{ background: isSelected ? m.color : m.bg, padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.18s" }}>
@@ -7872,6 +8039,153 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   JOURNEY CONTEXT BANNER (Location, Traffic & Weather ETA)
+───────────────────────────────────────────────────────────── */
+function JourneyContextBanner({ journey, traffic, weather }) {
+  if (!journey && !traffic && !weather) return null;
+
+  const levelColors = {
+    SEVERE: { bg: "rgba(239, 68, 68, 0.12)", text: "#ef4444", border: "rgba(239, 68, 68, 0.3)", label: "Severe Traffic" },
+    HIGH: { bg: "rgba(239, 68, 68, 0.12)", text: "#ef4444", border: "rgba(239, 68, 68, 0.3)", label: "Heavy Traffic" },
+    MODERATE: { bg: "rgba(245, 158, 11, 0.12)", text: "#f59e0b", border: "rgba(245, 158, 11, 0.3)", label: "Moderate Traffic" },
+    LOW: { bg: "rgba(16, 185, 129, 0.12)", text: "#10b981", border: "rgba(16, 185, 129, 0.3)", label: "Low Traffic" }
+  };
+
+  const tLevel = traffic?.level || "LOW";
+  const tStyle = levelColors[tLevel] || levelColors.LOW;
+
+  const origW = weather?.origin;
+  const destW = weather?.destination;
+  const checkpoints = weather?.checkpoints || [];
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)",
+      border: "1.5px solid #ede9fe",
+      borderRadius: 20,
+      padding: 20,
+      marginBottom: 20,
+      boxShadow: "rgba(124, 58, 237, 0.04) 0 10px 30px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 14,
+      animation: "fadeIn 0.4s ease-out both"
+    }}>
+      {/* Top row: Journey ETA & Traffic status */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(124, 58, 237, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 16 }}>⏱️</span>
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: "#111827" }}>
+              {journey?.source} → {journey?.destination}
+            </div>
+            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>
+              Departure: {journey?.departure_time || "Now"} • Expected Arrival: ~{journey?.estimated_arrival_time || "ETA"} ({journey?.estimated_duration_min} min travel)
+            </div>
+          </div>
+        </div>
+
+        {/* Traffic Badge */}
+        {traffic && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div style={{
+              background: tStyle.bg, color: tStyle.text, border: `1px solid ${tStyle.border}`,
+              padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", gap: 6
+            }}>
+              <span>🚦</span>
+              <span>{tStyle.label} {traffic.delay_min > 0 ? `(+${traffic.delay_min}m delay)` : ""}</span>
+            </div>
+            <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 700, background: "#f3f4f6", padding: "5px 10px", borderRadius: 8 }}>
+              {traffic.source === "google" ? (traffic.type === "predicted" ? "Google Predicted Traffic" : "Google Live Traffic") : "Local Traffic Est."}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Middle row: Weather Journey Timeline */}
+      {weather && (
+        <div style={{ background: "#ffffff", border: "1px solid #f3f4f6", borderRadius: 14, padding: "14px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#374151", letterSpacing: "0.03em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+              <span>🌦️</span> Weather Along Route (Location & ETA Aware)
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6", background: "#eff6ff", padding: "3px 10px", borderRadius: 8, border: "1px solid #dbeafe" }}>
+              {weather.type === "forecast" ? `Forecast for ${weather.estimated_arrival_time}` : "Live Weather"}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", fontSize: 12 }}>
+            {/* Origin */}
+            {origW && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#f9fafb", padding: "8px 12px", borderRadius: 10, border: "1px solid #f3f4f6" }}>
+                <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 700 }}>Starting Point ({weather.departure_time})</span>
+                <span style={{ fontWeight: 800, color: "#111827" }}>
+                  {origW.temperature}°C • {origW.rain_probability}% rain ({origW.condition})
+                </span>
+              </div>
+            )}
+
+            {/* Checkpoints */}
+            {checkpoints.map((cp, idx) => (
+              <Fragment key={idx}>
+                <span style={{ color: "#9ca3af", fontWeight: 800 }}>→</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#f9fafb", padding: "8px 12px", borderRadius: 10, border: "1px solid #f3f4f6" }}>
+                  <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 700 }}>{cp.name} ({cp.eta})</span>
+                  <span style={{ fontWeight: 800, color: "#111827" }}>
+                    {cp.weather.temperature}°C • {cp.weather.rain_probability}% rain
+                  </span>
+                </div>
+              </Fragment>
+            ))}
+
+            {/* Destination */}
+            {destW && (
+              <>
+                <span style={{ color: "#9ca3af", fontWeight: 800 }}>→</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#eff6ff", padding: "8px 12px", borderRadius: 10, border: "1px solid #dbeafe" }}>
+                  <span style={{ fontSize: 10, color: "#2563eb", fontWeight: 700 }}>Destination ETA ({weather.estimated_arrival_time})</span>
+                  <span style={{ fontWeight: 800, color: "#1e40af" }}>
+                    {destW.temperature}°C • {destW.rain_probability}% rain ({destW.condition})
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Advisory Banner */}
+      {weather?.advisory && (
+        <div style={{
+          background: weather.weather_change_detected ? "rgba(245, 158, 11, 0.08)" : "rgba(59, 130, 246, 0.08)",
+          border: `1.5px solid ${weather.weather_change_detected ? "rgba(245, 158, 11, 0.3)" : "rgba(59, 130, 246, 0.3)"}`,
+          borderRadius: 12,
+          padding: "12px 16px",
+          fontSize: 12,
+          fontWeight: 600,
+          color: weather.weather_change_detected ? "#92400e" : "#1e40af",
+          lineHeight: "1.4",
+          display: "flex",
+          alignItems: "center",
+          gap: 8
+        }}>
+          {weather.advisory}
+        </div>
+      )}
+
+      {/* Outdoor Comfort Note */}
+      {weather?.outdoor_comfort_note && (
+        <div style={{ fontSize: 11, color: "#d97706", fontWeight: 700, display: "flex", alignItems: "center", gap: 6, background: "#fffbeb", padding: "8px 12px", borderRadius: 10, border: "1px solid #fef3c7" }}>
+          <span>🌡️</span> {weather.outdoor_comfort_note}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
    MAIN APP
 ───────────────────────────────────────────────────────────── */
 function AIRecommendationsPanel({
@@ -8156,6 +8470,15 @@ function AIRecommendationsPanel({
                 fontWeight: 500
               }}>
                 <strong>Why recommended:</strong> {rec.explanation}
+                {rec.data_sources && (
+                  <div style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid #f1f1f5", fontSize: 10.5, color: "#6b7280", display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <span>📊 <strong>Sources:</strong></span>
+                    <span>🚦 {rec.data_sources.traffic}</span>
+                    <span>🌧️ {rec.data_sources.weather}</span>
+                    <span>🚌 {rec.data_sources.bmtc}</span>
+                    <span>🚕 {rec.data_sources.fare}</span>
+                  </div>
+                )}
               </div>
 
               {/* Inline cab option details (rendered inside ranker card if expanded and mode is cab) */}
@@ -9031,10 +9354,19 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
 }
 
 export default function App() {
-  const [token, setToken] = useState(localStorage.getItem("token") || null);
-  const [user, setUser] = useState(localStorage.getItem("username") || null);
+  const [token, setToken] = useState(localStorage.getItem("token") || "demo_token");
+  const [user, setUser] = useState(localStorage.getItem("username") || "Demo User");
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login");
+
+  // Ride Mode State
+  const [showRideModeModal, setShowRideModeModal] = useState(false);
+  const [rideModeInitialData, setRideModeInitialData] = useState(null);
+
+  const handleOpenRideMode = (initialData = null) => {
+    setRideModeInitialData(initialData);
+    setShowRideModeModal(true);
+  };
 
   const [page, setPage] = useState("dashboard");
   const [showBicycleOffer, setShowBicycleOffer] = useState(false);
@@ -9063,6 +9395,9 @@ export default function App() {
   const simTimerRef = useRef(null);
   const [pref, setPref] = useState("cost");
   const [results, setResults] = useState(null);
+  const [journeyMeta, setJourneyMeta] = useState(null);
+  const [trafficMeta, setTrafficMeta] = useState(null);
+  const [weatherMeta, setWeatherMeta] = useState(null);
   const [garageOpen, setGarageOpen] = useState(false);
   const [gloveboxOpen, setGloveboxOpen] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
@@ -9174,7 +9509,13 @@ export default function App() {
 
   useEffect(() => {
     if (token) {
-      apiGetVehicles(token).then(setUserVehicles).catch(e => {
+      apiGetVehicles(token).then(vehs => {
+        setUserVehicles(vehs);
+        if (vehs && vehs.length > 0) {
+          const firstVehVal = `custom: ${vehs[0].name} | ${vehs[0].fuel_type} | ${vehs[0].efficiency}`;
+          setSelectedVehicle(firstVehVal);
+        }
+      }).catch(e => {
         console.error(e);
         if (e.message === "Unauthorized") onLogout();
       });
@@ -9204,6 +9545,9 @@ export default function App() {
       const res = await apiCompare(source, destination, customTime || time || nowTime(), prefOverride || pref, selectedVehicle);
       setResults(res.results);
       setRecommendations(res.recommendations || []);
+      setJourneyMeta(res.journey || null);
+      setTrafficMeta(res.traffic || null);
+      setWeatherMeta(res.weather || null);
 
       const topMode = res.recommendations && res.recommendations.length > 0 ? res.recommendations[0].mode : null;
       setSelected(topMode);
@@ -9304,6 +9648,9 @@ export default function App() {
       if (res && res.results) {
         setResults(res.results);
         setRecommendations(res.recommendations || []);
+        setJourneyMeta(res.journey || null);
+        setTrafficMeta(res.traffic || null);
+        setWeatherMeta(res.weather || null);
 
         if (res.results?.cab?.all_estimates) {
           const prevCabName = selectedCabVehicle?.provider || selectedCabVehicle?.name;
@@ -9331,10 +9678,11 @@ export default function App() {
 
     const interval = setInterval(() => {
       setTime(nowTime());
-    }, 10000); // Update local clock every 10 seconds for live countdowns
+      refreshSearchResults();
+    }, 10000); // Update local clock & fetch live recommendations every 10 seconds
 
     return () => clearInterval(interval);
-  }, [page, isRealTime]);
+  }, [page, isRealTime, refreshSearchResults]);
 
   const routeCoordsRef = useRef({});
 
@@ -10125,6 +10473,33 @@ export default function App() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {/* Ride Mode Header Button */}
+            <button
+              onClick={() => handleOpenRideMode()}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)",
+                border: "none",
+                padding: "8px 16px",
+                borderRadius: 16,
+                color: "#ffffff",
+                fontWeight: 800,
+                fontSize: 13,
+                cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(124, 58, 237, 0.4)",
+                transition: "transform 0.15s ease",
+                fontFamily: "inherit"
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "none")}
+              title="Enter Live Bus / Metro Tracking Mode"
+            >
+              <span style={{ fontSize: 16 }}>🚌</span>
+              <span>Ride Mode</span>
+            </button>
+
             {/* Weather Card */}
             <div style={{ 
               display: "flex", 
@@ -10223,6 +10598,46 @@ export default function App() {
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.03em" }}>Plan your journey</div>
                 <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>BMTC · Metro · Namma Yatri · Personal Vehicle</div>
+              </div>
+
+              {/* Ride Mode Quick Banner CTA */}
+              <div style={{
+                margin: "0 0 16px 0",
+                padding: "16px 20px",
+                borderRadius: 16,
+                background: "linear-gradient(135deg, #1e1b4b 0%, #311b92 100%)",
+                border: "1.5px solid #6d28d9",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                boxShadow: "0 8px 24px rgba(109, 40, 217, 0.25)"
+              }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#ffffff" }}>
+                    🚌 Already inside a Bus or Metro?
+                  </div>
+                  <div style={{ fontSize: 11, color: "#c4b5fd", marginTop: 2 }}>
+                    Live stop snapping & get-down voice alerts.
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleOpenRideMode()}
+                  style={{
+                    padding: "9px 14px",
+                    borderRadius: 12,
+                    backgroundColor: "#7c3aed",
+                    border: "none",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    boxShadow: "0 4px 12px rgba(124, 58, 237, 0.4)",
+                    whiteSpace: "nowrap",
+                    fontFamily: "inherit"
+                  }}
+                >
+                  Ride Mode 🚀
+                </button>
               </div>
 
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 18, padding: 20, marginBottom: 14 }}>
@@ -10466,6 +10881,7 @@ export default function App() {
 
               {view === "cards" ? (
                 <>
+                  <JourneyContextBanner journey={journeyMeta} traffic={trafficMeta} weather={weatherMeta} />
                   <AIRecommendationsPanel
                     recommendations={recommendations}
                     results={results}
@@ -10507,6 +10923,7 @@ export default function App() {
                           setSelectedCabVehicle={setSelectedCabVehicle}
                           selectedMultimodalOption={selectedMultimodalOption}
                           setSelectedMultimodalOption={setSelectedMultimodalOption}
+                          onOpenRideMode={handleOpenRideMode}
                         />
                       );
                     })}
@@ -10879,6 +11296,12 @@ export default function App() {
       )}
 
       <ChatbotWidget triggerSearch={triggerSearch} setSelected={setSelected} setSrc={setSrc} setDst={setDst} src={src} />
+
+      <RideModeModal
+        isOpen={showRideModeModal}
+        onClose={() => setShowRideModeModal(false)}
+        initialData={rideModeInitialData}
+      />
 
       {/* SETTINGS MODAL */}
       {showSettings && (

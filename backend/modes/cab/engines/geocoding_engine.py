@@ -8,7 +8,7 @@ HEADERS = {"User-Agent": "NammaYatri-FareCalculator/1.0"}
 class GeocodingEngine:
     """
     Converts a human-readable place name into (latitude, longitude)
-    using OpenStreetMap Nominatim API — free, no API key required.
+    using OpenStreetMap Nominatim API - free, no API key required.
 
     Handles both short names ("Koramangala") and long full addresses
     ("PES PU College, 50 Feet Road, Banashankari, Bengaluru") using
@@ -22,7 +22,7 @@ class GeocodingEngine:
     def geocode(self, place: str) -> dict:
         """
         Geocode a place name and return coordinates.
-        Tries multiple query strategies automatically — so users can pass
+        Tries multiple query strategies automatically - so users can pass
         short names, landmarks, or full addresses and it will just work.
 
         Args:
@@ -38,6 +38,7 @@ class GeocodingEngine:
 
         Raises:
             ValueError: if the place cannot be found after all attempts
+        """
         from dotenv import load_dotenv
         load_dotenv(override=True)
         gmaps_key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
@@ -45,7 +46,7 @@ class GeocodingEngine:
             try:
                 url = "https://maps.googleapis.com/maps/api/geocode/json"
                 params = {"address": place, "key": gmaps_key}
-                r = requests.get(url, params=params)
+                r = requests.get(url, params=params, timeout=5)
                 r.raise_for_status()
                 data = r.json()
                 if data.get("status") == "OK" and data.get("results"):
@@ -84,7 +85,8 @@ class GeocodingEngine:
         response = requests.get(
             self.url,
             params={"q": query, "format": "json", "limit": 1},
-            headers=self.headers
+            headers=self.headers,
+            timeout=5
         )
         response.raise_for_status()
         return response.json()
@@ -96,7 +98,7 @@ class GeocodingEngine:
         Strategy:
           1. Use as-is (if address already contains Bengaluru/Bangalore)
           2. Append 'Bengaluru, India' context for short/no-city names
-          3. For long comma-separated addresses — try first 2 parts only
+          3. For long comma-separated addresses - try first 2 parts only
           4. Try just the very first part (landmark / building name)
 
         This ensures both "Koramangala" and full pasted addresses work.

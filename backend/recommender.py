@@ -1,20 +1,18 @@
 import os
 import json
 import requests
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
 
 def calculate_emissions(mode: str, distance: float) -> float:
     """Estimate CO2 emissions in grams based on mode and distance."""
-    # Metro: ~10g/passenger-km
-    # Bus/Multimodal: ~25g/passenger-km
-    # Own Car: ~120g/km
-    # Cab/Auto: ~150g/km
     factors = {
         "metro": 10.0,
         "bmtc": 25.0,
         "multimodal": 25.0,
         "car": 120.0,
-        "cab": 150.0
+        "cab": 150.0,
+        "bike": 35.0,
+        "walk": 0.0
     }
     return round(distance * factors.get(mode, 25.0), 1)
 
@@ -25,7 +23,9 @@ def get_comfort_score(mode: str, transfers: int, distance: float, is_vajra: bool
         "car": 0.95,
         "metro": 0.80,
         "bmtc": 0.60,
-        "multimodal": 0.50
+        "multimodal": 0.50,
+        "bike": 0.65,
+        "walk": 0.85 if distance < 1.0 else 0.40
     }
     score = baselines.get(mode, 0.60)
     if is_vajra and mode in ("bmtc", "multimodal"):
@@ -37,95 +37,209 @@ def get_comfort_score(mode: str, transfers: int, distance: float, is_vajra: bool
     # Bound to a sensible minimum
     return max(0.1, round(score, 2))
 
-def get_weather_suitability(mode: str, weather: str) -> float:
-    """Determine weather suitability score (0.1 to 1.0)."""
-    weather = (weather or "clear").lower()
-    
-    if weather == "heavy rain":
-        suitability = {
-            "metro": 1.0,
-            "car": 0.70,
-            "cab": 0.60,
-            "bmtc": 0.50,
-            "multimodal": 0.45
-        }
-    elif weather == "light rain":
-        suitability = {
-            "metro": 1.0,
-            "car": 0.90,
-            "cab": 0.90,
-            "bmtc": 0.80,
-            "multimodal": 0.75
-        }
-    else: # clear / standard
-        suitability = {
-            "metro": 1.0,
-            "car": 1.0,
-            "cab": 1.0,
-            "bmtc": 1.0,
-            "multimodal": 1.0
-        }
-    return suitability.get(mode, 1.0)
+def calculate_weather_exposure(mode: str, data: Dict[str, Any], weather_info: Any) -> float:
+    """
+    Calculate outdoor exposure score (0.0 = completely sheltered, 1.0 = fully exposed to outdoors).
+    """
+    if mode in ("walk", "walking"):
+        return 1.0
+    elif mode in ("bike", "scooty"):
+        return 0.95
+    elif mode == "bmtc":
+        # Bus itself is covered, but walking to stop + waiting is outdoor exposure
+        walk_m = data.get("walking_distance", 500) or 500
+        wait_m = data.get("waiting_time", 8) or 8
+        if walk_m < 300 and wait_m < 5:
+            return 0.35
+        elif walk_m > 800 or wait_m > 12:
+            return 0.75
+        return 0.55
+    elif mode == "metro":
+        # Metro is covered, walking to station is outdoor exposure
+        walk_m = data.get("walking_distance", 400) or 400
+        return 0.25 if walk_m < 500 else 0.45
+    elif mode in ("cab", "car"):
+        return 0.10  # Door-to-door
+    elif mode == "multimodal":
+        return 0.50
+    return 0.50
 
-def generate_fallback_explanations(options: List[Dict[str, Any]], weather: str, preference: str) -> Dict[str, str]:
-    """Provide rule-based local explanations if LLM call is unavailable or fails."""
+def get_weather_suitability(mode: str, weather_info: Any, data: Dict[str, Any] = None) -> float:
+    """Determine weather suitability score (0.1 to 1.0) based on outdoor exposure and forecast rain/heat."""
+    data = data or {}
+    
+    # Handle string weather representation (legacy fallback)
+    if isinstance(weather_info, str):
+        w_str = weather_info.lower()
+        if w_str == "heavy rain":
+            suitability = {"metro": 1.0, "car": 0.70, "cab": 0.60, "bmtc": 0.50, "multimodal": 0.45, "bike": 0.15, "walk": 0.10}
+        elif w_str == "light rain":
+            suitability = {"metro": 1.0, "car": 0.90, "cab": 0.90, "bmtc": 0.80, "multimodal": 0.75, "bike": 0.40, "walk": 0.30}
+        else:
+            suitability = {"metro": 1.0, "car": 1.0, "cab": 1.0, "bmtc": 1.0, "multimodal": 1.0, "bike": 0.95, "walk": 0.95}
+        return suitability.get(mode, 1.0)
+
+    # Handle rich dict weather representation
+    if isinstance(weather_info, dict):
+        dest_weather = weather_info.get("destination", {})
+        orig_weather = weather_info.get("origin", {})
+        
+        orig_rain = orig_weather.get("rain_probability", 0)
+        dest_rain = dest_weather.get("rain_probability", 0)
+        max_rain = max(orig_rain, dest_rain)
+        
+        exposure = calculate_weather_exposure(mode, data, weather_info)
+        
+        # Base suitability starts at 1.0 and is penalized by (rain_prob * exposure)
+        penalty = (max_rain / 100.0) * exposure * 0.85
+        
+        # Heat/humidity penalty for high exposure modes
+        if weather_info.get("outdoor_uncomfortable") and exposure > 0.6:
+            penalty += 0.20
+            
+        return max(0.1, round(1.0 - penalty, 2))
+        
+    return 1.0
+
+def generate_fallback_explanations(
+    options: List[Dict[str, Any]],
+    weather_info: Any,
+    preference: str,
+    source: str = "",
+    destination: str = ""
+) -> Dict[str, str]:
+    """Provide dynamic, numerical, data-driven XAI explanations detailing weather at ETA, traffic delay, and comfort trade-offs."""
     explanations = {}
-    weather = (weather or "clear").lower()
     preference = (preference or "cost").lower()
     
+    # Extract weather summary & numbers
+    if isinstance(weather_info, dict):
+        orig_w = weather_info.get("origin", {})
+        dest_w = weather_info.get("destination", {})
+        dest_eta = weather_info.get("estimated_arrival_time", "ETA")
+        orig_prob = orig_w.get("rain_probability", 0)
+        dest_prob = dest_w.get("rain_probability", 0)
+        orig_temp = orig_w.get("temperature", 27)
+        dest_temp = dest_w.get("temperature", 27)
+        dest_hum = dest_w.get("humidity", 65)
+        max_rain = max(orig_prob, dest_prob)
+        weather_desc = f"Rain probability is {orig_prob}% at departure and {dest_prob}% near destination at ETA (~{dest_eta})."
+    elif isinstance(weather_info, str):
+        max_rain = 80 if "rain" in weather_info.lower() else 10
+        orig_prob, dest_prob = max_rain, max_rain
+        dest_eta = "ETA"
+        orig_temp, dest_temp, dest_hum = 27, 27, 65
+        weather_desc = f"Expected weather condition: {weather_info}."
+    else:
+        max_rain, orig_prob, dest_prob = 10, 10, 10
+        dest_eta = "ETA"
+        orig_temp, dest_temp, dest_hum = 27, 27, 65
+        weather_desc = "Clear weather expected along the route."
+
     for opt in options:
         mode = opt["mode"]
         cost = opt["cost"]
+        cost_max = opt.get("cost_max", cost)
         time = opt["time"]
         transfers = opt["transfers"]
+        distance = opt.get("distance", 0.0)
+        raw = opt.get("raw_data", {})
         
+        # Traffic delay extraction
+        free_flow = raw.get("free_flow_duration_min")
+        delay_min = round(time - free_flow, 1) if free_flow and free_flow > 0 and time > free_flow else 0.0
+        traffic_level = "HEAVY" if delay_min >= 12 else ("MODERATE" if delay_min >= 4 else "LOW")
+        
+        # Format cost string
+        if mode == "cab" or (cost_max and cost_max > cost):
+            cost_str = f"₹{int(cost)}–₹{int(cost_max)}"
+        else:
+            cost_str = f"₹{int(cost)}"
+            
         if mode == "bmtc":
-            if transfers == 0:
-                explanations["bmtc"] = f"Direct BMTC bus service from nearest stop with 0 transfers, taking ~{time} mins at Rs. {cost}."
-            elif weather == "heavy rain":
-                explanations["bmtc"] = f"BMTC Bus is a very budget-friendly option (Rs. {cost}), but heavy rain could cause major road traffic delays and long wait times."
-            elif preference == "cost":
-                explanations["bmtc"] = f"BMTC Bus is the most economical choice at just Rs. {cost}, though it requires {transfers} transfer(s)."
-            elif preference in ("fewest_transfers", "transfers"):
-                explanations["bmtc"] = f"BMTC Bus with {transfers} transfer(s), total duration ~{time} mins."
+            short_info = raw.get("short_distance_info")
+            if short_info and short_info.get("is_short_distance"):
+                explanations["bmtc"] = (
+                    f"🚶 Short-distance trip ({distance:.1f} km): Walking takes ~{short_info.get('walking_time_mins', 9)} mins at 5 km/h. "
+                    f"BMTC Bus ({cost_str}) is available, but waiting at the stop may exceed the 9-min walking time."
+                )
+            elif max_rain >= 50:
+                explanations["bmtc"] = (
+                    f"🚌 BMTC Bus is economical ({cost_str} for {distance:.1f} km), but {max_rain}% rain forecast at ETA (~{dest_eta}) "
+                    f"may increase outdoor exposure (~500 m walk & wait) under {dest_temp}°C temperature."
+                )
+            elif delay_min >= 8:
+                explanations["bmtc"] = (
+                    f"🚌 BMTC Bus costs {cost_str} for {distance:.1f} km (est. {time} mins), facing predicted arterial road traffic delay (+{delay_min} mins)."
+                )
             else:
-                explanations["bmtc"] = f"BMTC Bus provides cheap transit at Rs. {cost}, with total travel time ~{time} mins."
+                explanations["bmtc"] = (
+                    f"🚌 Direct BMTC Bus service takes ~{time} mins over {distance:.1f} km for {cost_str}, offering low emissions ({opt.get('emissions', 0)}g CO2)."
+                )
 
         elif mode == "metro":
-            if weather in ("light rain", "heavy rain"):
-                explanations["metro"] = "Namma Metro is highly recommended as it completely bypasses road traffic congestion and waterlogging caused by the rain."
-            elif preference in ("time", "fastest"):
-                explanations["metro"] = f"Metro is an excellent choice for speed, taking {time} mins and bypassing gridlock on key transit corridors."
+            if delay_min >= 8 or max_rain >= 50:
+                explanations["metro"] = (
+                    f"🚇 Namma Metro is highly recommended for this {distance:.1f} km journey: taking ~{time} mins at {cost_str}, "
+                    f"it completely bypasses predicted road traffic (+{delay_min} min delay on roads) and keeps outdoor walking under ~400 m during {max_rain}% rain forecast."
+                )
             else:
-                explanations["metro"] = f"Metro offers a reliable and eco-friendly trip in {time} mins, avoiding peak traffic delays."
+                explanations["metro"] = (
+                    f"🚇 Namma Metro provides a reliable, traffic-free trip in {time} mins for {cost_str} across {distance:.1f} km with minimal outdoor exposure."
+                )
                 
         elif mode == "multimodal":
-            if weather == "heavy rain":
-                explanations["multimodal"] = "Combined Bus + Metro route is budget-friendly, but transfer points and walking segments will be highly inconvenient in heavy rain."
+            if max_rain >= 50:
+                explanations["multimodal"] = (
+                    f"🚌+🚇 Multimodal route balances cost ({cost_str} over {distance:.1f} km in {time} mins), but {transfers} transfer(s) "
+                    f"increase outdoor exposure during forecast {dest_prob}% rain."
+                )
             else:
-                explanations["multimodal"] = f"Multimodal routing offers a balanced compromise: utilizing Metro speed for long distances, and buses/autos for first/last-mile connectivity."
+                explanations["multimodal"] = (
+                    f"🚌+🚇 Multimodal option combines rapid Metro transit with last-mile bus/auto coverage ({distance:.1f} km in {time} mins for {cost_str})."
+                )
                 
         elif mode == "cab":
-            if weather == "heavy rain":
-                explanations["cab"] = "Cab/Auto offers door-to-door comfort keeping you dry, but heavy rain usually triggers surge pricing, low availability, and severe road delays."
-            elif preference in ("convenience", "comfort"):
-                explanations["cab"] = "Cab/Auto represents the peak convenience choice, providing direct door-to-door transit without any transfer hassle."
+            if max_rain >= 50 and delay_min >= 8:
+                explanations["cab"] = (
+                    f"🚕 Cab/Auto provides direct door-to-door comfort keeping you dry during {max_rain}% rain forecast, "
+                    f"though heavy traffic adds +{delay_min} min delay (total ~{time} mins). Note: The displayed {cost_str} fare is an approximate estimate and actual pricing may vary."
+                )
+            elif delay_min >= 8:
+                explanations["cab"] = (
+                    f"🚕 Cab/Auto provides peak convenience for {distance:.1f} km in ~{time} mins (+{delay_min} min traffic delay). "
+                    f"The displayed {cost_str} fare is an estimate based on available pricing models; actual pricing may vary."
+                )
             else:
-                explanations["cab"] = f"Cab/Auto offers direct door-to-door routing, but is expensive (Rs. {cost}) and vulnerable to city traffic."
+                explanations["cab"] = (
+                    f"🚕 Cab/Auto provides direct door-to-door transit for {distance:.1f} km in ~{time} mins. "
+                    f"The estimated fare is {cost_str}; actual fare may vary based on demand and surge."
+                )
                 
         elif mode == "car":
-            if weather == "heavy rain":
-                explanations["car"] = "Driving your own vehicle is convenient and dry, but you must negotiate heavy traffic, potential waterlogging, and parking searches in the rain."
-            elif preference in ("convenience", "comfort"):
-                explanations["car"] = "Using your own vehicle gives you maximum schedule flexibility and door-to-door comfort without transfers."
+            if delay_min >= 8:
+                explanations["car"] = (
+                    f"🚗 Private vehicle offers direct route flexibility for {distance:.1f} km (~{time} mins), "
+                    f"facing +{delay_min} min predicted traffic delay and estimated fuel cost of {cost_str}."
+                )
             else:
-                explanations["car"] = f"Private vehicle is quick and direct, but incurs fuel and parking costs (est. Rs. {cost}) plus driving stress."
+                explanations["car"] = (
+                    f"🚗 Private vehicle provides maximum scheduling freedom for {distance:.1f} km in ~{time} mins under {dest_temp}°C weather at est. fuel cost of {cost_str}."
+                )
                 
     return explanations
 
-def get_recommendations(results: Dict[str, Any], source: str, destination: str, preference: str = "cost", weather: str = "clear") -> List[Dict[str, Any]]:
+
+def get_recommendations(
+    results: Dict[str, Any],
+    source: str,
+    destination: str,
+    preference: str = "cost",
+    weather: Union[str, Dict[str, Any]] = "clear"
+) -> List[Dict[str, Any]]:
     """
-    Ranks available transit options and returns Top-K recommendations with XAI explanations.
+    Ranks available transit options and returns Top-K recommendations with dynamic XAI explanations.
+    Supports location-aware, ETA-aware weather profiles, traffic delay classification, and data source transparency.
     """
     available_options = []
     
@@ -135,7 +249,8 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
             continue
         
         cost = float(data.get("cost", 0.0))
-        time = float(data.get("time", 0.0))
+        cost_max = float(data.get("cost_max", cost))
+        time_val = float(data.get("time", 0.0))
         transfers = int(data.get("transfers", 0))
         distance = float(data.get("distance", 0.0))
         
@@ -153,7 +268,7 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
         # Calculate carbon emissions and baseline comfort/weather suitability
         emissions = calculate_emissions(mode, distance)
         comfort = get_comfort_score(mode, transfers, distance, is_vajra=is_vajra)
-        weather_suit = get_weather_suitability(mode, weather)
+        weather_suit = get_weather_suitability(mode, weather, data)
         
         # Calculate dynamic traffic score
         traffic_score = 1.0
@@ -178,7 +293,8 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
         available_options.append({
             "mode": mode,
             "cost": cost,
-            "time": time,
+            "cost_max": cost_max,
+            "time": time_val,
             "transfers": transfers,
             "distance": distance,
             "emissions": emissions,
@@ -191,7 +307,7 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
     if not available_options:
         return []
         
-    # 2. Extract min/max values for scaling (guarding against division by zero)
+    # 2. Extract min/max values for scaling
     costs = [o["cost"] for o in available_options]
     times = [o["time"] for o in available_options]
     emissions_list = [o["emissions"] for o in available_options]
@@ -200,7 +316,7 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
     min_time, max_time = min(times), max(times)
     min_emissions, max_emissions = min(emissions_list), max(emissions_list)
     
-    # 3. Calculate normalized sub-scores (0.0 to 1.0) and composite recommendations
+    # 3. Weight sets by preference
     weight_sets = {
         "cost": {"cost": 0.55, "time": 0.15, "comfort": 0.05, "eco": 0.05, "weather": 0.10, "traffic": 0.10},
         "cheapest": {"cost": 0.55, "time": 0.15, "comfort": 0.05, "eco": 0.05, "weather": 0.10, "traffic": 0.10},
@@ -215,29 +331,14 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
     w = weight_sets.get(preference.lower(), weight_sets["default"])
     
     for opt in available_options:
-        # Cost score: lower cost = higher score
-        if max_cost > min_cost:
-            cost_score = 1.0 - ((opt["cost"] - min_cost) / (max_cost - min_cost))
-        else:
-            cost_score = 1.0
-            
-        # Time score: lower time = higher score
-        if max_time > min_time:
-            time_score = 1.0 - ((opt["time"] - min_time) / (max_time - min_time))
-        else:
-            time_score = 1.0
-            
-        # Eco score: lower emissions = higher score
-        if max_emissions > min_emissions:
-            eco_score = 1.0 - ((opt["emissions"] - min_emissions) / (max_emissions - min_emissions))
-        else:
-            eco_score = 1.0
+        cost_score = 1.0 - ((opt["cost"] - min_cost) / (max_cost - min_cost)) if max_cost > min_cost else 1.0
+        time_score = 1.0 - ((opt["time"] - min_time) / (max_time - min_time)) if max_time > min_time else 1.0
+        eco_score = 1.0 - ((opt["emissions"] - min_emissions) / (max_emissions - min_emissions)) if max_emissions > min_emissions else 1.0
             
         opt_comfort = opt["comfort"]
         opt_weather = opt["weather_suitability"]
         opt_traffic = opt["traffic_suitability"]
         
-        # Calculate overall utility score (0 to 100)
         composite = (
             w["cost"] * cost_score +
             w["time"] * time_score +
@@ -248,7 +349,6 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
         )
         opt["score"] = round(composite * 100, 1)
         
-        # Save structured sub-scores (0-100 scale for UI progress bars)
         opt["details"] = {
             "cost_score": int(cost_score * 100),
             "time_score": int(time_score * 100),
@@ -258,33 +358,34 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
             "traffic_score": int(opt_traffic * 100)
         }
         
-    # Sort options by recommendation score descending
     available_options.sort(key=lambda x: x["score"], reverse=True)
     
-    # 4. Generate Explainable AI explanations
+    # 4. Generate AI or rule-based explanations
     explanations = {}
     api_key = os.environ.get("GEMINI_API_KEY")
     if api_key:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         
-        # Summary of options for the prompt
         summary_str = ""
         for idx, opt in enumerate(available_options):
-            summary_str += f"- Option {idx+1}: {opt['mode'].upper()} (Cost: Rs.{opt['cost']}, Time: {opt['time']} mins, Transfers: {opt['transfers']}, CO2: {opt['emissions']}g, Score: {opt['score']}/100)\n"
+            summary_str += f"- Option {idx+1}: {opt['mode'].upper()} (Distance: {opt['distance']} km, Cost: Rs.{opt['cost']}, Time: {opt['time']} mins, Transfers: {opt['transfers']}, CO2: {opt['emissions']}g, Score: {opt['score']}/100)\n"
             
+        w_summary = weather if isinstance(weather, str) else (weather.get("advisory") or "clear weather")
         system_instruction = (
-            "You are a local Bangalore transit recommendation analyzer. Given a journey, weather, and user preferences, "
-            "explain the ranking and trade-offs of the transit modes in a highly concise manner.\n"
+            "You are a local Bangalore transit recommendation analyzer. Given a journey, weather forecast at ETA, and user preferences, "
+            "explain the ranking and trade-offs of the transit modes in a highly concise, numerical, data-driven manner.\n"
+            "Include specific numbers (distance in km, duration in min, cost range in Rs) in every explanation sentence.\n"
+            "For cab, explicitly state that displayed fare is an estimate based on available models.\n"
             "Format the response strictly as a JSON object mapping mode keys (bmtc, metro, cab, car, multimodal) "
             "to their respective explanation string. Do not include markdown wraps."
         )
         
         user_message = (
             f"Journey: {source} to {destination}\n"
-            f"Weather: {weather}\n"
+            f"Weather Forecast at ETA: {w_summary}\n"
             f"Preference: {preference}\n\n"
             f"Transit Options Evaluated:\n{summary_str}\n"
-            f"Provide a friendly, context-aware 2-sentence explanation for each mode key. Emphasize why it got its score."
+            f"Provide a friendly, context-aware 2-sentence explanation for each mode key. Emphasize why it got its score with exact numbers."
         )
         
         payload = {
@@ -299,24 +400,33 @@ def get_recommendations(results: Dict[str, Any], source: str, destination: str, 
                 text_content = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
                 explanations = json.loads(text_content)
         except Exception:
-            pass # Fallback below
+            pass
             
-    # Fallback to local rule-based descriptions for missing explanations
-    fallback = generate_fallback_explanations(available_options, weather, preference)
+    fallback = generate_fallback_explanations(available_options, weather, preference, source, destination)
     for opt in available_options:
         mode = opt["mode"]
-        opt["explanation"] = explanations.get(mode) or fallback.get(mode, "Highly recommended option based on your preferences.")
+        opt["explanation"] = explanations.get(mode) or fallback.get(mode, f"Recommended choice for {opt['distance']} km in {opt['time']} mins.")
         
-    # Clean output dictionary for final response
     output_recommendations = []
     for idx, opt in enumerate(available_options):
+        # Attach data source transparency metadata
+        data_sources = {
+            "traffic": "Google Maps Routes API / Calibrated Model",
+            "weather": "Open-Meteo Weather API",
+            "bmtc": "BMTC GTFS Dataset",
+            "fare": "Calibrated Cab Estimation Model (Approximate)" if opt["mode"] == "cab" else "Official Tariff Dataset",
+            "route": "Google Maps / OSRM Geometry"
+        }
         output_recommendations.append({
             "mode": opt["mode"],
             "score": opt["score"],
             "rank": idx + 1,
             "details": opt["details"],
             "explanation": opt["explanation"],
-            "emissions": opt["emissions"]
+            "emissions": opt["emissions"],
+            "data_sources": data_sources
         })
         
     return output_recommendations
+
+
