@@ -6,7 +6,6 @@ import 'package:latlong2/latlong.dart' as ll;
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../utils/geolocation_helper.dart';
-import '../utils/tts_helper.dart';
 import 'places_autocomplete_field.dart';
 
 // ─────────────────────────────────────────────────────────────
@@ -2875,13 +2874,23 @@ class _RideModeModalState extends State<RideModeModal> {
   }
 
   Future<void> _fetchMetroLines() async {
-    final purple = ['Challaghatta', 'Kengeri', 'Vijayanagar', 'Majestic', 'MG Road', 'Indiranagar', 'KR Pura', 'Whitefield'].map((s) => {'stop_name': '$s Metro Station'}).toList();
-    final green = ['Silk Institute', 'Banashankari', 'Jayanagar', 'Majestic', 'Malleshwaram', 'Yeshwanthpur', 'Nagasandra'].map((s) => {'stop_name': '$s Metro Station'}).toList();
-    if (mounted) {
+    final res = await ApiService.fetchRideMetroLines();
+    if (res != null && res['lines'] is Map<String, dynamic> && mounted) {
+      final rawLines = res['lines'] as Map<String, dynamic>;
+      final Map<String, List<Map<String, dynamic>>> parsedLines = {};
+      rawLines.forEach((k, v) {
+        if (v is List) {
+          parsedLines[k] = v.map((s) => (s as Map<String, dynamic>)).toList();
+        }
+      });
       setState(() {
-        _metroLines = {'Purple Line': purple, 'Green Line': green};
-        _metroStations = purple;
-        _metroDestination = purple.last['stop_name'].toString();
+        _metroLines = parsedLines;
+        if (parsedLines.containsKey(_selectedMetroLine)) {
+          _metroStations = parsedLines[_selectedMetroLine]!;
+          if (_metroStations.isNotEmpty) {
+            _metroDestination = _metroStations.last['stop_name'].toString();
+          }
+        }
       });
       _snapCurrentStop();
     }
@@ -2982,10 +2991,31 @@ class _RideModeModalState extends State<RideModeModal> {
                 children: _popularBusRoutes.map((r) => ChoiceChip(
                   label: Text(r),
                   selected: _selectedBusNumber == r,
-                  selectedColor: AppTheme.purple.withOpacity(0.3),
+                  selectedColor: AppTheme.metroColor.withValues(alpha: 0.3),
                   onSelected: (_) {
                     setState(() => _selectedBusNumber = r);
                     _fetchBusStops(r);
+                  },
+                )).toList(),
+              ),
+              const SizedBox(height: 16),
+            ] else if (_metroLines.isNotEmpty) ...[
+              Text('Select Metro Line:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: mutedColor)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: _metroLines.keys.map((lineName) => ChoiceChip(
+                  label: Text(lineName),
+                  selected: _selectedMetroLine == lineName,
+                  selectedColor: AppTheme.metroColor.withValues(alpha: 0.3),
+                  onSelected: (_) {
+                    setState(() {
+                      _selectedMetroLine = lineName;
+                      _metroStations = _metroLines[lineName] ?? [];
+                      if (_metroStations.isNotEmpty) {
+                        _metroDestination = _metroStations.last['stop_name'].toString();
+                      }
+                    });
                   },
                 )).toList(),
               ),
@@ -2995,9 +3025,9 @@ class _RideModeModalState extends State<RideModeModal> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withOpacity(0.12),
+                color: const Color(0xFF10B981).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
               ),
               child: Row(
                 children: [
@@ -3025,7 +3055,7 @@ class _RideModeModalState extends State<RideModeModal> {
             Text('Select Destination Stop:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: mutedColor)),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
-              value: list.any((s) => s['stop_name'] == dest) ? dest : (list.isNotEmpty ? list.last['stop_name'].toString() : null),
+              initialValue: list.any((s) => s['stop_name'] == dest) ? dest : (list.isNotEmpty ? list.last['stop_name'].toString() : null),
               decoration: InputDecoration(isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
               items: list.map((s) {
                 final name = s['stop_name'].toString();
@@ -3034,8 +3064,11 @@ class _RideModeModalState extends State<RideModeModal> {
               onChanged: (val) {
                 if (val != null) {
                   setState(() {
-                    if (_rideType == 'BUS') _busDestination = val;
-                    else _metroDestination = val;
+                    if (_rideType == 'BUS') {
+                      _busDestination = val;
+                    } else {
+                      _metroDestination = val;
+                    }
                   });
                 }
               },
@@ -3046,7 +3079,7 @@ class _RideModeModalState extends State<RideModeModal> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.purple,
+                  backgroundColor: AppTheme.metroColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -3060,14 +3093,14 @@ class _RideModeModalState extends State<RideModeModal> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.purple.withOpacity(0.15),
+                color: AppTheme.metroColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.purple.withOpacity(0.3)),
+                border: Border.all(color: AppTheme.metroColor.withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('CURRENT LOCATION & STOP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.purple, letterSpacing: 0.5)),
+                  const Text('CURRENT LOCATION & STOP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.metroColor, letterSpacing: 0.5)),
                   const SizedBox(height: 4),
                   Text(currentStopName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: textColor)),
                   const SizedBox(height: 8),
@@ -3112,103 +3145,6 @@ class _RideModeModalState extends State<RideModeModal> {
               ],
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// 9. WEATHER & TRAFFIC REPORT MODAL
-// ─────────────────────────────────────────────────────────────
-class WeatherReportModal extends StatelessWidget {
-  final Map<String, dynamic>? weatherData;
-  final Map<String, dynamic>? trafficData;
-
-  const WeatherReportModal({super.key, this.weatherData, this.trafficData});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = AppTheme.getCard(isDark);
-    final textColor = AppTheme.getText(isDark);
-    final mutedColor = AppTheme.getMuted(isDark);
-
-    final weather = weatherData ?? {};
-    final traffic = trafficData ?? {};
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Weather & Traffic Report', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: textColor)),
-              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: ListView(
-              children: [
-                Text('WEATHER CONDITIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.purple, letterSpacing: 0.5)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: isDark ? const Color(0xFF161822) : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(14)),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Temperature: ${weather['temperature'] ?? 27}°C', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
-                          Text('Rain Prob: ${weather['rain_probability'] ?? 15}%', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.bmtcColor)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Humidity: ${weather['humidity'] ?? 65}%', style: TextStyle(fontSize: 12, color: mutedColor)),
-                          Text('Condition: ${weather['condition'] ?? 'Partly Cloudy'}', style: TextStyle(fontSize: 12, color: mutedColor)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text('TRAFFIC DELAY & ANALYSIS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.bmtcColor, letterSpacing: 0.5)),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(color: isDark ? const Color(0xFF161822) : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(14)),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Free-flow Duration: ${traffic['free_flow_duration'] ?? 22} min', style: TextStyle(fontSize: 13, color: textColor)),
-                          Text('Traffic Duration: ${traffic['traffic_duration'] ?? 34} min', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.red)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Traffic Delay: +${traffic['delay_minutes'] ?? 12} mins', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppTheme.red)),
-                          const Chip(label: Text('LIVE Google Traffic'), backgroundColor: Color(0xFF10B981), labelStyle: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

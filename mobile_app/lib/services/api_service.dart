@@ -323,6 +323,11 @@ class ApiService {
     if (time != null) body['time'] = time;
     return _post('/api/metro/plan', body);
   }
+  static Future<Map<String, dynamic>?> fetchRideMetroLines() async =>
+      _get('/api/ride/metro/lines');
+
+  static Future<Map<String, dynamic>?> fetchRideBusRoutes() async =>
+      _get('/api/ride/bus/routes');
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BMTC ROUTES / TIMETABLE / STOPS  (/api/bmtc/*)
