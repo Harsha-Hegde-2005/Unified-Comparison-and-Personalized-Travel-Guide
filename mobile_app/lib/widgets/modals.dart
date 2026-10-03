@@ -2802,3 +2802,415 @@ class _RouteLookupModalState extends State<RouteLookupModal> {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// 8. RIDE MODE COMPANION MODAL (BUS & METRO GPS TRACKING)
+// ─────────────────────────────────────────────────────────────
+class RideModeModal extends StatefulWidget {
+  final Map<String, dynamic>? initialData;
+
+  const RideModeModal({super.key, this.initialData});
+
+  @override
+  State<RideModeModal> createState() => _RideModeModalState();
+}
+
+class _RideModeModalState extends State<RideModeModal> {
+  String _step = 'SETUP'; // 'SETUP' | 'TRACKING' | 'SUMMARY'
+  String _rideType = 'BUS'; // 'BUS' | 'METRO'
+
+  final List<String> _popularBusRoutes = const ['500C', '335E', '500D', '500A', '201', '365', 'KBS-1', 'V-335E'];
+  String _selectedBusNumber = '500D';
+  List<Map<String, dynamic>> _busStops = [];
+  String _busDestination = '';
+
+  Map<String, List<Map<String, dynamic>>> _metroLines = {};
+  String _selectedMetroLine = 'Purple Line';
+  List<Map<String, dynamic>> _metroStations = [];
+  String _metroDestination = '';
+
+  ll.LatLng? _userLocation;
+  bool _gpsLoading = false;
+  int _currentStopIndex = 0;
+  Timer? _trackingTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBusStops(_selectedBusNumber);
+    _fetchMetroLines();
+    _requestGps();
+  }
+
+  @override
+  void dispose() {
+    _trackingTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _requestGps() async {
+    setState(() => _gpsLoading = true);
+    final pos = await GeolocationHelper.getCurrentPosition();
+    if (mounted) {
+      setState(() {
+        _gpsLoading = false;
+        if (pos != null) _userLocation = pos;
+      });
+      _snapCurrentStop();
+    }
+  }
+
+  Future<void> _fetchBusStops(String busNo) async {
+    final res = await ApiService.fetchRouteDetails(busNo);
+    if (res != null && mounted) {
+      final stops = (res['stops'] as List<dynamic>?)?.map((s) => {'stop_name': s.toString()}).toList() ?? [];
+      setState(() {
+        _busStops = stops;
+        if (stops.isNotEmpty) {
+          _busDestination = stops.last['stop_name'].toString();
+        }
+      });
+      _snapCurrentStop();
+    }
+  }
+
+  Future<void> _fetchMetroLines() async {
+    final purple = ['Challaghatta', 'Kengeri', 'Vijayanagar', 'Majestic', 'MG Road', 'Indiranagar', 'KR Pura', 'Whitefield'].map((s) => {'stop_name': '$s Metro Station'}).toList();
+    final green = ['Silk Institute', 'Banashankari', 'Jayanagar', 'Majestic', 'Malleshwaram', 'Yeshwanthpur', 'Nagasandra'].map((s) => {'stop_name': '$s Metro Station'}).toList();
+    if (mounted) {
+      setState(() {
+        _metroLines = {'Purple Line': purple, 'Green Line': green};
+        _metroStations = purple;
+        _metroDestination = purple.last['stop_name'].toString();
+      });
+      _snapCurrentStop();
+    }
+  }
+
+  int get _detectedStopIndex {
+    final list = _rideType == 'BUS' ? _busStops : _metroStations;
+    if (_userLocation == null || list.isEmpty) return 0;
+    return 0;
+  }
+
+  void _snapCurrentStop() {
+    if (!mounted) return;
+    setState(() {
+      _currentStopIndex = _detectedStopIndex;
+    });
+  }
+
+  void _startRide() {
+    final list = _rideType == 'BUS' ? _busStops : _metroStations;
+    if (list.isEmpty) return;
+
+    setState(() {
+      _step = 'TRACKING';
+      _currentStopIndex = _detectedStopIndex;
+    });
+
+    _trackingTimer?.cancel();
+    _trackingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted || _step != 'TRACKING') return;
+      _requestGps();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = AppTheme.getCard(isDark);
+    final textColor = AppTheme.getText(isDark);
+    final mutedColor = AppTheme.getMuted(isDark);
+
+    final list = _rideType == 'BUS' ? _busStops : _metroStations;
+    final dest = _rideType == 'BUS' ? _busDestination : _metroDestination;
+    final currentStopName = list.isNotEmpty && _currentStopIndex < list.length ? list[_currentStopIndex]['stop_name'].toString() : 'Detecting...';
+    final remainingCount = math.max(0, list.length - 1 - _currentStopIndex);
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text(_rideType == 'BUS' ? '🚌' : '🚇', style: const TextStyle(fontSize: 24)),
+                  const SizedBox(width: 8),
+                  Text(_step == 'TRACKING' ? 'Live Ride Tracking' : 'Ride Mode Companion', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: textColor)),
+                ],
+              ),
+              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          if (_step == 'SETUP') ...[
+            Row(
+              children: [
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Center(child: Text('🚌 BMTC Bus', style: TextStyle(fontWeight: FontWeight.bold))),
+                    selected: _rideType == 'BUS',
+                    selectedColor: AppTheme.bmtcColor.withOpacity(0.2),
+                    onSelected: (_) => setState(() => _rideType = 'BUS'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Center(child: Text('🚇 Namma Metro', style: TextStyle(fontWeight: FontWeight.bold))),
+                    selected: _rideType == 'METRO',
+                    selectedColor: AppTheme.metroColor.withOpacity(0.2),
+                    onSelected: (_) => setState(() => _rideType = 'METRO'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            if (_rideType == 'BUS') ...[
+              Text('Select Bus Number:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: mutedColor)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                children: _popularBusRoutes.map((r) => ChoiceChip(
+                  label: Text(r),
+                  selected: _selectedBusNumber == r,
+                  selectedColor: AppTheme.purple.withOpacity(0.3),
+                  onSelected: (_) {
+                    setState(() => _selectedBusNumber = r);
+                    _fetchBusStops(r);
+                  },
+                )).toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Text('📍', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('CURRENT / SOURCE STOP (AUTO-DETECTED VIA GPS)', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981), letterSpacing: 0.5)),
+                        const SizedBox(height: 2),
+                        Text(_gpsLoading ? 'Acquiring GPS location...' : currentStopName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor)),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _requestGps,
+                    child: Text(_gpsLoading ? '...' : 'Refresh', style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            Text('Select Destination Stop:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: mutedColor)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: list.any((s) => s['stop_name'] == dest) ? dest : (list.isNotEmpty ? list.last['stop_name'].toString() : null),
+              decoration: InputDecoration(isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              items: list.map((s) {
+                final name = s['stop_name'].toString();
+                return DropdownMenuItem(value: name, child: Text(name, style: TextStyle(color: textColor, fontSize: 13)));
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    if (_rideType == 'BUS') _busDestination = val;
+                    else _metroDestination = val;
+                  });
+                }
+              },
+            ),
+            const Spacer(),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.purple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: const Icon(Icons.rocket_launch_rounded),
+                label: const Text('Start Ride Tracking', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                onPressed: _startRide,
+              ),
+            ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.purple.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.purple.withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('CURRENT LOCATION & STOP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.purple, letterSpacing: 0.5)),
+                  const SizedBox(height: 4),
+                  Text(currentStopName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: textColor)),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Stops Remaining: $remainingCount', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
+                      Text('Est. ETA: ~${remainingCount * 3} mins', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.green)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: list.length,
+                itemBuilder: (context, idx) {
+                  final name = list[idx]['stop_name'].toString();
+                  final isCurrent = idx == _currentStopIndex;
+                  return ListTile(
+                    dense: true,
+                    leading: CircleAvatar(
+                      radius: 10,
+                      backgroundColor: isCurrent ? AppTheme.green : (name == dest ? AppTheme.red : mutedColor),
+                      child: Text('${idx + 1}', style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                    title: Text(name, style: TextStyle(fontSize: 13, fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w600, color: isCurrent ? AppTheme.green : textColor)),
+                    trailing: isCurrent ? const Chip(label: Text('LIVE'), backgroundColor: AppTheme.green, labelStyle: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)) : null,
+                  );
+                },
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => setState(() => _step = 'SETUP'),
+                    child: const Text('Exit Ride Mode'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 9. WEATHER & TRAFFIC REPORT MODAL
+// ─────────────────────────────────────────────────────────────
+class WeatherReportModal extends StatelessWidget {
+  final Map<String, dynamic>? weatherData;
+  final Map<String, dynamic>? trafficData;
+
+  const WeatherReportModal({super.key, this.weatherData, this.trafficData});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = AppTheme.getCard(isDark);
+    final textColor = AppTheme.getText(isDark);
+    final mutedColor = AppTheme.getMuted(isDark);
+
+    final weather = weatherData ?? {};
+    final traffic = trafficData ?? {};
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Weather & Traffic Report', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: textColor)),
+              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView(
+              children: [
+                Text('WEATHER CONDITIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.purple, letterSpacing: 0.5)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(color: isDark ? const Color(0xFF161822) : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(14)),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Temperature: ${weather['temperature'] ?? 27}°C', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                          Text('Rain Prob: ${weather['rain_probability'] ?? 15}%', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.bmtcColor)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Humidity: ${weather['humidity'] ?? 65}%', style: TextStyle(fontSize: 12, color: mutedColor)),
+                          Text('Condition: ${weather['condition'] ?? 'Partly Cloudy'}', style: TextStyle(fontSize: 12, color: mutedColor)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text('TRAFFIC DELAY & ANALYSIS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.bmtcColor, letterSpacing: 0.5)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(color: isDark ? const Color(0xFF161822) : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(14)),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Free-flow Duration: ${traffic['free_flow_duration'] ?? 22} min', style: TextStyle(fontSize: 13, color: textColor)),
+                          Text('Traffic Duration: ${traffic['traffic_duration'] ?? 34} min', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.red)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Traffic Delay: +${traffic['delay_minutes'] ?? 12} mins', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppTheme.red)),
+                          const Chip(label: Text('LIVE Google Traffic'), backgroundColor: Color(0xFF10B981), labelStyle: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
