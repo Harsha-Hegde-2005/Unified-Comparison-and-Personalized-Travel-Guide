@@ -46,3 +46,10 @@ __MACOSX/
 .vscode/settings.json
 .vscode/tasks.json
 .vscode/launch.json
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.out
+research.zip

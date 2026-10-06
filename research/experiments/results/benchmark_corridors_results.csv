@@ -1,0 +1,21 @@
+corridor_id,corridor_name,category,seq_mean_ms,seq_median_ms,seq_std_ms,seq_p95_ms,par_mean_ms,par_median_ms,par_std_ms,par_p95_ms,par_ci95_lower,par_ci95_upper,speedup_factor,p95_reduction_percent,p_value,top_mode,top_score
+C01,Indiranagar to Domlur,Short,1.22,1.15,0.44,1.83,2.36,1.39,1.73,5.18,1.12,3.6,0.52,-183.1,0.048828125,car,97.3
+C02,Koramangala to Silk Board,Short,1.96,1.56,0.97,3.74,2.47,1.87,1.26,4.84,1.57,3.37,0.79,-29.4,0.375,car,97.3
+C03,HSR Layout to Agara,Short,1.03,1.02,0.2,1.33,3.03,1.38,2.44,6.54,1.29,4.77,0.34,-391.7,0.013671875,car,97.3
+C04,Jayanagar to JP Nagar,Short,1.32,1.06,0.61,2.23,2.76,1.78,2.23,6.71,1.17,4.35,0.48,-200.9,0.00390625,car,97.3
+C05,MG Road to Residency Road,Short,1.65,1.41,0.66,2.75,3.0,2.15,1.63,5.38,1.83,4.17,0.55,-95.6,0.02734375,car,97.3
+C06,Majestic to Whitefield,Arterial,3.12,2.86,1.3,4.86,4.0,3.5,2.03,7.05,2.55,5.45,0.78,-45.1,0.4921875,car,97.3
+C07,Jayanagar to Electronic City,Arterial,1.92,1.67,1.13,3.91,2.26,1.85,1.06,4.12,1.5,3.02,0.85,-5.4,0.845703125,car,97.3
+C08,Hebbal to MG Road,Arterial,6.64,6.98,1.76,8.48,6.72,6.94,2.08,9.21,5.23,8.21,0.99,-8.6,1.0,car,97.3
+C09,Banashankari to Yeshwanthpur,Arterial,1.78,1.58,1.02,3.44,2.62,1.79,1.56,5.15,1.5,3.74,0.68,-49.7,0.10546875,car,97.3
+C10,Rajajinagar to Marathahalli,Arterial,1.29,0.94,0.79,2.74,1.74,1.38,0.79,3.01,1.17,2.31,0.74,-9.9,0.16015625,car,97.3
+C11,Kengeri to ITPL Whitefield,Cross-City,3.95,3.87,0.89,5.19,5.09,5.72,1.64,6.68,3.91,6.27,0.78,-28.7,0.083984375,car,97.3
+C12,Nagasandra to Silk Board,Cross-City,1.62,1.15,1.15,3.6,1.84,1.52,0.94,3.51,1.17,2.51,0.88,2.5,0.556640625,car,97.3
+C13,Banashankari to Yelahanka,Cross-City,3.41,3.31,1.41,5.24,3.41,3.21,1.31,5.64,2.47,4.35,1.0,-7.6,0.921875,car,97.3
+C14,Majestic to Electronic City,Cross-City,8.23,8.4,1.83,10.91,10.26,9.88,1.61,12.71,9.11,11.41,0.8,-16.5,0.048828125,car,97.3
+C15,Whitefield to Kengeri,Cross-City,2.08,1.4,1.34,4.28,2.11,1.55,1.07,3.9,1.34,2.88,0.99,8.9,0.796875,car,97.3
+C16,Kempegowda Airport to Electronic City,Suburban/Airport,3.46,3.1,1.7,5.9,3.94,3.07,1.71,6.26,2.72,5.16,0.88,-6.1,0.625,car,97.3
+C17,Yelahanka to Bannerghatta,Suburban/Airport,2.52,1.87,1.54,5.24,2.18,1.71,1.18,4.34,1.34,3.02,1.16,17.2,0.5078125,car,97.3
+C18,Hebbal to Electronic City,Suburban/Airport,4.52,4.37,1.91,6.91,4.52,4.45,1.46,6.81,3.47,5.57,1.0,1.4,0.921875,car,97.3
+C19,Kempegowda Airport to Indiranagar,Suburban/Airport,1.25,0.92,0.73,2.34,1.84,1.08,1.37,3.86,0.86,2.82,0.68,-65.0,0.232421875,car,97.3
+C20,Kengeri to Devanahalli,Suburban/Airport,2.01,1.56,1.16,4.09,2.4,1.71,1.62,5.47,1.24,3.56,0.84,-33.7,0.787109375,car,97.3

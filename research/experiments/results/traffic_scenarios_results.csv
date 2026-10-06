@@ -1,0 +1,4 @@
+scenario,traffic_multiplier,top_mode,utility_score,effective_travel_time_min
+Low Congestion,1.0,car,94.8,46.2
+Moderate Congestion,1.4,car,92.8,46.2
+High Gridlock,2.0,car,89.8,46.2

@@ -1,0 +1,10 @@
+{
+  "python_version": "3.13.0 (tags/v3.13.0:60403a5, Oct  7 2024, 09:38:07) [MSC v.1941 64 bit (AMD64)]",
+  "platform": "win32",
+  "cpu_count": 8,
+  "numpy_version": "2.4.6",
+  "pandas_version": "2.2.3",
+  "repeat_trials_n": 10,
+  "outlier_handling_protocol": "Cold-start GTFS initialization separated from N=10 warm-start execution measurements",
+  "statistical_test": "Paired Wilcoxon signed-rank test and Student t-distribution 95% Confidence Interval"
+}

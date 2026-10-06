@@ -1,0 +1,18 @@
+\begin{table}[h]
+\centering
+\caption{Concurrency Scalability Benchmark ($C=1$ to $C=50$ Concurrent Requests).}
+\label{tab:concurrency}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{cccccc}
+\toprule
+\textbf{Concurrent Requests} & \textbf{Total Time (s)} & \textbf{Throughput (QPS)} & \textbf{Mean Latency (ms)} & \textbf{P95 Latency (ms)} & \textbf{Failures (\%)} \\
+\midrule
+1 & 0.01 & 114.31 & 7.11 & 7.11 & 0.0\% \\
+5 & 0.02 & 231.69 & 13.15 & 19.10 & 0.0\% \\
+10 & 0.08 & 122.71 & 45.06 & 77.09 & 0.0\% \\
+25 & 0.11 & 221.51 & 57.73 & 98.16 & 0.0\% \\
+50 & 0.26 & 194.54 & 132.52 & 238.46 & 0.0\% \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
