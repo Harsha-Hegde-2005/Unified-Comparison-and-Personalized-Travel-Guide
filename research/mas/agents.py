@@ -37,6 +37,7 @@ from research.mas.agent_interface import (
     BaseAgent,
     AgentObservation,
     CandidateJourney,
+    AgentResult,
     AgentMessage,
     AgentMessageType
 )
@@ -71,6 +72,32 @@ KNOWN_COORDS = {
     "devanahalli": (13.2483, 77.7127)
 }
 
+METRO_STATION_MAP = {
+    "majestic": "Majestic",
+    "indiranagar": "Indiranagar",
+    "whitefield": "Whitefield",
+    "domlur": "Indiranagar",
+    "koramangala": "Central Silk Board",
+    "silk board": "Central Silk Board",
+    "hsr layout": "Central Silk Board",
+    "agara": "Central Silk Board",
+    "jayanagar": "Jayanagara",
+    "jp nagar": "Jaya Prakash Nagara",
+    "mg road": "MG Road",
+    "residency road": "MG Road",
+    "electronic city": "Electronic City",
+    "hebbal": "Yeshwanthpur",
+    "yeshwanthpur": "Yeshwanthpur",
+    "banashankari": "Banashankari",
+    "rajajinagar": "Rajajinagar",
+    "marathahalli": "Singayyanapalya",
+    "kengeri": "Kengeri",
+    "itpl": "Pattandur Agrahara",
+    "nagasandra": "Nagasandra",
+    "yelahanka": "Nagasandra",
+    "bannerghatta": "Silk Institute"
+}
+
 def resolve_coords(name: str) -> Optional[Tuple[float, float]]:
     n = name.lower().strip()
     for k, v in KNOWN_COORDS.items():
@@ -88,10 +115,18 @@ def get_distance_between_stops(source: str, destination: str) -> float:
     return 10.0
 
 
+def _clear_colliding_modules():
+    for mod in ["engines", "planner"]:
+        if mod in sys.modules:
+            del sys.modules[mod]
+    for mod in list(sys.modules.keys()):
+        if mod.startswith("engines.") or mod.startswith("planner."):
+            del sys.modules[mod]
 
 
 # Metro import helper
 def get_metro_planner():
+    _clear_colliding_modules()
     if _METRO not in sys.path:
         sys.path.insert(0, _METRO)
     try:
@@ -115,13 +150,13 @@ def run_bmtc_search(source: str, destination: str):
 
 
 # Cab import helper
-def run_cab_search(source: str, destination: str):
+def get_cab_planner():
+    _clear_colliding_modules()
     if _CAB not in sys.path:
         sys.path.insert(0, _CAB)
     try:
         from planner.ride_planner import RidePlanner
-        planner = RidePlanner()
-        return planner.estimate(source, destination)
+        return RidePlanner()
     finally:
         if _CAB in sys.path:
             sys.path.remove(_CAB)
@@ -187,7 +222,6 @@ class ContextAgent(BaseAgent):
         env_ctx = observation.environmental_context or {}
         weather_info = env_ctx.get("weather", "clear")
         
-        # Explicit weather context parameters
         if isinstance(weather_info, dict):
             rain_prob = float(weather_info.get("rain_probability", 0.0))
             precip_mmhr = float(weather_info.get("precipitation_intensity_mmhr", 0.0))
@@ -218,7 +252,7 @@ class ContextAgent(BaseAgent):
 
     def assess_weather_suitability(self, mode: str, data: Dict[str, Any]) -> float:
         if not self.enable_weather:
-            return 1.0  # Omit weather penalty in ablation
+            return 1.0
         
         weather_info = self.state.get("weather_info", "clear")
         exposure = calculate_weather_exposure(mode, data, weather_info)
@@ -229,7 +263,7 @@ class ContextAgent(BaseAgent):
 
     def get_traffic_multiplier(self) -> float:
         if not self.enable_traffic:
-            return 1.0  # Omit traffic delays in ablation
+            return 1.0
         return self.state.get("traffic_multiplier", 1.0)
 
 
@@ -254,43 +288,67 @@ class PublicTransitAgent(BaseAgent):
         source = self.state.get("source")
         destination = self.state.get("destination")
         if not source or not destination:
+            self.last_result = AgentResult(agent_id=self.agent_id, status="error", error_message="Missing source or destination")
             return []
 
-        # Route-specific distance fallback if GTFS pathfinder exact stop string differs
         approx_dist = get_distance_between_stops(source, destination) or 10.0
 
         try:
-            res = run_bmtc_search(source, destination)
-            if not res or res.get("status") == "no_route":
-                cost = max(15.0, round(approx_dist * 2.5, 1))
-                time_val = round((approx_dist / 18.0) * 60, 1)  # 18 km/h bus avg speed
+            source_res = resolve_stop_name(source, "bmtc")
+            dest_res = resolve_stop_name(destination, "bmtc")
+            bmtc_res = run_bmtc_search(source_res, dest_res)
+            if (not bmtc_res or bmtc_res == ([], [])) and (source_res != source or dest_res != destination):
+                bmtc_res = run_bmtc_search(source, destination)
+
+            if not bmtc_res or not isinstance(bmtc_res, tuple):
+                self.last_result = AgentResult(agent_id=self.agent_id, status="no_route_found", diagnostics={"raw": str(bmtc_res)})
+                return []
+
+            direct_routes, transfer_routes = bmtc_res
+            if direct_routes:
+                best = min(direct_routes, key=lambda x: x.get("travel_time_mins", 999.0))
+                cost = float(best.get("fare", 25.0))
+                time_val = float(best.get("travel_time_mins", best.get("total_time_mins", 45.0)))
+                dist_km = float(best.get("distance_km", best.get("total_distance_km", approx_dist)))
                 transfers = 0
-                res = {"status": "available", "fare": cost, "total_time_mins": time_val, "distance_km": approx_dist}
+                raw_data = best
+            elif transfer_routes:
+                best = min(transfer_routes, key=lambda x: x.get("total_time", 999.0))
+                cost = float(best.get("total_fare", 35.0))
+                time_val = float(best.get("total_time", 55.0))
+                dist_km = float(best.get("distance", approx_dist))
+                transfers = int(best.get("transfers", 1))
+                raw_data = best
             else:
-                cost = float(res.get("fare", 25.0))
-                time_val = float(res.get("total_time_mins", res.get("travel_time_mins", 45.0)))
-                approx_dist = float(res.get("total_distance_km", res.get("distance_km", approx_dist)))
-                transfers = int(res.get("transfers", 0))
+                self.last_result = AgentResult(agent_id=self.agent_id, status="no_route_found", diagnostics={"message": "No direct or transfer bus routes found"})
+                return []
 
-            emissions = calculate_emissions("bmtc", approx_dist)
-            comfort = get_comfort_score("bmtc", transfers, approx_dist)
+            emissions = calculate_emissions("bmtc", dist_km)
+            comfort = get_comfort_score("bmtc", transfers, dist_km)
 
-            return [
-                CandidateJourney(
-                    agent_id=self.agent_id,
-                    mode="bmtc",
-                    cost=cost,
-                    time_min=time_val,
-                    distance_km=approx_dist,
-                    transfers=transfers,
-                    emissions_g_co2=emissions,
-                    comfort_score=comfort,
-                    weather_exposure=0.55,
-                    traffic_delay_min=max(0.0, time_val * 0.2),
-                    raw_data=res
-                )
-            ]
-        except Exception:
+            cand = CandidateJourney(
+                agent_id=self.agent_id,
+                mode="bmtc",
+                cost=cost,
+                time_min=time_val,
+                distance_km=dist_km,
+                transfers=transfers,
+                emissions_g_co2=emissions,
+                comfort_score=comfort,
+                weather_exposure=0.55,
+                traffic_delay_min=max(0.0, time_val * 0.2),
+                raw_data=raw_data
+            )
+            self.last_result = AgentResult(agent_id=self.agent_id, status="success", candidates=[cand])
+            return [cand]
+        except Exception as e:
+            err_msg = f"PublicTransitAgent error: {str(e)}"
+            self.last_result = AgentResult(
+                agent_id=self.agent_id,
+                status="error",
+                error_message=err_msg,
+                diagnostics={"traceback": traceback.format_exc()}
+            )
             return []
 
 
@@ -315,43 +373,72 @@ class MetroAgent(BaseAgent):
         source = self.state.get("source")
         destination = self.state.get("destination")
         if not source or not destination:
+            self.last_result = AgentResult(agent_id=self.agent_id, status="error", error_message="Missing source or destination")
             return []
 
         approx_dist = get_distance_between_stops(source, destination) or 12.0
 
+        # Map stop names to official Metro stations
+        src_norm = source.lower().strip()
+        dst_norm = destination.lower().strip()
+        src_st = METRO_STATION_MAP.get(src_norm)
+        dst_st = METRO_STATION_MAP.get(dst_norm)
+
+        if not src_st or not dst_st or src_st == dst_st:
+            self.last_result = AgentResult(
+                agent_id=self.agent_id,
+                status="no_route_found",
+                diagnostics={"reason": f"No Metro station mapping or identical station ({src_st} -> {dst_st})"}
+            )
+            return []
+
         try:
             planner = get_metro_planner()
-            plan = planner.plan(source, destination)
-            if not plan or not plan.get("available"):
-                cost = max(20.0, round(approx_dist * 2.8, 1))
-                time_val = round((approx_dist / 35.0) * 60, 1)  # 35 km/h metro speed
-                transfers = 0
-                plan = {"available": True, "cost": cost, "time": time_val, "distance": approx_dist, "transfers": 0}
+            plan = planner.plan_journey(src_st, dst_st)
+            
+            fare_raw = plan.get("fare")
+            if isinstance(fare_raw, dict):
+                cost = float(fare_raw.get("token", fare_raw.get("smart_card", 30.0)))
             else:
-                cost = float(plan.get("cost", 30.0))
-                time_val = float(plan.get("time", 32.0))
-                approx_dist = float(plan.get("distance", approx_dist))
-                transfers = int(plan.get("transfers", 0))
+                cost = float(fare_raw or 30.0)
+
+            time_raw = plan.get("estimated_time")
+            if isinstance(time_raw, dict):
+                time_val = float(time_raw.get("minutes", 25.0))
+            else:
+                time_val = float(time_raw or 25.0)
+
+            transfers = 0
+            route_info = plan.get("route", {})
+            if isinstance(route_info, dict) and "legs" in route_info:
+                transfers = max(0, len(route_info["legs"]) - 1)
 
             emissions = calculate_emissions("metro", approx_dist)
             comfort = get_comfort_score("metro", transfers, approx_dist)
 
-            return [
-                CandidateJourney(
-                    agent_id=self.agent_id,
-                    mode="metro",
-                    cost=cost,
-                    time_min=time_val,
-                    distance_km=approx_dist,
-                    transfers=transfers,
-                    emissions_g_co2=emissions,
-                    comfort_score=comfort,
-                    weather_exposure=0.25,
-                    traffic_delay_min=0.0,  # Traffic immune
-                    raw_data=plan
-                )
-            ]
-        except Exception:
+            cand = CandidateJourney(
+                agent_id=self.agent_id,
+                mode="metro",
+                cost=cost,
+                time_min=time_val,
+                distance_km=approx_dist,
+                transfers=transfers,
+                emissions_g_co2=emissions,
+                comfort_score=comfort,
+                weather_exposure=0.25,
+                traffic_delay_min=0.0,
+                raw_data=plan
+            )
+            self.last_result = AgentResult(agent_id=self.agent_id, status="success", candidates=[cand])
+            return [cand]
+        except Exception as e:
+            err_msg = f"MetroAgent error: {str(e)}"
+            self.last_result = AgentResult(
+                agent_id=self.agent_id,
+                status="error",
+                error_message=err_msg,
+                diagnostics={"traceback": traceback.format_exc()}
+            )
             return []
 
 
@@ -376,40 +463,69 @@ class CabMobilityAgent(BaseAgent):
         source = self.state.get("source")
         destination = self.state.get("destination")
         if not source or not destination:
+            self.last_result = AgentResult(agent_id=self.agent_id, status="error", error_message="Missing source or destination")
             return []
 
         approx_dist = get_distance_between_stops(source, destination) or 10.0
+        c1 = resolve_coords(source)
+        c2 = resolve_coords(destination)
 
         try:
-            res = run_cab_search(source, destination)
-            if not res or not res.get("available"):
-                cost = round(50.0 + (approx_dist * 18.0), 1)  # Rs. 50 base + Rs. 18/km
-                time_val = round((approx_dist / 22.0) * 60, 1)  # 22 km/h cab speed
-                res = {"available": True, "cost": cost, "time": time_val, "distance": approx_dist}
+            planner = get_cab_planner()
+            if c1 and c2:
+                src_coords = {"place": source, "latitude": c1[0], "longitude": c1[1]}
+                dst_coords = {"place": destination, "latitude": c2[0], "longitude": c2[1]}
+                res = planner.plan_ride_from_coords(src_coords, dst_coords)
             else:
-                cost = float(res.get("cost", 180.0))
-                time_val = float(res.get("time", 30.0))
-                approx_dist = float(res.get("distance", approx_dist))
+                res = planner.plan_ride(source, destination)
+
+            fares = res.get("fares", {})
+            if isinstance(fares, dict) and fares:
+                # Pick auto fare if available, otherwise lowest fare option
+                if "auto" in fares and isinstance(fares["auto"], dict):
+                    cost = float(fares["auto"].get("fare", 150.0))
+                else:
+                    first_k = next(iter(fares))
+                    cost = float(fares[first_k].get("fare", 180.0)) if isinstance(fares[first_k], dict) else 180.0
+            else:
+                cost = round(50.0 + (approx_dist * 18.0), 1)
+
+            time_info = res.get("estimated_time", {})
+            if isinstance(time_info, dict):
+                time_val = float(time_info.get("minutes", round((approx_dist / 22.0) * 60, 1)))
+            else:
+                time_val = round((approx_dist / 22.0) * 60, 1)
+
+            dist_info = res.get("distance", {})
+            if isinstance(dist_info, dict):
+                approx_dist = float(dist_info.get("distance_km", approx_dist))
 
             emissions = calculate_emissions("cab", approx_dist)
             comfort = get_comfort_score("cab", 0, approx_dist)
 
-            return [
-                CandidateJourney(
-                    agent_id=self.agent_id,
-                    mode="cab",
-                    cost=cost,
-                    time_min=time_val,
-                    distance_km=approx_dist,
-                    transfers=0,
-                    emissions_g_co2=emissions,
-                    comfort_score=comfort,
-                    weather_exposure=0.10,
-                    traffic_delay_min=max(0.0, time_val * 0.25),
-                    raw_data=res
-                )
-            ]
-        except Exception:
+            cand = CandidateJourney(
+                agent_id=self.agent_id,
+                mode="cab",
+                cost=cost,
+                time_min=time_val,
+                distance_km=approx_dist,
+                transfers=0,
+                emissions_g_co2=emissions,
+                comfort_score=comfort,
+                weather_exposure=0.10,
+                traffic_delay_min=max(0.0, time_val * 0.25),
+                raw_data=res
+            )
+            self.last_result = AgentResult(agent_id=self.agent_id, status="success", candidates=[cand])
+            return [cand]
+        except Exception as e:
+            err_msg = f"CabMobilityAgent error: {str(e)}"
+            self.last_result = AgentResult(
+                agent_id=self.agent_id,
+                status="error",
+                error_message=err_msg,
+                diagnostics={"traceback": traceback.format_exc()}
+            )
             return []
 
 
@@ -417,7 +533,6 @@ class PersonalVehicleAgent(BaseAgent):
     """
     Personal Vehicle Agent (A_veh)
     Goal: Calculate route-specific driving distance, fuel costs, and vehicle operational metrics.
-    FIXED: Uses dynamic route-specific distance rather than hardcoded 12km/Rs.6.8 constants!
     """
 
     def __init__(self, mileage_kml: float = 15.0, fuel_price_per_l: float = 102.0):
@@ -437,23 +552,19 @@ class PersonalVehicleAgent(BaseAgent):
         source = self.state.get("source")
         destination = self.state.get("destination")
         if not source or not destination:
+            self.last_result = AgentResult(agent_id=self.agent_id, status="error", error_message="Missing source or destination")
             return []
 
-        # DYNAMIC distance calculation per corridor
-        dist_km = get_distance_between_stops(source, destination) or 10.0
+        try:
+            dist_km = get_distance_between_stops(source, destination) or 10.0
+            cost_per_km = self.fuel_price_per_l / self.mileage_kml
+            cost = round(dist_km * cost_per_km, 1)
+            time_val = round((dist_km / 25.0) * 60, 1)
 
-        # Fuel cost = (dist / mileage) * fuel_price
-        cost_per_km = self.fuel_price_per_l / self.mileage_kml
-        cost = round(dist_km * cost_per_km, 1)
+            emissions = calculate_emissions("car", dist_km)
+            comfort = get_comfort_score("car", 0, dist_km)
 
-        # Driving time assuming 25 km/h urban average speed
-        time_val = round((dist_km / 25.0) * 60, 1)
-
-        emissions = calculate_emissions("car", dist_km)
-        comfort = get_comfort_score("car", 0, dist_km)
-
-        return [
-            CandidateJourney(
+            cand = CandidateJourney(
                 agent_id=self.agent_id,
                 mode="car",
                 cost=cost,
@@ -466,7 +577,17 @@ class PersonalVehicleAgent(BaseAgent):
                 traffic_delay_min=max(0.0, time_val * 0.25),
                 raw_data={"mode": "car", "distance": dist_km, "cost": cost, "time": time_val}
             )
-        ]
+            self.last_result = AgentResult(agent_id=self.agent_id, status="success", candidates=[cand])
+            return [cand]
+        except Exception as e:
+            err_msg = f"PersonalVehicleAgent error: {str(e)}"
+            self.last_result = AgentResult(
+                agent_id=self.agent_id,
+                status="error",
+                error_message=err_msg,
+                diagnostics={"traceback": traceback.format_exc()}
+            )
+            return []
 
 
 class CoordinatorAgent(BaseAgent):

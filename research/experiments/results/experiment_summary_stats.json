@@ -1,15 +1,15 @@
 {
-  "cold_start_overhead_ms": 204224.39,
+  "cold_start_overhead_ms": 130766.64,
   "warm_start_trials_per_corridor": 10,
   "corridors_evaluated": 20,
-  "mean_sequential_warm_latency_ms": 2.75,
-  "mean_parallel_warm_latency_ms": 3.43,
-  "median_parallel_warm_latency_ms": 2.9,
-  "p95_parallel_warm_latency_ms": 5.82,
-  "mean_warm_speedup_factor": 0.79,
-  "mean_p95_reduction_percent": -57.3,
-  "startup_rss_mb": 142.59,
-  "warm_rss_mb": 811.38,
-  "peak_rss_mb": 883.77,
-  "execution_timestamp": "2026-10-06 21:38:22"
+  "mean_sequential_warm_latency_ms": 371.67,
+  "mean_parallel_warm_latency_ms": 235.74,
+  "median_parallel_warm_latency_ms": 203.79,
+  "p95_parallel_warm_latency_ms": 453.74,
+  "mean_warm_speedup_factor": 1.93,
+  "mean_p95_reduction_percent": 17.5,
+  "startup_rss_mb": 143.16,
+  "warm_rss_mb": 880.62,
+  "peak_rss_mb": 883.84,
+  "execution_timestamp": "2026-10-08 18:58:55"
 }

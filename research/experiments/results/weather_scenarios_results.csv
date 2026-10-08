@@ -1,5 +1,5 @@
 scenario,rain_probability,top_mode,utility_score,weather_suitability,outdoor_exposure
-Clear,0.0,car,97.3,1.0,0.1
-Light Rain,30.0,car,97.0,0.97,0.1
-Moderate Rain,60.0,car,96.8,0.95,0.1
-Heavy Rain,90.0,car,96.5,0.92,0.1
+Clear,0.0,bmtc,91.3,1.0,0.55
+Light Rain,30.0,bmtc,89.9,0.86,0.55
+Moderate Rain,60.0,bmtc,77.5,0.72,0.55
+Heavy Rain,90.0,bmtc,87.1,0.57,0.55

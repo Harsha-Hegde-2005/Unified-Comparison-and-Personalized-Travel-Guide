@@ -1,21 +1,21 @@
 corridor_id,corridor_name,category,seq_mean_ms,seq_median_ms,seq_std_ms,seq_p95_ms,par_mean_ms,par_median_ms,par_std_ms,par_p95_ms,par_ci95_lower,par_ci95_upper,speedup_factor,p95_reduction_percent,p_value,top_mode,top_score
-C01,Indiranagar to Domlur,Short,1.22,1.15,0.44,1.83,2.36,1.39,1.73,5.18,1.12,3.6,0.52,-183.1,0.048828125,car,97.3
-C02,Koramangala to Silk Board,Short,1.96,1.56,0.97,3.74,2.47,1.87,1.26,4.84,1.57,3.37,0.79,-29.4,0.375,car,97.3
-C03,HSR Layout to Agara,Short,1.03,1.02,0.2,1.33,3.03,1.38,2.44,6.54,1.29,4.77,0.34,-391.7,0.013671875,car,97.3
-C04,Jayanagar to JP Nagar,Short,1.32,1.06,0.61,2.23,2.76,1.78,2.23,6.71,1.17,4.35,0.48,-200.9,0.00390625,car,97.3
-C05,MG Road to Residency Road,Short,1.65,1.41,0.66,2.75,3.0,2.15,1.63,5.38,1.83,4.17,0.55,-95.6,0.02734375,car,97.3
-C06,Majestic to Whitefield,Arterial,3.12,2.86,1.3,4.86,4.0,3.5,2.03,7.05,2.55,5.45,0.78,-45.1,0.4921875,car,97.3
-C07,Jayanagar to Electronic City,Arterial,1.92,1.67,1.13,3.91,2.26,1.85,1.06,4.12,1.5,3.02,0.85,-5.4,0.845703125,car,97.3
-C08,Hebbal to MG Road,Arterial,6.64,6.98,1.76,8.48,6.72,6.94,2.08,9.21,5.23,8.21,0.99,-8.6,1.0,car,97.3
-C09,Banashankari to Yeshwanthpur,Arterial,1.78,1.58,1.02,3.44,2.62,1.79,1.56,5.15,1.5,3.74,0.68,-49.7,0.10546875,car,97.3
-C10,Rajajinagar to Marathahalli,Arterial,1.29,0.94,0.79,2.74,1.74,1.38,0.79,3.01,1.17,2.31,0.74,-9.9,0.16015625,car,97.3
-C11,Kengeri to ITPL Whitefield,Cross-City,3.95,3.87,0.89,5.19,5.09,5.72,1.64,6.68,3.91,6.27,0.78,-28.7,0.083984375,car,97.3
-C12,Nagasandra to Silk Board,Cross-City,1.62,1.15,1.15,3.6,1.84,1.52,0.94,3.51,1.17,2.51,0.88,2.5,0.556640625,car,97.3
-C13,Banashankari to Yelahanka,Cross-City,3.41,3.31,1.41,5.24,3.41,3.21,1.31,5.64,2.47,4.35,1.0,-7.6,0.921875,car,97.3
-C14,Majestic to Electronic City,Cross-City,8.23,8.4,1.83,10.91,10.26,9.88,1.61,12.71,9.11,11.41,0.8,-16.5,0.048828125,car,97.3
-C15,Whitefield to Kengeri,Cross-City,2.08,1.4,1.34,4.28,2.11,1.55,1.07,3.9,1.34,2.88,0.99,8.9,0.796875,car,97.3
-C16,Kempegowda Airport to Electronic City,Suburban/Airport,3.46,3.1,1.7,5.9,3.94,3.07,1.71,6.26,2.72,5.16,0.88,-6.1,0.625,car,97.3
-C17,Yelahanka to Bannerghatta,Suburban/Airport,2.52,1.87,1.54,5.24,2.18,1.71,1.18,4.34,1.34,3.02,1.16,17.2,0.5078125,car,97.3
-C18,Hebbal to Electronic City,Suburban/Airport,4.52,4.37,1.91,6.91,4.52,4.45,1.46,6.81,3.47,5.57,1.0,1.4,0.921875,car,97.3
-C19,Kempegowda Airport to Indiranagar,Suburban/Airport,1.25,0.92,0.73,2.34,1.84,1.08,1.37,3.86,0.86,2.82,0.68,-65.0,0.232421875,car,97.3
-C20,Kengeri to Devanahalli,Suburban/Airport,2.01,1.56,1.16,4.09,2.4,1.71,1.62,5.47,1.24,3.56,0.84,-33.7,0.787109375,car,97.3
+C01,Indiranagar to Domlur,Short,391.91,314.76,198.34,723.47,320.17,315.5,32.68,362.07,296.79,343.55,1.22,50.0,0.845703125,car,94.6
+C02,Koramangala to Silk Board,Short,408.09,386.12,140.47,638.61,401.33,369.19,115.76,568.51,318.52,484.14,1.02,11.0,0.76953125,car,90.5
+C03,HSR Layout to Agara,Short,353.62,326.28,93.92,495.7,405.46,338.97,151.74,653.8,296.91,514.01,0.87,-31.9,0.556640625,car,97.3
+C04,Jayanagar to JP Nagar,Short,373.11,342.01,82.71,515.79,88.09,11.74,169.68,408.74,-33.3,209.48,4.24,20.8,0.009765625,car,92.3
+C05,MG Road to Residency Road,Short,370.39,323.6,152.82,617.93,288.51,281.57,30.74,336.2,266.52,310.5,1.28,45.6,0.130859375,car,97.3
+C06,Majestic to Whitefield,Arterial,405.97,335.24,130.9,597.63,222.59,270.34,216.62,528.97,67.63,377.55,1.82,11.5,0.064453125,car,97.3
+C07,Jayanagar to Electronic City,Arterial,349.54,335.29,90.93,490.36,251.63,288.92,235.31,606.89,83.3,419.96,1.39,-23.8,0.322265625,metro,83.2
+C08,Hebbal to MG Road,Arterial,380.37,300.73,155.97,654.83,200.76,160.77,200.7,460.21,57.19,344.33,1.89,29.7,0.048828125,bmtc,90.0
+C09,Banashankari to Yeshwanthpur,Arterial,421.36,316.06,178.8,678.91,235.17,272.2,221.86,555.13,76.46,393.88,1.79,18.2,0.064453125,bmtc,80.3
+C10,Rajajinagar to Marathahalli,Arterial,431.0,409.65,133.72,629.49,197.5,13.59,268.83,659.56,5.19,389.81,2.18,-4.8,0.083984375,car,97.3
+C11,Kengeri to ITPL Whitefield,Cross-City,360.25,325.73,94.13,524.31,177.76,160.62,177.89,401.69,50.5,305.02,2.03,23.4,0.083984375,bmtc,95.3
+C12,Nagasandra to Silk Board,Cross-City,396.15,329.81,179.88,702.33,169.44,14.54,222.4,509.61,10.34,328.54,2.34,27.4,0.02734375,bmtc,95.3
+C13,Banashankari to Yelahanka,Cross-City,358.32,342.73,68.82,482.42,140.86,13.12,167.67,367.47,20.91,260.81,2.54,23.8,0.02734375,bmtc,80.2
+C14,Majestic to Electronic City,Cross-City,352.35,316.84,83.62,490.26,253.35,307.15,171.91,436.67,130.37,376.33,1.39,10.9,0.048828125,bmtc,95.3
+C15,Whitefield to Kengeri,Cross-City,373.47,334.19,118.21,585.65,213.12,283.82,141.11,330.18,112.17,314.07,1.75,43.6,0.02734375,metro,84.0
+C16,Kempegowda Airport to Electronic City,Suburban/Airport,364.47,325.58,124.45,582.67,345.23,327.99,73.3,478.74,292.79,397.67,1.06,17.8,0.76953125,bmtc,96.0
+C17,Yelahanka to Bannerghatta,Suburban/Airport,307.55,308.31,30.8,353.12,67.02,14.1,114.54,284.45,-14.92,148.96,4.59,19.4,0.005859375,metro,99.0
+C18,Hebbal to Electronic City,Suburban/Airport,367.76,328.85,104.02,542.04,117.95,19.37,168.17,398.42,-2.35,238.25,3.12,26.5,0.009765625,bmtc,96.0
+C19,Kempegowda Airport to Indiranagar,Suburban/Airport,310.23,291.75,63.34,413.38,292.98,285.32,21.72,326.43,277.44,308.52,1.06,21.0,0.6953125,bmtc,96.0
+C20,Kengeri to Devanahalli,Suburban/Airport,357.47,338.49,57.18,446.4,325.97,327.05,49.38,401.13,290.64,361.3,1.1,10.1,0.375,car,97.3

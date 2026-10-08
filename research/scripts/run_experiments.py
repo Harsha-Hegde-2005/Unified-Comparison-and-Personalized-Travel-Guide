@@ -447,11 +447,11 @@ def run_comprehensive_experimental_suite(num_trials: int = 30):
     metadata_json_path = os.path.join(output_dir, "experiment_metadata.json")
     with open(metadata_json_path, "w") as f:
         json.dump(experiment_metadata, f, indent=2)
-    print(f"Saved Metadata JSON to {metadata_json_path}")
+    print("Saved Metadata JSON to " + metadata_json_path, flush=True)
 
-    print("\n" + "=" * 80)
-    print("EMPIRICAL EXPERIMENTAL SUITE SUCCESSFULLY COMPLETED AND VERIFIED!")
-    print("=" * 80)
+    print("\n" + "=" * 80, flush=True)
+    print("EMPIRICAL EXPERIMENTAL SUITE SUCCESSFULLY COMPLETED AND VERIFIED!", flush=True)
+    print("=" * 80, flush=True)
 
 
 if __name__ == "__main__":

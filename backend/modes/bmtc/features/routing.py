@@ -597,8 +597,8 @@ def _fast_transfer_options(
     src_route_pairs.sort(key=lambda pair: (0 if pair[1] == src_norm else 1, -_get_trips(pair[0])))
     dst_route_pairs.sort(key=lambda pair: (0 if pair[1] == dst_norm else 1, -_get_trips(pair[0])))
 
-    src_route_pairs = src_route_pairs[:80]
-    dst_route_pairs = dst_route_pairs[:80]
+    src_route_pairs = src_route_pairs[:25]
+    dst_route_pairs = dst_route_pairs[:25]
 
     now = datetime.now()
     h = request_minute // 60

@@ -72,6 +72,16 @@ class CandidateJourney:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class AgentResult:
+    """Explicit result and diagnostic structure for agent execution."""
+    agent_id: str
+    status: str  # "success", "no_route_found", "error"
+    candidates: List[CandidateJourney] = field(default_factory=list)
+    error_message: Optional[str] = None
+    diagnostics: Dict[str, Any] = field(default_factory=dict)
+
+
 class BaseAgent(ABC):
     """Abstract Base Class for all autonomous transit decision agents."""
 
@@ -83,6 +93,7 @@ class BaseAgent(ABC):
         self.execution_time_ms: float = 0.0
         self.message_inbox: List[AgentMessage] = []
         self.message_outbox: List[AgentMessage] = []
+        self.last_result: Optional[AgentResult] = None
 
     @abstractmethod
     def observe(self, observation: AgentObservation) -> None:
