@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart' as ll;
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/result_card.dart';
+import '../widgets/explainable_ai_ranker.dart';
 import '../widgets/compare_table.dart';
 import '../widgets/linear_route_map.dart';
 import '../widgets/places_autocomplete_field.dart';
@@ -13,6 +14,7 @@ import '../widgets/app_settings_modal.dart';
 import '../utils/geolocation_helper.dart';
 import '../services/recent_searches_store.dart';
 import 'route_details_screen.dart';
+import 'chat_screen.dart';
 
 class PlanJourneyScreen extends StatefulWidget {
   final String? initialSource;
@@ -242,6 +244,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
 
     // 4. Segment-by-Segment Polylines
     final List<Map<String, dynamic>> segPolylines = [];
+    final bool isPersonalVehicle = _selectedMode == 'car' || _selectedMode == 'two_wheeler';
+
     if (modeData != null && modeData['segments'] is List) {
       final segs = modeData['segments'] as List<dynamic>;
       for (final seg in segs) {
@@ -250,6 +254,7 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
           final routeName = seg['route']?.toString() ?? '';
           final isWalk = segType == 'walk' || routeName.toLowerCase().contains('walk');
           final isMetro = segType == 'metro' || routeName.toLowerCase().contains('line');
+          final isCar = segType == 'car' || isPersonalVehicle;
 
           Color segColor = AppTheme.getModeColor(_selectedMode ?? 'bmtc');
           if (isMetro) {
@@ -265,6 +270,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
             }
           } else if (isWalk) {
             segColor = const Color(0xFF6B7A99);
+          } else if (isCar) {
+            segColor = AppTheme.carColor;
           }
 
           final List<ll.LatLng> segPts = [];
@@ -281,6 +288,12 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
             }
           }
 
+          // Fallback for personal vehicle & cab where intermediate stops array is empty
+          if (segPts.isEmpty && (isCar || _selectedMode == 'cab')) {
+            if (_srcCoord != null) segPts.add(_srcCoord!);
+            if (_dstCoord != null && _dstCoord != _srcCoord) segPts.add(_dstCoord!);
+          }
+
           if (segPts.length >= 2) {
             final segProfile = isWalk ? 'foot' : 'driving';
             final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: segProfile);
@@ -294,6 +307,18 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
           }
         }
       }
+    }
+
+    // Direct driving polyline guarantee for personal vehicle
+    if (isPersonalVehicle && segPolylines.isEmpty && points.length >= 2) {
+      final carRoad = await ApiService.fetchRoadPolyline(points, profile: 'driving');
+      segPolylines.add({
+        'points': carRoad.isNotEmpty ? carRoad : points,
+        'color': AppTheme.carColor,
+        'isWalk': false,
+        'isMetro': false,
+        'routeName': 'Drive (${_selectedVehicle ?? "Personal Vehicle"})',
+      });
     }
 
     final profile = (_selectedMode == 'walk' || _selectedMode == 'bicycle') ? 'foot' : 'driving';
@@ -747,6 +772,32 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
       appBar: AppBar(
         title: const Text('Plan Journey', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
         actions: [
+          // Ride Mode Companion Modal Button
+          IconButton(
+            icon: const Icon(Icons.rocket_launch_rounded, color: AppTheme.green),
+            tooltip: 'Live Ride Mode Companion',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const RideModeModal(),
+              );
+            },
+          ),
+          // Live Bengaluru Weather Modal Button
+          IconButton(
+            icon: const Icon(Icons.wb_sunny_rounded, color: Colors.amber),
+            tooltip: 'Transit Weather Report',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const WeatherReportModal(),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(_showMap ? Icons.map : Icons.map_outlined, color: _showMap ? AppTheme.bmtcColor : null),
             tooltip: 'Toggle Route Map',
@@ -1074,8 +1125,18 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                 AppTheme.cabColor,
               ),
 
-            // 4. AI Recommendation Banner
-            if (bestMode != null && _results != null) ...[
+            // 4. Explainable AI & Top-K Routing Smart Ranker (Matching Website)
+            if (_results != null && _recommendations.isNotEmpty) ...[
+              ExplainableAiRankerCard(
+                recommendations: _recommendations,
+                results: _results!,
+                selectedMode: _selectedMode,
+                onSelectMode: (m) {
+                  setState(() => _selectedMode = m);
+                  _updateMapPoints();
+                },
+              ),
+            ] else if (bestMode != null && _results != null) ...[
               Container(
                 margin: const EdgeInsets.only(bottom: 14),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1211,6 +1272,28 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
         );
       },
     ),
+  ),
+  floatingActionButton: FloatingActionButton.extended(
+    backgroundColor: const Color(0xFF7C3AED),
+    foregroundColor: Colors.white,
+    elevation: 4,
+    icon: const Icon(Icons.smart_toy_rounded, size: 20),
+    label: const Text('AI Assistant', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            onPlanJourney: (route) {
+              Navigator.pop(context);
+              _sourceController.text = route['source'] ?? '';
+              _destController.text = route['destination'] ?? '';
+              _doSearch();
+            },
+          ),
+        ),
+      );
+    },
   ),
 );
   }

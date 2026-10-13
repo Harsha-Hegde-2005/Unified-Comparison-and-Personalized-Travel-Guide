@@ -22,7 +22,7 @@ research/
 ├── mas/
 │   ├── agent_interface.py    # Typed structs (AgentMessage, AgentObservation) & BaseAgent class
 │   ├── agents.py             # 8 specialized mobility & environmental agent implementations
-│   └── coordinator.py        # Asynchronous coordinator with warm caching & baseline overrides
+│   └── coordinator.py        # Parallel coordinator with warm caching & baseline overrides
 ├── scripts/
 │   ├── run_experiments.py          # Empirical benchmark suite runner (Phases 4-15)
 │   ├── generate_plots.py           # Publication-quality plot renderer (Figures 5-8)

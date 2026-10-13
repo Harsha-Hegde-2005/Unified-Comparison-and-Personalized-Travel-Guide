@@ -186,6 +186,12 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             }
           }
 
+          // Fallback for personal vehicle & cab where intermediate stops array is empty
+          if (segPts.isEmpty && (optMode == 'car' || optMode == 'two_wheeler' || segType == 'car' || optMode == 'cab')) {
+            if (widget.srcCoord != null) segPts.add(widget.srcCoord!);
+            if (widget.dstCoord != null && widget.dstCoord != widget.srcCoord) segPts.add(widget.dstCoord!);
+          }
+
           if (segPts.length >= 2) {
             final profile = isWalk ? 'foot' : 'driving';
             final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: profile);
@@ -199,6 +205,17 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           }
         }
       }
+    }
+
+    if ((optMode == 'car' || optMode == 'two_wheeler') && segPolylines.isEmpty && points.length >= 2) {
+      final carRoad = await ApiService.fetchRoadPolyline(points, profile: 'driving');
+      segPolylines.add({
+        'points': carRoad.isNotEmpty ? carRoad : points,
+        'color': AppTheme.carColor,
+        'isWalk': false,
+        'isMetro': false,
+        'routeName': 'Drive (${widget.option['vehicle'] ?? "Personal Vehicle"})',
+      });
     }
 
     if (mounted) {

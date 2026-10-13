@@ -1,6 +1,6 @@
 baseline_id,baseline_name,mean_latency_ms,median_latency_ms,p95_latency_ms,top_mode,top_cost_rs,top_time_min,utility_score
-B1,Shortest-Time-Only,371.66,348.93,469.34,car,131.0,46.2,100.0
-B2,Lowest-Cost-Only,305.61,299.49,350.62,metro,84.0,48.0,100.0
-B3,Static Weighted Sum,370.93,322.4,605.24,metro,84.0,48.0,98.9
-B4,Monolithic Context-Aware,325.69,306.1,413.94,metro,84.0,48.0,98.7
-B5,Coordinated Parallel MAS (Proposed),66.45,19.8,262.7,metro,84.0,48.0,84.0
+B1,Shortest-Time-Only,195.64,185.92,279.01,cab,396.9,46.0,100.0
+B2,Lowest-Cost-Only,164.43,162.12,187.13,metro,84.0,49.0,100.0
+B3,Static Weighted Sum,169.75,162.94,200.06,car,131.0,46.2,89.2
+B4,Monolithic Context-Aware,181.74,153.99,313.03,car,131.0,46.2,84.8
+B5,Coordinated Parallel MAS (Proposed),70.0,15.06,265.16,metro,84.0,49.0,84.0

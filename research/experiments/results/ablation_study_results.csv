@@ -1,6 +1,6 @@
 ablation_id,ablation_name,top_recommended_mode,utility_score,cost_rs,time_min,weather_exposure
-A0,Full Coordinated MAS,metro,82.3,84.0,48.0,0.25
-A1,No Weather Agent,metro,84.0,84.0,48.0,0.25
-A2,No Traffic Agent,metro,82.3,84.0,48.0,0.25
-A3,No User Preferences,metro,77.2,84.0,48.0,0.25
-A4,No Agent Coordination,metro,50.0,84.0,48.0,0.25
+A0,Full Coordinated MAS,metro,82.3,84.0,49.0,0.25
+A1,No Weather Agent,metro,84.0,84.0,49.0,0.25
+A2,No Traffic Agent,metro,82.3,84.0,49.0,0.25
+A3,No User Preferences,metro,77.2,84.0,49.0,0.25
+A4,No Agent Coordination,metro,50.0,84.0,49.0,0.25

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
@@ -221,27 +222,58 @@ class _GoogleMapViewState extends State<GoogleMapView> {
       );
     }
 
-    // Live GPS Marker (Blue pulsing)
+    // Live GPS Marker (Directional Navigation Arrow)
     if (widget.liveGpsPoint != null) {
+      double arrowBearing = 0.0;
+      if (widget.points.length >= 2) {
+        final p1 = widget.liveGpsPoint!;
+        final p2 = widget.dstPoint ?? widget.points.last;
+        final dLng = (p2.longitude - p1.longitude) * 0.017453292519943295;
+        final lat1 = p1.latitude * 0.017453292519943295;
+        final lat2 = p2.latitude * 0.017453292519943295;
+        final y = math.sin(dLng) * math.cos(lat2);
+        final x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dLng);
+        arrowBearing = (math.atan2(y, x) * 57.29577951308232 + 360) % 360;
+      }
       markers.add(
         fm.Marker(
           point: widget.liveGpsPoint!,
-          width: 36,
-          height: 36,
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppTheme.blue,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2.5),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.blue.withValues(alpha: 0.5),
-                  blurRadius: 10,
-                  spreadRadius: 3,
-                )
-              ],
-            ),
-            child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 18),
+          width: 44,
+          height: 44,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.blue.withValues(alpha: 0.2),
+                ),
+              ),
+              Transform.rotate(
+                angle: arrowBearing * (3.141592653589793 / 180),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: AppTheme.blue,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.blue.withValues(alpha: 0.5),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      )
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.navigation_rounded, color: Colors.white, size: 18),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );

@@ -55,15 +55,15 @@ Prior to this audit and repair, the research Multi-Agent System (MAS) had critic
 
 ## 3. Files Modified
 
-- [`research/mas/agent_interface.py`](file:///c:/Users/Harsh/Downloads/BMTC_fixed/research/mas/agent_interface.py): Added `AgentResult` dataclass and `last_result` tracking.
-- [`research/mas/agents.py`](file:///c:/Users/Harsh/Downloads/BMTC_fixed/research/mas/agents.py): Fixed BMTC tuple unpacking, Metro `plan_journey` and station mapping, Cab isolated import and coordinate search, and explicit error state recording.
-- [`backend/modes/bmtc/features/routing.py`](file:///c:/Users/Harsh/Downloads/BMTC_fixed/backend/modes/bmtc/features/routing.py): Optimized candidate search space limit for transfer searches.
-- [`research/scripts/run_experiments.py`](file:///c:/Users/Harsh/Downloads/BMTC_fixed/research/scripts/run_experiments.py): Updated protocol to $N=10$ trials and unbuffered progress logging.
-- [`research/scripts/diagnose_agents.py`](file:///c:/Users/Harsh/Downloads/BMTC_fixed/research/scripts/diagnose_agents.py): Added 20-corridor multi-agent candidate diagnostic tool.
-- [`research/scripts/generate_plots.py`](file:///c:/Users/Harsh/Downloads/BMTC_fixed/research/scripts/generate_plots.py): Regenerated Figures 5, 6, 7, and 8.
-- [`research/scripts/generate_latex_tables.py`](file:///c:/Users/Harsh/Downloads/BMTC_fixed/research/scripts/generate_latex_tables.py): Regenerated all LaTeX paper tables.
-- [`research/scripts/verify_paper_numbers.py`](file:///c:/Users/Harsh/Downloads/BMTC_fixed/research/scripts/verify_paper_numbers.py): Verified 16/16 paper metrics against generated ground-truth outputs.
-- [`research/paper/main.tex`](file:///c:/Users/Harsh/Downloads/BMTC_fixed/research/paper/main.tex): Updated prose and abstract metrics to reflect current regenerated empirical numbers.
+- [`research/mas/agent_interface.py`](research/mas/agent_interface.py): Added `AgentResult` dataclass and `last_result` tracking.
+- [`research/mas/agents.py`](research/mas/agents.py): Fixed BMTC tuple unpacking, Metro `plan_journey` and station mapping, Cab isolated import and coordinate search, and explicit error state recording.
+- [`backend/modes/bmtc/features/routing.py`](backend/modes/bmtc/features/routing.py): Optimized candidate search space limit for transfer searches.
+- [`research/scripts/run_experiments.py`](research/scripts/run_experiments.py): Updated protocol to $N=10$ trials and unbuffered progress logging.
+- [`research/scripts/diagnose_agents.py`](research/scripts/diagnose_agents.py): Added 20-corridor multi-agent candidate diagnostic tool.
+- [`research/scripts/generate_plots.py`](research/scripts/generate_plots.py): Regenerated Figures 5, 6, 7, and 8.
+- [`research/scripts/generate_latex_tables.py`](research/scripts/generate_latex_tables.py): Regenerated all LaTeX paper tables.
+- [`research/scripts/verify_paper_numbers.py`](research/scripts/verify_paper_numbers.py): Verified 16/16 paper metrics against generated ground-truth outputs.
+- [`research/paper/main.tex`](research/paper/main.tex): Updated prose and abstract metrics to reflect current regenerated empirical numbers.
 
 ---
 
@@ -110,4 +110,4 @@ The complete empirical suite (`run_experiments.py`) was executed with $N=10$ rep
 
 ## 7. Git Commit Hash
 
-- **HEAD Commit Hash**: `18604d8669a6512296500b77dd76d23304271888`
+- **HEAD Commit Hash**: `a86f713231abe189ba82af1d958fe7b60112c561`

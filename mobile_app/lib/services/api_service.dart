@@ -13,12 +13,35 @@ class ApiService {
   static String get defaultBaseUrl {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;
-    if (kIsWeb) return 'http://localhost:8000';
-    if (defaultTargetPlatform == TargetPlatform.android) return 'http://192.168.0.103:8000';
-    return 'http://127.0.0.1:8000';
+    return 'http://localhost:8000';
   }
 
   static String baseUrl = defaultBaseUrl;
+
+  // In-memory latency optimization caches
+  static final Map<String, dynamic> _stopCoordsCache = {};
+  static final Map<String, ll.LatLng> _geocodeCache = {};
+  static final Map<String, List<ll.LatLng>> _roadPolylineCache = {};
+
+  static String sanitizeUrl(String raw) {
+    var u = raw.trim();
+    if (u.isEmpty) return u;
+    if (!u.startsWith('http://') && !u.startsWith('https://')) {
+      u = 'https://$u';
+    }
+    while (u.endsWith('/')) {
+      u = u.substring(0, u.length - 1);
+    }
+    return u;
+  }
+
+  static Future<void> setBaseUrl(String newUrl) async {
+    baseUrl = sanitizeUrl(newUrl);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('api_custom_base_url', baseUrl);
+    } catch (_) {}
+  }
 
   // ── Auth state ────────────────────────────────────────────────────────────
 
@@ -28,6 +51,7 @@ class ApiService {
   static Map<String, String> get authHeaders => {
         'Content-Type': 'application/json',
         'Bypass-Tunnel-Reminder': 'true',
+        'bypass-tunnel-reminder': 'true',
         'User-Agent': 'BMTC_Mobile_App',
         if (token != null) 'Authorization': 'Bearer $token',
       };
@@ -46,6 +70,10 @@ class ApiService {
   static Future<String?> loadSavedSession() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final savedUrl = prefs.getString('api_custom_base_url');
+      if (savedUrl != null && savedUrl.isNotEmpty) {
+        baseUrl = savedUrl;
+      }
       final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
       if (isLoggedIn) {
         token = prefs.getString('user_token');
@@ -403,7 +431,32 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>?> fetchStopCoords(List<String> stops) async {
-    return _post('/api/stops/coords', {'stops': stops});
+    if (stops.isEmpty) return {'coordinates': {}};
+    final missing = <String>[];
+    final Map<String, dynamic> resolved = {};
+
+    for (final s in stops) {
+      if (_stopCoordsCache.containsKey(s)) {
+        resolved[s] = _stopCoordsCache[s];
+      } else {
+        missing.add(s);
+      }
+    }
+
+    if (missing.isEmpty) {
+      return {'coordinates': resolved};
+    }
+
+    try {
+      final res = await _post('/api/stops/coords', {'stops': missing});
+      final fetched = res?['coordinates'] as Map<String, dynamic>? ?? {};
+      for (final entry in fetched.entries) {
+        _stopCoordsCache[entry.key] = entry.value;
+        resolved[entry.key] = entry.value;
+      }
+    } catch (_) {}
+
+    return {'coordinates': resolved};
   }
 
   static Future<Map<String, dynamic>?> fetchNearbyStops(double lat, double lng) async =>
@@ -548,11 +601,16 @@ class ApiService {
     String profile = 'driving',
   }) async {
     if (waypoints.length < 2) return waypoints;
+    final mode = (profile == 'walk' || profile == 'foot') ? 'foot' : 'driving';
+    final cacheKey = '$mode:${waypoints.map((w) => "${w.latitude.toStringAsFixed(4)},${w.longitude.toStringAsFixed(4)}").join(";")}';
+    if (_roadPolylineCache.containsKey(cacheKey)) {
+      return _roadPolylineCache[cacheKey]!;
+    }
+
     try {
       final waypointStr = waypoints
           .map((pt) => '${pt.longitude},${pt.latitude}')
           .join(';');
-      final mode = (profile == 'walk' || profile == 'foot') ? 'foot' : 'driving';
       final url = Uri.parse(
         'https://router.project-osrm.org/route/v1/$mode/$waypointStr?overview=full&geometries=geojson',
       );
@@ -576,6 +634,7 @@ class ApiService {
             }
           }
           if (roadPoints.length >= 2) {
+            _roadPolylineCache[cacheKey] = roadPoints;
             return roadPoints;
           }
         }
@@ -592,13 +651,20 @@ class ApiService {
     final query = locationName.trim();
     if (query.isEmpty) return null;
 
+    final cacheKey = query.toLowerCase();
+    if (_geocodeCache.containsKey(cacheKey)) {
+      return _geocodeCache[cacheKey];
+    }
+
     // 0. High-precision direct coordinate parsing (e.g. "12.9716, 77.5946" or "Location (12.9716, 77.5946)")
     final coordMatch = RegExp(r'(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)').firstMatch(query);
     if (coordMatch != null) {
       final lat = double.tryParse(coordMatch.group(1)!);
       final lng = double.tryParse(coordMatch.group(2)!);
       if (lat != null && lng != null) {
-        return ll.LatLng(lat, lng);
+        final pt = ll.LatLng(lat, lng);
+        _geocodeCache[cacheKey] = pt;
+        return pt;
       }
     }
 
@@ -611,7 +677,9 @@ class ApiService {
         final lat = (c['lat'] as num?)?.toDouble();
         final lng = (c['lng'] as num?)?.toDouble();
         if (lat != null && lng != null) {
-          return ll.LatLng(lat, lng);
+          final pt = ll.LatLng(lat, lng);
+          _geocodeCache[cacheKey] = pt;
+          return pt;
         }
       }
     } catch (_) {}
@@ -636,7 +704,9 @@ class ApiService {
           final lat = double.tryParse(item['lat']?.toString() ?? '');
           final lng = double.tryParse(item['lon']?.toString() ?? '');
           if (lat != null && lng != null) {
-            return ll.LatLng(lat, lng);
+            final pt = ll.LatLng(lat, lng);
+            _geocodeCache[cacheKey] = pt;
+            return pt;
           }
         }
       }
@@ -804,30 +874,63 @@ class ApiService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   static final List<String> candidateUrls = [
-    'https://light-hairs-go.loca.lt',
-    'http://192.168.0.103:8000',
+    'http://127.0.0.1:8000',
     'http://localhost:8000',
+    'https://memories-levels-distant-seniors.trycloudflare.com',
+    'http://192.168.1.2:8000',
+    'http://10.0.2.2:8000',
+    'https://chair-pipe-purchased-reply.trycloudflare.com',
+    'https://silly-bats-deny.loca.lt',
   ];
 
-  static Future<bool> _testUrl(String targetUrl) async {
+  static Future<bool> _quickPing(String targetUrl) async {
+    final cleanUrl = sanitizeUrl(targetUrl);
+    final isRemote = cleanUrl.startsWith('https://') ||
+        (!cleanUrl.contains('localhost') &&
+            !cleanUrl.contains('127.0.0.1') &&
+            !cleanUrl.contains('192.168.'));
+    final timeoutDuration = isRemote
+        ? const Duration(seconds: 10)
+        : const Duration(milliseconds: 2500);
+
     try {
       final res = await http.get(
-        Uri.parse('$targetUrl/api/cab/providers'),
+        Uri.parse('$cleanUrl/healthz'),
         headers: authHeaders,
-      ).timeout(const Duration(seconds: 5));
+      ).timeout(timeoutDuration);
+      if (res.statusCode == 200) return true;
+    } catch (e) {
+      debugPrint("Healthz ping failed for $cleanUrl: $e");
+    }
+
+    try {
+      final res = await http.get(
+        Uri.parse('$cleanUrl/api/cab/providers'),
+        headers: authHeaders,
+      ).timeout(timeoutDuration);
       return res.statusCode == 200;
-    } catch (_) {
+    } catch (e) {
+      debugPrint("Fallback providers ping failed for $cleanUrl: $e");
       return false;
     }
   }
 
   static Future<bool> checkHealth() async {
-    if (await _testUrl(baseUrl)) return true;
+    // 1. Fast check current baseUrl
+    if (await _quickPing(baseUrl)) return true;
 
-    for (final candidate in candidateUrls) {
-      if (candidate != baseUrl && await _testUrl(candidate)) {
-        baseUrl = candidate;
-        debugPrint("ApiService auto-switched active baseUrl to: $baseUrl");
+    // 2. Parallel check all candidate URLs for instant auto-discovery
+    final candidatesToTest = candidateUrls.where((c) => c != baseUrl).toList();
+    final futures = candidatesToTest.map((c) async {
+      final ok = await _quickPing(c);
+      return ok ? c : null;
+    });
+
+    final results = await Future.wait(futures);
+    for (final winner in results) {
+      if (winner != null) {
+        await setBaseUrl(winner);
+        debugPrint("ApiService auto-connected to active baseUrl: $baseUrl");
         return true;
       }
     }

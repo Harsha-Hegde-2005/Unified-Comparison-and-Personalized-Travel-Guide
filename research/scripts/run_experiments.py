@@ -5,7 +5,7 @@ Scientific Empirical Benchmarking Engine for the Coordinated Multi-Agent Journey
 
 Addresses Phases 4-15:
 - Cold-Start vs. Warm-Start Latency Separation
-- N=30 Repeated Warm Trials per Corridor with Statistical Validation (95% CI, p-value, Cohen's d)
+- N=10 Repeated Warm Trials per Corridor with Statistical Validation (95% CI, p-value, Cohen's d)
 - Genuine Baselines (B1-B5) Execution
 - True Component Ablations (A0-A4)
 - Controlled Synthetic Weather Scenarios (Clear, Light, Moderate, Heavy Rain)
@@ -66,7 +66,7 @@ BENCHMARK_CORRIDORS = [
 ]
 
 
-def run_comprehensive_experimental_suite(num_trials: int = 30):
+def run_comprehensive_experimental_suite(num_trials: int = 10):
     print("=" * 80)
     print("STARTING REPRODUCIBLE EMPIRICAL EXPERIMENTAL SUITE (ADCOM 2027)")
     print("=" * 80)
@@ -91,7 +91,7 @@ def run_comprehensive_experimental_suite(num_trials: int = 30):
     print(f"  Cold-Start GTFS Graph Load Overhead: {total_cold_ms} ms (Warm RSS: {warm_rss_mb} MB)")
 
     # ---------------------------------------------------------
-    # EXPERIMENT 1: Corridor Performance & Latency (Warm-Start N=30)
+    # EXPERIMENT 1: Corridor Performance & Latency (Warm-Start N=10)
     # ---------------------------------------------------------
     print(f"\n[Experiment 1] Benchmarking 20 Corridors (N={num_trials} Repeated Warm-Start Trials)...")
     corridor_records = []
@@ -356,55 +356,75 @@ def run_comprehensive_experimental_suite(num_trials: int = 30):
     print(f"Saved Traffic Scenarios Results to {traffic_csv_path}")
 
     # ---------------------------------------------------------
-    # EXPERIMENT 6: Scalability & Concurrency Benchmark (C=1 to 50)
+    # EXPERIMENT 6: Scalability & Concurrency Benchmark (C=1 to 50, M=5 Trials)
     # ---------------------------------------------------------
-    print("\n[Phase 12] Benchmarking Concurrency Scalability (1 to 50 QPS)...", flush=True)
+    print("\n[Phase 12] Benchmarking Concurrency Scalability (1 to 50 QPS, M=5 Repeated Trials)...", flush=True)
     concurrency_levels = [1, 5, 10, 25, 50]
+    num_concurrency_trials = 5
     concurrency_records = []
 
     for num_req in concurrency_levels:
-        t0 = time.perf_counter()
-        latencies = []
-        failures = 0
+        trial_qps = []
+        trial_total_times = []
+        trial_mean_lats = []
+        trial_p95_lats = []
+        trial_failures = []
 
-        def run_single_req(idx):
-            corr = BENCHMARK_CORRIDORS[idx % len(BENCHMARK_CORRIDORS)]
-            c_obs = AgentObservation(
-                source=corr["source"],
-                destination=corr["destination"],
-                user_preferences={"preference": "cost"}
-            )
-            # Create isolated coordinator per request to test true concurrent client load
-            c_coord = MultiAgentSystemCoordinator()
-            return c_coord.run_parallel(c_obs)
+        for trial_idx in range(num_concurrency_trials):
+            t0 = time.perf_counter()
+            latencies = []
+            failures = 0
 
-        with ThreadPoolExecutor(max_workers=num_req) as pool:
-            futures = [pool.submit(run_single_req, i) for i in range(num_req)]
-            for f in futures:
-                try:
-                    res = f.result(timeout=10.0)
-                    latencies.append(res["total_latency_ms"])
-                except Exception as ex:
-                    failures += 1
+            def run_single_req(idx):
+                corr = BENCHMARK_CORRIDORS[idx % len(BENCHMARK_CORRIDORS)]
+                c_obs = AgentObservation(
+                    source=corr["source"],
+                    destination=corr["destination"],
+                    user_preferences={"preference": "cost"}
+                )
+                c_coord = MultiAgentSystemCoordinator()
+                return c_coord.run_parallel(c_obs)
 
-        t1 = time.perf_counter()
-        total_sec = t1 - t0
-        qps = round(num_req / max(0.001, total_sec), 2)
-        mean_lat = round(float(np.mean(latencies)), 2) if latencies else 0.0
-        med_lat = round(float(np.median(latencies)), 2) if latencies else 0.0
-        p95_lat = round(float(np.percentile(latencies, 95)), 2) if latencies else 0.0
-        fail_rate = round((failures / num_req) * 100.0, 1)
+            with ThreadPoolExecutor(max_workers=num_req) as pool:
+                futures = [pool.submit(run_single_req, i) for i in range(num_req)]
+                for f in futures:
+                    try:
+                        res = f.result(timeout=10.0)
+                        latencies.append(res["total_latency_ms"])
+                    except Exception:
+                        failures += 1
+
+            t1 = time.perf_counter()
+            total_sec = t1 - t0
+            qps = round(num_req / max(0.001, total_sec), 2)
+            mean_lat = round(float(np.mean(latencies)), 2) if latencies else 0.0
+            p95_lat = round(float(np.percentile(latencies, 95)), 2) if latencies else 0.0
+            fail_rate = round((failures / num_req) * 100.0, 1)
+
+            trial_qps.append(qps)
+            trial_total_times.append(total_sec)
+            trial_mean_lats.append(mean_lat)
+            trial_p95_lats.append(p95_lat)
+            trial_failures.append(fail_rate)
+
+        mean_qps = round(float(np.mean(trial_qps)), 2)
+        std_qps = round(float(np.std(trial_qps, ddof=1)), 2) if len(trial_qps) > 1 else 0.0
+        mean_sec = round(float(np.mean(trial_total_times)), 2)
+        overall_mean_lat = round(float(np.mean(trial_mean_lats)), 2)
+        overall_p95_lat = round(float(np.mean(trial_p95_lats)), 2)
+        overall_fail_rate = round(float(np.mean(trial_failures)), 1)
 
         concurrency_records.append({
             "concurrent_requests": num_req,
-            "total_time_sec": round(total_sec, 2),
-            "throughput_qps": qps,
-            "mean_latency_ms": mean_lat,
-            "median_latency_ms": med_lat,
-            "p95_latency_ms": p95_lat,
-            "failure_rate_percent": fail_rate
+            "trials": num_concurrency_trials,
+            "total_time_sec": mean_sec,
+            "throughput_qps": mean_qps,
+            "std_qps": std_qps,
+            "mean_latency_ms": overall_mean_lat,
+            "p95_latency_ms": overall_p95_lat,
+            "failure_rate_percent": overall_fail_rate
         })
-        print(f"  Concurrency = {num_req} reqs: QPS={qps}, Mean Latency={mean_lat}ms, P95={p95_lat}ms, Failures={fail_rate}%", flush=True)
+        print(f"  Concurrency = {num_req} reqs (M={num_concurrency_trials} trials): Mean QPS={mean_qps} ± {std_qps}, Mean Latency={overall_mean_lat}ms, P95={overall_p95_lat}ms, Failures={overall_fail_rate}%", flush=True)
 
     concurrency_df = pd.DataFrame(concurrency_records)
     concurrency_csv_path = os.path.join(output_dir, "scalability_concurrency_results.csv")
@@ -440,7 +460,7 @@ def run_comprehensive_experimental_suite(num_trials: int = 30):
         "numpy_version": np.__version__,
         "pandas_version": pd.__version__,
         "repeat_trials_n": num_trials,
-        "outlier_handling_protocol": "Cold-start GTFS initialization separated from N=30 warm-start execution measurements",
+        "outlier_handling_protocol": "Cold-start GTFS initialization separated from N=10 warm-start execution measurements",
         "statistical_test": "Paired Wilcoxon signed-rank test and Student t-distribution 95% Confidence Interval"
     }
 

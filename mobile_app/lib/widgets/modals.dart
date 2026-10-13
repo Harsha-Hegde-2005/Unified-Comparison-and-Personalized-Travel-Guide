@@ -1926,47 +1926,58 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                           ),
                         ),
 
-                      // Directional Navigation Arrow Marker (Tracked with Real GPS or Simulation)
-                      if (_animatedArrowPos != null || _walkPoints.isNotEmpty)
-                        fm.Marker(
-                          point: _animatedArrowPos ?? _walkPoints.first,
-                          width: 44,
-                          height: 44,
-                          child: Transform.rotate(
-                            angle: _animatedArrowBearing * (math.pi / 180),
-                            child: Container(
+                      // Primary Directional Walking Navigation Arrow Marker (Rotates with Bearing & Heading)
+                      fm.Marker(
+                        point: _animatedArrowPos ?? _liveUserGps ?? (_walkPoints.isNotEmpty ? _walkPoints.first : const ll.LatLng(12.9716, 77.5946)),
+                        width: 52,
+                        height: 52,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Soft animated radar aura
+                            Container(
+                              width: 50,
+                              height: 50,
                               decoration: BoxDecoration(
-                                color: AppTheme.walkColor,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2.5),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.walkColor.withValues(alpha: 0.5),
-                                    blurRadius: 10,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
+                                color: const Color(0xFF0284C7).withValues(alpha: 0.18),
                               ),
-                              child: const Icon(Icons.navigation_rounded, size: 22, color: Colors.white),
                             ),
-                          ),
-                        ),
-
-                      if (_liveUserGps != null && !_isDemoSimulating)
-                        fm.Marker(
-                          point: _liveUserGps!,
-                          width: 34,
-                          height: 34,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: AppTheme.blue,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+                            // Directional Rotating Arrow
+                            Transform.rotate(
+                              angle: _animatedArrowBearing * (math.pi / 180),
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF0284C7).withValues(alpha: 0.5),
+                                      blurRadius: 10,
+                                      spreadRadius: 2,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.navigation_rounded,
+                                    size: 22,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                             ),
-                            child: const Icon(Icons.my_location_rounded, size: 16, color: Colors.white),
-                          ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                 ],
@@ -2966,7 +2977,7 @@ class _RideModeModalState extends State<RideModeModal> {
                   child: ChoiceChip(
                     label: const Center(child: Text('🚌 BMTC Bus', style: TextStyle(fontWeight: FontWeight.bold))),
                     selected: _rideType == 'BUS',
-                    selectedColor: AppTheme.bmtcColor.withOpacity(0.2),
+                    selectedColor: AppTheme.bmtcColor.withValues(alpha: 0.2),
                     onSelected: (_) => setState(() => _rideType = 'BUS'),
                   ),
                 ),
@@ -2975,7 +2986,7 @@ class _RideModeModalState extends State<RideModeModal> {
                   child: ChoiceChip(
                     label: const Center(child: Text('🚇 Namma Metro', style: TextStyle(fontWeight: FontWeight.bold))),
                     selected: _rideType == 'METRO',
-                    selectedColor: AppTheme.metroColor.withOpacity(0.2),
+                    selectedColor: AppTheme.metroColor.withValues(alpha: 0.2),
                     onSelected: (_) => setState(() => _rideType = 'METRO'),
                   ),
                 ),

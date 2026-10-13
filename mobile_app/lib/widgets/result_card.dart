@@ -802,6 +802,11 @@ class ResultCard extends StatelessWidget {
   Widget _buildCarDetails(bool isDark, Color textColor, Color mutedColor) {
     final fuel = data['fuel_cost'] ?? ((data['cost'] ?? 100) * 0.7).toInt();
     final parking = data['parking_cost'] ?? 30;
+    final vehicleName = data['vehicle']?.toString();
+    final mileage = (data['mileage'] as num?)?.toDouble();
+    final fuelNeeded = (data['fuel_needed'] as num?)?.toDouble() ??
+        (data['fuel_breakdown']?['fuel_needed_litres'] as num?)?.toDouble();
+    final costPerKm = (data['cost_per_km'] as num?)?.toDouble();
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -810,29 +815,66 @@ class ResultCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.getBorder(isDark)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (vehicleName != null && vehicleName.isNotEmpty) ...[
+            Row(
+              children: [
+                const Icon(Icons.directions_car_rounded, size: 15, color: AppTheme.carColor),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    vehicleName,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: textColor),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (mileage != null)
+                  Text(
+                    '${mileage.toStringAsFixed(1)} km/L',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: mutedColor),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(Icons.local_gas_station_rounded, size: 16, color: AppTheme.carColor),
-              const SizedBox(width: 6),
-              Text(
-                'Fuel: ₹$fuel',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textColor),
+              Row(
+                children: [
+                  const Icon(Icons.local_gas_station_rounded, size: 16, color: AppTheme.carColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Fuel: ₹$fuel',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textColor),
+                  ),
+                  if (fuelNeeded != null) ...[
+                    const SizedBox(width: 6),
+                    Text('(${fuelNeeded.toStringAsFixed(1)}L)', style: TextStyle(fontSize: 11, color: mutedColor)),
+                  ],
+                ],
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.local_parking_rounded, size: 15, color: AppTheme.blue),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Parking: ~₹$parking',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: mutedColor),
+                  ),
+                ],
               ),
             ],
           ),
-          Row(
-            children: [
-              const Icon(Icons.local_parking_rounded, size: 15, color: AppTheme.blue),
-              const SizedBox(width: 4),
-              Text(
-                'Parking: ~₹$parking',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: mutedColor),
-              ),
-            ],
-          ),
+          if (costPerKm != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Running cost: ~₹${costPerKm.toStringAsFixed(2)} per km',
+              style: TextStyle(fontSize: 10.5, color: mutedColor, fontWeight: FontWeight.w500),
+            ),
+          ],
         ],
       ),
     );

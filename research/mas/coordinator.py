@@ -1,14 +1,13 @@
 r"""
 coordinator.py
 ==============
-Asynchronous Multi-Agent System (MAS) Coordinator orchestrating parallel agent execution,
+Parallel Multi-Agent System (MAS) Coordinator orchestrating thread-based parallel agent execution,
 typed message passing, context propagation, multi-criteria utility aggregation, and XAI generation.
 """
 
 import os
 import sys
 import time
-import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, List, Optional
 
@@ -37,7 +36,7 @@ from research.mas.agents import (
 
 class MultiAgentSystemCoordinator:
     """
-    Central Asynchronous Multi-Agent Coordinator managing agent lifecycles,
+    Central Parallel Multi-Agent Coordinator managing agent lifecycles,
     parallel candidate generation, typed message passing, and consensus ranking.
     """
 

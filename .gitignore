@@ -53,4 +53,6 @@ __MACOSX/
 *.blg
 *.out
 research.zip
+*.zip
+cloudflared.exe
 scratch/

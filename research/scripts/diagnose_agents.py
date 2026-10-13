@@ -112,6 +112,23 @@ def run_agent_diagnostic():
     print(f"Corridors evaluating MULTIPLE candidates: {multi_candidate_count}/{total_corridors}", flush=True)
     print("=" * 80, flush=True)
 
+    diagnostic_summary = {
+        "corridor_count": total_corridors,
+        "bmtc_success_count": bmtc_avail,
+        "metro_success_count": metro_avail,
+        "cab_success_count": cab_avail,
+        "personal_vehicle_success_count": veh_avail,
+        "multiple_candidate_corridor_count": multi_candidate_count,
+        "execution_timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    output_dir = os.path.abspath(os.path.join(_HERE, "..", "experiments", "results"))
+    os.makedirs(output_dir, exist_ok=True)
+    diag_json_path = os.path.join(output_dir, "agent_diagnostic_results.json")
+    with open(diag_json_path, "w") as f:
+        json.dump(diagnostic_summary, f, indent=2)
+    print(f"Saved Diagnostic Results JSON to {diag_json_path}", flush=True)
+
     return summary_table
 
 

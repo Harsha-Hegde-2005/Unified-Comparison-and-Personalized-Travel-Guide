@@ -327,22 +327,65 @@ void showAppSettingsModal(
                       style: const TextStyle(color: Colors.white, fontSize: 13),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'http://localhost:8000',
+                        hintText: 'http://192.168.1.2:8000',
                         hintStyle: TextStyle(color: Color(0xFF64748B)),
                         prefixIcon: Icon(Icons.dns_rounded, color: Color(0xFFA855F7), size: 20),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      'https://chair-pipe-purchased-reply.trycloudflare.com',
+                      'http://localhost:8000',
+                      'http://192.168.1.2:8000',
+                      'http://10.0.2.2:8000',
+                    ].map((preset) {
+                      return InkWell(
+                        onTap: () {
+                          urlCtrl.text = preset;
+                          setModalState(() {});
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E2235),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: urlCtrl.text.trim() == preset
+                                  ? const Color(0xFFA855F7)
+                                  : const Color(0xFF2A2D40),
+                            ),
+                          ),
+                          child: Text(
+                            preset.replaceFirst('http://', ''),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: urlCtrl.text.trim() == preset
+                                  ? const Color(0xFFA855F7)
+                                  : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         final val = urlCtrl.text.trim();
                         if (val.isNotEmpty) {
-                          ApiService.baseUrl = val;
+                          await ApiService.setBaseUrl(val);
                         }
-                        Navigator.pop(context);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFA855F7),

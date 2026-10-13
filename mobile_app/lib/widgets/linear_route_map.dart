@@ -91,12 +91,17 @@ class LinearRouteMap extends StatelessWidget {
         final from = seg['from']?.toString();
         final to = seg['to']?.toString();
         if (from != null && to != null) {
-          segStops.addAll([from, to]);
+          final cleanFrom = RegExp(r'^-?\d+\.\d+').hasMatch(from.trim()) ? 'Trip Origin' : from;
+          final cleanTo = RegExp(r'^-?\d+\.\d+').hasMatch(to.trim()) ? 'Destination' : to;
+          segStops.addAll([cleanFrom, cleanTo]);
         }
       }
 
       for (int sIdx = 0; sIdx < segStops.length; sIdx++) {
-        final stopName = segStops[sIdx];
+        final rawName = segStops[sIdx];
+        final stopName = RegExp(r'^-?\d+\.\d+').hasMatch(rawName.trim())
+            ? (sIdx == 0 ? 'Trip Origin' : 'Destination')
+            : rawName;
         if (stopsList.isNotEmpty && stopsList.last.name == stopName) {
           stopsList.last.isTransfer = true;
           stopsList.last.nextColor = color;

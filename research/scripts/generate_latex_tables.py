@@ -204,18 +204,22 @@ def generate_concurrency_table():
     lines = [
         r"\begin{table}[h]",
         r"\centering",
-        r"\caption{Concurrency Scalability Benchmark ($C=1$ to $C=50$ Concurrent Requests).}",
+        r"\caption{Concurrency Scalability Benchmark ($C=1$ to $C=50$ Concurrent Requests, $M=5$ Trials).}",
         r"\label{tab:concurrency}",
         r"\resizebox{\textwidth}{!}{",
         r"\begin{tabular}{cccccc}",
         r"\toprule",
-        r"\textbf{Concurrent Requests} & \textbf{Total Time (s)} & \textbf{Throughput (QPS)} & \textbf{Mean Latency (ms)} & \textbf{P95 Latency (ms)} & \textbf{Failures (\%)} \\",
+        r"\textbf{Concurrent Requests ($C$)} & \textbf{Total Time (s)} & \textbf{Throughput (QPS)} & \textbf{Mean Latency (ms)} & \textbf{P95 Latency (ms)} & \textbf{Failures (\%)} \\",
         r"\midrule"
     ]
     for idx, row in df.iterrows():
         req = int(row['concurrent_requests'])
         sec = f"{row['total_time_sec']:.2f}"
-        qps = f"{row['throughput_qps']:.2f}"
+        std_val = row.get('std_qps', 0.0)
+        if std_val > 0:
+            qps = f"{row['throughput_qps']:.2f}" + r" $\pm$ " + f"{std_val:.2f}"
+        else:
+            qps = f"{row['throughput_qps']:.2f}"
         mean_l = f"{row['mean_latency_ms']:.2f}"
         p95_l = f"{row['p95_latency_ms']:.2f}"
         fail = f"{row['failure_rate_percent']:.1f}\\%"

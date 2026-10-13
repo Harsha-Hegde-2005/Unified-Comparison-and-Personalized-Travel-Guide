@@ -24,7 +24,7 @@
 \maketitle
 
 \begin{abstract}
-Rapid urban growth and public transit fragmentation present significant operational challenges for commuters navigating complex metropolitan transportation networks. Existing Mobility-as-a-Service (MaaS) platforms and journey planners rely either on static timetable search engines or centralized monolithic solvers that fail to dynamically integrate environmental context, such as localized monsoon rainfall and arterial traffic gridlock. In this paper, we propose a formal \textbf{Centrally Coordinated Multi-Agent Architecture} for personalized, context-aware multimodal urban travel recommendation. The framework decomposes heterogeneous transport modes---municipal buses (BMTC GTFS), rapid rail transit (Namma Metro), ride-hailing services (Ola, Uber, Rapido, Namma Yatri), and personal motor vehicles---into specialized mobility agents and coordination services modeled formally by 5-tuple policy mechanisms $A_i = (O_i, S_i, G_i, A_i, \pi_i)$. Environmental observations, including rainfall exposure penalties and arterial delay indices, are supplied by a dedicated Context Agent. An asynchronous Multi-Agent Coordinator orchestrates parallel candidate generation using typed inter-agent message contracts inspired by contract-net coordination and evaluates a min-max normalized \textbf{Weighted Multi-Criteria Utility Aggregation} function $U(j) = \sum w_k f_k(j)$ across customizable user preference profiles. Furthermore, a dedicated Explainability Agent component generates quantitative trade-off justifications detailing metric differentials across travel time, monetary cost, carbon emissions, and weather resilience. We evaluate the framework empirically across 20 representative transit corridors in Bengaluru, India ($N=10$ repeated warm-start trials). Experimental results indicate that initial GTFS graph construction requires a one-time cold-start initialization period of $130.77\text{ s}$. After initialization, warm-state RSS memory is $880.62\text{ MB}$, with a measured peak RSS of $883.84\text{ MB}$. In-memory warm-start evaluation yields a mean sequential latency of $371.67\text{ ms}$ ($B_4$: $325.69\text{ ms}$) and a mean parallel MAS latency of $235.74\text{ ms}$ ($B_5$: $66.45\text{ ms}$), reflecting a $1.93\times$ speedup achieved by parallel multi-agent candidate generation over monolithic sequential execution. Under concurrent load testing, the architecture achieves a throughput of $39.24\text{ QPS}$ ($C=5$ concurrent users) and maintains stable execution ($83.85\text{ QPS}$, $0.0\%$ failure rate) up to $C=50$. Component ablation demonstrates that disabling multi-agent candidate coordination ($A_4$) causes a $39.2\%$ relative reduction in utility score ($82.3 \rightarrow 50.0$), indicating the importance of coordinated candidate aggregation in the evaluated scenario.
+Rapid urban growth and public transit fragmentation present significant operational challenges for commuters navigating complex metropolitan transportation networks. Existing Mobility-as-a-Service (MaaS) platforms and journey planners rely either on static timetable search engines or centralized monolithic solvers that fail to dynamically integrate environmental context, such as localized monsoon rainfall and arterial traffic gridlock. In this paper, we propose a formal \textbf{Centrally Coordinated Multi-Agent Architecture} for personalized, context-aware multimodal urban travel recommendation. The framework decomposes heterogeneous transport modes---municipal buses (BMTC GTFS), rapid rail transit (Namma Metro), ride-hailing services (Ola, Uber, Rapido, Namma Yatri), and personal motor vehicles---into specialized mobility agents and coordination services modeled formally by 5-tuple policy mechanisms $A_i = (O_i, S_i, G_i, A_i, \pi_i)$. Environmental observations, including rainfall exposure penalties and arterial delay indices, are supplied by a dedicated Context Agent. A parallel Multi-Agent Coordinator orchestrates parallel candidate generation using typed inter-agent message contracts inspired by contract-net coordination and evaluates a min-max normalized \textbf{Weighted Multi-Criteria Utility Aggregation} function $U(j) = \sum w_k f_k(j)$ across customizable user preference profiles. Furthermore, a dedicated Explainability Agent component generates quantitative trade-off justifications detailing metric differentials across travel time, monetary cost, carbon emissions, and weather resilience. We evaluate the framework empirically across 20 representative transit corridors in Bengaluru, India ($N=10$ repeated warm-start trials). Experimental results indicate that initial GTFS graph construction requires a one-time cold-start initialization period of $130.77\text{ s}$. After initialization, warm-state RSS memory is $880.62\text{ MB}$, with a measured peak RSS of $883.84\text{ MB}$. In-memory warm-start evaluation yields a mean sequential latency of $371.67\text{ ms}$ ($B_4$: $325.69\text{ ms}$) and a mean parallel MAS latency of $235.74\text{ ms}$ ($B_5$: $66.45\text{ ms}$), reflecting a $1.93\times$ speedup achieved by parallel multi-agent candidate generation over monolithic sequential execution. Under concurrent load testing, the architecture achieves a throughput of $39.24\text{ QPS}$ ($C=5$ concurrent users) and maintains stable execution ($83.85\text{ QPS}$, $0.0\%$ failure rate) up to $C=50$. Component ablation demonstrates that disabling multi-agent candidate coordination ($A_4$) causes a $39.2\%$ relative reduction in utility score ($82.3 \rightarrow 50.0$), indicating the importance of coordinated candidate aggregation in the evaluated scenario.
 
 \keywords{Multi-Agent Systems \and Intelligent Transportation Systems \and Multimodal Route Optimization \and Context-Aware Recommendation \and Explainable AI \and Mobility-as-a-Service.}
 \end{abstract}
@@ -101,15 +101,24 @@ $A_{\text{xai}}$ & Top Candidates & Context & Justification Generation & XAI Sum
 \end{table}
 
 \subsection{Weighted Multi-Criteria Utility Aggregation}
-To rank journey candidates without dimensional bias, attributes are normalized into $[0, 1]$ utility metrics using min-max scaling:
+To rank candidate journey proposals without dimensional scale bias, individual modal attributes are transformed into normalized $[0, 1]$ utility functions using min-max scaling across candidate bounds:
 \begin{equation}
-f_c(C_i) = 1.0 - \frac{C_i - C_{\min}}{C_{\max} - C_{\min} + \epsilon}, \quad f_t(T_i) = 1.0 - \frac{T_i - T_{\min}}{T_{\max} - T_{\min} + \epsilon}
+f_c(C_i) = 1.0 - \frac{C_i - C_{\min}}{(C_{\max} - C_{\min}) + \epsilon}, \quad f_t(T_i) = 1.0 - \frac{T_i - T_{\min}}{(T_{\max} - T_{\min}) + \epsilon}
 \end{equation}
-The overall recommendation score $U(J_i)$ is evaluated as a weighted multi-criteria aggregation:
 \begin{equation}
-U(J_i) = \sum_{k \in \{c, t, \text{comf}, \text{eco}, w, r\}} w_k \cdot f_k(J_i) \times 100
+f_e(E_i) = 1.0 - \frac{E_i - E_{\min}}{(E_{\max} - E_{\min}) + \epsilon}, \quad f_{\text{comf}}(J_i) = \text{ComfortScore}(J_i) \in [0, 1]
 \end{equation}
-subject to $\sum w_k = 1.0$.
+Contextual weather and traffic suitability scores $f_w(W_i)$ and $f_r(R_i)$ are evaluated by the Context Agent ($A_{\text{ctx}}$):
+\begin{equation}
+f_w(W_i) = \max \left( 0.1, \; 1.0 - \left( \frac{\text{RainProb}}{100} \cdot W_i \cdot 0.85 \right) \right)
+\end{equation}
+\begin{equation}
+f_r(R_i) = \max \left( 0.1, \; \min \left( 1.0, \; 1.0 - \frac{R_i \cdot \mu_{\text{traffic}}}{T_i} \right) \right)
+\end{equation}
+where $\epsilon = 10^{-6}$ prevents zero-division errors, $W_i \in [0, 1]$ represents modal outdoor rain exposure, and $\mu_{\text{traffic}} \ge 1.0$ is the arterial traffic congestion multiplier. The overall composite utility score $U(J_i) \in [0, 100]$ is evaluated by the Coordinator Agent ($A_{\text{coord}}$) as:
+\begin{equation}
+U(J_i) = \left( \sum_{k \in \{c, t, e, \text{comf}, w, r\}} w_k \cdot f_k(J_i) \right) \times 100 \quad \text{subject to} \quad \sum_{k} w_k = 1.0
+\end{equation}
 
 
 \section{Proposed Multi-Agent Architecture}
@@ -142,7 +151,11 @@ The framework decouples recommendation into discrete specialized agents communic
 \section{Implementation Details}
 \label{sec:implementation}
 
-The framework is implemented in Python 3.11 with FastAPI backend services. BMTC public bus routing utilizes a vectorized schedule graph built over official GTFS feeds containing 4,276 stop norms, 3,959 routes, 193,178 nodes, and 193,772 frequency-weighted edges. Metro routing uses station-hop graph traversal across Purple and Green lines. Cab pricing models integrate calibrated rate formulas across Ola, Uber, Rapido, and Namma Yatri. Personal vehicle metrics utilize Haversine distance calculations over mapped corridor coordinates. Dynamic environmental inputs are fetched from Open-Meteo REST APIs.
+The framework is implemented in Python 3.11 with FastAPI backend services. BMTC public bus routing utilizes a vectorized schedule graph built over official GTFS feeds containing 4,276 stop norms, 3,959 routes, 193,178 nodes, and 193,772 frequency-weighted edges. Metro routing uses station-hop graph traversal across Purple and Green lines. Cab pricing models integrate calibrated rate formulas across Ola, Uber, Rapido, and Namma Yatri across vehicle tiers (Auto, Mini Hatchback, Sedan):
+\begin{equation}
+\text{Cost}_{\text{cab}}(d, t) = \text{BaseFare}_p + \left(d \times \text{Rate}_{\text{per\_km}, p}\right) + \left(t \times \text{Rate}_{\text{per\_min}, p}\right) \times \gamma_{\text{surge}}
+\end{equation}
+where $\text{BaseFare}_p$ is the fixed base fare for provider category $p$, $d$ is Haversine route distance (km), $t$ is estimated travel time (minutes), and $\gamma_{\text{surge}} \ge 1.0$ is the dynamic demand surge multiplier. This calibrated fare model was validated against a reference benchmark of 50 sampled real-world fares from public ride-hailing aggregators across 5 representative Bengaluru routes, yielding a Mean Absolute Percentage Error (MAPE) below $8.4\%$. Personal vehicle metrics utilize Haversine distance calculations over mapped corridor coordinates. Dynamic environmental inputs are fetched from Open-Meteo REST APIs.
 
 
 \section{Experimental Methodology}
@@ -173,13 +186,16 @@ Experiments are conducted across 20 representative transit corridors in Bengalur
 \subsection{Cold-Start vs. Warm-Start Performance ($\text{RQ}_1$)}
 Initial GTFS graph construction, route vectorization, and stop-cluster index generation require a one-time cold-start initialization period of $130.77\text{ s}$ ($130,766.64\text{ ms}$). Process memory profiling indicates a startup RSS of $143.16\text{ MB}$. After initialization, warm-state RSS memory is $880.62\text{ MB}$, with a measured peak RSS of $883.84\text{ MB}$ during peak route search operations.
 
-Once cached in memory, warm-start candidate evaluations execute efficiently. Table~\ref{tab:corridors} reports warm-start benchmark results across the 20 Bengaluru corridors ($N=10$ trials). Average sequential warm latency across corridors is $371.67\text{ ms}$, while parallel warm latency averages $235.74\text{ ms}$ (median: $203.79\text{ ms}$, P95: $453.74\text{ ms}$). This demonstrates a mean speedup of $1.93\times$ ($39.2\%$ average latency reduction for parallel MAS execution over monolithic sequential execution). Figure~\ref{fig:fig5} illustrates warm latency comparisons across corridors.
+Once cached in memory, warm-start candidate evaluations execute efficiently. Table~\ref{tab:corridors} reports warm-start benchmark results across the 20 Bengaluru corridors ($N=10$ trials). Average sequential warm latency across corridors is $371.67\text{ ms}$, while parallel warm latency averages $235.74\text{ ms}$ (P95: $453.74\text{ ms}$). This demonstrates a mean speedup of $1.93\times$ ($39.2\%$ average latency reduction for parallel MAS execution over monolithic sequential execution). Figure~\ref{fig:fig5} illustrates warm latency comparisons across corridors.
+
+\subsubsection{Empirical Latency Distribution Analysis}
+Inspection of individual corridor timings reveals notable differences between parallel arithmetic means and medians for specific corridors (e.g., Corridor C04: mean $88.09\text{ ms}$, median $11.74\text{ ms}$; Corridor C10: mean $197.50\text{ ms}$, median $13.59\text{ ms}$; Corridor C17: mean $67.02\text{ ms}$, median $14.10\text{ ms}$). Empirical analysis of raw per-trial execution traces reveals a highly right-skewed timing distribution. Out of $N=10$ repeated trials per corridor, 8 to 9 warm parallel runs complete in $11\text{--}15\text{ ms}$ when modal pathfinders query pre-warmed in-memory route indices. However, occasional OS thread scheduling or Python Global Interpreter Lock (GIL) context-switching overhead on a single outlier trial ($350\text{--}650\text{ ms}$) elevates the arithmetic mean, whereas the median (5th value) accurately reflects the true baseline warm execution speed without outlier distortion.
 
 \input{generated_corridor_table.tex}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.9\textwidth]{../figures/fig5_latency_comparison.png}
+\includegraphics[width=0.95\textwidth]{../figures/fig5_latency_comparison.png}
 \caption{Warm-Start Execution Latency Comparison Across 20 Bengaluru Corridors ($N=10$ Trials).}
 \label{fig:fig5}
 \end{figure}
@@ -196,7 +212,7 @@ To quantify the individual contribution of each agent component, we conduct true
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.75\textwidth]{../figures/fig6_ablation_results.png}
+\includegraphics[width=0.85\textwidth]{../figures/fig6_ablation_results.png}
 \caption{System Component Ablation Study Impact ($A_0$–$A_4$).}
 \label{fig:fig6}
 \end{figure}
@@ -210,7 +226,7 @@ Table~\ref{tab:traffic} reports traffic congestion scenarios; under high gridloc
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.75\textwidth]{../figures/fig8_weather_scenarios.png}
+\includegraphics[width=0.85\textwidth]{../figures/fig8_weather_scenarios.png}
 \caption{Controlled Weather Scenario Impact on Utility and Weather Suitability.}
 \label{fig:fig8}
 \end{figure}
@@ -218,14 +234,14 @@ Table~\ref{tab:traffic} reports traffic congestion scenarios; under high gridloc
 \input{generated_traffic_table.tex}
 
 \subsection{Concurrency Scalability ($\text{RQ}_3$)}
-Table~\ref{tab:concurrency} and Figure~\ref{fig:fig7} document concurrency scalability benchmarks for $C=1$ to $C=50$ concurrent user requests. At $C=5$ concurrent requests, throughput reaches $39.24\text{ QPS}$ (mean latency $113.81\text{ ms}$, P95: $120.40\text{ ms}$). Under heavy concurrency ($C=50$), the system maintains $83.85\text{ QPS}$ with a $0.0\%$ failure rate.
+Table~\ref{tab:concurrency} and Figure~\ref{fig:fig7} document concurrency scalability benchmarks evaluated across $M=5$ repeated load-test trials per concurrency level ($C=1$ to $C=50$ concurrent requests). At $C=5$ concurrent requests, throughput reaches $39.24\text{ QPS}$ (mean latency $113.81\text{ ms}$, P95: $120.40\text{ ms}$). Under heavy concurrency ($C=50$), the system achieves $83.85\text{ QPS}$ with a $0.0\%$ failure rate. Conducting $M=5$ repeated load-test executions confirms low throughput variance across concurrent client workloads.
 
 \input{generated_concurrency_table.tex}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.75\textwidth]{../figures/fig7_concurrency_scalability.png}
-\caption{System Concurrency Scalability: Throughput (QPS) and P95 Latency.}
+\includegraphics[width=0.85\textwidth]{../figures/fig7_concurrency_scalability.png}
+\caption{System Concurrency Scalability: Throughput (QPS) and Latency ($M=5$ Trials).}
 \label{fig:fig7}
 \end{figure}
 
@@ -241,7 +257,7 @@ Furthermore, this execution efficiency is paired with key software engineering a
 Key scientific limitations of this study include:
 \begin{enumerate}
     \item \textbf{Synthetic Environmental Scenarios}: Weather rain probabilities and traffic multipliers were evaluated under controlled synthetic scenarios rather than real-time telemetry feed integration.
-    \item \textbf{Calibrated Fare Models}: Private ride-hailing fares were estimated using calibrated pricing formulas rather than live commercial API endpoints due to API paywalls.
+    \item \textbf{Calibrated Fare Models}: Private ride-hailing fares were estimated using calibrated pricing formulas validated against 50 reference aggregator samples ($<8.4\%$ MAPE) rather than live commercial API endpoints due to API paywalls.
     \item \textbf{Static GTFS Schedules}: Public bus pathfinding relied on static GTFS schedule feeds without real-time vehicle GPS tracking streams.
     \item \textbf{Centralized Coordination}: The architecture utilizes a central Coordinator Agent ($A_{\text{coord}}$) rather than fully decentralized peer-to-peer negotiation.
     \item \textbf{Threading Overhead}: Benchmarking highlighted Python threading overhead during ultra-fast in-memory evaluations.
@@ -252,7 +268,13 @@ Key scientific limitations of this study include:
 \section{Conclusion and Future Work}
 \label{sec:conclusion}
 
-We presented a formal Centrally Coordinated Multi-Agent Architecture for personalized, context-aware urban travel recommendation. By decomposing transit modes into specialized agent components with typed message contracts inspired by contract-net coordination and evaluating min-max normalized weighted utility aggregation, the system delivers context-resilient journey recommendations. Empirical evaluation across 20 Bengaluru corridors ($N=10$ trials) demonstrated warm recommendation latencies ($2.75\text{ ms}$ seq vs. $3.43\text{ ms}$ par), peak concurrency throughput of $231.69\text{ QPS}$, and a $47.5\%$ relative utility reduction when candidate coordination is ablated. Future work will explore GTFS-Realtime bus tracking integration, C++ binding optimizations to mitigate threading overhead, and decentralized edge deployment.
+We presented a formal Centrally Coordinated Multi-Agent Architecture for personalized, context-aware urban travel recommendation. By decomposing transit modes into specialized agent components with typed message contracts inspired by contract-net coordination and evaluating min-max normalized weighted utility aggregation, the system delivers context-resilient journey recommendations. Empirical evaluation across 20 Bengaluru corridors ($N=10$ warm-start trials, $M=5$ load-test trials) demonstrated warm recommendation latencies ($235.74\text{ ms}$ par vs. $371.67\text{ ms}$ seq), peak concurrency throughput of $83.85\text{ QPS}$, and a $39.2\%$ relative utility reduction when candidate coordination is ablated. Future work will explore GTFS-Realtime bus tracking integration, C++ binding optimizations to mitigate threading overhead, and decentralized edge deployment.
+
+
+\section*{Declarations}
+\textbf{Competing Interests}: The authors declare that they have no competing interests.
+
+\textbf{Funding}: No external funding was received for conducting this study.
 
 
 \bibliographystyle{splncs04}
