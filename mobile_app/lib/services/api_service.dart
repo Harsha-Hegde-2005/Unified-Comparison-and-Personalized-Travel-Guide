@@ -13,7 +13,9 @@ class ApiService {
   static String get defaultBaseUrl {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;
-    return 'http://localhost:8000';
+    if (kIsWeb) return 'http://localhost:8000';
+    if (defaultTargetPlatform == TargetPlatform.android) return 'https://grant-applying-draft-strings.trycloudflare.com';
+    return 'http://127.0.0.1:8000';
   }
 
   static String baseUrl = defaultBaseUrl;
@@ -874,13 +876,11 @@ class ApiService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   static final List<String> candidateUrls = [
+    'https://grant-applying-draft-strings.trycloudflare.com',
+    'http://192.168.1.4:8000',
     'http://127.0.0.1:8000',
     'http://localhost:8000',
-    'https://memories-levels-distant-seniors.trycloudflare.com',
-    'http://192.168.1.2:8000',
     'http://10.0.2.2:8000',
-    'https://chair-pipe-purchased-reply.trycloudflare.com',
-    'https://silly-bats-deny.loca.lt',
   ];
 
   static Future<bool> _quickPing(String targetUrl) async {
