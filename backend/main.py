@@ -74,6 +74,7 @@ _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -3859,10 +3860,17 @@ def health():
 
 @app.get("/api/config")
 def get_api_config():
+    """
+    Public configuration endpoint.
+    PROTECTED: Never expose server-side secret GOOGLE_MAPS_API_KEY.
+    Only returns public client-restricted key (VITE_GOOGLE_MAPS_API_KEY) if explicitly configured.
+    """
     from dotenv import load_dotenv
     load_dotenv(override=True)
+    client_key = os.environ.get("VITE_GOOGLE_MAPS_API_KEY", "").strip()
     return {
-        "google_maps_api_key": os.environ.get("GOOGLE_MAPS_API_KEY", "")
+        "google_maps_available": bool(os.environ.get("GOOGLE_MAPS_API_KEY")),
+        "google_maps_api_key": client_key
     }
 
 
@@ -5536,8 +5544,11 @@ def get_user_document_file(doc_id: int, current_user: User = Depends(get_current
 
 @app.get("/api/config/google-maps-key")
 def get_google_maps_key():
-    key = os.getenv("GOOGLE_MAPS_API_KEY") or os.getenv("VITE_GOOGLE_MAPS_API_KEY", "")
-    return {"key": key}
+    """
+    PROTECTED: Only return client-facing restricted key, never the server-side secret.
+    """
+    client_key = os.getenv("VITE_GOOGLE_MAPS_API_KEY", "").strip()
+    return {"key": client_key}
 
 @app.get("/api/fare/calculate")
 def calculate_fare(mode: str, source: str, destination: str):
