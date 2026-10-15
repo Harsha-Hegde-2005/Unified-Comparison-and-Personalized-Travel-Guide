@@ -14,7 +14,7 @@ class ApiService {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;
     if (kIsWeb) return 'http://localhost:8000';
-    if (defaultTargetPlatform == TargetPlatform.android) return 'https://grant-applying-draft-strings.trycloudflare.com';
+    if (defaultTargetPlatform == TargetPlatform.android) return 'https://unified-comparison-and-personalized.onrender.com';
     return 'http://127.0.0.1:8000';
   }
 
@@ -183,7 +183,7 @@ class ApiService {
             headers: authHeaders,
             body: json.encode({'username': username, 'password': password}),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 60));
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
@@ -192,8 +192,15 @@ class ApiService {
         await saveSession(userToken, uName);
         return {'success': true, 'username': loggedInUsername};
       } else {
-        final err = json.decode(res.body);
-        return {'success': false, 'error': err['detail'] ?? 'Invalid credentials'};
+        try {
+          final err = json.decode(res.body);
+          return {'success': false, 'error': err['detail'] ?? 'Invalid credentials'};
+        } catch (_) {
+          return {
+            'success': false,
+            'error': 'Server is warming up (Status ${res.statusCode}). Please tap Sign In again in a few seconds.'
+          };
+        }
       }
     } catch (e) {
       if (!isRetry) {
@@ -202,7 +209,7 @@ class ApiService {
           return login(username: username, password: password, isRetry: true);
         }
       }
-      return {'success': false, 'error': 'Cannot connect to backend server ($baseUrl)'};
+      return {'success': false, 'error': 'Server waking up from sleep. Please tap Sign In again in 10 seconds.'};
     }
   }
 
@@ -219,7 +226,7 @@ class ApiService {
             headers: authHeaders,
             body: json.encode({'username': username, 'password': password}),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 60));
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
@@ -228,8 +235,15 @@ class ApiService {
         await saveSession(userToken, uName);
         return {'success': true, 'username': loggedInUsername};
       } else {
-        final err = json.decode(res.body);
-        return {'success': false, 'error': err['detail'] ?? 'Registration failed'};
+        try {
+          final err = json.decode(res.body);
+          return {'success': false, 'error': err['detail'] ?? 'Registration failed'};
+        } catch (_) {
+          return {
+            'success': false,
+            'error': 'Server is warming up (Status ${res.statusCode}). Please tap Create Account again.'
+          };
+        }
       }
     } catch (e) {
       if (!isRetry) {
@@ -238,7 +252,7 @@ class ApiService {
           return signup(username: username, password: password, isRetry: true);
         }
       }
-      return {'success': false, 'error': 'Cannot connect to backend server ($baseUrl)'};
+      return {'success': false, 'error': 'Server waking up from sleep. Please tap Create Account again.'};
     }
   }
 
@@ -876,6 +890,7 @@ class ApiService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   static final List<String> candidateUrls = [
+    'https://unified-comparison-and-personalized.onrender.com',
     'https://grant-applying-draft-strings.trycloudflare.com',
     'http://192.168.1.4:8000',
     'http://127.0.0.1:8000',

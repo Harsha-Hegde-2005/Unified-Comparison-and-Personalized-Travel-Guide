@@ -320,6 +320,15 @@ void showAppSettingsModal(
                     runSpacing: 8,
                     children: [
                       ActionChip(
+                        avatar: const Icon(Icons.cloud_done_rounded, size: 14, color: Color(0xFF10B981)),
+                        label: const Text('Render Cloud 24/7', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                        backgroundColor: const Color(0xFF064E3B),
+                        side: const BorderSide(color: Color(0xFF10B981)),
+                        onPressed: () {
+                          urlCtrl.text = 'https://unified-comparison-and-personalized.onrender.com';
+                        },
+                      ),
+                      ActionChip(
                         avatar: const Icon(Icons.public_rounded, size: 14, color: Color(0xFFA855F7)),
                         label: const Text('Global HTTPS (Cloudflare)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
                         backgroundColor: const Color(0xFF22163B),
