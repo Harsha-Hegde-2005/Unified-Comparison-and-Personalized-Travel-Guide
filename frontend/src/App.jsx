@@ -865,7 +865,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
     const osmMap = osmMapRef.current;
     if (!osmMap || !window.L) return;
 
-    const darkTiles = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+    const darkTiles = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}";
     const lightTiles = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
     const satTiles = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
     const terrainTiles = "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
@@ -883,7 +883,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
       attribution = 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)';
     } else {
       tileUrl = darkTiles;
-      attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+      attribution = 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ &copy; OpenStreetMap contributors';
     }
 
     osmMap.eachLayer((layer) => {
@@ -1031,9 +1031,8 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
         osmMapRef.current = osmMap;
         window.osmMapInstance = osmMap;
 
-        window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; OpenStreetMap &copy; CartoDB',
-          subdomains: 'abcd',
+        window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ &copy; OpenStreetMap contributors',
           maxZoom: 20
         }).addTo(osmMap);
 

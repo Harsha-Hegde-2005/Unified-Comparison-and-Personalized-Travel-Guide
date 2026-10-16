@@ -106,7 +106,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
 
     if (provider == 'osm') {
       if (effectiveStyle == 'dark') {
-        return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+        return 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
       } else if (effectiveStyle == 'satellite') {
         return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
       } else if (effectiveStyle == 'terrain') {
@@ -117,7 +117,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     }
 
     if (effectiveStyle == 'dark') {
-      return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      return 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
     } else if (effectiveStyle == 'satellite') {
       return 'https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}';
     } else if (effectiveStyle == 'terrain') {

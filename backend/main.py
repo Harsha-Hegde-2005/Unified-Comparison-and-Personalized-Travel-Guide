@@ -3917,7 +3917,7 @@ def get_api_config():
     """
     from dotenv import load_dotenv
     load_dotenv(override=True)
-    client_key = os.environ.get("VITE_GOOGLE_MAPS_API_KEY", "").strip()
+    client_key = os.environ.get("VITE_GOOGLE_MAPS_API_KEY", "").strip() or os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
     return {
         "google_maps_available": bool(os.environ.get("GOOGLE_MAPS_API_KEY")),
         "google_maps_api_key": client_key
