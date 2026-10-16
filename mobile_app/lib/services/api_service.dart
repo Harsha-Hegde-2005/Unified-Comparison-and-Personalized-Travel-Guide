@@ -890,12 +890,11 @@ class ApiService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   static final List<String> candidateUrls = [
-    'https://unified-comparison-and-personalized.onrender.com',
-    'https://grant-applying-draft-strings.trycloudflare.com',
-    'http://192.168.1.4:8000',
-    'http://127.0.0.1:8000',
     'http://localhost:8000',
+    'http://127.0.0.1:8000',
     'http://10.0.2.2:8000',
+    'http://192.168.1.4:8000',
+    'https://unified-comparison-and-personalized.onrender.com',
   ];
 
   static Future<bool> _quickPing(String targetUrl) async {
@@ -903,10 +902,11 @@ class ApiService {
     final isRemote = cleanUrl.startsWith('https://') ||
         (!cleanUrl.contains('localhost') &&
             !cleanUrl.contains('127.0.0.1') &&
-            !cleanUrl.contains('192.168.'));
+            !cleanUrl.contains('192.168.') &&
+            !cleanUrl.contains('10.0.2.2'));
     final timeoutDuration = isRemote
-        ? const Duration(seconds: 10)
-        : const Duration(milliseconds: 2500);
+        ? const Duration(seconds: 5)
+        : const Duration(milliseconds: 2000);
 
     try {
       final res = await http.get(

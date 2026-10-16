@@ -49,9 +49,9 @@ def fetch_open_meteo_details(lat: float, lng: float, target_time: Optional[datet
     
     formatted_time = target_time.strftime("%I:%M %p").lstrip("0")
     
-    # Check cache
-    lat_r = round(float(lat), 2)
-    lng_r = round(float(lng), 2)
+    # Check cache (1 decimal place is ~10km grid, ideal for city-wide weather caching)
+    lat_r = round(float(lat), 1)
+    lng_r = round(float(lng), 1)
     date_str = target_time.strftime("%Y-%m-%d")
     cache_key = (lat_r, lng_r, date_str)
     

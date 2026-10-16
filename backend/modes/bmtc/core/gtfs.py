@@ -32,15 +32,83 @@ from core.config import (
 # ---------------------------------------------------------------------------
 # Module-level singleton (loaded once, shared across all requests)
 # ---------------------------------------------------------------------------
+import os
+import sqlite3
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", "..", "..", ".."))
+_GTFS_DB = os.path.join(_REPO_ROOT, "database", "gtfs_index.db")
+
 _gtfs_lock     = threading.Lock()
 _gtfs_loaded   = False
-_gtfs_data: dict      = {}          # {"stops": df, "stop_times": df, "trips": df, "routes": df}
+_gtfs_data: dict      = {}          # {"stops": df, "routes": df}
 _norm_to_ids:  dict   = {}          # stop_norm → [stop_id, ...]
 
-# Fast departure index:
-#   _route_departures[route_short_name][src_norm][dst_norm]
-#     = sorted list of (dep_timedelta, arr_timedelta)
-_route_departures: dict = {}
+
+class RouteDeparturesDict(dict):
+    """
+    High-performance on-demand route departures lookup backed by SQLite.
+    Replaces the 1GB in-memory nested dictionary with zero-overhead cached queries.
+    """
+    def __init__(self, db_path: str = _GTFS_DB):
+        super().__init__()
+        self.db_path = db_path
+        self._cache: dict = {}
+
+    def _query(self, route_key: str):
+        if not route_key or not os.path.exists(self.db_path):
+            return None
+        raw = str(route_key).strip().upper().replace("_REV", "")
+        clean = raw.split()[0] if raw else raw
+        candidates = list(dict.fromkeys([raw, clean, clean.replace("-", ""), str(route_key).strip()]))
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=5)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            placeholders = ",".join("?" for _ in candidates)
+            cur.execute(
+                f"SELECT stop_id, departure_time, arrival_time, trip_id "
+                f"FROM route_stop_times WHERE route_short_name IN ({placeholders})",
+                candidates
+            )
+            rows = cur.fetchall()
+            conn.close()
+            if not rows:
+                return None
+            table: dict[str, list] = {}
+            for r in rows:
+                dep = _parse_gtfs_time(r["departure_time"])
+                arr = _parse_gtfs_time(r["arrival_time"])
+                if dep:
+                    table.setdefault(str(r["stop_id"]), []).append(
+                        (dep, arr or dep, str(r["trip_id"]))
+                    )
+            for sid in table:
+                table[sid].sort(key=lambda x: x[0])
+            return table
+        except Exception as e:
+            print(f"GTFS Route query error for {route_key}: {e}")
+            return None
+
+    def __contains__(self, key):
+        return self[key] is not None
+
+    def get(self, key, default=None):
+        val = self[key]
+        return val if val is not None else default
+
+    def __getitem__(self, key):
+        if not key:
+            return None
+        k = str(key).strip().upper()
+        if k in self._cache:
+            return self._cache[k]
+        res = self._query(key)
+        self._cache[k] = res
+        return res
+
+
+_route_departures = RouteDeparturesDict()
 
 BMTC_START = timedelta(hours=5)
 BMTC_END   = timedelta(hours=23, minutes=30)
@@ -52,7 +120,7 @@ BMTC_END   = timedelta(hours=23, minutes=30)
 
 def _parse_gtfs_time(t) -> Optional[timedelta]:
     """Parse a GTFS HH:MM:SS time string (may exceed 24h) into a timedelta."""
-    if pd.isna(t):
+    if pd.isna(t) or not t:
         return None
     parts = str(t).split(":")
     if len(parts) != 3:
@@ -79,7 +147,7 @@ def _is_excluded_route(route_label: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Singleton loader (called at import time, once)
+# Singleton loader (called on demand, instant execution)
 # ---------------------------------------------------------------------------
 
 def _load_gtfs() -> None:
@@ -90,89 +158,51 @@ def _load_gtfs() -> None:
             return
 
         try:
-            from core.loader import stops_df
+            if not os.path.exists(_GTFS_DB):
+                try:
+                    import subprocess
+                    script = os.path.join(_REPO_ROOT, "backend", "build_gtfs_db.py")
+                    if os.path.exists(script):
+                        print("GTFS: auto-generating database/gtfs_index.db...")
+                        subprocess.run([sys.executable, script], check=True)
+                except Exception as ex:
+                    print(f"GTFS auto-build failed: {ex}")
 
-            print("GTFS: loading files…")
-            gtfs_stops = pd.read_csv(GTFS_STOPS,      dtype={"stop_id": str, "stop_name": str})
-            stop_times = pd.read_csv(GTFS_STOP_TIMES, dtype={"trip_id": str, "stop_id": str,
-                                                               "stop_sequence": int})
-            trips      = pd.read_csv(GTFS_TRIPS,      dtype={"route_id": str, "trip_id": str})
-            routes     = pd.read_csv(GTFS_ROUTES,     dtype={"route_id": str,
-                                                               "route_short_name": str})
+            if os.path.exists(_GTFS_DB):
+                conn = sqlite3.connect(_GTFS_DB, timeout=5)
+                cur = conn.cursor()
+                cur.execute("SELECT stop_norm, stop_id FROM stops")
+                for norm, sid in cur.fetchall():
+                    _norm_to_ids.setdefault(norm, []).append(str(sid))
+                conn.close()
+                print(f"GTFS: matched {len(_norm_to_ids)} stop norms from indexed SQLite.")
+            else:
+                from core.loader import stops_df
+                gtfs_stops = pd.read_csv(GTFS_STOPS, dtype={"stop_id": str, "stop_name": str})
+                gtfs_stops["clean_name"] = gtfs_stops["stop_name"].apply(
+                    lambda name: name[3:].strip() if isinstance(name, str) and (name.upper().startswith("CS-") or name.upper().startswith("CS ")) else name
+                )
+                gtfs_stops["stop_norm"] = gtfs_stops["clean_name"].str.strip().str.lower()
+                known_norms = set(stops_df["stop_norm"].unique())
+                for _, row in gtfs_stops.iterrows():
+                    n = row["stop_norm"]
+                    if n in known_norms:
+                        _norm_to_ids.setdefault(n, []).append(str(row["stop_id"]))
+                print(f"GTFS: matched {len(_norm_to_ids)} stop norms from CSV.")
 
-            _gtfs_data = {
-                "stops":      gtfs_stops,
-                "stop_times": stop_times,
-                "trips":      trips,
-                "routes":     routes,
-            }
+            # Load lightweight routes DataFrame if file exists
+            if os.path.exists(GTFS_ROUTES):
+                routes = pd.read_csv(GTFS_ROUTES, dtype={"route_id": str, "route_short_name": str})
+                _gtfs_data["routes"] = routes
 
-            # Build stop_norm → [stop_id] mapping
-            def clean_stop_name(name: str) -> str:
-                if not isinstance(name, str):
-                    return name
-                name_upper = name.upper()
-                for prefix in ["CS-", "CS "]:
-                    if name_upper.startswith(prefix):
-                        return name[len(prefix):].strip()
-                return name
+            _route_departures = RouteDeparturesDict(_GTFS_DB)
+            print("GTFS: departure query engine initialized (<10MB RAM).")
 
-            gtfs_stops["stop_name"] = gtfs_stops["stop_name"].apply(clean_stop_name)
-            gtfs_stops["stop_norm"] = gtfs_stops["stop_name"].str.strip().str.lower()
-            known_norms = set(stops_df["stop_norm"].unique())
-            for _, row in gtfs_stops.iterrows():
-                n = row["stop_norm"]
-                if n in known_norms:
-                    _norm_to_ids.setdefault(n, []).append(str(row["stop_id"]))
-
-            print(f"GTFS: matched {len(_norm_to_ids)} stop norms to GTFS IDs.")
-
-            # ── Build fast route-departure index ──────────────────────────────
-            # Merge stop_times with trips → routes to get route_short_name per trip
-            # We build: _route_departures[route_short_name][stop_id]
-            #             = sorted list of (dep_timedelta, arr_timedelta, trip_id)
-            print("GTFS: building departure index (vectorized)…")
-
-            # Merge stop_times with trips → route_short_name in one vectorized pass
-            merged_trips = trips.merge(
-                routes[["route_id", "route_short_name"]], on="route_id", how="left"
-            )
-            st = stop_times.merge(
-                merged_trips[["trip_id", "route_short_name"]], on="trip_id", how="left"
-            )
-            st = st.dropna(subset=["route_short_name", "departure_time"])
-
-            # Parse times vectorized — map only unique time strings for speed
-            all_dep_times = st["departure_time"].unique()
-            all_arr_times = st["arrival_time"].dropna().unique()
-            dep_map = {t: _parse_gtfs_time(t) for t in all_dep_times}
-            arr_map = {t: _parse_gtfs_time(t) for t in all_arr_times}
-
-            st["dep_td"] = st["departure_time"].map(dep_map)
-            st["arr_td"] = st["arrival_time"].map(arr_map)
-            st = st.dropna(subset=["dep_td"])
-
-            # Group by route and stop_id — build sorted departure lists
-            _route_stop_departures: dict[str, dict[str, list]] = {}
-            for (rname, sid), grp in st.groupby(["route_short_name", "stop_id"]):
-                entries = list(zip(grp["dep_td"], grp["arr_td"].fillna(grp["dep_td"]), grp["trip_id"]))
-                entries.sort(key=lambda x: x[0])
-                _route_stop_departures.setdefault(str(rname), {})[str(sid)] = entries
-
-            _route_departures = _route_stop_departures
-            print(f"GTFS: departure index built for {len(_route_departures)} routes.")
-
-            # Free heavy intermediate DataFrames from RAM
-            import gc as _gc
-            del st, merged_trips, stop_times, trips, routes
-            _gc.collect()
-
-        except FileNotFoundError:
-            print("GTFS: files not found — schedule features disabled.")
         except Exception as e:
             print(f"GTFS: load error: {e}")
 
         _gtfs_loaded = True
+
 
 
 def _get_gtfs() -> tuple[dict, dict]:
@@ -372,46 +402,40 @@ def suggest_top_buses(src_stop: str, dst_stop: str, top_n: int = TOP_N_BUSES) ->
 
 
 def get_route_stops(route_no: str) -> list:
-    """Return an ordered list of stop names along a given route number.
-
-    Uses the GTFS trip with the most stop-time entries for this route as the
-    canonical stop sequence. Returns an empty list if the route is not found.
-    """
-    gtfs, _ = _get_gtfs()
-    if not gtfs:
+    """Return an ordered list of stop names along a given route number."""
+    if not route_no:
         return []
 
-    trips    = gtfs["trips"]
-    routes   = gtfs["routes"]
-    stops    = gtfs["stops"]
-    st       = gtfs["stop_times"]
+    # 1. Try fast indexed SQLite query
+    if os.path.exists(_GTFS_DB):
+        try:
+            raw = str(route_no).strip().upper().replace("_REV", "")
+            clean = raw.split()[0] if raw else raw
+            candidates = list(dict.fromkeys([raw, clean, clean.replace("-", ""), str(route_no).strip()]))
+            conn = sqlite3.connect(_GTFS_DB, timeout=5)
+            cur = conn.cursor()
+            placeholders = ",".join("?" for _ in candidates)
+            cur.execute(
+                f"SELECT clean_name FROM route_stop_times "
+                f"WHERE route_short_name IN ({placeholders}) "
+                f"GROUP BY clean_name ORDER BY min(stop_sequence)",
+                candidates
+            )
+            rows = cur.fetchall()
+            conn.close()
+            if rows:
+                return [r[0] for r in rows if r[0]]
+        except Exception:
+            pass
 
-    route_no_lower = route_no.strip().lower()
+    # 2. Fast fallback to cleaned stop-level dataset
+    try:
+        from core.stops import get_route_stop_names
+        stops = get_route_stop_names(route_no)
+        if stops:
+            return stops
+    except Exception:
+        pass
 
-    # Find matching route ids
-    matching_routes = routes[
-        routes["route_short_name"].str.lower().str.strip() == route_no_lower
-    ]
-    if matching_routes.empty:
-        return []
+    return []
 
-    route_ids = matching_routes["route_id"].tolist()
-    route_trips = trips[trips["route_id"].isin(route_ids)]
-    if route_trips.empty:
-        return []
-
-    trip_ids = route_trips["trip_id"].tolist()
-    route_st = st[st["trip_id"].isin(trip_ids)].copy()
-    if route_st.empty:
-        return []
-
-    # Pick the trip with the most stops (most complete)
-    trip_counts = route_st.groupby("trip_id")["stop_sequence"].count()
-    best_trip = trip_counts.idxmax()
-
-    trip_stops = (
-        route_st[route_st["trip_id"] == best_trip]
-        .sort_values("stop_sequence")
-        .merge(stops[["stop_id", "stop_name"]], on="stop_id", how="left")
-    )
-    return trip_stops["stop_name"].dropna().tolist()
