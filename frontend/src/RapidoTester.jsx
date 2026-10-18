@@ -187,10 +187,10 @@ export default function RapidoTester({ C, API_BASE }) {
       {/* Header card */}
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "24px", marginBottom: "24px" }}>
         <h2 style={{ fontSize: "20px", fontWeight: "900", marginBottom: "8px", color: C.accent, display: "flex", alignItems: "center", gap: 10 }}>
-          🛺 Rapido Pricing Tester
+          🛺 ZipGo Pricing Tester
         </h2>
         <p style={{ fontSize: "13px", color: C.muted, marginBottom: "20px" }}>
-          Verify and validate Rapido calibrated cab and bike fare estimates. Uses live Google Autocomplete for address resolution.
+          Verify and validate ZipGo calibrated cab and bike fare estimates. Uses live Google Autocomplete for address resolution.
         </p>
 
         <form onSubmit={handleFetchFares} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -345,7 +345,7 @@ export default function RapidoTester({ C, API_BASE }) {
             onMouseDown={(e) => (e.target.style.transform = "scale(0.98)")}
             onMouseUp={(e) => (e.target.style.transform = "scale(1)")}
           >
-            {loading ? "Calculating fares..." : "Get Rapido Estimates"}
+            {loading ? "Calculating fares..." : "Get ZipGo Estimates"}
           </button>
         </form>
       </div>
@@ -361,7 +361,7 @@ export default function RapidoTester({ C, API_BASE }) {
       {estimates.length > 0 && (
         <div>
           <h3 style={{ fontSize: "14px", fontWeight: "700", color: C.muted, textTransform: "uppercase", marginBottom: "12px", letterSpacing: "0.05em" }}>
-            Available Rapido Fares
+            Available ZipGo Fares
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {estimates.map((est) => (

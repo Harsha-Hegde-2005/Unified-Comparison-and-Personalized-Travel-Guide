@@ -758,7 +758,7 @@ def _cab_estimate(src: str, dst: str, dep_time: datetime) -> dict:
             "stops": [src, dst],
         }],
         "guide": [
-            {"step": 1, "icon": "cab",  "text": "Request Ola / Uber", "duration": "~5 min"},
+            {"step": 1, "icon": "cab",  "text": "Request GoRide / SwiftCab", "duration": "~5 min"},
             {"step": 2, "icon": "car",  "text": f"Direct ride to {dst}",
              "duration": f"{est_min} min", "detail": f"₹{est_fare} est. · Door-to-door"},
         ],
@@ -2474,28 +2474,28 @@ def _generic_cab_estimates(provider_key: str, provider_name: str, src_lat, src_l
 
 
 def _namma_yatri_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
-    return _generic_cab_estimates("namma_yatri", "Namma Yatri", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
+    return _generic_cab_estimates("namma_yatri", "NammaMove", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
 
 def _ola_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
-    return _generic_cab_estimates("ola", "Ola", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
+    return _generic_cab_estimates("ola", "GoRide", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
 
 def _rapido_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
-    return _generic_cab_estimates("rapido", "Rapido", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
+    return _generic_cab_estimates("rapido", "ZipGo", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
 
 def _uber_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
-    return _generic_cab_estimates("uber", "Uber", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
+    return _generic_cab_estimates("uber", "SwiftCab", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
 
 # ── Provider registry ─────────────────────────────────────────────────────────
 
 RIDE_PROVIDERS = {
-    "namma_yatri": {"fn": _namma_yatri_estimates, "label": "Namma Yatri", "live": True},
-    "ola":         {"fn": _ola_estimates,          "label": "Ola",         "live": False},
-    "uber":        {"fn": _uber_estimates,          "label": "Uber",        "live": False},
-    "rapido":      {"fn": _rapido_estimates,        "label": "Rapido",      "live": False},
+    "namma_yatri": {"fn": _namma_yatri_estimates, "label": "NammaMove", "live": True},
+    "ola":         {"fn": _ola_estimates,          "label": "GoRide",    "live": False},
+    "uber":        {"fn": _uber_estimates,         "label": "SwiftCab",  "live": False},
+    "rapido":      {"fn": _rapido_estimates,       "label": "ZipGo",     "live": False},
 }
 
 
@@ -2845,7 +2845,7 @@ def multimodal_plan(source: str, destination: str, dep_time: datetime, preferenc
         # 2. Query all engines to select the cheapest feeder ride
         cheapest_fare = float('inf')
         best_vehicle = "Auto"
-        best_provider = "Namma Yatri"
+        best_provider = "NammaMove"
         best_icon = "🛺"
         
         if _ny_fare:
@@ -4336,10 +4336,10 @@ MODE_LABELS_MAIN = {
     "bmtc": "BMTC Bus",
     "metro": "Namma Metro",
     "multimodal": "Bus + Metro",
-    "ola": "Ola Cab",
-    "uber": "Uber Cab",
-    "rapido": "Rapido Ride",
-    "namma_yatri": "Namma Yatri",
+    "ola": "GoRide Cab",
+    "uber": "SwiftCab",
+    "rapido": "ZipGo Ride",
+    "namma_yatri": "NammaMove",
     "car": "Personal Car",
     "bike": "Personal Bike"
 }
@@ -4969,7 +4969,7 @@ def chatbot_query(req: ChatbotRequest):
                 compare_results["bike"] = {"available": False, "mode": "bike"}
 
             weather_now = req.weather or engine.get_simulated_weather(dep_time)
-            for pkey, label in [("ola", "Ola"), ("uber", "Uber"), ("rapido", "Rapido"), ("namma_yatri", "Namma Yatri")]:
+            for pkey, label in [("ola", "GoRide"), ("uber", "SwiftCab"), ("rapido", "ZipGo"), ("namma_yatri", "NammaMove")]:
                 compare_results[pkey] = {"available": False, "mode": pkey}
                 if src_coords and dst_coords:
                     try:

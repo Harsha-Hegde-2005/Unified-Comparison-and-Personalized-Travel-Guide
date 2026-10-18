@@ -302,7 +302,7 @@ class TravelTools:
 
     # ── Tool F: estimate_cab ──────────────────────────────────────────────────
     def estimate_cab(self, origin: str, destination: str) -> Dict[str, Any]:
-        """Get fare ranges across Ola, Uber, Rapido, and Namma Yatri."""
+        """Get fare ranges across GoRide, SwiftCab, ZipGo, and NammaMove."""
         from main import _resolve_any_location_coords, _osrm_distance, _get_all_ride_fares
 
         src_c = _resolve_any_location_coords(origin)
@@ -321,7 +321,7 @@ class TravelTools:
             "destination": destination,
             "distance_km": round(dist_km, 2),
             "duration_minutes": int(dur_min),
-            "provider": "Fare Estimation Model (Ola/Uber/Rapido/Namma Yatri)",
+            "provider": "Fare Estimation Model (GoRide/SwiftCab/ZipGo/NammaMove)",
             "is_live_quote": False,
             "providers": fares
         }
@@ -560,8 +560,8 @@ class TravelTools:
             )
         else:
             guidance = (
-                "Bengaluru has comprehensive transit options: BMTC Buses, Namma Metro, Cabs (Ola/Uber/Yatri), "
-                "and Rapido Bike Taxis. Public transit is recommended during peak hours (8-11 AM & 5-8 PM)."
+                "Bengaluru has comprehensive transit options: BMTC Buses, Namma Metro, Cabs (GoRide/SwiftCab/NammaMove), "
+                "and ZipGo Bike Taxis. Public transit is recommended during peak hours (8-11 AM & 5-8 PM)."
             )
 
         return {"available": True, "topic": topic, "guidance": guidance}

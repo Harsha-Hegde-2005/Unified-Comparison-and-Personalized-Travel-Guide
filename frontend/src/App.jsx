@@ -75,7 +75,7 @@ const C = {
 const MC = {
   bmtc: { label: "BMTC Bus", short: "BUS", color: "#f97316", bg: "#1a0f06", icon: "bus", line: "Ordinary · Vajra · AC" },
   metro: { label: "Namma Metro", short: "METRO", color: "#8b5cf6", bg: "#100c1a", icon: "metro", line: "Green · Purple · Yellow" },
-  cab: { label: "Cab / Auto", short: "CAB", color: "#f59e0b", bg: "#1a1200", icon: "cab", line: "Namma Yatri · Ola · Uber · Rapido" },
+  cab: { label: "Cab / Auto", short: "CAB", color: "#f59e0b", bg: "#1a1200", icon: "cab", line: "NammaMove · GoRide · SwiftCab · ZipGo" },
   car: { label: "Own Vehicle", short: "CAR", color: "#10b981", bg: "#051510", icon: "car", line: "Fuel + Parking est." },
   multimodal: { label: "Multimodal Transit", short: "MULTI", color: "#ec4899", bg: "#1c0d18", icon: "transfer", line: "Bus + Metro + Auto combos" },
   bicycle: { label: "Cycling", short: "CYCLE", color: "#06b6d4", bg: "#022329", icon: "bicycle", line: "Eco-friendly & healthy" },
@@ -5293,10 +5293,10 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
         };
 
         const PROVIDER_STYLES = {
-          namma_yatri: { bg: "#eab308", text: "#000", label: "Namma Yatri" },
-          uber: { bg: "#374151", text: "#fff", label: "Uber" },
-          ola: { bg: "#84cc16", text: "#000", label: "Ola" },
-          rapido: { bg: "#ea580c", text: "#fff", label: "Rapido" },
+          namma_yatri: { bg: "#eab308", text: "#000", label: "NammaMove" },
+          uber: { bg: "#374151", text: "#fff", label: "SwiftCab" },
+          ola: { bg: "#84cc16", text: "#000", label: "GoRide" },
+          rapido: { bg: "#ea580c", text: "#fff", label: "ZipGo" },
         };
 
         // Special badge config for all vehicle types
@@ -5330,10 +5330,10 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
 
         const providerOptions = [
           { id: "all", label: "All Providers", icon: "🌐", color: m.color },
-          { id: "namma_yatri", label: "Namma Yatri", icon: "🛺", color: "#eab308" },
-          { id: "ola", label: "Ola", icon: "🚗", color: "#84cc16" },
-          { id: "uber", label: "Uber", icon: "🚗", color: "#e2e8f0" },
-          { id: "rapido", label: "Rapido", icon: "🏍️", color: "#ea580c" },
+          { id: "namma_yatri", label: "NammaMove", icon: "🛺", color: "#eab308" },
+          { id: "ola", label: "GoRide", icon: "🚗", color: "#84cc16" },
+          { id: "uber", label: "SwiftCab", icon: "🚗", color: "#e2e8f0" },
+          { id: "rapido", label: "ZipGo", icon: "🏍️", color: "#ea580c" },
         ];
 
         const filteredEsts = data.all_estimates.filter(est => {
@@ -5534,7 +5534,7 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
                                 letterSpacing: "0.03em"
                               }}>{specialBadge.icon} {specialBadge.label}</span>
                             )}
-                            {/* Unavailable badge (like real Ola app) */}
+                            {/* Unavailable badge (like real GoRide app) */}
                             {isUnavailable && (
                               <span style={{
                                 fontSize: 9,
@@ -6620,120 +6620,6 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
 
       </div>
 
-      {/* Row 3: Commute Suggestions (left) & Travel Alerts (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-        
-        {/* Commute Suggestions */}
-        <div style={{ 
-          background: C.card, 
-          border: `1px solid ${C.border}`, 
-          borderRadius: 24, 
-          padding: "28px 24px",
-          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
-          display: "flex",
-          flexDirection: "column"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
-              <Ic n="rocket" s={16} c={C.accent} sw={2.2} /> Commute Suggestions
-            </h2>
-            <button 
-              onClick={onPlan} 
-              style={{ background: "none", border: "none", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", padding: 0 }}
-            >
-              See all
-            </button>
-          </div>
-
-          <div style={{
-            background: C.accent + "0a",
-            border: `1px solid ${C.accent}20`,
-            borderRadius: 16,
-            padding: "16px 20px",
-            display: "flex",
-            alignItems: "center",
-            gap: 16
-          }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: C.accent + "1c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Ic n="rocket" s={16} c={C.accent} sw={2.2} />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Beat the traffic!</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontWeight: 500, lineHeight: 1.4 }}>Travel before 9:00 AM to save up to 25% time on your commute.</div>
-            </div>
-          </div>
-
-          {/* Dots Pagination */}
-          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 16 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.accent }} />
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.border2 }} />
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.border2 }} />
-          </div>
-        </div>
-
-        {/* Travel Alerts */}
-        <div id="travel-alerts-card" style={{ 
-          background: C.card, 
-          border: `1px solid ${C.border}`, 
-          borderRadius: 24, 
-          padding: "28px 24px",
-          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
-          display: "flex",
-          flexDirection: "column"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
-              <Ic n="bell" s={16} c={C.red} sw={2.2} /> Travel Alerts
-            </h2>
-            <button 
-              onClick={onPlan} 
-              style={{ background: "none", border: "none", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", padding: 0 }}
-            >
-              View all
-            </button>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {/* Transit Alert */}
-            <div style={{
-              background: C.red + "08",
-              border: `1px solid ${C.red}18`,
-              borderRadius: 16,
-              padding: "12px 16px",
-              display: "flex",
-              alignItems: "center",
-              gap: 12
-            }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.red + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Ic n="alert" s={14} c={C.red} sw={2.2} />
-              </div>
-              <div>
-                <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>Transit: No active alerts</div>
-                <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2, fontWeight: 500 }}>No disruptions on your saved routes.</div>
-              </div>
-            </div>
-
-            {/* Weather Alert */}
-            <div style={{
-              background: C.accent + "08",
-              border: `1px solid ${C.accent}18`,
-              borderRadius: 16,
-              padding: "12px 16px",
-              display: "flex",
-              alignItems: "center",
-              gap: 12
-            }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.accent + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 14 }}>☀️</span>
-              </div>
-              <div>
-                <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>Weather: 27°C Partly Cloudy</div>
-                <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2, fontWeight: 500 }}>Perfect commute weather. No rain expected today.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Bicycle Register Modal Popup */}
         {showBicyclePopup && (
           <div style={{
@@ -6850,7 +6736,6 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
         />
       )}
 
-      </div>
     </div>
   );
 }
@@ -7104,10 +6989,10 @@ function ComparisonDashboard({ data, onSelectRoute }) {
     bmtc: "BMTC Bus",
     metro: "Namma Metro",
     multimodal: "Bus + Metro",
-    ola: "Ola Cab",
-    uber: "Uber Cab",
-    rapido: "Rapido Ride",
-    namma_yatri: "Namma Yatri",
+    ola: "GoRide Cab",
+    uber: "SwiftCab",
+    rapido: "ZipGo Ride",
+    namma_yatri: "NammaMove",
     car: "Personal Car",
     bike: "Personal Bike"
   };
@@ -7440,7 +7325,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
   const [messages, setMessages] = useState([
     {
       sender: "bot",
-      text: "Hello! I am your Intelligent Travel Assistant. I can help you plan journeys across BMTC, Namma Metro, Cabs (Ola/Uber/Rapido/Yatri), and personal vehicles. Ask me routes, fares, next bus timings, nearby restaurants/hospitals, or multi-stop day trips!",
+      text: "Hello! I am your Intelligent Travel Assistant. I can help you plan journeys across BMTC, Namma Metro, Cabs (GoRide/SwiftCab/ZipGo/NammaMove), and personal vehicles. Ask me routes, fares, next bus timings, nearby restaurants/hospitals, or multi-stop day trips!",
       suggested_followups: ["Cheapest route to Majestic", "Next bus from Hosakerehalli", "Restaurants near Majestic", "Plan 3-stop day trip"]
     }
   ]);
@@ -7568,7 +7453,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
   };
 
   const chips = [
-    { text: "Ola fare from Majestic to Indiranagar" },
+    { text: "GoRide fare from Majestic to Indiranagar" },
     { text: "Nearest bus stop to Bangalore Palace" },
     { text: "Fuel cost: Whitefield to Electronic City by car" },
     { text: "Will it rain at 5 PM today?" },
@@ -7828,7 +7713,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
                         {m.parameters?.source} → {m.parameters?.destination}
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-                        {[["ola", "Ola", "#f5c518"], ["uber", "Uber", "#e0e0e0"], ["namma_yatri", "Namma Yatri", "#22c55e"], ["rapido", "Rapido", "#3b82f6"]].map(([pkey, label, clr]) =>
+                        {[["ola", "GoRide", "#f5c518"], ["uber", "SwiftCab", "#e0e0e0"], ["namma_yatri", "NammaMove", "#22c55e"], ["rapido", "ZipGo", "#3b82f6"]].map(([pkey, label, clr]) =>
                           m.embedded_data.providers?.[pkey] && (
                             <div key={pkey} style={{ background: clr + "18", borderRadius: 8, padding: "6px 8px", border: `1px solid ${clr}33` }}>
                               <div style={{ fontSize: 10, fontWeight: 800, color: clr }}>{label}</div>
@@ -8244,10 +8129,10 @@ function AIRecommendationsPanel({
   };
 
   const PROVIDER_STYLES = {
-    namma_yatri: { bg: "#eab308", text: "#000", label: "Namma Yatri" },
-    uber: { bg: "#374151", text: "#fff", label: "Uber" },
-    ola: { bg: "#84cc16", text: "#000", label: "Ola" },
-    rapido: { bg: "#ea580c", text: "#fff", label: "Rapido" },
+    namma_yatri: { bg: "#eab308", text: "#000", label: "NammaMove" },
+    uber: { bg: "#374151", text: "#fff", label: "SwiftCab" },
+    ola: { bg: "#84cc16", text: "#000", label: "GoRide" },
+    rapido: { bg: "#ea580c", text: "#fff", label: "ZipGo" },
   };
 
   const SPECIAL_BADGES = {
@@ -8324,10 +8209,10 @@ function AIRecommendationsPanel({
 
           const providerOptions = [
             { id: "all", label: "All Providers", icon: "🌐", color: config.color },
-            { id: "namma_yatri", label: "Namma Yatri", icon: "🛺", color: "#eab308" },
-            { id: "ola", label: "Ola", icon: "🚗", color: "#84cc16" },
-            { id: "uber", label: "Uber", icon: "🚗", color: "#e2e8f0" },
-            { id: "rapido", label: "Rapido", icon: "🏍️", color: "#ea580c" },
+            { id: "namma_yatri", label: "NammaMove", icon: "🛺", color: "#eab308" },
+            { id: "ola", label: "GoRide", icon: "🚗", color: "#84cc16" },
+            { id: "uber", label: "SwiftCab", icon: "🚗", color: "#e2e8f0" },
+            { id: "rapido", label: "ZipGo", icon: "🏍️", color: "#ea580c" },
           ];
 
           return (
@@ -10238,11 +10123,7 @@ export default function App() {
                       } else if (n.id === "weather_alerts") {
                         setShowWeatherModal(true);
                       } else if (n.id === "alerts_updates") {
-                        setPage("dashboard");
-                        setTimeout(() => {
-                          const el = document.getElementById("travel-alerts-card");
-                          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                        }, 100);
+                        setShowWeatherModal(true);
                       }
                     }}
                     style={{
@@ -10599,7 +10480,7 @@ export default function App() {
             <div>
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.03em" }}>Plan your journey</div>
-                <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>BMTC · Metro · Namma Yatri · Personal Vehicle</div>
+                <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>BMTC · Metro · NammaMove · Personal Vehicle</div>
               </div>
 
               {/* Ride Mode Quick Banner CTA */}
@@ -10701,9 +10582,9 @@ export default function App() {
                 {/* Main search button */}
                 <button onClick={search} disabled={loading || !src || !dst} style={{ width: "100%", marginTop: 18, background: loading || !src || !dst ? C.dim : `linear-gradient(135deg, ${C.accent}, #ea580c)`, border: "none", color: "white", borderRadius: 12, padding: "14px", fontSize: 15, fontWeight: 800, cursor: loading ? "wait" : !src || !dst ? "not-allowed" : "pointer", boxShadow: src && dst ? `0 4px 24px ${C.accent}40` : "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit" }}>
                   {loading ? (
-                    <><div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid white", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />Comparing options…</>
+                    <><div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid white", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />Planning Journey…</>
                   ) : (
-                    <><Ic n="arrow" s={18} c="white" sw={2.5} />Compare All Options</>
+                    <><Ic n="arrow" s={18} c="white" sw={2.5} />Plan Journey · Compare All Options</>
                   )}
                 </button>
 

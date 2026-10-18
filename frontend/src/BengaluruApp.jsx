@@ -591,12 +591,20 @@ function PlanJourneyPage({ stops, onResults }) {
   const [time, setTime] = useState("");
   const [pref, setPref] = useState("cost");
 
+  const [loading, setLoading] = useState(false);
+
   const doSearch = async () => {
+    setLoading(true);
+    const searchStartTime = Date.now();
     try {
       const res = await apiCompare(src, dst, time, pref);
+      const elapsed = Date.now() - searchStartTime;
+      if (elapsed < 3000) await new Promise(r => setTimeout(r, 3000 - elapsed));
       onResults(res, src, dst, time, pref);
     } catch {
       onResults(null, src, dst, time, pref);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -626,9 +634,9 @@ function PlanJourneyPage({ stops, onResults }) {
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
             style={{ width: "100%", padding: "12px", background: "#F8F9FC", border: "1.5px solid #E5E7EB", borderRadius: 12, fontSize: 14, outline: "none" }} />
         </div>
-        <button onClick={doSearch}
-          style={{ width: "100%", background: T.grad, border: "none", color: "#fff", borderRadius: 14, padding: "15px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
-          Find Best Route
+        <button onClick={doSearch} disabled={loading}
+          style={{ width: "100%", background: T.grad, border: "none", color: "#fff", borderRadius: 14, padding: "15px", fontSize: 15, fontWeight: 800, cursor: loading ? "wait" : "pointer" }}>
+          {loading ? "Planning Journey..." : "Find Best Route"}
         </button>
       </div>
     </div>
@@ -733,7 +741,7 @@ function FareGuidePage() {
   const [tab, setTab] = useState("bus");
   const busF = [["Up to 5 km", "₹10"], ["5 – 10 km", "₹15"], ["10 – 15 km", "₹20"], ["15 – 25 km", "₹25"], ["Above 25 km", "₹30+"]];
   const metF = [["Up to 2 km", "₹10"], ["2 – 4 km", "₹20"], ["4 – 6 km", "₹30"], ["6 – 12 km", "₹40"], ["12 – 19 km", "₹50"], ["Above 19 km", "₹60"]];
-  const cabF = [["Auto Rickshaw", "₹30 base + ₹15/km"], ["Ola Mini", "₹70 base + ₹12/km"], ["Uber Go", "₹75 base + ₹13/km"]];
+  const cabF = [["Auto Rickshaw", "₹30 base + ₹15/km"], ["GoRide Mini", "₹70 base + ₹12/km"], ["SwiftCab Go", "₹75 base + ₹13/km"]];
 
   return (
     <div style={{ maxWidth: 600, margin: "28px auto", padding: "0 20px" }}>

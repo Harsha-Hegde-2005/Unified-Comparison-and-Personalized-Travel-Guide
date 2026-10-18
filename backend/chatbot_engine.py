@@ -26,10 +26,10 @@ MODE_LABELS = {
     "bmtc": "BMTC Bus",
     "metro": "Namma Metro",
     "multimodal": "Bus + Metro",
-    "ola": "Ola Cab",
-    "uber": "Uber Cab",
-    "rapido": "Rapido Ride",
-    "namma_yatri": "Namma Yatri",
+    "ola": "GoRide Cab",
+    "uber": "SwiftCab",
+    "rapido": "ZipGo Ride",
+    "namma_yatri": "NammaMove",
     "car": "Personal Car",
     "bike": "Personal Bike"
 }
@@ -85,7 +85,7 @@ class ChatbotEngine:
                 "- \"budget_constrained\": User wants to travel under a specific budget.\n"
                 "- \"budget_explore\": User wants to explore what destinations they can travel to within a budget (no destination specified). Extract budget.\n"
                 "- \"possible_ways\": User wants ALL modes/routes compared.\n"
-                "- \"ride_cost\": User asks specifically about cab, taxi, auto, Ola, Uber, Namma Yatri, or Rapido ride-hailing fares. Extract source+destination.\n"
+                "- \"ride_cost\": User asks specifically about cab, taxi, auto, GoRide (Ola), SwiftCab (Uber), NammaMove (Namma Yatri), or ZipGo (Rapido) ride-hailing fares. Extract source+destination.\n"
                 "- \"fuel_cost\": User asks about fuel/petrol/diesel or private vehicle cost. Extract source, destination, vehicle_type.\n"
                 "- \"nearest_stops\": User wants nearest bus stop or metro station. Extract location.\n"
                 "- \"traffic_query\": User asks about traffic, congestion, road conditions, drive time.\n"
@@ -171,7 +171,7 @@ class ChatbotEngine:
             "- \"budget_constrained\": User wants to travel under a specific budget.\n"
             "- \"budget_explore\": User wants to explore what destinations they can travel to within a budget (no destination specified). Extract budget.\n"
             "- \"possible_ways\": User wants ALL modes/routes compared.\n"
-            "- \"ride_cost\": User asks specifically about cab, taxi, auto, Ola, Uber, Namma Yatri, or Rapido ride-hailing fares. Extract source+destination.\n"
+            "- \"ride_cost\": User asks specifically about cab, taxi, auto, GoRide (Ola), SwiftCab (Uber), NammaMove (Namma Yatri), or ZipGo (Rapido) ride-hailing fares. Extract source+destination.\n"
             "- \"fuel_cost\": User asks about fuel/petrol/diesel or private vehicle cost. Extract source, destination, vehicle_type.\n"
             "- \"nearest_stops\": User wants nearest bus stop or metro station. Extract location.\n"
             "- \"traffic_query\": User asks about traffic, congestion, road conditions, drive time.\n"
@@ -280,7 +280,7 @@ class ChatbotEngine:
         prev_lower = user_msg_before_bot.lower() if user_msg_before_bot else ""
         params = {"source": source, "destination": destination, "message": f"{user_msg_before_bot} {message}" if user_msg_before_bot else message}
 
-        if any(k in prev_lower for k in ["ola", "uber", "namma yatri", "rapido", "cab", "taxi", "auto"]):
+        if any(k in prev_lower for k in ["goride", "swiftcab", "zipgo", "nammamove", "ola", "uber", "namma yatri", "rapido", "cab", "taxi", "auto"]):
             return "ride_cost", params
         if any(k in prev_lower for k in ["fuel", "petrol", "diesel", "consume", "litres"]):
             vtype = self.extract_vehicle_type(prev_lower) or "car"
@@ -792,7 +792,7 @@ class ChatbotEngine:
                     return "clarify_location", params
 
         # 0.5. Ride Cost & Fuel Cost Check
-        if any(k in text_lower for k in ["ola", "uber", "namma yatri", "rapido", "cab", "taxi", "auto", "ride cost", "cab cost", "auto fare"]):
+        if any(k in text_lower for k in ["goride", "swiftcab", "zipgo", "nammamove", "ola", "uber", "namma yatri", "rapido", "cab", "taxi", "auto", "ride cost", "cab cost", "auto fare"]):
             if src and dst:
                 params["source"] = src
                 params["destination"] = dst
@@ -1106,7 +1106,7 @@ class ChatbotEngine:
                 return f"Sorry, I couldn't calculate ride fares from {src} to {dst}."
                 
             reply = f"Here is a cab cost comparison from {src} to {dst}:\n\n"
-            for pkey, label, emoji in [("namma_yatri", "Namma Yatri", "🛺"), ("ola", "Ola", "🚕"), ("uber", "Uber", "🚙"), ("rapido", "Rapido", "🏍️")]:
+            for pkey, label, emoji in [("namma_yatri", "NammaMove", "🛺"), ("ola", "GoRide", "🚕"), ("uber", "SwiftCab", "🚙"), ("rapido", "ZipGo", "🏍️")]:
                 if pkey in providers and providers[pkey]:
                     fares = providers[pkey]
                     fare_min = fares[0].get("fare_min")

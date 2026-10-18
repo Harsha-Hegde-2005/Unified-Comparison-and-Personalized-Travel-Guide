@@ -24,11 +24,11 @@ BENCHMARK_ROUTES = [
 
 # Vehicle mappings
 VEHICLE_CONFIGS = {
-    "BIKE DIRECT": {"name": "Bike Direct", "capacity": 1, "icon": "🏍️", "desc": "Rapido Bike Direct"},
-    "SCOOTY DIRECT": {"name": "Scooty Direct", "capacity": 1, "icon": "🛵", "desc": "Rapido Scooty Direct"},
+    "BIKE DIRECT": {"name": "Bike Direct", "capacity": 1, "icon": "🏍️", "desc": "ZipGo Bike Direct"},
+    "SCOOTY DIRECT": {"name": "Scooty Direct", "capacity": 1, "icon": "🛵", "desc": "ZipGo Scooty Direct"},
     "BIKE RATED BY WOMEN": {"name": "Bike Rated by Women", "capacity": 1, "icon": "👩‍🏍️", "desc": "Bikes with women drivers"},
     "AUTO LITE": {"name": "Auto Lite", "capacity": 3, "icon": "🛺", "desc": "Affordable Auto Lite"},
-    "AUTO": {"name": "Auto", "capacity": 3, "icon": "🛺", "desc": "Standard Rapido Auto"},
+    "AUTO": {"name": "Auto", "capacity": 3, "icon": "🛺", "desc": "Standard ZipGo Auto"},
     "AUTO PRIORITY": {"name": "Auto Priority", "capacity": 3, "icon": "⚡", "desc": "Priority Auto request"},
     "CAB NON AC": {"name": "Cab Non AC", "capacity": 4, "icon": "🚗", "desc": "Non AC Hatchback/Sedan"},
     "CAB AC": {"name": "Cab AC", "capacity": 4, "icon": "❄️", "desc": "Standard AC Cab"},

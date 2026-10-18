@@ -6,7 +6,7 @@ IST = ZoneInfo("Asia/Kolkata")
 
 class TimeEngine:
     """
-    Estimates ride duration for Namma Yatri trips in Bengaluru.
+    Estimates ride duration for NammaMove trips in Bengaluru.
 
     OSRM gives free-flow driving time (zero traffic, speed-limit speed).
     Bengaluru's real-world traffic requires distance-aware multipliers.

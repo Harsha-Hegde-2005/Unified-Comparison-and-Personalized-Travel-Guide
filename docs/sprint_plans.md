@@ -47,14 +47,14 @@ To guide future sprints, here is the verified approach of the three currently im
 ## 📝 Week-by-Week Sprint Plans
 
 ### 🗓️ Week 1: Cab Fare Engine Calibration & Google Maps API Integration
-* **Objective**: Build a highly accurate cab estimation module (Ola, Uber, Rapido, Namma Yatri) that simulates real-world fare outcomes with $\ge 90\%$ accuracy without relying on official API keys.
+* **Objective**: Build a highly accurate cab estimation module (GoRide, SwiftCab, ZipGo, NammaMove) that simulates real-world fare outcomes with $\ge 90\%$ accuracy without relying on official API keys.
 * **Tasks**:
   * **Google Maps API Integration**: Use Google Distance Matrix API as the primary routing layer to fetch accurate road distances and duration matrices. If a developer key is absent, fallback to public OSRM (`/route/v1/driving`) or coordinate-curved Haversine equations ($D \times 1.3$).
   * **Fare Modeling**: Establish mathematical formulas modeling base charges, distance fees, time fees, and surge factors:
     $$\text{Cab Fare} = \max\left(\text{BaseFare} + D \times \text{PerKmRate} + T \times \text{PerMinuteRate}, \text{MinFare}\right) \times S_{surge}$$
-    * **Ola/Uber**: Multi-tier options (Auto, Sedan, SUV) with dynamic surge $S_{surge}$ applied during peak traffic hours (08:30–10:30, 17:30–20:30) with factors between $1.25\times$ and $1.5\times$.
-    * **Rapido**: Optimized single-passenger bike taxi rates and auto rates.
-    * **Namma Yatri**: Config-driven flat models matching official driver-direct guidelines with night surcharge multipliers.
+    * **GoRide/SwiftCab**: Multi-tier options (Auto, Sedan, SUV) with dynamic surge $S_{surge}$ applied during peak traffic hours (08:30–10:30, 17:30–20:30) with factors between $1.25\times$ and $1.5\times$.
+    * **ZipGo**: Optimized single-passenger bike taxi rates and auto rates.
+    * **NammaMove**: Config-driven flat models matching official driver-direct guidelines with night surcharge multipliers.
   * **Calibration & Accuracy Pipeline**:
     * Implement a verification script (`testing/calibrate_cabs.py`) that generates random coordinate pairs within Bangalore's bounding box (Lat: `12.85` to `13.08`, Lng: `77.45` to `77.75`).
     * Fetch actual distances, compute simulated fares, compare them against corresponding logged official app results, and run optimization regressions to keep Mean Absolute Percentage Error (MAPE) below 10%.

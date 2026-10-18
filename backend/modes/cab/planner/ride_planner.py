@@ -6,7 +6,7 @@ from engines.time_engine      import TimeEngine
 
 class RidePlanner:
     """
-    Orchestrates all Namma Yatri engines into one unified ride result.
+    Orchestrates all NammaMove engines into one unified ride result.
 
     Two entry points:
       plan_ride()             — text-based (geocodes internally)

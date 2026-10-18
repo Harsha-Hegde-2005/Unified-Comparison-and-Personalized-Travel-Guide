@@ -1,8 +1,8 @@
 {
-  "_note": "Calibrated tariffs for Bangalore ride-hailing providers (Namma Yatri, Ola, Uber, Rapido). Updated 2026-08-25: standard/priority auto-rickshaw tiers revised to match the Bengaluru District Transport Authority's notified fare, effective Aug 1, 2026 (base fare Rs 36 for first 2km, Rs 18/km thereafter, up from Rs 30 + Rs 15/km set in 2021). Night surcharge (10pm-5am, 1.5x) for autos unchanged per the same notification. Bike/scooty/moto tiers and non-auto cab tiers are not covered by this notification and are unchanged; cab fares are platform-set and will vary with surge/demand, so treat them as base-rate approximations rather than exact.",
+  "_note": "Calibrated tariffs for Bangalore ride-hailing providers (NammaMove, GoRide, SwiftCab, ZipGo). Updated 2026-08-25: standard/priority auto-rickshaw tiers revised to match the Bengaluru District Transport Authority's notified fare, effective Aug 1, 2026 (base fare Rs 36 for first 2km, Rs 18/km thereafter, up from Rs 30 + Rs 15/km set in 2021). Night surcharge (10pm-5am, 1.5x) for autos unchanged per the same notification. Bike/scooty/moto tiers and non-auto cab tiers are not covered by this notification and are unchanged; cab fares are platform-set and will vary with surge/demand, so treat them as base-rate approximations rather than exact.",
   "providers": {
     "namma_yatri": {
-      "name": "Namma Yatri",
+      "name": "NammaMove",
       "vehicles": {
         "auto": {
           "name": "Auto (Easy Commute)",
@@ -140,10 +140,10 @@
       }
     },
     "ola": {
-      "name": "Ola",
+      "name": "GoRide",
       "vehicles": {
         "auto": {
-          "name": "Ola Auto",
+          "name": "GoRide Auto",
           "base_fare": 37.0,
           "base_dist": 2.0,
           "per_km": 18.5,
@@ -162,7 +162,7 @@
           }
         },
         "bike": {
-          "name": "Ola Bike",
+          "name": "GoRide Bike",
           "base_fare": 20.6,
           "base_dist": 1.0,
           "per_km": 10.3,
@@ -200,7 +200,7 @@
           }
         },
         "mini": {
-          "name": "Ola Mini",
+          "name": "GoRide Mini",
           "base_fare": 92.5,
           "base_dist": 3.0,
           "per_km": 19.53,
@@ -219,7 +219,7 @@
           }
         },
         "priority": {
-          "name": "Ola Priority",
+          "name": "GoRide Priority",
           "base_fare": 97.6,
           "base_dist": 3.0,
           "per_km": 20.54,
@@ -297,10 +297,10 @@
       }
     },
     "uber": {
-      "name": "Uber",
+      "name": "SwiftCab",
       "vehicles": {
         "moto": {
-          "name": "Uber Moto",
+          "name": "SwiftCab Moto",
           "base_fare": 20.6,
           "base_dist": 1.0,
           "per_km": 10.31,
@@ -316,7 +316,7 @@
           }
         },
         "auto": {
-          "name": "Uber Auto",
+          "name": "SwiftCab Auto",
           "base_fare": 37.1,
           "base_dist": 2.0,
           "per_km": 18.56,
@@ -348,7 +348,7 @@
           }
         },
         "ubergoac": {
-          "name": "Uber Go AC",
+          "name": "SwiftCab Go AC",
           "base_fare": 97.9,
           "base_dist": 3.0,
           "per_km": 21.65,
@@ -396,7 +396,7 @@
           }
         },
         "uberxl": {
-          "name": "UberXL",
+          "name": "SwiftCab XL",
           "base_fare": 154.7,
           "base_dist": 3.0,
           "per_km": 30.93,
@@ -412,7 +412,7 @@
           }
         },
         "black": {
-          "name": "Uber Black",
+          "name": "SwiftCab Black",
           "base_fare": 206.2,
           "base_dist": 3.0,
           "per_km": 39.18,
@@ -428,7 +428,7 @@
           }
         },
         "blacksuv": {
-          "name": "Uber Black SUV",
+          "name": "SwiftCab Black SUV",
           "base_fare": 257.7,
           "base_dist": 3.0,
           "per_km": 46.39,
@@ -446,7 +446,7 @@
       }
     },
     "rapido": {
-      "name": "Rapido",
+      "name": "ZipGo",
       "vehicles": {
         "bike_direct": {
           "name": "Bike Direct",
@@ -525,7 +525,7 @@
           }
         },
         "auto": {
-          "name": "Rapido Auto",
+          "name": "ZipGo Auto",
           "base_fare": 37.2,
           "base_dist": 2.0,
           "per_km": 18.6,

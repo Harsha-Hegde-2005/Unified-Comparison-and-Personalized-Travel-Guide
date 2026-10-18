@@ -47,8 +47,14 @@ class FareEngine:
                                    weather: str = "clear", ignore_constraints: bool = False) -> list:
         self._reload_config()
         provider_key = provider_key.lower().replace("-", "_")
-        if provider_key == "nammayatri":
+        if provider_key in ("nammayatri", "nammamove", "namma_move"):
             provider_key = "namma_yatri"
+        elif provider_key in ("goride", "go_ride"):
+            provider_key = "ola"
+        elif provider_key in ("swiftcab", "swift_cab"):
+            provider_key = "uber"
+        elif provider_key in ("zipgo", "zip_go"):
+            provider_key = "rapido"
 
         results = []
         if provider_key not in self.providers:
