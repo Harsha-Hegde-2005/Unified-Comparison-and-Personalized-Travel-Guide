@@ -967,6 +967,10 @@ class ApiService {
     }
   }
 
+  static Future<bool> testConnection([String? targetUrl]) async {
+    return await _quickPing(targetUrl ?? baseUrl);
+  }
+
   static Future<bool> checkHealth() async {
     // 1. Fast check current baseUrl
     if (await _quickPing(baseUrl)) return true;

@@ -12,6 +12,8 @@ void showAppSettingsModal(
 
   final activeStyleNotifier = mapStyleNotifier ?? MapThemeService.mapStyleNotifier;
   final activeProviderNotifier = mapProviderNotifier ?? MapThemeService.mapProviderNotifier;
+  String? pingStatus;
+  bool isPinging = false;
 
   showModalBottomSheet(
     context: context,
@@ -325,7 +327,7 @@ void showAppSettingsModal(
                         backgroundColor: const Color(0xFF064E3B),
                         side: const BorderSide(color: Color(0xFF10B981)),
                         onPressed: () {
-                          urlCtrl.text = 'https://unified-comparison-and-personalized.onrender.com';
+                          urlCtrl.text = 'https://personalized-travel-guide-api.onrender.com';
                         },
                       ),
                       ActionChip(
@@ -409,31 +411,75 @@ void showAppSettingsModal(
                     }).toList(),
                   ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final val = urlCtrl.text.trim();
-                        if (val.isNotEmpty) {
-                          await ApiService.setBaseUrl(val);
-                        }
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFA855F7),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        elevation: 4,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: isPinging
+                              ? null
+                              : () async {
+                                  setModalState(() {
+                                    isPinging = true;
+                                    pingStatus = null;
+                                  });
+                                  final ok = await ApiService.testConnection(urlCtrl.text.trim());
+                                  setModalState(() {
+                                    isPinging = false;
+                                    pingStatus = ok ? 'Connected: Server is Live 🎉' : 'Failed to reach server ❌';
+                                  });
+                                },
+                          icon: isPinging
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA855F7)))
+                              : const Icon(Icons.bolt_rounded, size: 16),
+                          label: Text(isPinging ? 'Testing...' : 'Test Ping'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFA855F7),
+                            side: const BorderSide(color: Color(0xFFA855F7)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
                       ),
-                      child: const Text(
-                        'Save Configuration',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final val = urlCtrl.text.trim();
+                            if (val.isNotEmpty) {
+                              await ApiService.setBaseUrl(val);
+                            }
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFA855F7),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            elevation: 4,
+                          ),
+                          child: const Text(
+                            'Save',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (pingStatus != null) ...[
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Text(
+                        pingStatus!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: pingStatus!.contains('Live') ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
