@@ -15,9 +15,9 @@ class ApiService {
     if (envUrl.isNotEmpty) return envUrl;
     if (kIsWeb) {
       if (kDebugMode) return 'http://localhost:8000';
-      return 'https://unified-comparison-and-personalized.onrender.com';
+      return 'https://personalized-travel-guide-api.onrender.com';
     }
-    return 'https://unified-comparison-and-personalized.onrender.com';
+    return 'https://personalized-travel-guide-api.onrender.com';
   }
 
   static String baseUrl = defaultBaseUrl;
@@ -926,11 +926,12 @@ class ApiService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   static final List<String> candidateUrls = [
+    'https://personalized-travel-guide-api.onrender.com',
+    'https://unified-comparison-and-personalized.onrender.com',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
     'http://10.0.2.2:8000',
     'http://192.168.1.4:8000',
-    'https://unified-comparison-and-personalized.onrender.com',
   ];
 
   static Future<bool> _quickPing(String targetUrl) async {
