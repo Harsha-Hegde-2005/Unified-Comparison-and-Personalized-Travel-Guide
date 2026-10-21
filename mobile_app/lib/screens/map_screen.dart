@@ -90,7 +90,7 @@ class _MapScreenState extends State<MapScreen> {
       return 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}';
     }
     if (style == 'dark') {
-      return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      return 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
     }
     return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
   }
@@ -104,7 +104,7 @@ class _MapScreenState extends State<MapScreen> {
       urlTemplate = _getGoogleTileUrl();
     } else {
       if (style == 'dark') {
-        urlTemplate = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+        urlTemplate = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
       } else if (style == 'satellite') {
         urlTemplate = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
       } else if (style == 'terrain') {

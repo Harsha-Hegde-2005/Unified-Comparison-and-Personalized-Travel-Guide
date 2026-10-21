@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: unified-transit-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python backend/build_gtfs_db.py
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false

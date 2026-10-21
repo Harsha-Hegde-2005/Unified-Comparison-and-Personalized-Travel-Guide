@@ -8,10 +8,18 @@ __pycache__/
 .pytest_cache/
 .pytest_cache-files-*
 
-# Environments
+# Environments & Secret Credentials
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+*.env
+!*.env.example
+*.pem
+*.key
+*.jks
+*.keystore
+*.p12
+local.properties
 venv/
 ENV/
 env/

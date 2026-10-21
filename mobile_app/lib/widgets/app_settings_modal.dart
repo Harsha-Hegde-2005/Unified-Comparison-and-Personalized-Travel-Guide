@@ -315,6 +315,40 @@ void showAppSettingsModal(
                     ),
                   ),
                   const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ActionChip(
+                        avatar: const Icon(Icons.cloud_done_rounded, size: 14, color: Color(0xFF10B981)),
+                        label: const Text('Render Cloud 24/7', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                        backgroundColor: const Color(0xFF064E3B),
+                        side: const BorderSide(color: Color(0xFF10B981)),
+                        onPressed: () {
+                          urlCtrl.text = 'https://unified-comparison-and-personalized.onrender.com';
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.public_rounded, size: 14, color: Color(0xFFA855F7)),
+                        label: const Text('Global HTTPS (Cloudflare)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                        backgroundColor: const Color(0xFF22163B),
+                        side: const BorderSide(color: Color(0xFFA855F7)),
+                        onPressed: () {
+                          urlCtrl.text = 'https://grant-applying-draft-strings.trycloudflare.com';
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.wifi_rounded, size: 14, color: Color(0xFF94A3B8)),
+                        label: const Text('Local Wi-Fi (192.168.1.4)', style: TextStyle(fontSize: 11, color: Color(0xFFCBD5E1))),
+                        backgroundColor: const Color(0xFF161824),
+                        side: const BorderSide(color: Color(0xFF2A2D40)),
+                        onPressed: () {
+                          urlCtrl.text = 'http://192.168.1.4:8000';
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                     decoration: BoxDecoration(
@@ -327,7 +361,7 @@ void showAppSettingsModal(
                       style: const TextStyle(color: Colors.white, fontSize: 13),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'http://192.168.1.2:8000',
+                        hintText: 'https://...',
                         hintStyle: TextStyle(color: Color(0xFF64748B)),
                         prefixIcon: Icon(Icons.dns_rounded, color: Color(0xFFA855F7), size: 20),
                       ),

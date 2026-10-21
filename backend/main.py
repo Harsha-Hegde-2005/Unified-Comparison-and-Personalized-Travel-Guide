@@ -50,13 +50,56 @@ finally:
 # BMTC imports
 sys.path.insert(0, _BMTC)
 try:
+    import core.config
+    import core.loader
+    import core.graph
+    import core.stops
+    import core.gtfs
+    import features.fare
+    import features.routing
+    import features.schedule
+
     from core.loader import ALL_STOPS, stops_df
     from features.routing import get_all_buses_comprehensive, _route_trips, estimate_route_schedule
     from core.graph import dijkstra, extract_segments
     from features.schedule import calculate_segment_times, normalize_search_start_time
     from core.stops import get_route_stop_names
+    from core.gtfs import get_route_next_departure, get_route_stops
 finally:
     sys.path.remove(_BMTC)
+
+# Set up module aliases so any code importing from `modes.bmtc.*` gets the exact same loaded singletons instantly with 0ms overhead
+import types
+_MODES_DIR = os.path.join(_HERE, "modes")
+if "modes" not in sys.modules:
+    modes_pkg = types.ModuleType("modes")
+    modes_pkg.__path__ = [_MODES_DIR]
+    sys.modules["modes"] = modes_pkg
+else:
+    if not hasattr(sys.modules["modes"], "__path__"):
+        sys.modules["modes"].__path__ = [_MODES_DIR]
+
+if "modes.bmtc" not in sys.modules:
+    modes_bmtc_pkg = types.ModuleType("modes.bmtc")
+    modes_bmtc_pkg.__path__ = [_BMTC]
+    sys.modules["modes.bmtc"] = modes_bmtc_pkg
+else:
+    if not hasattr(sys.modules["modes.bmtc"], "__path__"):
+        sys.modules["modes.bmtc"].__path__ = [_BMTC]
+
+if "modes.bmtc.core" not in sys.modules:
+    sys.modules["modes.bmtc.core"] = types.ModuleType("modes.bmtc.core")
+if "modes.bmtc.features" not in sys.modules:
+    sys.modules["modes.bmtc.features"] = types.ModuleType("modes.bmtc.features")
+
+sys.modules["modes.bmtc.core.config"] = sys.modules["core.config"]
+sys.modules["modes.bmtc.core.loader"] = sys.modules["core.loader"]
+sys.modules["modes.bmtc.core.graph"] = sys.modules["core.graph"]
+sys.modules["modes.bmtc.core.stops"] = sys.modules["core.stops"]
+sys.modules["modes.bmtc.core.gtfs"] = sys.modules["core.gtfs"]
+sys.modules["modes.bmtc.features.fare"] = sys.modules["features.fare"]
+sys.modules["modes.bmtc.features.routing"] = sys.modules["features.routing"]
+sys.modules["modes.bmtc.features.schedule"] = sys.modules["features.schedule"]
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 app = FastAPI(title="Bengaluru Unified Transit API", version="1.0")
@@ -74,7 +117,7 @@ _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_origin_regex=r"https?://.*",
+    allow_origin_regex=r"^https?://.*$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -2394,7 +2437,7 @@ def _generic_cab_estimates(provider_key: str, provider_name: str, src_lat, src_l
     else:
         road = _google_road_distance(src_lat, src_lng, dst_lat, dst_lng)
         if road:
-            dist_km, osrm_min = road
+            dist_km, osrm_min = road[0], road[1]
         else:
             dist_km  = _haversine_road_km(src_lat, src_lng, dst_lat, dst_lng)
             osrm_min = dist_km / 30 * 60
@@ -3043,7 +3086,7 @@ def multimodal_plan(source: str, destination: str, dep_time: datetime, preferenc
         d_dst = _haversine_km(dst_coords[0], dst_coords[1], I_coords[0], I_coords[1])
         sorted_interchanges.append((I_name, I_info, d_src + d_dst))
     sorted_interchanges.sort(key=lambda x: x[2])
-    best_interchanges = sorted_interchanges[:3]
+    best_interchanges = sorted_interchanges[:1]
 
     # 3. Walk + Bus + Metro + Walk
     best_opt_bm = None
@@ -3056,7 +3099,7 @@ def multimodal_plan(source: str, destination: str, dep_time: datetime, preferenc
             continue
         current_time = dep_time + timedelta(minutes=walk1["duration"])
         try:
-            bus_res = bmtc_plan(JourneyRequest(source=nearest_bmtc_src, destination=I_bmtc, time=_fmt(current_time)), max_options=1)
+            bus_res = memo_bmtc(nearest_bmtc_src, I_bmtc, _fmt(current_time))
             if bus_res.get("available"):
                 bus_segs = [s for s in bus_res["segments"] if s["type"] != "walk"]
                 if bus_segs:
@@ -3104,7 +3147,7 @@ def multimodal_plan(source: str, destination: str, dep_time: datetime, preferenc
                 if metro_segs:
                     metro_arr = _parse_time(metro_segs[-1]["arrival"])
                     bus_start = metro_arr + timedelta(minutes=5)
-                    bus_res = bmtc_plan(JourneyRequest(source=I_bmtc, destination=nearest_bmtc_dst, time=_fmt(bus_start)), max_options=1)
+                    bus_res = memo_bmtc(I_bmtc, nearest_bmtc_dst, _fmt(bus_start))
                     if bus_res.get("available"):
                         bus_segs = [s for s in bus_res["segments"] if s["type"] != "walk"]
                         if bus_segs:
@@ -3940,10 +3983,17 @@ def health():
 
 @app.get("/api/config")
 def get_api_config():
+    """
+    Public configuration endpoint.
+    PROTECTED: Never expose server-side secret GOOGLE_MAPS_API_KEY.
+    Only returns public client-restricted key (VITE_GOOGLE_MAPS_API_KEY) if explicitly configured.
+    """
     from dotenv import load_dotenv
     load_dotenv(override=True)
+    client_key = os.environ.get("VITE_GOOGLE_MAPS_API_KEY", "").strip() or os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
     return {
-        "google_maps_api_key": os.environ.get("GOOGLE_MAPS_API_KEY", "")
+        "google_maps_available": bool(os.environ.get("GOOGLE_MAPS_API_KEY")),
+        "google_maps_api_key": client_key
     }
 
 
@@ -5631,6 +5681,7 @@ class VehicleAddRequest(BaseModel):
     efficiency: float
 
 @app.post("/api/auth/signup", response_model=UserAuthResponse)
+@app.post("/api/auth/register", response_model=UserAuthResponse)
 def auth_signup(req: UserAuthRequest, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.username == req.username).first()
     if existing:
@@ -5851,8 +5902,11 @@ def get_user_document_file(doc_id: int, current_user: User = Depends(get_current
 
 @app.get("/api/config/google-maps-key")
 def get_google_maps_key():
-    key = os.getenv("GOOGLE_MAPS_API_KEY") or os.getenv("VITE_GOOGLE_MAPS_API_KEY", "")
-    return {"key": key}
+    """
+    PROTECTED: Only return client-facing restricted key, never the server-side secret.
+    """
+    client_key = os.getenv("VITE_GOOGLE_MAPS_API_KEY", "").strip()
+    return {"key": client_key}
 
 @app.get("/api/fare/calculate")
 def calculate_fare(mode: str, source: str, destination: str):

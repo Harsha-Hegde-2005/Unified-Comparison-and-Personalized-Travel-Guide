@@ -13,7 +13,9 @@ class ApiService {
   static String get defaultBaseUrl {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;
-    return 'http://localhost:8000';
+    if (kIsWeb) return 'http://localhost:8000';
+    if (defaultTargetPlatform == TargetPlatform.android) return 'https://unified-comparison-and-personalized.onrender.com';
+    return 'http://127.0.0.1:8000';
   }
 
   static String baseUrl = defaultBaseUrl;
@@ -207,7 +209,7 @@ class ApiService {
             headers: authHeaders,
             body: json.encode({'username': username, 'password': password}),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 60));
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
@@ -216,8 +218,15 @@ class ApiService {
         await saveSession(userToken, uName);
         return {'success': true, 'username': loggedInUsername};
       } else {
-        final err = json.decode(res.body);
-        return {'success': false, 'error': err['detail'] ?? 'Invalid credentials'};
+        try {
+          final err = json.decode(res.body);
+          return {'success': false, 'error': err['detail'] ?? 'Invalid credentials'};
+        } catch (_) {
+          return {
+            'success': false,
+            'error': 'Server is warming up (Status ${res.statusCode}). Please tap Sign In again in a few seconds.'
+          };
+        }
       }
     } catch (e) {
       if (!isRetry) {
@@ -226,7 +235,7 @@ class ApiService {
           return login(username: username, password: password, isRetry: true);
         }
       }
-      return {'success': false, 'error': 'Cannot connect to backend server ($baseUrl)'};
+      return {'success': false, 'error': 'Server waking up from sleep. Please tap Sign In again in 10 seconds.'};
     }
   }
 
@@ -243,7 +252,7 @@ class ApiService {
             headers: authHeaders,
             body: json.encode({'username': username, 'password': password}),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 60));
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
@@ -252,8 +261,15 @@ class ApiService {
         await saveSession(userToken, uName);
         return {'success': true, 'username': loggedInUsername};
       } else {
-        final err = json.decode(res.body);
-        return {'success': false, 'error': err['detail'] ?? 'Registration failed'};
+        try {
+          final err = json.decode(res.body);
+          return {'success': false, 'error': err['detail'] ?? 'Registration failed'};
+        } catch (_) {
+          return {
+            'success': false,
+            'error': 'Server is warming up (Status ${res.statusCode}). Please tap Create Account again.'
+          };
+        }
       }
     } catch (e) {
       if (!isRetry) {
@@ -262,7 +278,7 @@ class ApiService {
           return signup(username: username, password: password, isRetry: true);
         }
       }
-      return {'success': false, 'error': 'Cannot connect to backend server ($baseUrl)'};
+      return {'success': false, 'error': 'Server waking up from sleep. Please tap Create Account again.'};
     }
   }
 
@@ -908,13 +924,11 @@ class ApiService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   static final List<String> candidateUrls = [
-    'http://127.0.0.1:8000',
     'http://localhost:8000',
-    'https://memories-levels-distant-seniors.trycloudflare.com',
-    'http://192.168.1.2:8000',
+    'http://127.0.0.1:8000',
     'http://10.0.2.2:8000',
-    'https://chair-pipe-purchased-reply.trycloudflare.com',
-    'https://silly-bats-deny.loca.lt',
+    'http://192.168.1.4:8000',
+    'https://unified-comparison-and-personalized.onrender.com',
   ];
 
   static Future<bool> _quickPing(String targetUrl) async {
@@ -922,10 +936,11 @@ class ApiService {
     final isRemote = cleanUrl.startsWith('https://') ||
         (!cleanUrl.contains('localhost') &&
             !cleanUrl.contains('127.0.0.1') &&
-            !cleanUrl.contains('192.168.'));
+            !cleanUrl.contains('192.168.') &&
+            !cleanUrl.contains('10.0.2.2'));
     final timeoutDuration = isRemote
-        ? const Duration(seconds: 10)
-        : const Duration(milliseconds: 2500);
+        ? const Duration(seconds: 5)
+        : const Duration(milliseconds: 2000);
 
     try {
       final res = await http.get(
