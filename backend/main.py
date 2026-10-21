@@ -190,6 +190,8 @@ for _k, _v in list(STOP_COORDS.items()):
 
 
 def get_stop_coords(stop_name: str) -> tuple[float, float] | None:
+    if not stop_name or not isinstance(stop_name, str):
+        return None
     # 1. Check if coordinate format directly
     coord_val = parse_coords(stop_name)
     if coord_val:
@@ -346,6 +348,8 @@ def is_coord_str(s: str) -> bool:
 
 
 def parse_coords(s: str) -> tuple[float, float] | None:
+    if not s or not isinstance(s, str):
+        return None
     # 1. Try matching parenthesized coordinates anywhere in the string, e.g. "PES University (12.93496, 77.53488)"
     paren_match = _re.search(r"\(\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*\)", s)
     if paren_match:
@@ -912,25 +916,26 @@ def metro_plan(req: JourneyRequest):
     dst_coord = None
 
     # 1. Parse source: Check if it's explicitly a Metro Station first
-    cleaned_src = clean_input_name(req.source)
-    resolved_src = resolve_stop_name(cleaned_src or req.source, "metro", metro_stations=_metro_stations)
+    raw_source = req.source_name
+    cleaned_src = clean_input_name(raw_source)
+    resolved_src = resolve_stop_name(cleaned_src or raw_source, "metro", metro_stations=_metro_stations)
     is_explicit_metro_src = any(s.lower() == resolved_src.lower() for s in _metro_stations)
 
     if is_explicit_metro_src:
         source = resolved_src
         start_walk_dist = 0.0
         start_walk_mins = 0
-        src_coord = get_stop_coords(source) or parse_coords(req.source)
+        src_coord = get_stop_coords(source) or parse_coords(raw_source)
         if src_coord:
             start_lat, start_lng = src_coord
     else:
-        src_coord = parse_coords(req.source) or get_stop_coords(req.source)
+        src_coord = parse_coords(raw_source) or get_stop_coords(raw_source)
         if src_coord:
             start_lat, start_lng = src_coord
             source, start_walk_dist = find_nearest_metro_station(start_lat, start_lng)
             start_walk_mins = max(1, int(start_walk_dist * 12.5))
         else:
-            source = resolved_src or req.source
+            source = resolved_src or raw_source
             start_walk_dist = 0.0
             start_walk_mins = 0
 
