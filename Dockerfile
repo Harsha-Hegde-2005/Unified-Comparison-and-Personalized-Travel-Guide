@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 COPY database/ ./database/
 COPY unified_transit.db ./unified_transit.db
+COPY main.py ./main.py
 
 # Configure environment
 ENV PORT=8000 \

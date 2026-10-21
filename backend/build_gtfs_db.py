@@ -15,11 +15,9 @@ from core.config import GTFS_STOP_TIMES, GTFS_TRIPS, GTFS_ROUTES, GTFS_STOPS
 db_path = os.path.join(_REPO, "database", "gtfs_index.db")
 os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
-if os.path.exists(db_path):
-    try:
-        os.remove(db_path)
-    except Exception:
-        pass
+if os.path.exists(db_path) and os.path.getsize(db_path) > 10_000_000:
+    print(f"GTFS SQLite schedule index already exists at {db_path} ({os.path.getsize(db_path)/(1024*1024):.1f} MB). Skipping rebuild.")
+    sys.exit(0)
 
 print("Building GTFS SQLite Schedule Index at:", db_path)
 t0 = time.time()

@@ -13,9 +13,11 @@ class ApiService {
   static String get defaultBaseUrl {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) return envUrl;
-    if (kIsWeb) return 'http://localhost:8000';
-    if (defaultTargetPlatform == TargetPlatform.android) return 'https://unified-comparison-and-personalized.onrender.com';
-    return 'http://127.0.0.1:8000';
+    if (kIsWeb) {
+      if (kDebugMode) return 'http://localhost:8000';
+      return 'https://unified-comparison-and-personalized.onrender.com';
+    }
+    return 'https://unified-comparison-and-personalized.onrender.com';
   }
 
   static String baseUrl = defaultBaseUrl;
@@ -939,7 +941,7 @@ class ApiService {
             !cleanUrl.contains('192.168.') &&
             !cleanUrl.contains('10.0.2.2'));
     final timeoutDuration = isRemote
-        ? const Duration(seconds: 5)
+        ? const Duration(seconds: 15)
         : const Duration(milliseconds: 2000);
 
     try {
