@@ -8,6 +8,8 @@ class AppTheme {
   static const Color bmtcLightBg = Color(0xFFFFF7ED);
 
   static const Color metroColor = Color(0xFF8B5CF6); // Purple
+  static const Color metroPurple = Color(0xFF8B5CF6);
+  static const Color metroGreen = Color(0xFF10B981);
   static const Color metroBg = Color(0xFF100C1A);
   static const Color metroLightBg = Color(0xFFF5F3FF);
 

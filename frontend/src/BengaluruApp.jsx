@@ -134,8 +134,8 @@ function RouteMap({ src, dst, segments, height = 300 }) {
     const map = window.L.map(divRef.current, { zoomControl: true, attributionControl: false }).setView([12.935, 77.620], 11);
     mapRef.current = map;
 
-    window.L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-      maxZoom: 19, subdomains: "abcd"
+    window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19
     }).addTo(map);
 
     const mkIcon = (col, size = 16) => window.L.divIcon({

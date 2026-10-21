@@ -622,6 +622,46 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
   const coordsCacheRef = useRef({});
   const [userCoords, setUserCoords] = useState(null);
 
+  const handleRecenter = () => {
+    if (currentGpsCoords && !isNaN(Number(currentGpsCoords.lat)) && !isNaN(Number(currentGpsCoords.lng))) {
+      const lat = Number(currentGpsCoords.lat);
+      const lng = Number(currentGpsCoords.lng);
+      if (mapRef.current && window.google) {
+        mapRef.current.panTo(new window.google.maps.LatLng(lat, lng));
+        mapRef.current.setZoom(16.5);
+      }
+      if (osmMapRef.current && window.L) {
+        osmMapRef.current.setView([lat, lng], 16);
+      }
+      return;
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setUserCoords({ lat, lng });
+          if (mapRef.current && window.google) {
+            mapRef.current.panTo(new window.google.maps.LatLng(lat, lng));
+            mapRef.current.setZoom(16.5);
+          }
+          if (osmMapRef.current && window.L) {
+            osmMapRef.current.setView([lat, lng], 16);
+          }
+        },
+        (err) => {
+          if (err.code === err.PERMISSION_DENIED) {
+            alert("Location access was denied. Please turn on location access in your browser or device settings to center the map.");
+          } else {
+            alert("Could not access your location. Please check your device GPS / location settings.");
+          }
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  };
+
   useEffect(() => {
     const handleFallback = () => {
       setUseOsm(true);
@@ -865,7 +905,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
     const osmMap = osmMapRef.current;
     if (!osmMap || !window.L) return;
 
-    const darkTiles = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+    const darkTiles = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}";
     const lightTiles = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
     const satTiles = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
     const terrainTiles = "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
@@ -883,7 +923,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
       attribution = 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)';
     } else {
       tileUrl = darkTiles;
-      attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+      attribution = 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ &copy; OpenStreetMap contributors';
     }
 
     osmMap.eachLayer((layer) => {
@@ -1031,9 +1071,8 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
         osmMapRef.current = osmMap;
         window.osmMapInstance = osmMap;
 
-        window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; OpenStreetMap &copy; CartoDB',
-          subdomains: 'abcd',
+        window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ &copy; OpenStreetMap contributors',
           maxZoom: 20
         }).addTo(osmMap);
 
@@ -1479,6 +1518,38 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
       {dst && activeSegmentIndex === null && <div style={{ position: "absolute", bottom: 12, left: 12, background: C.red + "ee", borderRadius: 7, padding: "3px 9px", fontSize: 11, color: "white", fontWeight: 700, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🔴 {dst}</div>}
       {activeMode && activeSegmentIndex === null && <div style={{ position: "absolute", top: 12, right: 12, background: MC[activeMode]?.color + "dd", borderRadius: 8, padding: "4px 10px", fontSize: 11, color: "white", fontWeight: 700 }}>{MC[activeMode]?.short} Route</div>}
 
+      {/* Floating Recenter Map Button */}
+      <button
+        onClick={handleRecenter}
+        title="Recenter to current GPS location"
+        style={{
+          position: "absolute",
+          top: 12,
+          right: (activeMode && activeSegmentIndex === null) ? 110 : 12,
+          background: "rgba(15, 17, 32, 0.9)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          border: `1.5px solid ${C.border2}`,
+          borderRadius: 10,
+          padding: "6px 12px",
+          color: currentGpsCoords ? C.accent : "#ffffff",
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: "pointer",
+          zIndex: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+          transition: "all 0.15s ease"
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "scale(1.04)"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.transform = "scale(1)"; }}
+      >
+        <span style={{ fontSize: 13 }}>🎯</span>
+        <span>Recenter</span>
+      </button>
+
       {/* Floating Navigation Card Overlay */}
       {activeSegmentIndex !== null && currentLeg && (
         <div style={{
@@ -1719,7 +1790,15 @@ function StopInput({ value, onChange, placeholder, dot, options, showGps }) {
       },
       (error) => {
         setLocLoading(false);
-        alert(`Location permission denied or failed: ${error.message}`);
+        if (error.code === error.PERMISSION_DENIED) {
+          alert("Location access was denied. Please enable location permissions in your browser or device settings to use your current location.");
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          alert("Location information is unavailable. Please check that your device GPS / location services are turned on.");
+        } else if (error.code === error.TIMEOUT) {
+          alert("Location request timed out. Please check your network and GPS connection, then try again.");
+        } else {
+          alert(`Location failed: ${error.message}. Please verify your device location settings.`);
+        }
       }
     );
   };
@@ -3578,7 +3657,7 @@ function isVajraBus(routeName) {
   return r.includes("AC") || r.startsWith("V-") || r.includes("VAJRA") || r.includes("VOLVO");
 }
 
-function AllBusesPanel({ src, dst, time, onClose }) {
+function AllBusesPanel({ src, dst, time, onClose, onSelectBus }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all"); // all | direct | transfer | vajra
@@ -3635,15 +3714,19 @@ function AllBusesPanel({ src, dst, time, onClose }) {
           background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10,
           padding: "10px 12px", marginBottom: 14,
         }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.06em", marginBottom: 8 }}>POSSIBLE BUS NUMBERS</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.06em", marginBottom: 8 }}>POSSIBLE BUS NUMBERS (CLICK TO SELECT)</div>
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
             {uniqueBusNums.map(rn => (
-              <span key={rn} style={{
-                background: isVajraBus(rn) ? C.accent + "22" : MC.bmtc.color + "18",
-                color: isVajraBus(rn) ? C.accent : MC.bmtc.color,
-                border: `1px solid ${isVajraBus(rn) ? C.accent : MC.bmtc.color}44`,
-                borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700,
-              }}>{rn}</span>
+              <span key={rn}
+                onClick={() => onSelectBus?.(rn)}
+                title={`Select bus ${rn}`}
+                style={{
+                  background: isVajraBus(rn) ? C.accent + "22" : MC.bmtc.color + "18",
+                  color: isVajraBus(rn) ? C.accent : MC.bmtc.color,
+                  border: `1px solid ${isVajraBus(rn) ? C.accent : MC.bmtc.color}44`,
+                  borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700,
+                  cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3,
+                }}>{rn} <span style={{ fontSize: 9 }}>✓</span></span>
             ))}
           </div>
         </div>
@@ -3725,30 +3808,43 @@ function AllBusesPanel({ src, dst, time, onClose }) {
                   overflow: "hidden", transition: "border-color 0.15s",
                 }}>
                   {/* Summary row */}
-                  <button onClick={() => toggleExpand(expId)} style={{
-                    display: "flex", alignItems: "center", gap: 10, background: "none",
-                    border: "none", padding: "11px 14px", width: "100%",
-                    cursor: "pointer", textAlign: "left", fontFamily: "inherit",
-                  }}>
-                    <Pill color={isVajra ? C.accent : MC.bmtc.color}>{b.route}</Pill>
-                    <div style={{ flex: 1, fontSize: 12, color: C.muted }}>{b.stop_count} stops</div>
-                    <div style={{ fontSize: 11, color: MC.bmtc.color, fontWeight: 700, marginRight: 4 }}>{b.trips}/day</div>
-                    {b.fare !== undefined && <div style={{ fontSize: 13, color: C.text, fontWeight: 700 }}>₹{b.fare}</div>}
-                    {b.departure && (
-                      <div style={{ fontSize: 11, color: C.muted, marginLeft: 6, display: "flex", alignItems: "center", gap: 4 }}>
-                        <span>{b.departure}</span>
-                        {b.waiting_time !== undefined && b.waiting_time !== null && (
-                          <span style={{ background: C.yellow + "22", color: C.yellow, border: `1px solid ${C.yellow}33`, borderRadius: 4, padding: "1px 4px", fontSize: 9, fontWeight: 700 }}>
-                            {calculateLiveCountdown(b.departure, time) ?? b.waiting_time}m wait
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <div style={{
-                      transform: isExp ? "rotate(180deg)" : "none",
-                      transition: "transform 0.2s", color: C.muted, marginLeft: 6, flexShrink: 0,
-                    }}><Ic n="chevron" s={14} /></div>
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                    <button onClick={() => toggleExpand(expId)} style={{
+                      display: "flex", alignItems: "center", gap: 10, background: "none",
+                      border: "none", padding: "11px 14px", flex: 1,
+                      cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                    }}>
+                      <Pill color={isVajra ? C.accent : MC.bmtc.color}>{b.route}</Pill>
+                      <div style={{ flex: 1, fontSize: 12, color: C.muted }}>{b.stop_count} stops</div>
+                      <div style={{ fontSize: 11, color: MC.bmtc.color, fontWeight: 700, marginRight: 4 }}>{b.trips}/day</div>
+                      {b.fare !== undefined && <div style={{ fontSize: 13, color: C.text, fontWeight: 700 }}>₹{b.fare}</div>}
+                      {b.departure && (
+                        <div style={{ fontSize: 11, color: C.muted, marginLeft: 6, display: "flex", alignItems: "center", gap: 4 }}>
+                          <span>{b.departure}</span>
+                          {b.waiting_time !== undefined && b.waiting_time !== null && (
+                            <span style={{ background: C.yellow + "22", color: C.yellow, border: `1px solid ${C.yellow}33`, borderRadius: 4, padding: "1px 4px", fontSize: 9, fontWeight: 700 }}>
+                              {calculateLiveCountdown(b.departure, time) ?? b.waiting_time}m wait
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div style={{
+                        transform: isExp ? "rotate(180deg)" : "none",
+                        transition: "transform 0.2s", color: C.muted, marginLeft: 6, flexShrink: 0,
+                      }}><Ic n="chevron" s={14} /></div>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onSelectBus?.(b.route, b); }}
+                      title={`Select Bus ${b.route}`}
+                      style={{
+                        background: MC.bmtc.color, color: "#fff", border: "none",
+                        borderRadius: 6, padding: "6px 12px", fontSize: 11, fontWeight: 700,
+                        cursor: "pointer", fontFamily: "inherit", marginRight: 12,
+                        display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
+                      }}>
+                      ✓ Select
+                    </button>
+                  </div>
 
                   {/* Expanded detail */}
                   {isExp && (
@@ -3793,13 +3889,16 @@ function AllBusesPanel({ src, dst, time, onClose }) {
                       {/* Alternative bus numbers */}
                       {b.other_buses?.length > 0 && (
                         <div style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, marginBottom: 5, letterSpacing: "0.04em" }}>ALSO RUNS THIS ROUTE</div>
+                          <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, marginBottom: 5, letterSpacing: "0.04em" }}>ALSO RUNS THIS ROUTE (CLICK TO SELECT)</div>
                           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                             {b.other_buses.map(ob => (
-                              <span key={ob} style={{
-                                background: C.dim, color: C.text,
-                                padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600,
-                              }}>{ob}</span>
+                              <span key={ob}
+                                onClick={() => onSelectBus?.(ob)}
+                                style={{
+                                  background: C.dim, color: C.text,
+                                  padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600,
+                                  cursor: "pointer", border: `1px solid ${C.border}`,
+                                }}>{ob} ✓</span>
                             ))}
                           </div>
                         </div>
@@ -3837,42 +3936,54 @@ function AllBusesPanel({ src, dst, time, onClose }) {
                   overflow: "hidden", transition: "border-color 0.15s",
                 }}>
                   {/* Summary row */}
-                  <button onClick={() => toggleExpand(expId)} style={{
-                    display: "flex", flexDirection: "column", background: "none", border: "none",
-                    padding: "11px 14px", width: "100%", cursor: "pointer",
-                    textAlign: "left", fontFamily: "inherit",
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", width: "100%" }}>
-                      {opt.buses.map((b, j) => (
-                        <span key={j} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <Pill color={isVajraBus(b) ? C.accent : MC.bmtc.color} small>{b}</Pill>
-                          {j < opt.buses.length - 1 && <span style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>→</span>}
-                        </span>
-                      ))}
-                      {containsVajra && (
-                        <span style={{
-                          fontSize: 9, background: C.accent + "22", color: C.accent,
-                          border: `1px solid ${C.accent}44`, borderRadius: 4,
-                          padding: "1px 5px", fontWeight: 800,
-                        }}>VAJRA</span>
-                      )}
-                      <div style={{
-                        marginLeft: "auto", transform: isExp ? "rotate(180deg)" : "none",
-                        transition: "transform 0.2s", color: C.muted, flexShrink: 0,
-                      }}><Ic n="chevron" s={14} /></div>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%", marginTop: 5, fontSize: 11, color: C.muted, alignItems: "center" }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        {opt.transfers} transfer{opt.transfers !== 1 ? "s" : ""} · {opt.total_time} min · {opt.distance} km
-                        {opt.waiting_time !== undefined && opt.waiting_time !== null && (
-                          <span style={{ background: C.yellow + "22", color: C.yellow, border: `1px solid ${C.yellow}33`, borderRadius: 4, padding: "1px 4px", fontSize: 9, fontWeight: 700 }}>
-                            {opt.waiting_time}m wait
+                  <div style={{ display: "flex", alignItems: "center", width: "100%", paddingRight: 10 }}>
+                    <button onClick={() => toggleExpand(expId)} style={{
+                      display: "flex", flexDirection: "column", background: "none", border: "none",
+                      padding: "11px 14px", flex: 1, cursor: "pointer",
+                      textAlign: "left", fontFamily: "inherit",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", width: "100%" }}>
+                        {opt.buses.map((b, j) => (
+                          <span key={j} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <Pill color={isVajraBus(b) ? C.accent : MC.bmtc.color} small>{b}</Pill>
+                            {j < opt.buses.length - 1 && <span style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>→</span>}
                           </span>
+                        ))}
+                        {containsVajra && (
+                          <span style={{
+                            fontSize: 9, background: C.accent + "22", color: C.accent,
+                            border: `1px solid ${C.accent}44`, borderRadius: 4,
+                            padding: "1px 5px", fontWeight: 800,
+                          }}>VAJRA</span>
                         )}
-                      </span>
-                      <strong style={{ color: C.text, fontSize: 12 }}>₹{opt.total_fare}</strong>
-                    </div>
-                  </button>
+                        <div style={{
+                          marginLeft: "auto", transform: isExp ? "rotate(180deg)" : "none",
+                          transition: "transform 0.2s", color: C.muted, flexShrink: 0,
+                        }}><Ic n="chevron" s={14} /></div>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", width: "100%", marginTop: 5, fontSize: 11, color: C.muted, alignItems: "center" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          {opt.transfers} transfer{opt.transfers !== 1 ? "s" : ""} · {opt.total_time} min · {opt.distance} km
+                          {opt.waiting_time !== undefined && opt.waiting_time !== null && (
+                            <span style={{ background: C.yellow + "22", color: C.yellow, border: `1px solid ${C.yellow}33`, borderRadius: 4, padding: "1px 4px", fontSize: 9, fontWeight: 700 }}>
+                              {opt.waiting_time}m wait
+                            </span>
+                          )}
+                        </span>
+                        <strong style={{ color: C.text, fontSize: 12 }}>₹{opt.total_fare}</strong>
+                      </div>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onSelectBus?.(opt.buses[0], opt); }}
+                      title={`Select Bus ${opt.buses.join(" ➔ ")}`}
+                      style={{
+                        background: MC.bmtc.color, color: "#fff", border: "none",
+                        borderRadius: 6, padding: "6px 12px", fontSize: 11, fontWeight: 700,
+                        cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
+                      }}>
+                      ✓ Select
+                    </button>
+                  </div>
 
                   {/* Expanded legs */}
                   {isExp && (
@@ -5016,7 +5127,7 @@ function StopsInfoPanel({ onClose, stops }) {
 /* ─────────────────────────────────────────────────────────────
    RESULT CARD
 ───────────────────────────────────────────────────────────── */
-function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, setSelectedCabVehicle, selectedMultimodalOption, setSelectedMultimodalOption, onOpenRideMode }) {
+function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, setSelectedCabVehicle, selectedMultimodalOption, setSelectedMultimodalOption, onOpenRideMode, onStartNavigation }) {
   const [tab, setTab] = useState(null);
   const [cabFilter, setCabFilter] = useState("all");
   const [cabProviderFilter, setCabProviderFilter] = useState("all");
@@ -5727,6 +5838,39 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
           >
             <span>🚀</span>
             <span>Enter Live Ride Mode for this Trip</span>
+          </button>
+        </div>
+      )}
+
+      {/* Dynamic Live Navigation CTA Button for Personal Vehicle */}
+      {modeKey === "car" && onStartNavigation && (
+        <div style={{ padding: "0 18px 10px 18px", background: C.card }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect("car");
+              onStartNavigation();
+            }}
+            style={{
+              width: "100%",
+              padding: "10px",
+              borderRadius: 10,
+              backgroundColor: "#10b981",
+              border: "none",
+              color: "#ffffff",
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+              fontFamily: "inherit"
+            }}
+          >
+            <span>🚗</span>
+            <span>Start Live Moving Drive Navigation (Real GPS)</span>
           </button>
         </div>
       )}
@@ -9486,6 +9630,24 @@ export default function App() {
 
   const search = () => triggerSearch(src, dst);
 
+  const handleSelectBus = (busNo, busData) => {
+    setResults(prev => {
+      if (!prev) return prev;
+      const bmtcObj = prev.bmtc || {};
+      const updatedBmtc = {
+        ...bmtcObj,
+        bus_number: busNo,
+        route: busNo,
+        ...(busData?.fare !== undefined ? { cost: busData.fare } : (busData?.total_fare !== undefined ? { cost: busData.total_fare } : {})),
+        ...(busData?.duration ? { time: busData.duration } : (busData?.total_time ? { time: busData.total_time } : {})),
+        ...(busData?.stops ? { stops: busData.stops } : {}),
+      };
+      return { ...prev, bmtc: updatedBmtc };
+    });
+    setSelected("bmtc");
+    setShowAllBuses(false);
+  };
+
   const handleSaveJourney = async () => {
     if (!token || !selectedData) return;
     const nameInput = prompt("Enter an optional name for this saved route (e.g., Office, Home, College):");
@@ -10604,7 +10766,7 @@ export default function App() {
 
               {/* All Buses Panel */}
               {showAllBuses && src && dst && (
-                <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} />
+                <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} onSelectBus={handleSelectBus} />
               )}
 
               {/* Route Search Panel */}
@@ -10729,8 +10891,8 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 400px", gap: 20, alignItems: "start" }}>
-            <div>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 24, alignItems: "start" }}>
+            <div style={{ minWidth: 0 }}>
               {/* Header */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
                 <div>
@@ -10758,7 +10920,7 @@ export default function App() {
               </div>
 
               {/* See All Buses inline */}
-              {showAllBuses && <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} />}
+              {showAllBuses && <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} onSelectBus={handleSelectBus} />}
               {showRouteSearch && <div style={{ marginBottom: 16 }}><RouteSearchPanel /></div>}
               {showTimetable && <TimetablePanel results={results} onClose={() => setShowTimetable(false)} stops={stops} src={src} dst={dst} time={time} />}
 
@@ -10776,7 +10938,7 @@ export default function App() {
                     selectedMultimodalOption={selectedMultimodalOption}
                     setSelectedMultimodalOption={setSelectedMultimodalOption}
                   />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 20 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, marginTop: 20 }}>
                     {results && Object.keys(results).map(m => {
                       const cardData = (m === "cab" && selectedCabVehicle) ? {
                         ...results.cab,
@@ -10807,6 +10969,7 @@ export default function App() {
                           selectedMultimodalOption={selectedMultimodalOption}
                           setSelectedMultimodalOption={setSelectedMultimodalOption}
                           onOpenRideMode={handleOpenRideMode}
+                          onStartNavigation={handleStartNavigation}
                         />
                       );
                     })}
@@ -10863,29 +11026,62 @@ export default function App() {
               )}
             </div>
 
-            {/* Right: Map + Guide */}
-            <div style={{ position: "sticky", top: 72 }}>
+            {/* Right: Map + Guide (Half Screen) */}
+            <div style={{
+              position: "sticky",
+              top: 72,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              height: "calc(100vh - 90px)",
+              maxHeight: "calc(100vh - 90px)",
+              minWidth: 0
+            }}>
               {selectedData?.available && (
-                <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 3, marginBottom: 12, gap: 4 }}>
+                <div style={{
+                  display: "flex",
+                  background: C.surface,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  padding: 3,
+                  gap: 4,
+                  flexShrink: 0
+                }}>
                   <button onClick={() => setMapView("gmap")} style={{
                     flex: 1, background: mapView === "gmap" ? C.card : "transparent",
                     border: "none", borderRadius: 9, color: mapView === "gmap" ? C.accent : C.muted,
                     padding: "7px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                    boxShadow: mapView === "gmap" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
                     transition: "all 0.2s"
                   }}>🗺️ Google Map</button>
                   <button onClick={() => setMapView("linear")} style={{
                     flex: 1, background: mapView === "linear" ? C.card : "transparent",
                     border: "none", borderRadius: 9, color: mapView === "linear" ? C.accent : C.muted,
                     padding: "7px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                    boxShadow: mapView === "linear" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
                     transition: "all 0.2s"
                   }}>🛤️ Linear Route Map</button>
                 </div>
               )}
 
-              {mapView === "linear" && selectedData ? (
-                <LinearRouteMap segments={selectedData?.segments} activeMode={selected} />
-              ) : (
-                <div style={{ height: "calc(100vh - 180px)" }}>
+              {/* Map View Box */}
+              <div style={{
+                height: selectedData?.available && selectedData?.guide && selectedData.guide.length > 0
+                  ? "min(42vh, 340px)"
+                  : "calc(100vh - 150px)",
+                minHeight: 250,
+                borderRadius: 16,
+                overflow: "hidden",
+                border: `1px solid ${C.border}`,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+                flexShrink: 0,
+                position: "relative"
+              }}>
+                {mapView === "linear" && selectedData ? (
+                  <div style={{ height: "100%", overflowY: "auto", background: C.card, padding: 14 }}>
+                    <LinearRouteMap segments={selectedData?.segments} activeMode={selected} />
+                  </div>
+                ) : (
                   <GoogleMap
                     key="compare-map"
                     src={src}
@@ -10902,19 +11098,72 @@ export default function App() {
                     gpsHeading={gpsHeading}
                     mapStyle={mapStyle}
                   />
-                </div>
-              )}
-              {selectedData?.available && (
-                <div style={{ marginTop: 14, background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 12, letterSpacing: "0.05em" }}>STEP-BY-STEP GUIDE</div>
-                  <TravelGuide
-                    guide={selectedData.guide}
-                    color={MC[selected].color}
-                    activeSegmentIndex={activeSegmentIndex}
-                    setActiveSegmentIndex={setActiveSegmentIndex}
-                    segments={selectedData?.segments}
-                    setMapView={setMapView}
-                  />
+                )}
+              </div>
+
+              {/* Step-by-Step Guide Box */}
+              {selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 && (
+                <div style={{
+                  flex: 1,
+                  minHeight: 180,
+                  background: C.card,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 16,
+                  padding: "14px 18px",
+                  display: "flex",
+                  flexDirection: "column",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+                  overflow: "hidden"
+                }}>
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                    paddingBottom: 8,
+                    borderBottom: `1px solid ${C.border2}`,
+                    flexShrink: 0
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>🧭</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: C.text, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                        Step-by-Step Guide
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        background: `${MC[selected]?.color || C.accent}18`,
+                        color: MC[selected]?.color || C.accent,
+                        padding: "3px 9px",
+                        borderRadius: 8,
+                        border: `1px solid ${MC[selected]?.color || C.accent}30`
+                      }}>
+                        {selectedData.guide.length} Steps
+                      </span>
+                      <span style={{
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        background: C.dim,
+                        color: C.muted,
+                        padding: "3px 8px",
+                        borderRadius: 8
+                      }}>
+                        ⏱️ {selectedData.time} min
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
+                    <TravelGuide
+                      guide={selectedData.guide}
+                      color={MC[selected]?.color || C.accent}
+                      activeSegmentIndex={activeSegmentIndex}
+                      setActiveSegmentIndex={setActiveSegmentIndex}
+                      segments={selectedData?.segments}
+                      setMapView={setMapView}
+                    />
+                  </div>
                 </div>
               )}
             </div>

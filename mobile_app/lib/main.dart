@@ -41,6 +41,7 @@ class _MyAppState extends State<MyApp> {
         _currentUsername = savedUser;
       });
     }
+    ApiService.checkHealth();
   }
 
   @override

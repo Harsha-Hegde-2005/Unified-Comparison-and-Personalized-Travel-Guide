@@ -178,9 +178,11 @@ class SessionManager:
         if session.origin and session.destination:
             src_name = session.origin["name"]
             dst_name = session.destination["name"]
-            if any(k in text for k in ["the route", "this route", "that route", "same journey", "it"]):
-                overrides["source"] = src_name
-                overrides["destination"] = dst_name
+            if any(k in text for k in ["the route", "this route", "that route", "same journey"]) or re.search(r'\b(it|that)\b', text):
+                if "source" not in overrides:
+                    overrides["source"] = src_name
+                if "destination" not in overrides:
+                    overrides["destination"] = dst_name
 
         # 5. Optimization preferences extraction from text
         if any(k in text for k in ["cheapest", "lowest fare", "cheap", "most affordable"]):

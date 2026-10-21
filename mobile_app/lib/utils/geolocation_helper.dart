@@ -5,47 +5,91 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'web_helper/web_helper.dart';
 
+enum LocationCheckStatus {
+  success,
+  serviceDisabled,
+  permissionDenied,
+  permissionPermanentlyDenied,
+  error,
+}
+
+class LocationResult {
+  final LocationCheckStatus status;
+  final LatLng? position;
+  final String? message;
+
+  const LocationResult({
+    required this.status,
+    this.position,
+    this.message,
+  });
+}
+
 class GeolocationHelper {
-  /// Fetch current single GPS position with high accuracy and reliable timeouts
-  static Future<LatLng?> getCurrentPosition() async {
+  /// Fetch current GPS position with full status checks (service enabled, permissions, error)
+  static Future<LocationResult> getPositionWithStatus() async {
     if (kIsWeb) {
       final webPos = await WebHelper.getCurrentPosition(highAccuracy: true);
-      if (webPos != null) return webPos;
+      if (webPos != null) {
+        return LocationResult(status: LocationCheckStatus.success, position: webPos);
+      }
       final fallbackPos = await WebHelper.getCurrentPosition(highAccuracy: false);
-      if (fallbackPos != null) return fallbackPos;
-      return const LatLng(12.9716, 77.5946);
+      if (fallbackPos != null) {
+        return LocationResult(status: LocationCheckStatus.success, position: fallbackPos);
+      }
+      return const LocationResult(status: LocationCheckStatus.error, message: 'Could not obtain location in browser');
     }
 
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        // Location services are disabled
-        return const LatLng(12.9716, 77.5946);
+        return const LocationResult(
+          status: LocationCheckStatus.serviceDisabled,
+          message: 'Location services are disabled on your device. Please turn on GPS.',
+        );
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          return const LatLng(12.9716, 77.5946);
+          return const LocationResult(
+            status: LocationCheckStatus.permissionDenied,
+            message: 'Location permission was denied.',
+          );
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        return const LatLng(12.9716, 77.5946);
+        return const LocationResult(
+          status: LocationCheckStatus.permissionPermanentlyDenied,
+          message: 'Location permissions are permanently denied. Please enable them in App Settings.',
+        );
       }
 
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 8),
+          timeLimit: Duration(seconds: 10),
         ),
       );
-      return LatLng(position.latitude, position.longitude);
+      return LocationResult(
+        status: LocationCheckStatus.success,
+        position: LatLng(position.latitude, position.longitude),
+      );
     } catch (e) {
       debugPrint("Error fetching native GPS location: $e");
-      return const LatLng(12.9716, 77.5946);
+      return LocationResult(
+        status: LocationCheckStatus.error,
+        message: e.toString(),
+      );
     }
+  }
+
+  /// Fetch current single GPS position - returns null if disabled or denied (no silent fake coords)
+  static Future<LatLng?> getCurrentPosition() async {
+    final res = await getPositionWithStatus();
+    return res.position;
   }
 
   /// Watch live continuous GPS position stream with adaptive fallback
@@ -91,5 +135,11 @@ class GeolocationHelper {
     }();
 
     return controller.stream;
+  }
+
+  /// Calculate straight-line distance in km between two coordinates
+  static double distanceBetween(double startLatitude, double startLongitude, double endLatitude, double endLongitude) {
+    final double distMeters = Geolocator.distanceBetween(startLatitude, startLongitude, endLatitude, endLongitude);
+    return distMeters / 1000.0;
   }
 }

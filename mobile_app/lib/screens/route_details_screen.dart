@@ -37,7 +37,6 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
   int _activeSegmentIndex = 0;
   bool _isLiveNavigating = false;
-  bool _useRealGps = true;
   Timer? _navTimer;
   StreamSubscription<ll.LatLng>? _gpsSubscription;
   double _liveProgress = 0.0;
@@ -254,45 +253,16 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         const SnackBar(content: Text('⏹ Live GPS Navigation stopped')),
       );
     } else {
-      if (_useRealGps) {
-        setState(() {
-          _isLiveNavigating = true;
-          _liveProgress = 0.0;
-          _liveGpsPoint = widget.srcCoord ?? (_routePoints.isNotEmpty ? _routePoints.first : null);
-        });
+      setState(() {
+        _isLiveNavigating = true;
+        _liveProgress = 0.0;
+        _liveGpsPoint = widget.srcCoord ?? (_routePoints.isNotEmpty ? _routePoints.first : null);
+      });
 
-        _gpsSubscription = GeolocationHelper.watchPositionStream().listen((pos) {
-          if (!mounted) return;
-          _updateRealGpsPosition(pos);
-        });
-      } else {
-        setState(() {
-          _isLiveNavigating = true;
-          _liveProgress = 0.0;
-          _liveGpsPoint = widget.srcCoord ?? (_routePoints.isNotEmpty ? _routePoints.first : null);
-        });
-
-        _navTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-          if (!mounted) return;
-          setState(() {
-            _liveProgress += 3.0;
-            if (_liveProgress >= 100.0) {
-              _liveProgress = 100.0;
-              t.cancel();
-              _isLiveNavigating = false;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('🎉 Destination Reached! Navigation Complete.'),
-                  backgroundColor: AppTheme.green,
-                ),
-              );
-            } else {
-              final idx = ((_liveProgress / 100.0) * (_routePoints.length - 1)).floor();
-              _liveGpsPoint = _routePoints[idx.clamp(0, _routePoints.length - 1)];
-            }
-          });
-        });
-      }
+      _gpsSubscription = GeolocationHelper.watchPositionStream().listen((pos) {
+        if (!mounted) return;
+        _updateRealGpsPosition(pos);
+      });
     }
   }
 
@@ -364,32 +334,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment<bool>(
-                        value: true,
-                        label: Text('📡 Real GPS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        icon: Icon(Icons.my_location_rounded, size: 14),
-                      ),
-                      ButtonSegment<bool>(
-                        value: false,
-                        label: Text('▶️ Demo Simulator', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        icon: Icon(Icons.play_arrow_rounded, size: 14),
-                      ),
-                    ],
-                    selected: {_useRealGps},
-                    onSelectionChanged: (setVal) {
-                      if (_isLiveNavigating) _toggleLiveNav();
-                      setState(() => _useRealGps = setVal.first);
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
+            // Real GPS Navigation Action Button
 
             SizedBox(
               width: double.infinity,
@@ -445,9 +390,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                           children: [
                             const Icon(Icons.navigation_rounded, color: Colors.white, size: 20),
                             const SizedBox(width: 8),
-                            Text(
-                              _useRealGps ? 'REAL-TIME GPS TRACKING' : 'DEMO SIMULATION ACTIVE',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            const Text(
+                              'REAL-TIME GPS TRACKING',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                             ),
                           ],
                         ),
@@ -507,6 +452,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                         Text(
                           '⏱️ $time min  ·  ₹$cost  ·  🚶 ${dist}km',
                           style: TextStyle(fontSize: 12, color: mutedColor, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
