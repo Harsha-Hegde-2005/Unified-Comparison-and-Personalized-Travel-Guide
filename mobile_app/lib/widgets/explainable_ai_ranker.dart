@@ -65,59 +65,66 @@ class _ExplainableAiRankerCardState extends State<ExplainableAiRankerCard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF7C3AED), Color(0xFFEC4899)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF7C3AED).withValues(alpha: 0.35),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF7C3AED), Color(0xFFEC4899)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      ],
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF7C3AED).withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text('🤖', style: TextStyle(fontSize: 18)),
+                      ),
                     ),
-                    child: const Center(
-                      child: Text('🤖', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'U-Transit AI Smart Ranker',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                              color: textColor,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'EXPLAINABLE AI & TOP-K ROUTING',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9.0,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'U-Transit AI Smart Ranker',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 15,
-                          color: textColor,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'EXPLAINABLE AI & TOP-K ROUTING',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED),
-                          letterSpacing: 0.6,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
@@ -130,7 +137,7 @@ class _ExplainableAiRankerCardState extends State<ExplainableAiRankerCard> {
                   '✨ Gemini Powered',
                   style: TextStyle(
                     color: Color(0xFF7C3AED),
-                    fontSize: 10,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -259,12 +266,15 @@ class _ExplainableAiRankerCardState extends State<ExplainableAiRankerCard> {
                                 children: [
                                   Row(
                                     children: [
-                                      Text(
-                                        modeLabel,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w900,
-                                          fontSize: 14,
-                                          color: textColor,
+                                      Flexible(
+                                        child: Text(
+                                          modeLabel,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 14,
+                                            color: textColor,
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(width: 6),
@@ -288,19 +298,22 @@ class _ExplainableAiRankerCardState extends State<ExplainableAiRankerCard> {
                                   ),
                                   const SizedBox(height: 4),
 
-                                  // Quick Metrics: Cost, Time, Transfers, Emissions
-                                  Row(
-                                    children: [
-                                      Text('💰 ₹$cost', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor)),
-                                      const SizedBox(width: 8),
-                                      Text('🕒 $time min', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: mutedColor)),
-                                      const SizedBox(width: 8),
-                                      Text('🎯 $transfers xfer', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: mutedColor)),
-                                      if (emissions > 0) ...[
+                                  // Quick Metrics: Cost, Time, Transfers, Emissions (Overflow protected)
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      children: [
+                                        Text('💰 ₹$cost', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor)),
                                         const SizedBox(width: 8),
-                                        Text('🌿 ${emissions.toInt()}g', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.green)),
+                                        Text('🕒 $time min', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: mutedColor)),
+                                        const SizedBox(width: 8),
+                                        Text('🎯 $transfers xfer', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: mutedColor)),
+                                        if (emissions > 0) ...[
+                                          const SizedBox(width: 8),
+                                          Text('🌿 ${emissions.toInt()}g', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.green)),
+                                        ],
                                       ],
-                                    ],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -348,55 +361,63 @@ class _ExplainableAiRankerCardState extends State<ExplainableAiRankerCard> {
                         // 3. Why recommended (Always visible or expanded)
                         Container(
                           margin: const EdgeInsets.only(top: 10),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
                             color: isDark ? const Color(0xFF1E2130) : Colors.white,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border(
-                              left: BorderSide(color: modeColor, width: 3.5),
-                              top: BorderSide(color: isDark ? const Color(0xFF2E3348) : const Color(0xFFF1F1F5)),
-                              right: BorderSide(color: isDark ? const Color(0xFF2E3348) : const Color(0xFFF1F1F5)),
-                              bottom: BorderSide(color: isDark ? const Color(0xFF2E3348) : const Color(0xFFF1F1F5)),
-                            ),
+                            border: Border.all(color: isDark ? const Color(0xFF2E3348) : const Color(0xFFF1F1F5)),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              RichText(
-                                text: TextSpan(
-                                  style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : const Color(0xFF4B5563), height: 1.3),
-                                  children: [
-                                    const TextSpan(
-                                      text: 'Why recommended: ',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                    TextSpan(text: explanation),
-                                  ],
-                                ),
-                              ),
+                          child: IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Container(width: 3.5, color: modeColor),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        RichText(
+                                          text: TextSpan(
+                                            style: TextStyle(fontSize: 11.5, color: isDark ? Colors.white70 : const Color(0xFF4B5563), height: 1.3),
+                                            children: [
+                                              const TextSpan(
+                                                text: 'Why recommended: ',
+                                                style: TextStyle(fontWeight: FontWeight.bold),
+                                              ),
+                                              TextSpan(text: explanation),
+                                            ],
+                                          ),
+                                        ),
 
-                              // Data source transparency tags
-                              if (dataSources != null || isExpanded) ...[
-                                const SizedBox(height: 6),
-                                Divider(height: 1, color: isDark ? Colors.white10 : Colors.black12),
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 4,
-                                  children: [
-                                    Text('📊 Sources:', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: mutedColor)),
-                                    if (dataSources?['traffic'] != null)
-                                      Text('🚦 ${dataSources!['traffic']}', style: TextStyle(fontSize: 9.5, color: mutedColor)),
-                                    if (dataSources?['weather'] != null)
-                                      Text('🌧️ ${dataSources!['weather']}', style: TextStyle(fontSize: 9.5, color: mutedColor)),
-                                    if (dataSources?['bmtc'] != null)
-                                      Text('🚌 ${dataSources!['bmtc']}', style: TextStyle(fontSize: 9.5, color: mutedColor)),
-                                    if (dataSources?['fare'] != null)
-                                      Text('🚕 ${dataSources!['fare']}', style: TextStyle(fontSize: 9.5, color: mutedColor)),
-                                  ],
+                                        // Data source transparency tags
+                                        if (dataSources != null || isExpanded) ...[
+                                          const SizedBox(height: 6),
+                                          Divider(height: 1, color: isDark ? Colors.white10 : Colors.black12),
+                                          const SizedBox(height: 6),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 4,
+                                            children: [
+                                              Text('📊 Sources:', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: mutedColor)),
+                                              if (dataSources?['traffic'] != null)
+                                                Text('🚦 ${dataSources!['traffic']}', style: TextStyle(fontSize: 9.5, color: mutedColor)),
+                                              if (dataSources?['weather'] != null)
+                                                Text('🌧️ ${dataSources!['weather']}', style: TextStyle(fontSize: 9.5, color: mutedColor)),
+                                              if (dataSources?['bmtc'] != null)
+                                                Text('🚌 ${dataSources!['bmtc']}', style: TextStyle(fontSize: 9.5, color: mutedColor)),
+                                              if (dataSources?['fare'] != null)
+                                                Text('🚕 ${dataSources!['fare']}', style: TextStyle(fontSize: 9.5, color: mutedColor)),
+                                            ],
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ],
-                            ],
+                            ),
                           ),
                         ),
 

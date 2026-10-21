@@ -52,7 +52,7 @@ class ApiService {
         'Content-Type': 'application/json',
         'Bypass-Tunnel-Reminder': 'true',
         'bypass-tunnel-reminder': 'true',
-        'User-Agent': 'BMTC_Mobile_App',
+        if (!kIsWeb) 'User-Agent': 'BMTC_Mobile_App',
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
@@ -71,8 +71,12 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedUrl = prefs.getString('api_custom_base_url');
-      if (savedUrl != null && savedUrl.isNotEmpty) {
+      if (savedUrl != null && savedUrl.isNotEmpty && !savedUrl.contains('trycloudflare.com')) {
         baseUrl = savedUrl;
+      } else if (savedUrl != null && savedUrl.contains('trycloudflare.com')) {
+        // Discard expired temporary tunnel URL
+        await prefs.remove('api_custom_base_url');
+        baseUrl = defaultBaseUrl;
       }
       final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
       if (isLoggedIn) {
@@ -101,24 +105,34 @@ class ApiService {
     try {
       final res = await http
           .get(Uri.parse('$baseUrl$path'), headers: authHeaders)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
         return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ApiService] GET $path error on $baseUrl: $e');
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        final altBase = baseUrl.contains('localhost')
+            ? baseUrl.replaceAll('localhost', '10.0.2.2')
+            : (baseUrl.contains('10.0.2.2') ? baseUrl.replaceAll('10.0.2.2', 'localhost') : null);
+        if (altBase != null) {
+          try {
+            final res = await http
+                .get(Uri.parse('$altBase$path'), headers: authHeaders)
+                .timeout(const Duration(seconds: 8));
+            if (res.statusCode == 200) {
+              baseUrl = altBase;
+              return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+            }
+          } catch (_) {}
+        }
+      }
+    }
     return null;
   }
 
   static Future<Map<String, dynamic>?> _getAuth(String path) async {
-    try {
-      final res = await http
-          .get(Uri.parse('$baseUrl$path'), headers: authHeaders)
-          .timeout(const Duration(seconds: 12));
-      if (res.statusCode == 200) {
-        return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-      }
-    } catch (_) {}
-    return null;
+    return _get(path);
   }
 
   static Future<Map<String, dynamic>?> _post(String path, Map<String, dynamic> body) async {
@@ -129,28 +143,40 @@ class ApiService {
             headers: authHeaders,
             body: json.encode(body),
           )
-          .timeout(const Duration(seconds: 45));
+          .timeout(const Duration(seconds: 35));
       if (res.statusCode == 200) {
         return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+      } else {
+        debugPrint('[ApiService] POST $path status: ${res.statusCode}');
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ApiService] POST $path error on $baseUrl: $e');
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        final altBase = baseUrl.contains('localhost')
+            ? baseUrl.replaceAll('localhost', '10.0.2.2')
+            : (baseUrl.contains('10.0.2.2') ? baseUrl.replaceAll('10.0.2.2', 'localhost') : null);
+        if (altBase != null) {
+          try {
+            final res = await http
+                .post(
+                  Uri.parse('$altBase$path'),
+                  headers: authHeaders,
+                  body: json.encode(body),
+                )
+                .timeout(const Duration(seconds: 15));
+            if (res.statusCode == 200) {
+              baseUrl = altBase;
+              return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+            }
+          } catch (_) {}
+        }
+      }
+    }
     return null;
   }
 
   static Future<Map<String, dynamic>?> _postAuth(String path, Map<String, dynamic> body) async {
-    try {
-      final res = await http
-          .post(
-            Uri.parse('$baseUrl$path'),
-            headers: authHeaders,
-            body: json.encode(body),
-          )
-          .timeout(const Duration(seconds: 15));
-      if (res.statusCode == 200) {
-        return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-      }
-    } catch (_) {}
-    return null;
+    return _post(path, body);
   }
 
   static Future<bool> _deleteAuth(String path) async {
@@ -247,6 +273,7 @@ class ApiService {
   static Future<Map<String, dynamic>?> queryChatbot({
     required String message,
     required List<Map<String, dynamic>> history,
+    String? sessionId,
     double? latitude,
     double? longitude,
     String? timeStr,
@@ -256,6 +283,7 @@ class ApiService {
       'message': message,
       'history': history,
     };
+    if (sessionId != null && sessionId.isNotEmpty) body['session_id'] = sessionId;
     if (latitude != null) body['latitude'] = latitude;
     if (longitude != null) body['longitude'] = longitude;
     if (timeStr != null) body['time'] = timeStr;
@@ -318,6 +346,12 @@ class ApiService {
     };
     if (time != null) body['time'] = time;
     return _post('/api/bmtc/all-buses', body);
+  }
+
+  static Future<Map<String, dynamic>?> fetchBmtcRouteTimetable(String route, {String? stop}) async {
+    final params = ['route=${Uri.encodeComponent(route)}'];
+    if (stop != null && stop.isNotEmpty) params.add('stop=${Uri.encodeComponent(stop)}');
+    return _get('/api/bmtc/route-timetable?${params.join('&')}');
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

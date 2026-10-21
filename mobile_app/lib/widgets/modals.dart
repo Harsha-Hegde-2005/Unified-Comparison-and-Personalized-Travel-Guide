@@ -388,30 +388,86 @@ class _FareCalculatorModalState extends State<FareCalculatorModal> {
 // 2. WEATHER REPORT MODAL
 // ─────────────────────────────────────────────────────────────
 class WeatherReportModal extends StatefulWidget {
-  const WeatherReportModal({super.key});
+  final String? initialSource;
+  final String? initialDestination;
+
+  const WeatherReportModal({
+    super.key,
+    this.initialSource,
+    this.initialDestination,
+  });
 
   @override
   State<WeatherReportModal> createState() => _WeatherReportModalState();
 }
 
 class _WeatherReportModalState extends State<WeatherReportModal> {
-  Map<String, dynamic>? _weather;
-  bool _loading = true;
+  Map<String, dynamic>? _cityWeather;
+  Map<String, dynamic>? _srcWeather;
+  Map<String, dynamic>? _dstWeather;
+  bool _loadingCity = true;
+  bool _loadingRoute = false;
+
+  late TextEditingController _srcController;
+  late TextEditingController _dstController;
 
   @override
   void initState() {
     super.initState();
-    _fetchWeather();
+    _srcController = TextEditingController(text: widget.initialSource ?? 'Majestic');
+    _dstController = TextEditingController(text: widget.initialDestination ?? 'Whitefield');
+    _fetchCityWeather();
+    _fetchRouteWeather();
   }
 
-  Future<void> _fetchWeather() async {
+  @override
+  void dispose() {
+    _srcController.dispose();
+    _dstController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchCityWeather() async {
     final res = await ApiService.fetchWeatherReport(12.9716, 77.5946, 'Bengaluru');
     if (mounted) {
       setState(() {
-        _weather = res;
-        _loading = false;
+        _cityWeather = res;
+        _loadingCity = false;
       });
     }
+  }
+
+  Future<void> _fetchRouteWeather() async {
+    final src = _srcController.text.trim();
+    final dst = _dstController.text.trim();
+    if (src.isEmpty || dst.isEmpty) return;
+
+    setState(() => _loadingRoute = true);
+
+    try {
+      final sW = await ApiService.fetchWeatherReport(12.9767, 77.5713, src);
+      final dW = await ApiService.fetchWeatherReport(12.9698, 77.7500, dst);
+      if (mounted) {
+        setState(() {
+          _srcWeather = sW;
+          _dstWeather = dW;
+          _loadingRoute = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingRoute = false);
+    }
+  }
+
+  String _getWeatherEmoji(String? status) {
+    if (status == null) return '🌤️';
+    final s = status.toLowerCase();
+    if (s.contains('thunder')) return '⛈️';
+    if (s.contains('rain') || s.contains('drizzle')) return '🌧️';
+    if (s.contains('cloud') || s.contains('overcast')) return '⛅';
+    if (s.contains('fog') || s.contains('mist')) return '🌫️';
+    if (s.contains('clear') || s.contains('sun')) return '☀️';
+    return '🌤️';
   }
 
   @override
@@ -419,9 +475,15 @@ class _WeatherReportModalState extends State<WeatherReportModal> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = AppTheme.getCard(isDark);
     final textColor = AppTheme.getText(isDark);
+    final mutedColor = AppTheme.getMuted(isDark);
+    final borderCol = AppTheme.getBorder(isDark);
+
+    final status = _cityWeather?['status']?.toString() ?? 'Partly Cloudy';
+    final isRainy = status.toLowerCase().contains('rain') || status.toLowerCase().contains('thunder');
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -430,16 +492,33 @@ class _WeatherReportModalState extends State<WeatherReportModal> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header Bar
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.wb_sunny_rounded, color: Colors.amber, size: 22),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Bengaluru Transit Weather',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.wb_sunny_rounded, color: Colors.amber, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bengaluru Transit Weather',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: textColor),
+                      ),
+                      Text(
+                        'Live Location & Route Precipitation',
+                        style: TextStyle(fontSize: 10, color: mutedColor, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -449,75 +528,292 @@ class _WeatherReportModalState extends State<WeatherReportModal> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          if (_loading)
-            const Center(child: Padding(padding: EdgeInsets.all(30), child: CircularProgressIndicator()))
-          else ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.cloud_queue_rounded, size: 48, color: Colors.white),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${_weather?['temperature'] ?? 26}°C · ${_weather?['condition'] ?? 'Partly Cloudy'}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  // SECTION 1: CITY / LOCATION REPORT
+                  Text(
+                    'CITY LOCATION REPORT',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: mutedColor, letterSpacing: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+
+                  if (_loadingCity)
+                    const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
+                  else ...[
+                    // Main Temp Banner
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isRainy
+                              ? [const Color(0xFF1E3A8A), const Color(0xFF1D4ED8)]
+                              : [const Color(0xFF3B82F6), const Color(0xFF2563EB)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Humidity: ${_weather?['humidity'] ?? 65}% · Wind: ${_weather?['wind_speed'] ?? 12} km/h',
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Text(_getWeatherEmoji(status), style: const TextStyle(fontSize: 42)),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _cityWeather?['location']?.toString() ?? 'Bengaluru Central',
+                                  style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  '${_cityWeather?['temp'] ?? 26}°C',
+                                  style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    status.toUpperCase(),
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // 4-Grid Metrics (Min/Max, Rain %, Humidity %, Wind km/h)
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      childAspectRatio: 2.2,
+                      children: [
+                        _buildMetricBox('MIN / MAX TEMP', '${_cityWeather?['temp_min'] ?? 21}°C - ${_cityWeather?['temp_max'] ?? 29}°C', isDark, textColor, mutedColor, borderCol),
+                        _buildMetricBox('RAIN PROBABILITY', '${_cityWeather?['rain_probability'] ?? 15}%', isDark, textColor, mutedColor, borderCol),
+                        _buildMetricBox('RELATIVE HUMIDITY', '${_cityWeather?['humidity'] ?? 62}%', isDark, textColor, mutedColor, borderCol),
+                        _buildMetricBox('WIND SPEED', '${_cityWeather?['wind_speed'] ?? 11} km/h', isDark, textColor, mutedColor, borderCol),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+
+                  // SECTION 2: ROUTE TRANSIT WEATHER
+                  Text(
+                    'ROUTE TRANSIT WEATHER',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: mutedColor, letterSpacing: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Route inputs row
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF161822) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: borderCol),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _srcController,
+                                decoration: const InputDecoration(
+                                  labelText: 'ROUTE SOURCE',
+                                  isDense: true,
+                                  prefixIcon: Icon(Icons.trip_origin_rounded, size: 14, color: AppTheme.green),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                ),
+                                onSubmitted: (_) => _fetchRouteWeather(),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: _dstController,
+                                decoration: const InputDecoration(
+                                  labelText: 'ROUTE DESTINATION',
+                                  isDense: true,
+                                  prefixIcon: Icon(Icons.location_on_rounded, size: 14, color: AppTheme.red),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                ),
+                                onSubmitted: (_) => _fetchRouteWeather(),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: _loadingRoute ? null : _fetchRouteWeather,
+                            icon: const Icon(Icons.cloud_sync_rounded, size: 16),
+                            label: const Text('CHECK ROUTE WEATHER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
-            // Advisory box
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppTheme.blue.withValues(alpha: isDark ? 0.15 : 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.blue.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.info_outline_rounded, color: AppTheme.blue, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _weather?['advisory'] ??
-                          'Pleasant weather in Bengaluru. Namma Metro and AC Vajra buses are operating normally with standard headway.',
-                      style: TextStyle(fontSize: 13, color: textColor, height: 1.4),
+                  if (_loadingRoute)
+                    const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+                  else if (_srcWeather != null && _dstWeather != null) ...[
+                    // Origin and Destination Weather Cards
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildRouteEndpointCard(
+                            'START POINT',
+                            _srcController.text.trim(),
+                            _srcWeather?['temp']?.toString() ?? '25',
+                            _srcWeather?['status']?.toString() ?? 'Clear Sky',
+                            AppTheme.green,
+                            isDark,
+                            textColor,
+                            borderCol,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildRouteEndpointCard(
+                            'DESTINATION',
+                            _dstController.text.trim(),
+                            _dstWeather?['temp']?.toString() ?? '26',
+                            _dstWeather?['status']?.toString() ?? 'Partly Cloudy',
+                            AppTheme.red,
+                            isDark,
+                            textColor,
+                            borderCol,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 12),
+
+                    // Commute Advisory Card (Matches Website)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isRainy
+                            ? const Color(0xFFF59E0B).withValues(alpha: 0.12)
+                            : const Color(0xFF10B981).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isRainy
+                              ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
+                              : const Color(0xFF10B981).withValues(alpha: 0.4),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(isRainy ? '🌧️' : '☀️', style: const TextStyle(fontSize: 16)),
+                              const SizedBox(width: 8),
+                              Text(
+                                isRainy ? 'PRECIPITATION ADVISORY' : 'OPTIMAL COMMUTE CONDITIONS',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  color: isRainy ? const Color(0xFFD97706) : const Color(0xFF059669),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            isRainy
+                                ? 'Rain alert along corridor: Road traffic may face 25–40% slowdown. AC BMTC Vajra buses and Namma Metro are highly recommended for guaranteed on-time transit.'
+                                : 'Dry and favorable weather across Bengaluru routes. All transit modes (BMTC buses, Metro, Personal Vehicles, and Cabs) operating with optimal speed and zero weather delays.',
+                            style: TextStyle(fontSize: 12, height: 1.45, color: textColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-          ],
-          const SizedBox(height: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricBox(String title, String value, bool isDark, Color textColor, Color mutedColor, Color borderCol) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF161822) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderCol),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(title, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: mutedColor, letterSpacing: 0.4)),
+          const SizedBox(height: 2),
+          Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: textColor)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRouteEndpointCard(String label, String loc, String temp, String cond, Color accentColor, bool isDark, Color textColor, Color borderCol) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF161822) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderCol),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: accentColor)),
+          const SizedBox(height: 2),
+          Text(loc, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textColor)),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Text(_getWeatherEmoji(cond), style: const TextStyle(fontSize: 14)),
+              const SizedBox(width: 4),
+              Text('$temp°C · $cond', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor)),
+            ],
+          ),
         ],
       ),
     );
@@ -1154,9 +1450,7 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
   ll.LatLng? _liveUserGps;
   StreamSubscription<ll.LatLng>? _gpsSubscription;
 
-  bool _isDemoSimulating = false;
-  double _progressRatio = 0.0; // 0.0 to 1.0 based on real GPS or simulation
-  Timer? _simTimer;
+  double _progressRatio = 0.0; // 0.0 to 1.0 based on real GPS
   Timer? _flowTimer;
   double _flowPhase = 0.0;
   ll.LatLng? _animatedArrowPos;
@@ -1222,7 +1516,6 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
 
   @override
   void dispose() {
-    _simTimer?.cancel();
     _flowTimer?.cancel();
     _gpsSubscription?.cancel();
     super.dispose();
@@ -1254,8 +1547,6 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
   }
 
   void _onUserLocationUpdated(ll.LatLng pos) {
-    if (_isDemoSimulating) return;
-
     if (mounted) {
       setState(() {
         _liveUserGps = pos;
@@ -1455,71 +1746,6 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
       accumulatedM += segM;
     }
     return points.last;
-  }
-
-  void _stepForwardManual({double meters = 10.0}) {
-    if (_walkPoints.isEmpty) return;
-    final totalM = _totalRouteMeters > 0 ? _totalRouteMeters : 120.0;
-    final deltaRatio = meters / totalM;
-    setState(() {
-      _progressRatio = (_progressRatio + deltaRatio).clamp(0.0, 1.0);
-      _animatedArrowPos = _interpolatePointAlongPolyline(_walkPoints, _progressRatio);
-      if (_realWalkSteps.isNotEmpty) {
-        _activeStepIndex = (_progressRatio * _realWalkSteps.length).floor().clamp(0, _realWalkSteps.length - 1);
-      }
-    });
-
-    if (_animatedArrowPos != null) {
-      try {
-        _mapController.move(_animatedArrowPos!, _mapController.camera.zoom);
-      } catch (_) {}
-    }
-  }
-
-  void _toggleDemoSimulation() {
-    setState(() {
-      _isDemoSimulating = !_isDemoSimulating;
-      if (_progressRatio >= 1.0) {
-        _progressRatio = 0.0;
-      }
-    });
-
-    if (_isDemoSimulating) {
-      _simTimer?.cancel();
-      _simTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
-        if (!mounted || !_isDemoSimulating) {
-          timer.cancel();
-          return;
-        }
-
-        setState(() {
-          _progressRatio += 0.025;
-          if (_progressRatio >= 1.0) {
-            _progressRatio = 1.0;
-            _isDemoSimulating = false;
-            timer.cancel();
-          }
-
-          if (_walkPoints.isNotEmpty) {
-            _animatedArrowPos = _interpolatePointAlongPolyline(_walkPoints, _progressRatio);
-            if (_realWalkSteps.isNotEmpty) {
-              _activeStepIndex = (_progressRatio * _realWalkSteps.length).floor().clamp(0, _realWalkSteps.length - 1);
-            }
-          }
-        });
-
-        if (_animatedArrowPos != null) {
-          try {
-            _mapController.move(_animatedArrowPos!, _mapController.camera.zoom);
-          } catch (_) {}
-        }
-      });
-    } else {
-      _simTimer?.cancel();
-      if (_liveUserGps != null) {
-        _onUserLocationUpdated(_liveUserGps!);
-      }
-    }
   }
 
   List<Map<String, dynamic>> _realWalkSteps = [];
@@ -1750,9 +1976,7 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  _isDemoSimulating
-                                      ? 'Simulating walk to $targetName'
-                                      : 'Live GPS location tracking · Walk to update',
+                                  'Live GPS location tracking · Walk towards $targetName',
                                   style: TextStyle(fontSize: 11, color: mutedColor),
                                 ),
                               ],
@@ -1762,37 +1986,21 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Row(
-                      children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.blue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                            minimumSize: const Size(0, 32),
-                          ),
-                          onPressed: () => _stepForwardManual(meters: 10.0),
-                          icon: const Icon(Icons.directions_walk_rounded, size: 14),
-                          label: const Text('+10m STEP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
-                        ),
-                        const SizedBox(width: 6),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isDemoSimulating ? Colors.orange : AppTheme.walkColor,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                            minimumSize: const Size(0, 32),
-                          ),
-                          onPressed: _toggleDemoSimulation,
-                          icon: Icon(_isDemoSimulating ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 14),
-                          label: Text(
-                            _isDemoSimulating ? 'STOP SIM' : 'AUTO WALK',
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.blue.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.blue.withValues(alpha: 0.3)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.satellite_alt_rounded, size: 14, color: AppTheme.blue),
+                          SizedBox(width: 4),
+                          Text('REAL GPS TRACKING', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppTheme.blue)),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -1838,8 +2046,8 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          _isDemoSimulating ? Icons.play_circle_fill_rounded : Icons.directions_walk_rounded,
+                        const Icon(
+                          Icons.directions_walk_rounded,
                           size: 13,
                           color: AppTheme.walkColor,
                         ),
@@ -2075,12 +2283,14 @@ class AllBusesModal extends StatefulWidget {
   final String source;
   final String destination;
   final String? time;
+  final ValueChanged<String>? onSelectBus;
 
   const AllBusesModal({
     super.key,
     required this.source,
     required this.destination,
     this.time,
+    this.onSelectBus,
   });
 
   @override
@@ -2214,7 +2424,7 @@ class _AllBusesModalState extends State<AllBusesModal> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'POSSIBLE BUS NUMBERS CONNECTING YOUR STOPS',
+                    'POSSIBLE BUS NUMBERS (TAP TO SELECT)',
                     style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5),
                   ),
                   const SizedBox(height: 6),
@@ -2223,19 +2433,33 @@ class _AllBusesModalState extends State<AllBusesModal> {
                     runSpacing: 6,
                     children: uniqueBusNums.take(16).map((rn) {
                       final isV = _isVajra(rn);
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          rn,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: isV ? AppTheme.blue : AppTheme.bmtcColor,
+                      return InkWell(
+                        onTap: () {
+                          widget.onSelectBus?.call(rn);
+                          Navigator.pop(context, {'bus_number': rn, 'route': rn});
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                rn,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: isV ? AppTheme.blue : AppTheme.bmtcColor,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Icon(Icons.check_rounded, size: 11, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                            ],
                           ),
                         ),
                       );
@@ -2347,19 +2571,33 @@ class _AllBusesModalState extends State<AllBusesModal> {
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      routeNo,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: isV ? AppTheme.blue : AppTheme.bmtcColor,
+                  InkWell(
+                    onTap: () {
+                      widget.onSelectBus?.call(routeNo);
+                      Navigator.pop(context, {'bus_number': routeNo, 'route': routeNo});
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            routeNo,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: isV ? AppTheme.blue : AppTheme.bmtcColor,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.check_circle_rounded, size: 13, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                        ],
                       ),
                     ),
                   ),
@@ -2408,7 +2646,22 @@ class _AllBusesModalState extends State<AllBusesModal> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Direct Bus Journey', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
-                      Text('Fare: ₹$fare', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppTheme.green)),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.check_circle_rounded, size: 13),
+                        label: Text('Select Bus $routeNo', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.bmtcColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        onPressed: () {
+                          widget.onSelectBus?.call(routeNo);
+                          Navigator.pop(context, {'bus_number': routeNo, 'route': routeNo});
+                        },
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -2416,22 +2669,36 @@ class _AllBusesModalState extends State<AllBusesModal> {
 
                   if (altBuses.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    Text('OTHER BUSES RUNNING THIS EXACT ROUTE:', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: mutedColor)),
+                    Text('OTHER BUSES RUNNING THIS EXACT ROUTE (TAP TO SELECT):', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: mutedColor)),
                     const SizedBox(height: 4),
                     Wrap(
                       spacing: 4,
                       runSpacing: 4,
                       children: altBuses.map((ab) {
                         final abStr = ab.toString();
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF2D3142) : const Color(0xFFE2E8F0),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            abStr,
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+                        return InkWell(
+                          onTap: () {
+                            widget.onSelectBus?.call(abStr);
+                            Navigator.pop(context, {'bus_number': abStr, 'route': abStr});
+                          },
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2D3142) : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  abStr,
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+                                ),
+                                const SizedBox(width: 3),
+                                const Icon(Icons.touch_app_rounded, size: 10, color: AppTheme.bmtcColor),
+                              ],
+                            ),
                           ),
                         );
                       }).toList(),
@@ -2507,20 +2774,27 @@ class _AllBusesModalState extends State<AllBusesModal> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Text('Buses: ', style: TextStyle(fontSize: 10, color: mutedColor, fontWeight: FontWeight.bold)),
+                        Text('Buses (Tap to select): ', style: TextStyle(fontSize: 10, color: mutedColor, fontWeight: FontWeight.bold)),
                         Wrap(
                           spacing: 4,
                           children: buses.map((b) {
                             final isV = _isVajra(b);
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                b,
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                            return InkWell(
+                              onTap: () {
+                                widget.onSelectBus?.call(b);
+                                Navigator.pop(context, {'bus_number': b, 'route': b});
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  b,
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                                ),
                               ),
                             );
                           }).toList(),
@@ -2582,15 +2856,29 @@ class _AllBusesModalState extends State<AllBusesModal> {
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        routeName,
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                                    InkWell(
+                                      onTap: () {
+                                        widget.onSelectBus?.call(routeName);
+                                        Navigator.pop(context, {'bus_number': routeName, 'route': routeName});
+                                      },
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              routeName,
+                                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Icon(Icons.check_rounded, size: 12, color: AppTheme.bmtcColor),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -2612,6 +2900,7 @@ class _AllBusesModalState extends State<AllBusesModal> {
                                     Text(fromStop, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor)),
                                   ],
                                 ),
+                                Icon(Icons.arrow_forward_rounded, size: 14, color: mutedColor),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
@@ -2627,22 +2916,36 @@ class _AllBusesModalState extends State<AllBusesModal> {
                             // Alternative Buses List
                             if (altBuses.isNotEmpty) ...[
                               const SizedBox(height: 8),
-                              Text('ALTERNATIVE BUSES FOR THIS LEG:', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: mutedColor)),
+                              Text('ALTERNATIVE BUSES FOR THIS LEG (TAP TO SELECT):', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: mutedColor)),
                               const SizedBox(height: 4),
                               Wrap(
                                 spacing: 4,
                                 runSpacing: 4,
                                 children: altBuses.take(12).map((ab) {
                                   final abStr = ab.toString();
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF2D3142) : const Color(0xFFE2E8F0),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      abStr,
-                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+                                  return InkWell(
+                                    onTap: () {
+                                      widget.onSelectBus?.call(abStr);
+                                      Navigator.pop(context, {'bus_number': abStr, 'route': abStr});
+                                    },
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF2D3142) : const Color(0xFFE2E8F0),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            abStr,
+                                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+                                          ),
+                                          const SizedBox(width: 3),
+                                          const Icon(Icons.touch_app_rounded, size: 10, color: AppTheme.bmtcColor),
+                                        ],
+                                      ),
                                     ),
                                   );
                                 }).toList(),
@@ -3156,6 +3459,612 @@ class _RideModeModalState extends State<RideModeModal> {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 8. TIMETABLE MODAL (BMTC Route & Metro Station Timetables)
+// ─────────────────────────────────────────────────────────────
+class TimetableModal extends StatefulWidget {
+  final String? initialSource;
+  final String? initialDestination;
+
+  const TimetableModal({
+    super.key,
+    this.initialSource,
+    this.initialDestination,
+  });
+
+  @override
+  State<TimetableModal> createState() => _TimetableModalState();
+}
+
+class _TimetableModalState extends State<TimetableModal> {
+  String _activeTab = 'bmtc'; // 'bmtc' | 'metro'
+
+  // BMTC state
+  final TextEditingController _bmtcRouteCtrl = TextEditingController(text: '500D');
+  final TextEditingController _bmtcStopCtrl = TextEditingController();
+  bool _bmtcLoading = false;
+  String? _bmtcError;
+  Map<String, dynamic>? _bmtcResult;
+
+  // Metro state
+  final TextEditingController _metroStationCtrl = TextEditingController();
+  bool _metroLoading = false;
+  String? _metroError;
+  Map<String, dynamic>? _metroResult;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialSource != null && widget.initialSource!.isNotEmpty) {
+      _bmtcStopCtrl.text = widget.initialSource!;
+      _metroStationCtrl.text = widget.initialSource!;
+    } else {
+      _bmtcStopCtrl.text = 'Hebbal';
+      _metroStationCtrl.text = 'Indiranagar';
+    }
+    _searchBmtc();
+  }
+
+  @override
+  void dispose() {
+    _bmtcRouteCtrl.dispose();
+    _bmtcStopCtrl.dispose();
+    _metroStationCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _searchBmtc() async {
+    final route = _bmtcRouteCtrl.text.trim();
+    if (route.isEmpty) return;
+
+    setState(() {
+      _bmtcLoading = true;
+      _bmtcError = null;
+      _bmtcResult = null;
+    });
+
+    try {
+      final res = await ApiService.fetchBmtcRouteTimetable(route, stop: _bmtcStopCtrl.text.trim());
+      if (mounted) {
+        setState(() {
+          _bmtcResult = res;
+          _bmtcLoading = false;
+          if (res == null) _bmtcError = 'Timetable not found for route "$route".';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _bmtcError = 'Failed to load BMTC timetable.';
+          _bmtcLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _searchMetro() async {
+    final station = _metroStationCtrl.text.trim();
+    if (station.isEmpty) return;
+
+    setState(() {
+      _metroLoading = true;
+      _metroError = null;
+      _metroResult = null;
+    });
+
+    try {
+      final res = await ApiService.metroTimetable(source: station);
+      if (mounted) {
+        setState(() {
+          _metroResult = res;
+          _metroLoading = false;
+          if (res == null) _metroError = 'Timetable not found for station "$station".';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _metroError = 'Failed to load Metro timetable.';
+          _metroLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = AppTheme.getCard(isDark);
+    final textColor = AppTheme.getText(isDark);
+    final mutedColor = AppTheme.getMuted(isDark);
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white24 : Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: AppTheme.blue.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.access_time_filled_rounded, color: AppTheme.blue, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Transit Timetable', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      Text('Official schedules & live departures', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Mode Tabs (BMTC vs Metro)
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E202C) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      setState(() => _activeTab = 'bmtc');
+                      if (_bmtcResult == null) _searchBmtc();
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _activeTab == 'bmtc' ? AppTheme.bmtcColor : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.directions_bus_rounded, size: 16, color: _activeTab == 'bmtc' ? Colors.white : mutedColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            'BMTC Bus',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _activeTab == 'bmtc' ? Colors.white : textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      setState(() => _activeTab = 'metro');
+                      if (_metroResult == null) _searchMetro();
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _activeTab == 'metro' ? AppTheme.metroPurple : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.subway_rounded, size: 16, color: _activeTab == 'metro' ? Colors.white : mutedColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Namma Metro',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _activeTab == 'metro' ? Colors.white : textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Content body
+          Expanded(
+            child: _activeTab == 'bmtc' ? _buildBmtcView(isDark, textColor, mutedColor) : _buildMetroView(isDark, textColor, mutedColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBmtcView(bool isDark, Color textColor, Color mutedColor) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: TextField(
+                controller: _bmtcRouteCtrl,
+                style: TextStyle(fontSize: 13, color: textColor),
+                decoration: InputDecoration(
+                  labelText: 'Route No.',
+                  hintText: 'e.g. 500D, 335E',
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onSubmitted: (_) => _searchBmtc(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 4,
+              child: TextField(
+                controller: _bmtcStopCtrl,
+                style: TextStyle(fontSize: 13, color: textColor),
+                decoration: InputDecoration(
+                  labelText: 'Boarding Stop (Optional)',
+                  hintText: 'e.g. Hebbal',
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onSubmitted: (_) => _searchBmtc(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              style: IconButton.styleFrom(
+                backgroundColor: AppTheme.bmtcColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: _bmtcLoading ? null : _searchBmtc,
+              icon: const Icon(Icons.search_rounded, size: 20),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        if (_bmtcLoading)
+          const Expanded(child: Center(child: CircularProgressIndicator()))
+        else if (_bmtcError != null)
+          Expanded(
+            child: Center(
+              child: Text(_bmtcError!, style: const TextStyle(color: AppTheme.red, fontSize: 13)),
+            ),
+          )
+        else if (_bmtcResult != null)
+          Expanded(child: _buildBmtcScheduleResult(_bmtcResult!, isDark, textColor, mutedColor))
+        else
+          Expanded(
+            child: Center(
+              child: Text('Enter a bus route to look up timings', style: TextStyle(color: mutedColor, fontSize: 13)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBmtcScheduleResult(Map<String, dynamic> data, bool isDark, Color textColor, Color mutedColor) {
+    final route = data['route']?.toString() ?? _bmtcRouteCtrl.text.toUpperCase();
+    final origin = data['origin']?.toString() ?? 'Origin';
+    final destination = data['destination']?.toString() ?? 'Destination';
+    final departures = (data['timetable'] as List<dynamic>?) ?? (data['departures'] as List<dynamic>?) ?? [];
+    final frequency = data['frequency']?.toString() ?? 'Every 10-15 mins';
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF161926) : const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.bmtcColor.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bmtcColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(route, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('$origin ➔ $destination', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor)),
+                      Text('Frequency: $frequency', style: TextStyle(fontSize: 11, color: mutedColor)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          Text('SCHEDULED DEPARTURES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
+          const SizedBox(height: 8),
+
+          if (departures.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              alignment: Alignment.center,
+              child: Text('Operates frequently every 10-15 minutes throughout the day (05:30 to 22:30).', style: TextStyle(fontSize: 12, color: mutedColor)),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: departures.map((dep) {
+                final timeStr = dep is Map ? (dep['departure_time'] ?? dep['time'] ?? '').toString() : dep.toString();
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E2232) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.getBorder(isDark)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.access_time_rounded, size: 12, color: AppTheme.bmtcColor),
+                      const SizedBox(width: 4),
+                      Text(timeStr, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetroView(bool isDark, Color textColor, Color mutedColor) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _metroStationCtrl,
+                style: TextStyle(fontSize: 13, color: textColor),
+                decoration: InputDecoration(
+                  labelText: 'Metro Station',
+                  hintText: 'e.g. Indiranagar, Majestic, MG Road',
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onSubmitted: (_) => _searchMetro(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              style: IconButton.styleFrom(
+                backgroundColor: AppTheme.metroPurple,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: _metroLoading ? null : _searchMetro,
+              icon: const Icon(Icons.search_rounded, size: 20),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        if (_metroLoading)
+          const Expanded(child: Center(child: CircularProgressIndicator()))
+        else if (_metroError != null)
+          Expanded(
+            child: Center(
+              child: Text(_metroError!, style: const TextStyle(color: AppTheme.red, fontSize: 13)),
+            ),
+          )
+        else if (_metroResult != null)
+          Expanded(child: _buildMetroScheduleResult(_metroResult!, isDark, textColor, mutedColor))
+        else
+          Expanded(
+            child: Center(
+              child: Text('Enter a station name to view train timings', style: TextStyle(color: mutedColor, fontSize: 13)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMetroScheduleResult(Map<String, dynamic> data, bool isDark, Color textColor, Color mutedColor) {
+    final station = data['station']?.toString() ?? _metroStationCtrl.text;
+    final line = data['line']?.toString() ?? 'Purple Line';
+    final directions = (data['directions'] as List<dynamic>?) ?? [];
+    final firstTrain = data['first_train']?.toString() ?? '05:00 AM';
+    final lastTrain = data['last_train']?.toString() ?? '11:00 PM';
+    final peakFreq = data['peak_frequency']?.toString() ?? 'Every 4-5 mins';
+
+    final Color lineClr = line.toLowerCase().contains('green') ? const Color(0xFF10B981) : AppTheme.metroPurple;
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: lineClr.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: lineClr.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: lineClr, borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.subway_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(station, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: textColor)),
+                      Text('$line • Peak: $peakFreq', style: TextStyle(fontSize: 11, color: mutedColor)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1A1C29) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.getBorder(isDark)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('FIRST TRAIN', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: mutedColor)),
+                      const SizedBox(height: 2),
+                      Text(firstTrain, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1A1C29) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.getBorder(isDark)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('LAST TRAIN', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: mutedColor)),
+                      const SizedBox(height: 2),
+                      Text(lastTrain, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          Text('UPCOMING TRAINS BY DIRECTION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
+          const SizedBox(height: 8),
+
+          if (directions.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF161926) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.flash_on_rounded, color: AppTheme.metroPurple, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Trains depart every 5 minutes during peak hours and every 8-10 minutes during non-peak.', style: TextStyle(fontSize: 11.5, color: textColor)),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...directions.map((dir) {
+              final dest = dir['destination']?.toString() ?? 'Terminal';
+              final nextTrains = (dir['next_trains'] as List<dynamic>?) ?? [];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF161926) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.getBorder(isDark)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Towards $dest', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: nextTrains.map((t) {
+                        return Chip(
+                          label: Text(t.toString(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );

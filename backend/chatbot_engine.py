@@ -64,7 +64,7 @@ class ChatbotEngine:
         # tech parks, malls, attractions, hotels, railway stations, airport,
         # landmarks) are treated exactly like any other stop name so the
         # existing substring/alias/fuzzy matching below "just works" for them.
-        combined_stops = list(set(list(bmtc_stops) + list(metro_stations) + list(self.poi_names)))
+        combined_stops = list(set(list(self.bmtc_stops) + list(self.metro_stations) + list(self.poi_names)))
         self.all_stops = [s for s in combined_stops if s.strip().lower() not in _GENERIC_STOP_BLOCKLIST]
         self.all_vehicles = all_vehicles or []
 
@@ -631,23 +631,74 @@ class ChatbotEngine:
         # Keep original message for general replies
         params["message"] = raw_text
 
+        # 0. Check for greetings
+        words = text_lower.split()
+        if any(w in words for w in ["hi", "hello", "hey", "namaskara", "namaste", "good morning", "good afternoon", "good evening"]) and len(words) <= 4:
+            return "greeting", params
+
+        # 0.0. Check for current location inquiry
+        if any(k in text_lower for k in ["current location", "where am i", "where i am", "my location", "current locatoin", "what is my location"]):
+            params["location"] = "me"
+            return "current_location", params
+
+        # 0.0.0. Check for quick follow-up chip actions
+        if text_lower in ("fastest route", "fastest", "quickest route") or ("fastest" in text_lower and not (src and dst)):
+            params["optimization"] = "fastest"
+            params["source"] = src
+            params["destination"] = dst
+            return "possible_ways", params
+
+        if text_lower in ("cheapest route", "cheapest", "lowest fare") or ("cheapest" in text_lower and not (src and dst)):
+            params["optimization"] = "cheapest"
+            params["source"] = src
+            params["destination"] = dst
+            return "possible_ways", params
+
+        if text_lower in ("less walking", "least walking") or ("less walking" in text_lower and not (src and dst)):
+            params["optimization"] = "least_walking"
+            params["source"] = src
+            params["destination"] = dst
+            return "possible_ways", params
+
+        if any(k in text_lower for k in ["compare with cab", "compare cab", "cab compare"]):
+            params["source"] = src
+            params["destination"] = dst
+            return "ride_cost", params
+
+        if any(k in text_lower for k in ["next bus timing", "bus timing", "bus timings", "next bus"]):
+            params["source"] = src
+            params["destination"] = dst
+            return "bus_schedule_query", params
+
+        # 0.0.0.1. Check for specific attraction inquiry (e.g. "is bannerughatta national park open now?", "lalbagh timings")
+        from poi_data import get_poi, get_attractions
+        for att in get_attractions():
+            att_name = att["name"].lower()
+            aliases = [a.lower() for a in att.get("aliases", [])]
+            if att_name in text_lower or any(a in text_lower for a in aliases):
+                has_route_pattern = ("from" in text_lower and "to" in text_lower)
+                if not has_route_pattern or any(k in text_lower for k in ["open", "timing", "hours", "fee", "entry", "ticket", "safari", "zoo", "visit"]):
+                    params["poi"] = att
+                    params["location"] = att["name"]
+                    return "poi_detail", params
+
         # Declare standard POI categories mapping
         poi_keywords = {
-            "restaurant": ["restaurant", "food", "eat", "dining", "diner", "meals", "fast food", "vegetarian restaurant", "restaurants"],
-            "cafe": ["cafe", "coffee", "tea", "starbucks", "cafes"],
-            "hotel": ["hotel", "stay", "lodging", "inn", "hostel", "pg", "hotels"],
+            "restaurant": ["restaurant", "food", "eat", "dining", "diner", "meals", "fast food", "vegetarian restaurant", "restaurants", "eateries", "eatery", "biryani", "dosa", "tiffin"],
+            "cafe": ["cafe", "coffee", "tea", "starbucks", "cafes", "bakery"],
+            "hotel": ["hotel", "stay", "lodging", "inn", "hostel", "pg", "hotels", "resort", "resorts", "room", "rooms"],
             "hospital": ["hospital", "clinic", "medical", "doctor", "pharmacy", "chemist", "hospitals"],
             "mall": ["mall", "shopping", "store", "shop", "supermarket", "malls"],
             "atm": ["atm", "cash", "bank", "atms"],
             "petrol_pump": ["petrol", "fuel", "diesel", "cng", "gas station", "petrol pump", "petrol pumps"],
             "bus_stop": ["bus stop", "bus stand", "bus depot", "bus stops"],
             "metro_station": ["metro station", "metro stations"],
-            "attraction": ["tourist", "attraction", "sightseeing", "places to visit", "park", "museum", "temple", "church", "monument", "palace", "attractions", "tourist spot", "tourist spots"]
+            "attraction": ["tourist", "attraction", "sightseeing", "places to visit", "park", "museum", "temple", "church", "monument", "palace", "attractions", "tourist spot", "tourist spots", "tourist place", "tourist places", "places to see"]
         }
 
         # 0. Check for multi-stop journey or itinerary planner
         has_itinerary_cue = any(k in text_lower for k in [
-            "plan a trip", "day trip", "day plan", "one-day", "one day", "itinerary", "visit 3", "visit 4", "visit 5", "visit several", "places to cover", "places to visit"
+            "plan a trip", "day trip", "day plan", "one-day", "one day", "itinerary", "visit 3", "visit 4", "visit 5", "visit several", "places to cover"
         ])
         if len(matched_stops) >= 3 or has_itinerary_cue:
             wps = []
@@ -698,7 +749,6 @@ class ChatbotEngine:
             val = route_match.group(1)
             val_idx = text_lower.find(val)
             before = text_lower[max(0, val_idx - 10):val_idx].strip()
-            after = text_lower[val_idx + len(val):val_idx + len(val) + 15].strip()
             is_budget_or_count = (
                 any(k in before for k in ["₹", "rs", "rupees", "budget", "under", "inr"]) or
                 any(k in after for k in ["rupees", "rs", "inr", "places", "stops", "attractions", "hours", "hrs", "people"])
@@ -706,7 +756,12 @@ class ChatbotEngine:
             if is_budget_or_count:
                 route_match = None
 
-        if route_match or (is_timetable_query and any(k in text_lower for k in ["bus", "bmtc"])):
+        is_bus_list_query = any(k in text_lower for k in [
+            "direct bus", "direct buses", "which bus", "which buses", "buses from", "buses between",
+            "bus from", "bus routes", "bus numbers", "bus number", "available buses", "list of buses"
+        ])
+
+        if route_match or (is_timetable_query and any(k in text_lower for k in ["bus", "bmtc"])) or is_bus_list_query:
             if route_match:
                 params["route_number"] = route_match.group(1).upper()
             src_test, dst_test = self.determine_source_dest(matched_stops, text)
@@ -790,6 +845,28 @@ class ChatbotEngine:
                     params["unresolved_phrase"] = phrase
                     params["suggestions"] = suggestions
                     return "clarify_location", params
+
+        # 0.4. Traffic Query Check
+        if any(k in text_lower for k in ["traffic", "congestion", "traffic jam", "traffic status", "how is traffic", "road condition", "road conditions", "drive time"]):
+            if src and dst:
+                params["source"] = src
+                params["destination"] = dst
+            elif matched_stops:
+                src_test, dst_test = self.determine_source_dest(matched_stops, text)
+                params["source"] = src_test or matched_stops[0]
+                if dst_test:
+                    params["destination"] = dst_test
+            return "traffic_query", params
+
+        # 0.45. Weather Query Check
+        if any(k in text_lower for k in ["will it rain", "rain today", "raining", "rain forecast", "weather today", "weather at", "weather forecast", "how is the weather"]):
+            time_match = re.search(r'\b(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\b', text_lower)
+            if time_match:
+                try:
+                    params["time"] = self.extract_time(time_match.group(1))
+                except Exception:
+                    pass
+            return "weather_query", params
 
         # 0.5. Ride Cost & Fuel Cost Check
         if any(k in text_lower for k in ["ola", "uber", "namma yatri", "rapido", "cab", "taxi", "auto", "ride cost", "cab cost", "auto fare"]):
@@ -894,31 +971,140 @@ class ChatbotEngine:
 
     def format_response(self, intent: str, params: Dict[str, Any], data: Dict[str, Any]) -> str:
         """Construct conversational replies based on solver output data."""
+        if intent == "greeting":
+            return (
+                "Namaskara! 🙏 I am your Bengaluru Intelligent Transport & Travel Assistant.\n\n"
+                "I can help you navigate the city and plan your journey:\n"
+                "• 🚌 **BMTC Bus**: Routes, schedules, timings, fares, and AC Vajra\n"
+                "• 🚇 **Namma Metro**: Purple, Green & Yellow lines, interchanges\n"
+                "• 🚕 **Cab & Auto Prices**: Instant price comparison across Ola, Uber, Rapido, and Namma Yatri\n"
+                "• 🍽️ **Nearest Restaurants**: Famous South Indian breakfast spots, cafes, and biryani\n"
+                "• 🏨 **Hotels & Stays**: Budget to luxury hotels across Bengaluru\n"
+                "• 🏛️ **Tourist Places**: Bannerghatta National Park, Lalbagh, Palace & more with entry fees and open timings\n\n"
+                "Where are you traveling or what would you like to explore today?"
+            )
+
+        if intent == "current_location":
+            loc_info = data.get("location_info", {})
+            if loc_info.get("detected"):
+                lat, lng = loc_info.get("lat"), loc_info.get("lng")
+                area = loc_info.get("area", "Bengaluru")
+                nearest_bmtc = loc_info.get("nearest_bmtc", "Majestic")
+                bmtc_dist = loc_info.get("bmtc_dist_m", 300)
+                nearest_metro = loc_info.get("nearest_metro")
+                metro_dist = loc_info.get("metro_dist_m")
+                
+                reply = f"📍 **Your Current Location**:\n"
+                reply += f"You are currently near **{area}** (GPS: `{lat:.4f}, {lng:.4f}`).\n\n"
+                reply += f"• 🚌 Nearest BMTC Bus Stop: **{nearest_bmtc}** (~{bmtc_dist}m)\n"
+                if nearest_metro:
+                    reply += f"• 🚇 Nearest Metro Station: **{nearest_metro}** (~{metro_dist}m)\n"
+                reply += "\nWhere would you like to travel from here? (e.g. 'How to reach Majestic', 'Nearest restaurants')"
+                return reply
+            else:
+                return (
+                    "📍 I don't have your GPS coordinates yet. Please allow location permissions in your browser or app, "
+                    "or tell me which area or bus stop you are currently at (e.g. 'I am at Hosa Road')!"
+                )
+
+        if intent == "poi_detail":
+            poi = data.get("poi") or params.get("poi")
+            if poi:
+                name = poi.get("name")
+                open_hours = poi.get("open_hours", "Open daily")
+                closed_on = poi.get("closed_on", "None")
+                entry_fee = poi.get("entry_fee_inr", 0)
+                safari_fee = poi.get("safari_fee_inr")
+                status = data.get("status", "OPEN NOW")
+                status_emoji = "🟢" if "OPEN" in status.upper() else "🔴"
+                
+                reply = f"🏛️ **{name}**\n\n"
+                reply += f"{status_emoji} **Current Status**: **{status}**\n"
+                reply += f"• ⏰ **Timings**: {open_hours}\n"
+                reply += f"• 📅 **Closed on**: {closed_on}\n"
+                if safari_fee:
+                    reply += f"• 🎟️ **Entry Fee**: ₹{entry_fee} (Zoo) / ₹{safari_fee} (Safari + Zoo)\n"
+                else:
+                    reply += f"• 🎟️ **Entry Fee**: {'Free Entry' if entry_fee == 0 else f'₹{entry_fee}'}\n"
+                
+                bus_routes = data.get("bus_routes")
+                if bus_routes:
+                    reply += f"• 🚌 **How to reach via BMTC**: Direct buses **{', '.join(bus_routes)}** from Majestic/KBS.\n"
+                reply += f"\nWould you like me to show transit routes and cab fares to {name}?"
+                return reply
+
         if intent == "nearby_pois":
-            loc = params.get("location")
-            poi_type = params.get("poi_type", "places")
+            loc = params.get("location") or "your location"
+            poi_type = params.get("poi_type") or params.get("explore_category") or "places"
             places = data.get("places", [])
             if not places:
-                return f"I couldn't find any nearby {poi_type}s close to '{loc}'."
-            return f"I found {len(places)} nearby {poi_type}(s) close to {loc}. You can view their details and walking distances in the cards below!"
+                return f"I couldn't find any nearby {poi_type}s close to '{loc}'. Try searching near popular hubs like Majestic, Indiranagar, or Koramangala!"
+            
+            type_title = poi_type.replace('_', ' ').capitalize() + "s"
+            if poi_type == "restaurant": type_title = "Restaurants & Eateries"
+            elif poi_type == "hotel": type_title = "Hotels & Stays"
+            elif poi_type == "attraction": type_title = "Tourist Spots & Attractions"
+            elif poi_type == "cafe": type_title = "Cafes & Coffee Spots"
+
+            reply = f"Here are recommended **{type_title}** near **{loc}**:\n\n"
+            cat_emoji = {"restaurant": "🍽️", "cafe": "☕", "hotel": "🏨", "attraction": "🏛️", "hospital": "🏥", "mall": "🛍️"}.get(poi_type, "📍")
+            
+            for p in places[:5]:
+                name = p.get("name", "")
+                dist = p.get("distance_km") or p.get("distance", "")
+                dist_str = f"~{dist} km" if dist else ""
+                rating = f"⭐ {p['rating']}" if p.get("rating") else ""
+                addr = p.get("address", "")
+                specialty = p.get("specialty") or p.get("cuisine")
+                price = p.get("price_range")
+                
+                line = f"• {cat_emoji} **{name}**"
+                details = [d for d in [dist_str, rating, price] if d]
+                if details:
+                    line += f" ({', '.join(details)})"
+                reply += line + "\n"
+                if addr:
+                    reply += f"   📍 {addr}\n"
+                if specialty:
+                    reply += f"   ✨ Known for: {specialty}\n"
+            
+            reply += "\nYou can tap any place in the cards below to view transit options and directions!"
+            return reply
 
         if intent in ("journey_time", "journey_cost", "possible_ways") and "options" in data and data["options"]:
-            src = params.get("source")
-            dst = params.get("destination")
+            src = params.get("source") or "Origin"
+            dst = params.get("destination") or "Destination"
             stops = params.get("stops")
             
-            journey_str = f"from {src} to {dst}"
+            journey_str = f"from **{src}** to **{dst}**"
             if stops and len(stops) >= 3:
-                journey_str = " → ".join(stops)
+                journey_str = " → ".join(f"**{s}**" for s in stops)
                 
-            reply = f"I've generated all possible ways and complete itineraries for your journey ({journey_str}) and compared Bus, Metro, Cab, Personal Vehicle, and Multimodal options.\n\n"
+            reply = f"Here is the transit and route breakdown for your journey {journey_str}:\n\n"
+            
+            for opt in data["options"]:
+                m = opt.get("mode")
+                t = opt.get("time")
+                c = opt.get("cost")
+                if m == "bmtc":
+                    bn = opt.get("bus_number") or opt.get("route") or "BMTC Bus"
+                    reply += f"• 🚌 **BMTC Bus** (Route {bn}): ~{t} mins · ₹{c}\n"
+                elif m == "metro":
+                    reply += f"• 🚇 **Namma Metro**: ~{t} mins · ₹{c}\n"
+                elif m == "cab":
+                    c_max = opt.get("cost_max")
+                    fare_str = f"₹{c}–₹{c_max}" if c_max and c_max > c else f"₹{c}"
+                    reply += f"• 🚖 **Cab / Auto**: ~{t} mins · {fare_str}\n"
+                elif m == "car":
+                    reply += f"• 🚗 **Personal Vehicle**: ~{t} mins · ₹{c} fuel\n"
+                elif m == "multimodal":
+                    reply += f"• 🔀 **Multimodal (Combo)**: ~{t} mins · ₹{c}\n"
             
             best = data.get("best_overall")
             if best and isinstance(best, dict):
                 mode_label = MODE_LABELS.get(best.get("mode"), best.get("mode", ""))
-                reply += f"⭐ **Recommendation**: {best.get('note', f'Taking {mode_label} is the best option for this trip.')}\n\n"
+                reply += f"\n⭐ **Recommendation**: {best.get('note', f'Taking {mode_label} is the best option for this trip.')}\n"
             
-            reply += "Please review the travel time, fare, walking distance, transfers, and carbon footprint comparisons in the cards below."
             return reply
 
         if intent == "legacy_itinerary" and "legs" in data:
@@ -1024,6 +1210,34 @@ class ChatbotEngine:
                 )
             else:
                 return f"The weather is forecast to be clear at {time_str}. All modes are operating normally."
+
+        elif intent == "traffic_query":
+            src = params.get("source")
+            dst = params.get("destination")
+            level = data.get("congestion_level", "moderate")
+            drive_time = data.get("drive_time_min")
+            transit_time = data.get("transit_time")
+            dist = data.get("distance_km")
+
+            level_str = "🔴 Heavy Traffic" if level == "heavy" else "🟡 Moderate Traffic" if level == "moderate" else "🟢 Traffic Clear"
+            if src and dst:
+                reply = f"Traffic status between **{src}** and **{dst}**:\n\n"
+                reply += f"• **Conditions**: {level_str}\n"
+                if drive_time:
+                    reply += f"• 🚗 **Drive Time**: ~{drive_time} mins"
+                    if dist:
+                        reply += f" ({dist} km)\n"
+                    else:
+                        reply += "\n"
+                if transit_time:
+                    reply += f"• 🚌 **Transit Time**: ~{transit_time} mins\n"
+                if level == "heavy":
+                    reply += "\n⚠️ High congestion detected on this corridor. Expect delays during peak hours."
+                else:
+                    reply += "\nRoad speeds are currently moving smoothly."
+                return reply
+            else:
+                return f"Current Bengaluru traffic status is **{level_str}**. Roads are moving normally with typical corridor delays."
 
         elif intent == "clarify_location":
             phrase = params.get("unresolved_phrase", "that place")
@@ -1300,6 +1514,8 @@ class ChatbotEngine:
             route = data.get("route_number")
             buses = data.get("buses", [])
             stops = data.get("stops", [])
+            source = data.get("source")
+            destination = data.get("destination")
             
             if route:
                 reply = f"### 🚌 **BMTC Route {route} Timetable & Stops**\n\n"
@@ -1312,18 +1528,21 @@ class ChatbotEngine:
                 if buses:
                     reply += "**Timings:**\n"
                     for b in buses[:5]:
-                        reply += f"• Departs: {b.get('departure')} (Est. Time: {b.get('time')} mins)\n"
+                        reply += f"• Departs: **{b.get('departure')}** (Est. duration: {b.get('time')} mins) — *{b.get('frequency', 'Regular service')}*\n"
                 else:
                     reply += "No schedule timing found for this route.\n"
                 return reply
             else:
-                # timings from src to dst
-                reply = f"### 🚌 **Bus Timings**\n\n"
+                src_txt = source or "your starting stop"
+                dst_txt = destination or "destination"
+                reply = f"### 🚌 **Upcoming Bus Timings ({src_txt} ➔ {dst_txt})**\n\n"
                 if buses:
                     for b in buses[:5]:
-                        reply += f"• Route **{b.get('route')}**: Departs {b.get('departure')} (Est. duration: {b.get('time')} min)\n"
+                        fare_txt = f" | ₹{b.get('fare')}" if b.get('fare') else ""
+                        reply += f"• Route **{b.get('route')}**: Departs **{b.get('departure')}** (~{b.get('time')} mins{fare_txt}) — *{b.get('frequency', 'Every 10–15 mins')}*\n"
+                    reply += f"\n💡 *Tip: AC Vajra and Ordinary services operate along this corridor.*"
                 else:
-                    reply += "No direct bus schedule found between these locations.\n"
+                    reply += f"No direct bus schedule found between {src_txt} and {dst_txt}. You may consider taking Metro or cab.\n"
                 return reply
 
         elif intent == "multimodal_journey":
@@ -1496,77 +1715,101 @@ class ChatbotEngine:
         return cleaned if cleaned else None
 
     def parse_source_dest_from_text(self, text: str, matched_stops: List[str]) -> Tuple[Optional[str], Optional[str]]:
-        # 1. Prioritize matched stops ONLY if we have 2 or more exact stops
-        if matched_stops and len(matched_stops) >= 2:
-            stop1, stop2 = matched_stops[0], matched_stops[1]
-            idx1 = text.lower().find(stop1.lower())
-            idx2 = text.lower().find(stop2.lower())
-            before1 = text[max(0, idx1 - 10):idx1].lower()
-            before2 = text[max(0, idx2 - 10):idx2].lower()
-            if "from" in before2:
-                return stop2, stop1
-            elif "from" in before1:
-                return stop1, stop2
-            elif any(k in before2 for k in ["to", "reach", "destination", "dest"]):
-                return stop1, stop2
-            return stop1, stop2
+        text_lower = text.lower().strip()
+        cleaned_text = re.sub(r"\b(?:how\s+can\s+i|how\s+do\s+i|want\s+to|need\s+to|like\s+to|wish\s+to|going\s+to|plan\s+to)\b", "", text_lower)
 
-        # 2. Otherwise, use regex extraction to support landmarks
-        text_lower = text.lower()
-        cleaned_text = re.sub(r"\b(?:how|want|need|like|wish|try|going|plan)\s+to\b", "", text_lower)
-        # Check pattern: "from <src> to <dst>"
+        # 1. First, check explicit high-confidence preposition patterns
         m_from_to = re.search(r"\bfrom\s+(.+?)\s+to\s+(.+?)(?:\?|$|\.|,)", cleaned_text)
         if m_from_to:
-            src = m_from_to.group(1).strip()
-            dst = m_from_to.group(2).strip()
-            return self._clean_place_name(src), self._clean_place_name(dst)
-        # Check pattern: "to <dst> from <src>"
+            raw_src = self._clean_place_name(m_from_to.group(1).strip())
+            raw_dst = self._clean_place_name(m_from_to.group(2).strip())
+            src_hit = None
+            dst_hit = None
+            for s in matched_stops:
+                if raw_src and (s.lower() in raw_src.lower() or raw_src.lower() in s.lower()):
+                    if not src_hit: src_hit = s
+                elif raw_dst and (s.lower() in raw_dst.lower() or raw_dst.lower() in s.lower()):
+                    if not dst_hit: dst_hit = s
+            return src_hit or raw_src, dst_hit or raw_dst
+
         m_to_from = re.search(r"\bto\s+(.+?)\s+from\s+(.+?)(?:\?|$|\.|,)", cleaned_text)
         if m_to_from:
-            dst = m_to_from.group(1).strip()
-            src = m_to_from.group(2).strip()
-            return self._clean_place_name(src), self._clean_place_name(dst)
-        # Check pattern: "between <src> and <dst>"
+            raw_dst = self._clean_place_name(m_to_from.group(1).strip())
+            raw_src = self._clean_place_name(m_to_from.group(2).strip())
+            src_hit = None
+            dst_hit = None
+            for s in matched_stops:
+                if raw_src and (s.lower() in raw_src.lower() or raw_src.lower() in s.lower()):
+                    if not src_hit: src_hit = s
+                elif raw_dst and (s.lower() in raw_dst.lower() or raw_dst.lower() in s.lower()):
+                    if not dst_hit: dst_hit = s
+            return src_hit or raw_src, dst_hit or raw_dst
+
         m_between = re.search(r"\bbetween\s+(.+?)\s+and\s+(.+?)(?:\?|$|\.|,)", cleaned_text)
         if m_between:
-            src = m_between.group(1).strip()
-            dst = m_between.group(2).strip()
-            return self._clean_place_name(src), self._clean_place_name(dst)
-        # Check individual parts
+            raw_src = self._clean_place_name(m_between.group(1).strip())
+            raw_dst = self._clean_place_name(m_between.group(2).strip())
+            return raw_src, raw_dst
+
+        # 2. If matched stops has 2+ stops, check preposition context based on their positions
+        if matched_stops and len(matched_stops) >= 2:
+            def find_pos(stop_name: str) -> int:
+                pos = text_lower.find(stop_name.lower())
+                if pos != -1:
+                    return pos
+                for word in stop_name.lower().split():
+                    if len(word) >= 3 and word not in ("bus", "stop", "station", "road", "layout", "nagar", "circle"):
+                        w_pos = text_lower.find(word)
+                        if w_pos != -1:
+                            return w_pos
+                return -1
+
+            p0 = find_pos(matched_stops[0])
+            p1 = find_pos(matched_stops[1])
+            if p0 != -1 and p1 != -1:
+                if p0 <= p1:
+                    first_stop, second_stop = matched_stops[0], matched_stops[1]
+                    min_pos, max_pos = p0, p1
+                else:
+                    first_stop, second_stop = matched_stops[1], matched_stops[0]
+                    min_pos, max_pos = p1, p0
+
+                before_first = text_lower[max(0, min_pos - 15):min_pos]
+                between = text_lower[min_pos:max_pos]
+
+                # Pattern: "to <first> from <second>"
+                if any(k in before_first for k in ["to", "reach", "destination", "travel to", "go to"]) and "from" in between:
+                    return second_stop, first_stop
+                # Pattern: "from <first> to <second>"
+                if "from" in before_first:
+                    return first_stop, second_stop
+                # Pattern: "<first> to <second>"
+                if any(k in between for k in ["to", "reach", "->", "-"]):
+                    return first_stop, second_stop
+                return first_stop, second_stop
+            return matched_stops[0], matched_stops[1]
+
+        # 3. Single matched stop or regex fallbacks
         src, dst = None, None
         m_src = re.search(r"\bfrom\s+(.+?)(?:\s+to\s+|\?|$|\.|,)", cleaned_text)
         if m_src:
-            src = m_src.group(1).strip()
+            src = self._clean_place_name(m_src.group(1).strip())
         m_dst = re.search(r"\b(?:go\s+to|reach|travel\s+to|way\s+to|to)\s+(.+?)(?:\s+from\s+|\?|$|\.|,)", cleaned_text)
         if m_dst:
-            dst = m_dst.group(1).strip()
+            dst = self._clean_place_name(m_dst.group(1).strip())
 
-        src_cleaned = self._clean_place_name(src)
-        dst_cleaned = self._clean_place_name(dst)
-
-        # Fallback to matched stops if nothing resolved via regex
-        if not src_cleaned and not dst_cleaned and matched_stops:
+        if not src and not dst and matched_stops:
             stop = matched_stops[0]
-            stop_idx = text.lower().find(stop.lower())
-            before_text = text[:stop_idx].lower()
-            last_from = before_text.rfind("from")
-            last_to = -1
-            for k in ["to", "reach", "dest", "destination"]:
-                pos = before_text.rfind(k)
-                if pos > last_to:
-                    is_valid = True
-                    if k == "to":
-                        if pos > 0 and before_text[pos - 1].isalnum():
-                            is_valid = False
-                        if pos + 2 < len(before_text) and before_text[pos + 2].isalnum():
-                            is_valid = False
-                        if is_valid:
-                            last_to = pos
-            if last_to > last_from:
-                return None, stop
-            return stop, None
+            stop_idx = text_lower.find(stop.lower())
+            if stop_idx != -1:
+                before_text = text_lower[:stop_idx]
+                if any(k in before_text for k in ["to", "reach", "dest", "destination", "visit", "go to"]):
+                    return None, stop
+                elif "from" in before_text:
+                    return stop, None
+            return None, stop
 
-        return src_cleaned, dst_cleaned
+        return src, dst
 
     def determine_source_dest(self, matched_stops: List[str], text: str) -> Tuple[Optional[str], Optional[str]]:
         return self.parse_source_dest_from_text(text, matched_stops)

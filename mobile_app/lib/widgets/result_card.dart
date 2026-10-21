@@ -17,6 +17,7 @@ class ResultCard extends StatelessWidget {
   final VoidCallback? onSaveJourney;
   final VoidCallback? onNavigate;
   final VoidCallback? onViewTimeline;
+  final ValueChanged<String>? onSelectBus;
 
   const ResultCard({
     super.key,
@@ -33,6 +34,7 @@ class ResultCard extends StatelessWidget {
     this.onSaveJourney,
     this.onNavigate,
     this.onViewTimeline,
+    this.onSelectBus,
   });
 
   @override
@@ -48,6 +50,7 @@ class ResultCard extends StatelessWidget {
 
     var time = data['time'] ?? 0;
     var cost = data['cost'] ?? 0;
+    var costMax = data['cost_max'] as int?;
     var distance = (data['distance'] as num?)?.toDouble() ?? 0.0;
     final transfers = data['transfers'] ?? 0;
     final emissions = (data['emissions'] as num?)?.toDouble() ?? 0.0;
@@ -55,6 +58,7 @@ class ResultCard extends StatelessWidget {
     // Apply cab sub-selection override
     if (modeKey == 'cab' && selectedCabVehicle != null) {
       cost = selectedCabVehicle!['cost'] ?? cost;
+      costMax = selectedCabVehicle!['cost_max'] as int?;
       time = selectedCabVehicle!['time'] ?? time;
       distance = (selectedCabVehicle!['distance'] as num?)?.toDouble() ?? distance;
     }
@@ -62,6 +66,7 @@ class ResultCard extends StatelessWidget {
     // Apply multimodal sub-selection override
     if (modeKey == 'multimodal' && selectedMultimodalOption != null) {
       cost = selectedMultimodalOption!['cost'] ?? cost;
+      costMax = selectedMultimodalOption!['cost_max'] as int?;
       time = selectedMultimodalOption!['time'] ?? time;
       distance = (selectedMultimodalOption!['distance'] as num?)?.toDouble() ?? distance;
     }
@@ -180,7 +185,9 @@ class ResultCard extends StatelessWidget {
                       Container(width: 1, height: 28, color: AppTheme.getBorder(isDark)),
                       _buildMetricItem(
                         icon: Icons.currency_rupee_rounded,
-                        value: cost == 0 ? 'FREE' : '₹$cost',
+                        value: (costMax != null && costMax > cost)
+                            ? '₹$cost – ₹$costMax'
+                            : (cost == 0 ? 'FREE' : '₹$cost'),
                         label: 'EST. FARE',
                         color: AppTheme.green,
                         textColor: textColor,
@@ -402,9 +409,11 @@ class ResultCard extends StatelessWidget {
             final cost = est['cost'] ?? 0;
             final costMax = est['cost_max'] as int?;
             final time = est['time'] ?? 0;
-            final isCurrent = (selectedCabVehicle?['provider'] == provider ||
-                selectedCabVehicle?['name'] == vehicleName ||
-                selectedCabVehicle?['vehicle'] == vehicleName);
+            final isCurrent = (selectedCabVehicle?['provider_key'] == est['provider_key'] &&
+                selectedCabVehicle?['vehicle_key'] == est['vehicle_key']) ||
+                (selectedCabVehicle?['provider'] == provider &&
+                 (selectedCabVehicle?['vehicle'] == vehicleName ||
+                  selectedCabVehicle?['vehicle_name'] == vehicleName));
 
             // Provider specific colors matching website
             Color badgeBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
@@ -528,11 +537,15 @@ class ResultCard extends StatelessWidget {
         Column(
           children: allOpts.map((opt) {
             if (opt is! Map<String, dynamic>) return const SizedBox.shrink();
-            final summary = opt['route_summary']?.toString() ?? opt['title']?.toString() ?? 'Transit Option';
+            final summary = opt['combination_label']?.toString() ??
+                opt['route_summary']?.toString() ??
+                opt['title']?.toString() ??
+                'Transit Option';
             final c = opt['cost'] ?? 0;
             final t = opt['time'] ?? 0;
             final tr = opt['transfers'] ?? 0;
-            final isCurrent = selectedMultimodalOption?['route_summary'] == summary ||
+            final isCurrent = selectedMultimodalOption?['combination_label'] == summary ||
+                selectedMultimodalOption?['route_summary'] == summary ||
                 selectedMultimodalOption?['title'] == summary;
 
             return InkWell(
@@ -684,12 +697,16 @@ class ResultCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                cost >= 70
-                    ? 'Pass Option: Daily Pass ₹70 (Vajra ₹120)'
-                    : 'Ticket Fare: ₹$cost per passenger',
-                style: TextStyle(fontSize: 11, color: mutedColor, fontWeight: FontWeight.w500),
+              Expanded(
+                child: Text(
+                  cost >= 70
+                      ? 'Pass Option: Daily Pass ₹70 (Vajra ₹120)'
+                      : 'Ticket Fare: ₹$cost per passenger',
+                  style: TextStyle(fontSize: 11, color: mutedColor, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 freq.toString(),
                 style: TextStyle(fontSize: 11, color: mutedColor, fontWeight: FontWeight.w600),
@@ -708,16 +725,27 @@ class ResultCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              onPressed: () {
-                showModalBottomSheet(
+              onPressed: () async {
+                final chosen = await showModalBottomSheet<Map<String, dynamic>>(
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   builder: (_) => AllBusesModal(
                     source: source ?? data['source']?.toString() ?? '',
                     destination: destination ?? data['destination']?.toString() ?? '',
+                    onSelectBus: (busNo) {
+                      data['bus_number'] = busNo;
+                      data['route'] = busNo;
+                      onSelectBus?.call(busNo);
+                    },
                   ),
                 );
+                if (chosen != null && chosen['bus_number'] != null) {
+                  final busNo = chosen['bus_number'].toString();
+                  data['bus_number'] = busNo;
+                  data['route'] = busNo;
+                  onSelectBus?.call(busNo);
+                }
               },
             ),
           ),
@@ -839,10 +867,15 @@ class ResultCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            runAlignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.local_gas_station_rounded, size: 16, color: AppTheme.carColor),
                   const SizedBox(width: 6),
@@ -857,6 +890,7 @@ class ResultCard extends StatelessWidget {
                 ],
               ),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.local_parking_rounded, size: 15, color: AppTheme.blue),
                   const SizedBox(width: 4),

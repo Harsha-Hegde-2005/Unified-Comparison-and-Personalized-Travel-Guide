@@ -11,16 +11,29 @@ from typing import List, Optional
 
 TRAVEL_KEYWORDS: List[str] = [
     "bmtc", "metro", "namma", "bus", "cab", "auto", "ola", "uber", "rapido",
-    "route", "fare", "ticket", "journey", "travel", "commute", "station",
-    "stop", "budget", "rupee", "rs.", "rs ", "₹", "hotel", "restaurant",
+    "route", "fare", "ticket", "tickets", "journey", "travel", "commute", "station",
+    "stop", "budget", "rupee", "rs.", "rs ", "₹", "inr", "hotel", "hotels", "restaurant",
+    "restaurants", "food", "eat", "dining", "diner", "cafe", "cafes", "coffee", "tea",
+    "breakfast", "lunch", "dinner", "dosa", "idli", "biryani", "resort", "lodge", "lodging",
+    "stay", "room", "rooms", "pg", "hostel", "tourist", "tourism", "sightseeing", "attraction",
+    "attractions", "spot", "spots", "park", "national park", "zoo", "safari", "palace", "temple",
+    "museum", "lake", "fort", "hills", "garden", "botanical", "wonderla", "bannerghatta",
+    "bannerughatta", "lalbagh", "cubbon", "iskcon", "vidhana soudha", "nandi hills", "ulsoor",
+    "planetarium", "open now", "is open", "opening", "closing", "hours", "timings", "timing",
     "weather", "rain", "vehicle", "bike", "car", "fuel", "petrol", "diesel",
     "ev ", "electric vehicle", "airport", "railway", "train", "college",
-    "university", "hospital", "tech park", "mall", "landmark", "tourist",
-    "attraction", "reach", "go to", "go from", "how to go", "how to reach", "distance", "nearest", "nearby",
+    "university", "hospital", "tech park", "mall", "landmark",
+    "reach", "go to", "go from", "how to go", "how to reach", "distance", "nearest", "nearby",
     "directions", "how far", "how long", "traffic", "flight", "layout",
     "cross", "nagar", "road", "circle", "junction", "bengaluru", "bangalore",
     "pass", "smart card", "terminal", "vayu vajra", "schedule", "timetable",
-    "itinerary", "day trip", "sightseeing", "visit", "destination", "way to"
+    "itinerary", "day trip", "visit", "destination", "way to", "ways", "option", "options",
+    "location", "locatoin", "where am i", "where i am", "my location", "current location", "gps"
+]
+
+GREETING_KEYWORDS: List[str] = [
+    "hi", "hello", "hey", "namaskara", "namaste", "good morning", "good afternoon",
+    "good evening", "greetings", "start", "help", "menu"
 ]
 
 CONTEXTUAL_FOLLOWUP_KEYWORDS: List[str] = [
@@ -28,7 +41,8 @@ CONTEXTUAL_FOLLOWUP_KEYWORDS: List[str] = [
     "the third one", "option 1", "option 2", "option 3", "cheapest", "fastest",
     "less walking", "fewer transfers", "what about", "how about", "instead",
     "tomorrow", "at 9", "by 9", "ac bus", "cab instead", "other hospital",
-    "same route", "return journey", "from there"
+    "same route", "return journey", "from there", "compare with cab", "next bus timing",
+    "plan 3-stop day trip", "fastest route", "cheapest route"
 ]
 
 OFFTOPIC_KEYWORDS: List[str] = [
@@ -52,23 +66,31 @@ OFFTOPIC_KEYWORDS: List[str] = [
 def is_offtopic(text: str, has_active_session: bool = False) -> bool:
     if not text:
         return False
-    t = text.lower()
+    t = text.lower().strip()
 
-    # If message contains explicit travel terms, it is ON-TOPIC
+    # Explicit off-topic keywords take precedence
+    if any(k in t for k in OFFTOPIC_KEYWORDS):
+        return True
+
+    # Greetings are ON-TOPIC
+    words = t.split()
+    if any(g == t or g in words for g in GREETING_KEYWORDS):
+        return False
+
+    # If message contains explicit travel, food, stay, or location terms, it is ON-TOPIC
     if any(k in t for k in TRAVEL_KEYWORDS):
         return False
 
-    # If user asks educational/guidance question about travel/transport (e.g. difference between bus and metro)
+    # If user asks educational/guidance question about travel/transport
     if any(k in t for k in ["difference between", "how do", "how to use", "explain metro", "explain bmtc", "guidance"]):
         return False
 
-    # If an active travel conversation is ongoing, contextual follow-ups are ON-TOPIC
-    if has_active_session and any(k in t for k in CONTEXTUAL_FOLLOWUP_KEYWORDS):
+    # If an active travel conversation is ongoing, or if it matches follow-up terms
+    if any(k in t for k in CONTEXTUAL_FOLLOWUP_KEYWORDS):
         return False
 
-    # Explicit off-topic keywords
-    if any(k in t for k in OFFTOPIC_KEYWORDS):
-        return True
+    if has_active_session:
+        return False
 
     # If it's a general question with no travel terms and no active session context
     return True
