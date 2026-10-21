@@ -65,21 +65,35 @@ def _bus_speed_kmh(dt: datetime) -> float:
 
 
 _combined_routes_df = pd.concat([stops_df, _rev_df], ignore_index=True) if not _rev_df.empty else stops_df
+_sorted_routes_df = _combined_routes_df.sort_values(["route_no", "stop_sequence"])
 _direct_route_index: list[dict] = []
 _direct_route_index_map: dict[str, dict] = {}
 _routes_by_stop: dict[str, list[dict]] = {}
 
-for _route_no, _group in _combined_routes_df.groupby("route_no"):
-    _ordered = _group.sort_values("stop_sequence")
-    _norms = list(_ordered["stop_norm"])
+_r_nos = _sorted_routes_df["route_no"].astype(str).values
+_s_norms = _sorted_routes_df["stop_norm"].values
+_lats = _sorted_routes_df["latitude"].values
+_lngs = _sorted_routes_df["longitude"].values
+
+_n_rows = len(_sorted_routes_df)
+_curr_i = 0
+while _curr_i < _n_rows:
+    _r = _r_nos[_curr_i]
+    _start_i = _curr_i
+    while _curr_i < _n_rows and _r_nos[_curr_i] == _r:
+        _curr_i += 1
+    _end_i = _curr_i
+
+    _norms = _s_norms[_start_i:_end_i].tolist()
+    _sub_lats = _lats[_start_i:_end_i]
+    _sub_lngs = _lngs[_start_i:_end_i]
+
     _cumulative_km = [0.0]
-    _rows = list(_ordered.itertuples(index=False))
-    for _idx in range(len(_rows) - 1):
-        _a = _rows[_idx]
-        _b = _rows[_idx + 1]
+    for _j in range(len(_norms) - 1):
         _cumulative_km.append(
-            _cumulative_km[-1] + _haversine(_a.latitude, _a.longitude, _b.latitude, _b.longitude)
+            _cumulative_km[-1] + _haversine(_sub_lats[_j], _sub_lngs[_j], _sub_lats[_j + 1], _sub_lngs[_j + 1])
         )
+
     _positions: dict[str, list[int]] = {}
     for _idx, _stop_norm in enumerate(_norms):
         _positions.setdefault(_stop_norm, []).append(_idx)
@@ -87,17 +101,18 @@ for _route_no, _group in _combined_routes_df.groupby("route_no"):
             _positions.setdefault(_stop_norm.replace("hoskerehalli", "hosakerehalli"), []).append(_idx)
         elif "hosakerehalli" in _stop_norm:
             _positions.setdefault(_stop_norm.replace("hosakerehalli", "hoskerehalli"), []).append(_idx)
+
     _route_info = {
-        "route_no": str(_route_no),
-        "base_route": str(_route_no).replace("_REV", ""),
+        "route_no": _r,
+        "base_route": _r.replace("_REV", ""),
         "norms": _norms,
         "positions": _positions,
         "stop_set": set(_norms),
         "cumulative_km": _cumulative_km,
-        "coords": [(row.latitude, row.longitude) for row in _rows],
+        "coords": list(zip(_sub_lats, _sub_lngs)),
     }
     _direct_route_index.append(_route_info)
-    _direct_route_index_map[_route_info["route_no"]] = _route_info
+    _direct_route_index_map[_r] = _route_info
     for _stop_norm in _positions:
         _routes_by_stop.setdefault(_stop_norm, []).append(_route_info)
         if "hoskerehalli" in _stop_norm:
@@ -108,7 +123,7 @@ for _route_no, _group in _combined_routes_df.groupby("route_no"):
             _routes_by_stop.setdefault(alt_norm, []).append(_route_info)
 
 import gc as _gc
-del _combined_routes_df
+del _combined_routes_df, _sorted_routes_df, _r_nos, _s_norms, _lats, _lngs
 _gc.collect()
 
 

@@ -62,3 +62,13 @@ conn.commit()
 
 print(f"Built gtfs_index.db successfully in {time.time()-t0:.2f}s! Size: {os.path.getsize(db_path)/1024/1024:.2f} MB")
 conn.close()
+
+# 3. Precompute and cache BMTC graph
+print("Pre-building BMTC graph cache for instant cold-boot startup...")
+try:
+    from core.graph import _build_everything
+    _build_everything()
+    print("BMTC graph cache pre-built successfully!")
+except Exception as ge:
+    print(f"Warning: could not pre-build graph cache: {ge}")
+

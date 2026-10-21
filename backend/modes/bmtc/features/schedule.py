@@ -41,27 +41,41 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def _register_route_cache(df) -> None:
-    for route_no, group in df.groupby("route_no"):
-        ordered = group.sort_values("stop_sequence").reset_index(drop=True)
-        norms = ordered["stop_norm"].tolist()
+    if df is None or df.empty:
+        return
+    sorted_df = df.sort_values(["route_no", "stop_sequence"])
+    route_nos = sorted_df["route_no"].astype(str).values
+    stop_norms = sorted_df["stop_norm"].values
+    lats = sorted_df["latitude"].values
+    lngs = sorted_df["longitude"].values
+
+    n = len(sorted_df)
+    i = 0
+    while i < n:
+        r = route_nos[i]
+        start_i = i
+        while i < n and route_nos[i] == r:
+            i += 1
+        end_i = i
+
+        norms = stop_norms[start_i:end_i].tolist()
+        r_lats = lats[start_i:end_i]
+        r_lngs = lngs[start_i:end_i]
+
         cumulative_km = [0.0]
-        for i in range(len(ordered) - 1):
+        for j in range(len(norms) - 1):
             cumulative_km.append(
-                cumulative_km[-1] + haversine(
-                    ordered.iloc[i].latitude,
-                    ordered.iloc[i].longitude,
-                    ordered.iloc[i + 1].latitude,
-                    ordered.iloc[i + 1].longitude,
-                )
+                cumulative_km[-1] + haversine(r_lats[j], r_lngs[j], r_lats[j + 1], r_lngs[j + 1])
             )
+
         stop_index: dict[str, int] = {}
-        for idx, stop_norm in enumerate(norms):
-            stop_index.setdefault(stop_norm, idx)
-        _route_cache[str(route_no)] = {
+        for idx, sn in enumerate(norms):
+            stop_index.setdefault(sn, idx)
+
+        _route_cache[r] = {
             "norms": norms,
             "stop_index": stop_index,
             "cumulative_km": cumulative_km,
-            "ordered": ordered,
         }
 
 
@@ -72,8 +86,9 @@ if not _rev_df.empty:
 _stop_coords_dict = {}
 for _df in [stops_df, _rev_df]:
     if _df is not None and not _df.empty:
-        for _row in _df.itertuples(index=False):
-            _stop_coords_dict[_row.stop_norm] = (float(_row.latitude), float(_row.longitude))
+        _stop_coords_dict.update(
+            dict(zip(_df["stop_norm"], zip(_df["latitude"].astype(float), _df["longitude"].astype(float))))
+        )
 
 
 # ── BMTC operational window ────────────────────────────────────────────────────

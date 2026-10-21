@@ -112,20 +112,16 @@ def _load_all() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, str], list[str]]:
                                      "latitude", "longitude", "stop_norm"])
 
     # Auto-generate reverse route definitions (_REV) for any route lacking a reverse entry
-    existing_rev = set(rev["route_no"].unique()) if not rev.empty else set()
-    auto_rev_rows = []
-    for route_no, grp in df.groupby("route_no"):
-        if "_REV" in str(route_no):
-            continue
-        rev_name = str(route_no) + "_REV"
-        if rev_name not in existing_rev:
-            rev_grp = grp.sort_values("stop_sequence", ascending=False).copy()
-            rev_grp["route_no"] = rev_name
-            rev_grp["stop_sequence"] = range(1, len(rev_grp) + 1)
-            auto_rev_rows.append(rev_grp)
+    existing_rev = set(rev["route_no"].astype(str).unique()) if not rev.empty else set()
+    df_route_str = df["route_no"].astype(str)
+    rev_name_series = df_route_str + "_REV"
+    mask = (~df_route_str.str.contains("_REV")) & (~rev_name_series.isin(existing_rev))
+    routes_to_rev = df[mask]
 
-    if auto_rev_rows:
-        auto_rev_df = pd.concat(auto_rev_rows, ignore_index=True)
+    if not routes_to_rev.empty:
+        auto_rev_df = routes_to_rev.sort_values(["route_no", "stop_sequence"], ascending=[True, False]).copy()
+        auto_rev_df["route_no"] = auto_rev_df["route_no"].astype(str) + "_REV"
+        auto_rev_df["stop_sequence"] = auto_rev_df.groupby("route_no").cumcount() + 1
         rev = pd.concat([rev, auto_rev_df], ignore_index=True) if not rev.empty else auto_rev_df
         print(f"Auto-generated reverse route definitions: total {rev['route_no'].nunique()} reverse routes available.")
 

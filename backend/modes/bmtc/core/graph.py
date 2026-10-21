@@ -21,9 +21,13 @@ import math
 from math import radians, sin, cos, sqrt, atan2
 from functools import lru_cache
 
+import os
+import pickle
 import pandas as pd
 
-from core.config import MAX_TRANSFERS, GTFS_TRIPS, GTFS_ROUTES, STOP_CLUSTERS, FAST_QUERY_MODE
+from core.config import MAX_TRANSFERS, GTFS_TRIPS, GTFS_ROUTES, STOP_CLUSTERS, FAST_QUERY_MODE, PROCESSED_DIR
+
+GRAPH_CACHE_PATH = os.path.join(PROCESSED_DIR, "graph_cache.pkl")
 
 
 # ── Haversine ─────────────────────────────────────────────────────────────────
@@ -42,9 +46,18 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 @lru_cache(maxsize=1)
 def _build_everything() -> tuple[dict, dict, dict, dict]:
     """
-    Returns (graph, _stop_routes, _raw_km, _route_trips).
-    Cached by Streamlit — never re-runs on button clicks or reruns.
+    Returns (graph, _stop_routes, _raw_km, _route_trips, _nearby_stops, _cluster_to_norm, _norm_to_cluster_keys, _nearby_cluster_keys).
+    Cached in memory and on disk.
     """
+    if os.path.exists(GRAPH_CACHE_PATH):
+        try:
+            with open(GRAPH_CACHE_PATH, "rb") as f:
+                cached_data = pickle.load(f)
+            print(f"Graph loaded from cache: {GRAPH_CACHE_PATH} ({len(cached_data[0]):,} nodes)")
+            return cached_data
+        except Exception as _ce:
+            print(f"Failed to load graph cache ({_ce}), rebuilding...")
+
     from core.loader import stops_df, _rev_df
 
     # 1. Route frequency
@@ -94,27 +107,47 @@ def _build_everything() -> tuple[dict, dict, dict, dict]:
     norm_to_cluster_keys: dict[str, list[str]] = {}
 
     def _add_df(df_src: pd.DataFrame) -> None:
-        for route_no, group in df_src.groupby("route_no"):
-            group = group.sort_values("stop_sequence")
-            rows  = list(group.itertuples(index=False))
-            for i in range(len(rows) - 1):
-                a, b   = rows[i], rows[i + 1]
-                ck_a   = _cluster_key(route_no, int(a.stop_sequence), a.stop_norm)
-                ck_b   = _cluster_key(route_no, int(b.stop_sequence), b.stop_norm)
-                u      = (ck_a, route_no)
-                v      = (ck_b, route_no)
-                raw_d  = haversine(a.latitude, a.longitude, b.latitude, b.longitude)
-                weight = freq_weight(raw_d, route_no)
+        if df_src is None or df_src.empty:
+            return
+        sorted_df = df_src.sort_values(["route_no", "stop_sequence"])
+        r_nos = sorted_df["route_no"].astype(str).values
+        s_seqs = sorted_df["stop_sequence"].astype(int).values
+        s_norms = sorted_df["stop_norm"].values
+        lats = sorted_df["latitude"].values
+        lngs = sorted_df["longitude"].values
+
+        n_rows = len(sorted_df)
+        curr_i = 0
+        while curr_i < n_rows:
+            r = r_nos[curr_i]
+            start_i = curr_i
+            while curr_i < n_rows and r_nos[curr_i] == r:
+                curr_i += 1
+            end_i = curr_i
+
+            sub_seqs = s_seqs[start_i:end_i]
+            sub_norms = s_norms[start_i:end_i]
+            sub_lats = lats[start_i:end_i]
+            sub_lngs = lngs[start_i:end_i]
+
+            m = end_i - start_i
+            for i in range(m - 1):
+                ck_a = _cluster_key(r, sub_seqs[i], sub_norms[i])
+                ck_b = _cluster_key(r, sub_seqs[i + 1], sub_norms[i + 1])
+                u = (ck_a, r)
+                v = (ck_b, r)
+                raw_d = haversine(sub_lats[i], sub_lngs[i], sub_lats[i + 1], sub_lngs[i + 1])
+                weight = freq_weight(raw_d, r)
                 graph_.setdefault(u, []).append((v, weight))
                 raw_km_[(u, v)] = raw_d
-                stop_routes.setdefault(ck_a, set()).add(route_no)
-                cluster_to_norm[ck_a] = a.stop_norm
-                norm_to_cluster_keys.setdefault(a.stop_norm, []).append(ck_a)
-            last = rows[-1]
-            ck_last = _cluster_key(route_no, int(last.stop_sequence), last.stop_norm)
-            stop_routes.setdefault(ck_last, set()).add(route_no)
-            cluster_to_norm[ck_last] = last.stop_norm
-            norm_to_cluster_keys.setdefault(last.stop_norm, []).append(ck_last)
+                stop_routes.setdefault(ck_a, set()).add(r)
+                cluster_to_norm[ck_a] = sub_norms[i]
+                norm_to_cluster_keys.setdefault(sub_norms[i], []).append(ck_a)
+
+            ck_last = _cluster_key(r, sub_seqs[-1], sub_norms[-1])
+            stop_routes.setdefault(ck_last, set()).add(r)
+            cluster_to_norm[ck_last] = sub_norms[-1]
+            norm_to_cluster_keys.setdefault(sub_norms[-1], []).append(ck_last)
 
     _add_df(stops_df)
     if not _rev_df.empty:
@@ -185,7 +218,7 @@ def _build_everything() -> tuple[dict, dict, dict, dict]:
     nearby_ct = sum(len(v) for v in nearby_cluster_keys.values())
     print(f"Proximity clusters: {len(nearby_cluster_keys)} cluster_keys have <={int(WALK_TRANSFER_KM*1000)}m neighbours "
           f"({nearby_ct} proximity pairs)")
-    return (
+    res_tuple = (
         graph_,
         stop_routes,
         raw_km_,
@@ -195,6 +228,13 @@ def _build_everything() -> tuple[dict, dict, dict, dict]:
         norm_to_cluster_keys,
         nearby_cluster_keys,
     )
+    try:
+        with open(GRAPH_CACHE_PATH, "wb") as f:
+            pickle.dump(res_tuple, f, protocol=pickle.HIGHEST_PROTOCOL)
+        print(f"Graph cached successfully at {GRAPH_CACHE_PATH}")
+    except Exception as _we:
+        print(f"Failed to save graph cache ({_we})")
+    return res_tuple
 
 
 # ── Module-level references — cheap after first load ─────────────────────────
