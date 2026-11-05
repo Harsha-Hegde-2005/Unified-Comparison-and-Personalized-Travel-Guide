@@ -5,6 +5,6 @@
   "numpy_version": "2.4.6",
   "pandas_version": "2.2.3",
   "repeat_trials_n": 10,
-  "outlier_handling_protocol": "Cold-start GTFS initialization separated from N=10 warm-start execution measurements",
+  "outlier_handling_protocol": "Cold-start GTFS initialization separated from N=30 warm-start execution measurements",
   "statistical_test": "Paired Wilcoxon signed-rank test and Student t-distribution 95% Confidence Interval"
 }

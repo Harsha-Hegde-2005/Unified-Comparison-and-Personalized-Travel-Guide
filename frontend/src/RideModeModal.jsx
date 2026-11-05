@@ -1066,6 +1066,50 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
           {/* STEP 2: LIVE RIDE TRACKING SCREEN */}
           {step === "TRACKING" && rideSession && (
             <div>
+              {/* ONBOARD DIFFERENT BUS BAR */}
+              {rideType === "BUS" && (
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  backgroundColor: "rgba(124, 58, 237, 0.15)",
+                  border: "1px solid rgba(124, 58, 237, 0.35)",
+                  borderRadius: "14px",
+                  padding: "10px 16px",
+                  marginBottom: "16px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "16px" }}>🚌</span>
+                    <span style={{ fontSize: "13px", fontWeight: "700", color: "#fff" }}>
+                      Active Bus: <span style={{ color: "#a78bfa" }}>{selectedBusNumber || rideSession.routeId}</span>
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const newBus = prompt("Enter the new BMTC bus number you onboarded (e.g. 500CA, 356, V-335E):", selectedBusNumber);
+                      if (newBus && newBus.trim()) {
+                        const clean = newBus.trim();
+                        setSelectedBusNumber(clean);
+                        fetchBusStops(clean);
+                        setTriggeredAlerts([]);
+                        alert(`Switched tracking to bus ${clean}! Route stops updated.`);
+                      }
+                    }}
+                    style={{
+                      background: "linear-gradient(135deg, #7c3aed, #6d28d9)",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "6px 14px",
+                      color: "#fff",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      cursor: "pointer"
+                    }}
+                  >
+                    🔄 Onboard Different Bus
+                  </button>
+                </div>
+              )}
               {/* TOP DASHBOARD METRICS CARDS */}
               <div
                 style={{

@@ -374,9 +374,8 @@ void showAppSettingsModal(
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      'https://chair-pipe-purchased-reply.trycloudflare.com',
+                      'https://personalized-travel-guide-api.onrender.com',
                       'http://localhost:8000',
-                      'http://192.168.1.2:8000',
                       'http://10.0.2.2:8000',
                     ].map((preset) {
                       return InkWell(

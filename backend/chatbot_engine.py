@@ -26,10 +26,14 @@ MODE_LABELS = {
     "bmtc": "BMTC Bus",
     "metro": "Namma Metro",
     "multimodal": "Bus + Metro",
-    "ola": "Ola Cab",
-    "uber": "Uber Cab",
-    "rapido": "Rapido Ride",
-    "namma_yatri": "Namma Yatri",
+    "ola": "GoRide Cab",
+    "goride": "GoRide Cab",
+    "uber": "SwiftCab Cab",
+    "swiftcab": "SwiftCab Cab",
+    "rapido": "SwiftGo Ride",
+    "swiftgo": "SwiftGo Ride",
+    "namma_yatri": "NammaMove",
+    "nammamove": "NammaMove",
     "car": "Personal Car",
     "bike": "Personal Bike"
 }
@@ -85,7 +89,7 @@ class ChatbotEngine:
                 "- \"budget_constrained\": User wants to travel under a specific budget.\n"
                 "- \"budget_explore\": User wants to explore what destinations they can travel to within a budget (no destination specified). Extract budget.\n"
                 "- \"possible_ways\": User wants ALL modes/routes compared.\n"
-                "- \"ride_cost\": User asks specifically about cab, taxi, auto, Ola, Uber, Namma Yatri, or Rapido ride-hailing fares. Extract source+destination.\n"
+                "- \"ride_cost\": User asks specifically about cab, taxi, auto, GoRide, SwiftCab, NammaMove, or SwiftGo ride-hailing fares. Extract source+destination.\n"
                 "- \"fuel_cost\": User asks about fuel/petrol/diesel or private vehicle cost. Extract source, destination, vehicle_type.\n"
                 "- \"nearest_stops\": User wants nearest bus stop or metro station. Extract location.\n"
                 "- \"traffic_query\": User asks about traffic, congestion, road conditions, drive time.\n"
@@ -171,7 +175,7 @@ class ChatbotEngine:
             "- \"budget_constrained\": User wants to travel under a specific budget.\n"
             "- \"budget_explore\": User wants to explore what destinations they can travel to within a budget (no destination specified). Extract budget.\n"
             "- \"possible_ways\": User wants ALL modes/routes compared.\n"
-            "- \"ride_cost\": User asks specifically about cab, taxi, auto, Ola, Uber, Namma Yatri, or Rapido ride-hailing fares. Extract source+destination.\n"
+            "- \"ride_cost\": User asks specifically about cab, taxi, auto, GoRide, SwiftCab, NammaMove, or SwiftGo ride-hailing fares. Extract source+destination.\n"
             "- \"fuel_cost\": User asks about fuel/petrol/diesel or private vehicle cost. Extract source, destination, vehicle_type.\n"
             "- \"nearest_stops\": User wants nearest bus stop or metro station. Extract location.\n"
             "- \"traffic_query\": User asks about traffic, congestion, road conditions, drive time.\n"
@@ -676,8 +680,17 @@ class ChatbotEngine:
             att_name = att["name"].lower()
             aliases = [a.lower() for a in att.get("aliases", [])]
             if att_name in text_lower or any(a in text_lower for a in aliases):
-                has_route_pattern = ("from" in text_lower and "to" in text_lower)
-                if not has_route_pattern or any(k in text_lower for k in ["open", "timing", "hours", "fee", "entry", "ticket", "safari", "zoo", "visit"]):
+                has_route_pattern = (
+                    ("from" in text_lower and "to" in text_lower)
+                    or (" to " in text_lower)
+                    or ("reach" in text_lower)
+                    or ("route" in text_lower)
+                    or ("how to" in text_lower)
+                    or bool(src and dst)
+                    or (len(matched_stops) >= 2)
+                )
+                is_attraction_specific = any(k in text_lower for k in ["open", "timing", "hours", "fee", "entry", "ticket", "safari", "zoo", "visit", "closed", "closing"])
+                if not has_route_pattern or is_attraction_specific:
                     params["poi"] = att
                     params["location"] = att["name"]
                     return "poi_detail", params
@@ -749,6 +762,7 @@ class ChatbotEngine:
             val = route_match.group(1)
             val_idx = text_lower.find(val)
             before = text_lower[max(0, val_idx - 10):val_idx].strip()
+            after = text_lower[val_idx + len(val):min(len(text_lower), val_idx + len(val) + 15)].strip()
             is_budget_or_count = (
                 any(k in before for k in ["₹", "rs", "rupees", "budget", "under", "inr"]) or
                 any(k in after for k in ["rupees", "rs", "inr", "places", "stops", "attractions", "hours", "hrs", "people"])
@@ -760,6 +774,12 @@ class ChatbotEngine:
             "direct bus", "direct buses", "which bus", "which buses", "buses from", "buses between",
             "bus from", "bus routes", "bus numbers", "bus number", "available buses", "list of buses"
         ])
+
+        if any(k in text_lower for k in ["ac bus", "ac buses", "vajra", "volvo", "vayu vajra", "air-conditioned bus", "air conditioned bus"]) and not is_timetable_query:
+            src_test, dst_test = self.determine_source_dest(matched_stops, text)
+            params["source"] = src_test
+            params["destination"] = dst_test
+            return "ac_bus_available", params
 
         if route_match or (is_timetable_query and any(k in text_lower for k in ["bus", "bmtc"])) or is_bus_list_query:
             if route_match:
@@ -977,7 +997,7 @@ class ChatbotEngine:
                 "I can help you navigate the city and plan your journey:\n"
                 "• 🚌 **BMTC Bus**: Routes, schedules, timings, fares, and AC Vajra\n"
                 "• 🚇 **Namma Metro**: Purple, Green & Yellow lines, interchanges\n"
-                "• 🚕 **Cab & Auto Prices**: Instant price comparison across Ola, Uber, Rapido, and Namma Yatri\n"
+                "• 🚕 **Cab & Auto Prices**: Instant price comparison across GoRide, SwiftCab, SwiftGo, and NammaMove\n"
                 "• 🍽️ **Nearest Restaurants**: Famous South Indian breakfast spots, cafes, and biryani\n"
                 "• 🏨 **Hotels & Stays**: Budget to luxury hotels across Bengaluru\n"
                 "• 🏛️ **Tourist Places**: Bannerghatta National Park, Lalbagh, Palace & more with entry fees and open timings\n\n"

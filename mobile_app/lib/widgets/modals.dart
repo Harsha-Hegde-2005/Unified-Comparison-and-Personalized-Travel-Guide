@@ -1,3 +1,5 @@
+import '../utils/voice_navigation_engine.dart';
+import '../utils/tts_helper.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -3132,10 +3134,11 @@ class _RideModeModalState extends State<RideModeModal> {
   String _step = 'SETUP'; // 'SETUP' | 'TRACKING' | 'SUMMARY'
   String _rideType = 'BUS'; // 'BUS' | 'METRO'
 
-  final List<String> _popularBusRoutes = const ['500C', '335E', '500D', '500A', '201', '365', 'KBS-1', 'V-335E'];
+  List<String> _popularBusRoutes = ['500C', '335E', '500D', '500A', '201', '365', 'KBS-1', 'V-335E', '356'];
   String _selectedBusNumber = '500D';
   List<Map<String, dynamic>> _busStops = [];
   String _busDestination = '';
+  final TextEditingController _customBusCtrl = TextEditingController();
 
   Map<String, List<Map<String, dynamic>>> _metroLines = {};
   String _selectedMetroLine = 'Purple Line';
@@ -3147,17 +3150,67 @@ class _RideModeModalState extends State<RideModeModal> {
   int _currentStopIndex = 0;
   Timer? _trackingTimer;
 
+  // Voice Guidance Engine
+  VoiceNavigationEngine? _voiceEngine;
+  bool _isVoiceMuted = false;
+
   @override
   void initState() {
     super.initState();
+    _initFromInitialData();
     _fetchBusStops(_selectedBusNumber);
     _fetchMetroLines();
     _requestGps();
   }
 
+  void _initFromInitialData() {
+    final init = widget.initialData;
+    if (init == null) return;
+
+    // 1. Initial bus number
+    final initBus = init['bus_number']?.toString() ?? init['route']?.toString();
+    if (initBus != null && initBus.trim().isNotEmpty) {
+      final clean = initBus.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+      _selectedBusNumber = clean;
+      _customBusCtrl.text = clean;
+      if (!_popularBusRoutes.contains(clean)) {
+        _popularBusRoutes.insert(0, clean);
+      }
+    }
+
+    // 2. All candidate direct buses
+    final allDirect = init['all_direct'] as List<dynamic>?;
+    if (allDirect != null && allDirect.isNotEmpty) {
+      for (final b in allDirect) {
+        final bStr = b.toString().replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+        if (bStr.isNotEmpty && !_popularBusRoutes.contains(bStr)) {
+          _popularBusRoutes.add(bStr);
+        }
+      }
+    }
+
+    // 3. Destination
+    final initDest = init['destination']?.toString();
+    if (initDest != null && initDest.trim().isNotEmpty) {
+      final cleanDest = initDest.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+      _busDestination = cleanDest;
+      _metroDestination = cleanDest;
+    }
+
+    // 4. Mode
+    final mode = init['mode']?.toString();
+    if (mode == 'metro') {
+      _rideType = 'METRO';
+    } else {
+      _rideType = 'BUS';
+    }
+  }
+
   @override
   void dispose() {
     _trackingTimer?.cancel();
+    _voiceEngine?.resetState();
+    _customBusCtrl.dispose();
     super.dispose();
   }
 
@@ -3169,7 +3222,7 @@ class _RideModeModalState extends State<RideModeModal> {
         _gpsLoading = false;
         if (pos != null) _userLocation = pos;
       });
-      _snapCurrentStop();
+      await _snapCurrentStop();
     }
   }
 
@@ -3180,7 +3233,9 @@ class _RideModeModalState extends State<RideModeModal> {
       setState(() {
         _busStops = stops;
         if (stops.isNotEmpty) {
-          _busDestination = stops.last['stop_name'].toString();
+          if (_busDestination.isEmpty || !stops.any((s) => s['stop_name'].toString().toLowerCase().contains(_busDestination.toLowerCase()))) {
+            _busDestination = stops.last['stop_name'].toString();
+          }
         }
       });
       _snapCurrentStop();
@@ -3201,7 +3256,7 @@ class _RideModeModalState extends State<RideModeModal> {
         _metroLines = parsedLines;
         if (parsedLines.containsKey(_selectedMetroLine)) {
           _metroStations = parsedLines[_selectedMetroLine]!;
-          if (_metroStations.isNotEmpty) {
+          if (_metroStations.isNotEmpty && _metroDestination.isEmpty) {
             _metroDestination = _metroStations.last['stop_name'].toString();
           }
         }
@@ -3210,33 +3265,263 @@ class _RideModeModalState extends State<RideModeModal> {
     }
   }
 
-  int get _detectedStopIndex {
+  Future<void> _snapCurrentStop() async {
     final list = _rideType == 'BUS' ? _busStops : _metroStations;
-    if (_userLocation == null || list.isEmpty) return 0;
-    return 0;
-  }
+    final dest = _rideType == 'BUS' ? _busDestination : _metroDestination;
+    if (list.isEmpty) return;
 
-  void _snapCurrentStop() {
+    int snappedIdx = _currentStopIndex;
+
+    // Use backend snap-stop API if coordinates are present
+    if (_userLocation != null) {
+      try {
+        final res = await ApiService.snapStop(
+          userLat: _userLocation!.latitude,
+          userLng: _userLocation!.longitude,
+          routeStops: list,
+          destStop: dest,
+          currentIndex: _currentStopIndex,
+        );
+        if (res != null && res['current_stop'] != null && res['current_stop']['index'] != null) {
+          snappedIdx = (res['current_stop']['index'] as num).toInt();
+        }
+      } catch (_) {}
+    }
+
     if (!mounted) return;
+
+    final destIdx = list.indexWhere((s) => s['stop_name'].toString().toLowerCase().contains(dest.toLowerCase()));
+    final targetDestIdx = destIdx >= 0 ? destIdx : list.length - 1;
+    final remaining = math.max(0, targetDestIdx - snappedIdx);
+    final hasPassed = snappedIdx > targetDestIdx;
+    final currentName = snappedIdx < list.length ? list[snappedIdx]['stop_name'].toString() : '';
+    final nextName = (snappedIdx + 1 < list.length) ? list[snappedIdx + 1]['stop_name'].toString() : null;
+
     setState(() {
-      _currentStopIndex = _detectedStopIndex;
+      _currentStopIndex = snappedIdx;
     });
+
+    // Notify Voice Guidance Engine (Disciplined Stop Cadence - NO 10m SPAM)
+    if (_step == 'TRACKING' && _voiceEngine != null && !_isVoiceMuted) {
+      await _voiceEngine!.onTransitStopUpdated(
+        currentStopIndex: snappedIdx,
+        currentStopName: currentName,
+        nextStopName: nextName,
+        remainingStops: remaining,
+        hasPassedDestination: hasPassed,
+      );
+    }
   }
 
   void _startRide() {
     final list = _rideType == 'BUS' ? _busStops : _metroStations;
+    final dest = _rideType == 'BUS' ? _busDestination : _metroDestination;
     if (list.isEmpty) return;
+
+    _voiceEngine = VoiceNavigationEngine(
+      mode: _rideType == 'BUS' ? VoiceNavMode.bus : VoiceNavMode.metro,
+      destinationName: dest,
+      isVoiceEnabled: !_isVoiceMuted,
+    );
+    _voiceEngine!.resetState();
 
     setState(() {
       _step = 'TRACKING';
-      _currentStopIndex = _detectedStopIndex;
     });
 
+    _snapCurrentStop();
+
     _trackingTimer?.cancel();
-    _trackingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _trackingTimer = Timer.periodic(const Duration(seconds: 12), (_) {
       if (!mounted || _step != 'TRACKING') return;
       _requestGps();
     });
+  }
+
+  void _manualNextStop() {
+    final list = _rideType == 'BUS' ? _busStops : _metroStations;
+    if (_currentStopIndex < list.length - 1) {
+      setState(() => _currentStopIndex++);
+      _triggerStopVoiceAlert();
+    }
+  }
+
+  void _manualPrevStop() {
+    if (_currentStopIndex > 0) {
+      setState(() => _currentStopIndex--);
+      _triggerStopVoiceAlert();
+    }
+  }
+
+  void _triggerStopVoiceAlert() {
+    final list = _rideType == 'BUS' ? _busStops : _metroStations;
+    final dest = _rideType == 'BUS' ? _busDestination : _metroDestination;
+    final destIdx = list.indexWhere((s) => s['stop_name'].toString().toLowerCase().contains(dest.toLowerCase()));
+    final targetDestIdx = destIdx >= 0 ? destIdx : list.length - 1;
+    final remaining = math.max(0, targetDestIdx - _currentStopIndex);
+    final hasPassed = _currentStopIndex > targetDestIdx;
+    final currentName = _currentStopIndex < list.length ? list[_currentStopIndex]['stop_name'].toString() : '';
+    final nextName = (_currentStopIndex + 1 < list.length) ? list[_currentStopIndex + 1]['stop_name'].toString() : null;
+
+    if (_voiceEngine != null && !_isVoiceMuted) {
+      _voiceEngine!.onTransitStopUpdated(
+        currentStopIndex: _currentStopIndex,
+        currentStopName: currentName,
+        nextStopName: nextName,
+        remainingStops: remaining,
+        hasPassedDestination: hasPassed,
+      );
+    }
+  }
+
+  void _showChangeBusModal() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = AppTheme.getCard(isDark);
+    final textColor = AppTheme.getText(isDark);
+    final searchCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.swap_horiz_rounded, color: AppTheme.bmtcColor, size: 24),
+                      const SizedBox(width: 8),
+                      Text('Onboard Different Bus', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: textColor)),
+                    ],
+                  ),
+                  IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close_rounded)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Boarded a different BMTC bus? Select below to update live stops and voice alerts instantly:',
+                style: TextStyle(fontSize: 12, color: AppTheme.getMuted(isDark)),
+              ),
+              const SizedBox(height: 14),
+
+              // Search any bus number
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: searchCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Type any bus (e.g. 356, V-335E, KIA-8)...',
+                        hintStyle: TextStyle(fontSize: 12, color: AppTheme.getMuted(isDark)),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.bmtcColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      final custom = searchCtrl.text.trim();
+                      if (custom.isNotEmpty) {
+                        Navigator.pop(ctx);
+                        _switchBusRoute(custom);
+                      }
+                    },
+                    child: const Text('Switch'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text('Available Corridor & Direct Buses:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.getMuted(isDark))),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView(
+                  children: _popularBusRoutes.map((busNo) {
+                    final isCurrent = busNo == _selectedBusNumber;
+                    final isV = busNo.toUpperCase().startsWith('V-') || busNo.toUpperCase().startsWith('KIA');
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          busNo,
+                          style: TextStyle(fontWeight: FontWeight.w900, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                        ),
+                      ),
+                      title: Text(
+                        isV ? 'Vajra AC Bus $busNo' : 'BMTC Ordinary Bus $busNo',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
+                      ),
+                      trailing: isCurrent
+                          ? const Chip(label: Text('ACTIVE'), backgroundColor: AppTheme.green, labelStyle: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold))
+                          : OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppTheme.bmtcColor),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _switchBusRoute(busNo);
+                              },
+                              child: const Text('Board This', style: TextStyle(fontSize: 11, color: AppTheme.bmtcColor, fontWeight: FontWeight.bold)),
+                            ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _switchBusRoute(String newBusNo) {
+    setState(() {
+      _selectedBusNumber = newBusNo;
+      _customBusCtrl.text = newBusNo;
+      if (!_popularBusRoutes.contains(newBusNo)) {
+        _popularBusRoutes.insert(0, newBusNo);
+      }
+    });
+    _fetchBusStops(newBusNo);
+    _voiceEngine?.resetState();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Switched tracking to BMTC bus $newBusNo! Live stops updated.'),
+        backgroundColor: AppTheme.bmtcColor,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -3249,10 +3534,12 @@ class _RideModeModalState extends State<RideModeModal> {
     final list = _rideType == 'BUS' ? _busStops : _metroStations;
     final dest = _rideType == 'BUS' ? _busDestination : _metroDestination;
     final currentStopName = list.isNotEmpty && _currentStopIndex < list.length ? list[_currentStopIndex]['stop_name'].toString() : 'Detecting...';
-    final remainingCount = math.max(0, list.length - 1 - _currentStopIndex);
+    final destIdx = list.indexWhere((s) => s['stop_name'].toString().toLowerCase().contains(dest.toLowerCase()));
+    final targetDestIdx = destIdx >= 0 ? destIdx : list.length - 1;
+    final remainingCount = math.max(0, targetDestIdx - _currentStopIndex);
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
+      height: MediaQuery.of(context).size.height * 0.88,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
       child: Column(
@@ -3268,10 +3555,31 @@ class _RideModeModalState extends State<RideModeModal> {
                   Text(_step == 'TRACKING' ? 'Live Ride Tracking' : 'Ride Mode Companion', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: textColor)),
                 ],
               ),
-              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
+              Row(
+                children: [
+                  if (_step == 'TRACKING')
+                    IconButton(
+                      icon: Icon(_isVoiceMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded, color: _isVoiceMuted ? AppTheme.red : AppTheme.green),
+                      tooltip: _isVoiceMuted ? 'Unmute Voice Alerts' : 'Mute Voice Alerts',
+                      onPressed: () {
+                        setState(() {
+                          _isVoiceMuted = !_isVoiceMuted;
+                          if (_voiceEngine != null) _voiceEngine!.isVoiceEnabled = !_isVoiceMuted;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(_isVoiceMuted ? '🔇 Voice alerts muted' : '🔊 Voice alerts enabled (Stop & 3-Stop warning)'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           if (_step == 'SETUP') ...[
             Row(
@@ -3295,24 +3603,66 @@ class _RideModeModalState extends State<RideModeModal> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
             if (_rideType == 'BUS') ...[
-              Text('Select Bus Number:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: mutedColor)),
+              // Custom Bus Input
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _customBusCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Enter bus no (e.g. 356, V-335E, 500D)...',
+                        hintStyle: TextStyle(fontSize: 12, color: mutedColor),
+                        prefixIcon: const Icon(Icons.directions_bus_rounded, size: 18),
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onSubmitted: (val) {
+                        if (val.trim().isNotEmpty) {
+                          _switchBusRoute(val.trim());
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.bmtcColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      if (_customBusCtrl.text.trim().isNotEmpty) {
+                        _switchBusRoute(_customBusCtrl.text.trim());
+                      }
+                    },
+                    child: const Text('Load', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text('Direct & Suggested Bus Numbers:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: mutedColor)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 6,
-                children: _popularBusRoutes.map((r) => ChoiceChip(
-                  label: Text(r),
+                runSpacing: 6,
+                children: _popularBusRoutes.take(12).map((r) => ChoiceChip(
+                  label: Text(r, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
                   selected: _selectedBusNumber == r,
-                  selectedColor: AppTheme.metroColor.withValues(alpha: 0.3),
+                  selectedColor: AppTheme.bmtcColor.withValues(alpha: 0.25),
                   onSelected: (_) {
-                    setState(() => _selectedBusNumber = r);
+                    setState(() {
+                      _selectedBusNumber = r;
+                      _customBusCtrl.text = r;
+                    });
                     _fetchBusStops(r);
                   },
                 )).toList(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
             ] else if (_metroLines.isNotEmpty) ...[
               Text('Select Metro Line:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: mutedColor)),
               const SizedBox(height: 6),
@@ -3333,7 +3683,7 @@ class _RideModeModalState extends State<RideModeModal> {
                   },
                 )).toList(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
             ],
 
             Container(
@@ -3351,7 +3701,7 @@ class _RideModeModalState extends State<RideModeModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('CURRENT / SOURCE STOP (AUTO-DETECTED VIA GPS)', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981), letterSpacing: 0.5)),
+                        const Text('CURRENT / BOARDING STOP (GPS AUTO-DETECTED)', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981), letterSpacing: 0.5)),
                         const SizedBox(height: 2),
                         Text(_gpsLoading ? 'Acquiring GPS location...' : currentStopName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor)),
                       ],
@@ -3364,7 +3714,7 @@ class _RideModeModalState extends State<RideModeModal> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
 
             Text('Select Destination Stop:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: mutedColor)),
             const SizedBox(height: 6),
@@ -3373,7 +3723,7 @@ class _RideModeModalState extends State<RideModeModal> {
               decoration: InputDecoration(isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
               items: list.map((s) {
                 final name = s['stop_name'].toString();
-                return DropdownMenuItem(value: name, child: Text(name, style: TextStyle(color: textColor, fontSize: 13)));
+                return DropdownMenuItem(value: name, child: Text(name, style: TextStyle(color: textColor, fontSize: 13), overflow: TextOverflow.ellipsis));
               }).toList(),
               onChanged: (val) {
                 if (val != null) {
@@ -3393,57 +3743,183 @@ class _RideModeModalState extends State<RideModeModal> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.metroColor,
+                  backgroundColor: _rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 icon: const Icon(Icons.rocket_launch_rounded),
-                label: const Text('Start Ride Tracking', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                label: Text('Start ${_rideType == 'BUS' ? 'Bus' : 'Metro'} Ride Tracking', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
                 onPressed: _startRide,
               ),
             ),
           ] else ...[
+            // ── TRACKING MODE WITH ON-THE-FLY BUS CHANGE & STOP CONTROLS ──
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.metroColor.withValues(alpha: 0.15),
+                color: (_rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.metroColor.withValues(alpha: 0.3)),
+                border: Border.all(color: (_rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor).withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('CURRENT LOCATION & STOP', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.metroColor, letterSpacing: 0.5)),
-                  const SizedBox(height: 4),
-                  Text(currentStopName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: textColor)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              _rideType == 'BUS' ? 'BUS $_selectedBusNumber' : _selectedMetroLine,
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (_rideType == 'BUS')
+                            InkWell(
+                              onTap: _showChangeBusModal,
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.blue.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppTheme.blue.withValues(alpha: 0.4)),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.swap_horiz_rounded, size: 12, color: AppTheme.blue),
+                                    SizedBox(width: 4),
+                                    Text('Change Bus', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.blue)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      Text(
+                        _gpsLoading ? 'Updating GPS...' : 'GPS Live',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _gpsLoading ? Colors.amber : AppTheme.green),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text('CURRENT STOP:', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: mutedColor, letterSpacing: 0.5)),
+                  const SizedBox(height: 2),
+                  Text(currentStopName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: textColor)),
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Stops Remaining: $remainingCount', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
-                      Text('Est. ETA: ~${remainingCount * 3} mins', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.green)),
+                      Text('Stops Remaining: $remainingCount', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
+                      Text('ETA to $dest: ~${remainingCount * 3} mins', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.green)),
                     ],
                   ),
+                  if (remainingCount <= 3 && remainingCount > 0) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.amber),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              remainingCount == 1 ? 'NEXT STOP IS YOUR DESTINATION!' : '$remainingCount stops left. Prepare to get down.',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.amber),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            // Manual Step Progression in Bus
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.chevron_left_rounded, size: 18),
+                    label: const Text('Prev Stop', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    onPressed: _currentStopIndex > 0 ? _manualPrevStop : null,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                    label: const Text('Next Stop', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    onPressed: _currentStopIndex < list.length - 1 ? _manualNextStop : null,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
             Expanded(
               child: ListView.builder(
                 itemCount: list.length,
                 itemBuilder: (context, idx) {
                   final name = list[idx]['stop_name'].toString();
                   final isCurrent = idx == _currentStopIndex;
-                  return ListTile(
-                    dense: true,
-                    leading: CircleAvatar(
-                      radius: 10,
-                      backgroundColor: isCurrent ? AppTheme.green : (name == dest ? AppTheme.red : mutedColor),
-                      child: Text('${idx + 1}', style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold)),
+                  final isDest = name.toLowerCase().contains(dest.toLowerCase());
+                  final isPassed = idx < _currentStopIndex;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    decoration: BoxDecoration(
+                      color: isCurrent
+                          ? (_rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor).withValues(alpha: 0.12)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    title: Text(name, style: TextStyle(fontSize: 13, fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w600, color: isCurrent ? AppTheme.green : textColor)),
-                    trailing: isCurrent ? const Chip(label: Text('LIVE'), backgroundColor: AppTheme.green, labelStyle: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)) : null,
+                    child: ListTile(
+                      dense: true,
+                      leading: CircleAvatar(
+                        radius: 10,
+                        backgroundColor: isCurrent ? AppTheme.green : (isDest ? AppTheme.red : (isPassed ? Colors.grey : mutedColor)),
+                        child: Text('${idx + 1}', style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                      title: Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w600,
+                          color: isCurrent ? AppTheme.green : (isPassed ? mutedColor : textColor),
+                          decoration: isPassed ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      trailing: isCurrent
+                          ? const Chip(label: Text('CURRENT'), backgroundColor: AppTheme.green, labelStyle: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold))
+                          : (isDest ? const Chip(label: Text('TARGET'), backgroundColor: AppTheme.red, labelStyle: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)) : null),
+                    ),
                   );
                 },
               ),
@@ -3452,7 +3928,11 @@ class _RideModeModalState extends State<RideModeModal> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => setState(() => _step = 'SETUP'),
+                    onPressed: () {
+                      _trackingTimer?.cancel();
+                      _voiceEngine?.resetState();
+                      setState(() => _step = 'SETUP');
+                    },
                     child: const Text('Exit Ride Mode'),
                   ),
                 ),
@@ -3465,7 +3945,6 @@ class _RideModeModalState extends State<RideModeModal> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
 // 8. TIMETABLE MODAL (BMTC Route & Metro Station Timetables)
 // ─────────────────────────────────────────────────────────────
 class TimetableModal extends StatefulWidget {

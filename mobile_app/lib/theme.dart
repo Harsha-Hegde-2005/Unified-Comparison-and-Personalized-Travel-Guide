@@ -85,12 +85,16 @@ class AppTheme {
         return cabColor;
       case 'namma_yatri':
       case 'nammayatri':
+      case 'nammamove':
         return const Color(0xFFEAB308);
       case 'uber':
+      case 'swiftcab':
         return const Color(0xFF374151);
       case 'ola':
+      case 'goride':
         return const Color(0xFF84CC16);
       case 'rapido':
+      case 'swiftgo':
         return const Color(0xFFEA580C);
       case 'car':
       case 'vehicle':
@@ -125,13 +129,17 @@ class AppTheme {
         return 'Cabs & Autos';
       case 'namma_yatri':
       case 'nammayatri':
-        return 'Namma Yatri';
+      case 'nammamove':
+        return 'NammaMove';
       case 'uber':
-        return 'Uber';
+      case 'swiftcab':
+        return 'SwiftCab';
       case 'ola':
-        return 'Ola';
+      case 'goride':
+        return 'GoRide';
       case 'rapido':
-        return 'Rapido';
+      case 'swiftgo':
+        return 'SwiftGo';
       case 'car':
       case 'vehicle':
         return 'Personal Vehicle';
@@ -160,12 +168,16 @@ class AppTheme {
         return Icons.local_taxi_rounded;
       case 'namma_yatri':
       case 'nammayatri':
+      case 'nammamove':
         return Icons.electric_rickshaw_rounded;
       case 'uber':
+      case 'swiftcab':
         return Icons.local_taxi_rounded;
       case 'ola':
+      case 'goride':
         return Icons.local_taxi_rounded;
       case 'rapido':
+      case 'swiftgo':
         return Icons.two_wheeler_rounded;
       case 'car':
       case 'vehicle':
@@ -253,6 +265,23 @@ class AppTheme {
       ),
     );
   }
+
+  static String formatProviderName(String provider) {
+    final p = provider.trim().toLowerCase().replaceAll('-', '_').replaceAll(' ', '_');
+    if (p == 'uber' || p == 'swiftcab') return 'SwiftCab';
+    if (p == 'ola' || p == 'goride') return 'GoRide';
+    if (p == 'rapido' || p == 'swiftgo') return 'SwiftGo';
+    if (p == 'namma_yatri' || p == 'nammayatri' || p == 'nammamove') return 'NammaMove';
+    return provider;
+  }
+
+  static String sanitizeVehicleName(String name) {
+    return name
+        .replaceAll(RegExp(r'\bUber\b', caseSensitive: false), 'SwiftCab')
+        .replaceAll(RegExp(r'\bOla\b', caseSensitive: false), 'GoRide')
+        .replaceAll(RegExp(r'\bRapido\b', caseSensitive: false), 'SwiftGo')
+        .replaceAll(RegExp(r'\bNamma\s*Yatri\b', caseSensitive: false), 'NammaMove');
+  }
 }
 
 /// A stylish badge/pill matching the website UI
@@ -302,4 +331,5 @@ class PillBadge extends StatelessWidget {
       ),
     );
   }
+
 }

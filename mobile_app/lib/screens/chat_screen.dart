@@ -22,7 +22,10 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _sessionId;
 
   final List<String> _initialPromptChips = [
-    'Ola fare from Majestic to Indiranagar',
+    'What time does the metro open on Sunday?',
+    'When does my driving license expire?',
+    'Give me the schedule for route 356',
+    'GoRide fare from Majestic to Indiranagar',
     'Nearest restaurants',
     'Hotels near Majestic',
     'Tourist places in Bangalore',
@@ -145,6 +148,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() {
       _isLoading = false;
+      final bool isGrounded = (res?['rag_grounded'] == true) || intent == 'glovebox_query' || intent == 'bus_schedule_query';
       _messages.add(
         _ChatMessage(
           text: reply ?? "I am ready to help with Bengaluru transit!",
@@ -154,6 +158,7 @@ class _ChatScreenState extends State<ChatScreen> {
           parameters: params,
           embeddedData: embeddedData,
           suggestedFollowups: followups,
+          isGrounded: isGrounded,
         ),
       );
     });
@@ -330,6 +335,28 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Column(
         crossAxisAlignment: msg.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
+          if (!msg.isUser && msg.isGrounded) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 4, left: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.bolt, size: 12, color: Color(0xFF10B981)),
+                  SizedBox(width: 4),
+                  Text(
+                    'RAG Grounded Fact',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                  ),
+                ],
+              ),
+            ),
+          ],
           Align(
             alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
             child: Container(
@@ -498,14 +525,14 @@ class _ChatScreenState extends State<ChatScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (providers['ola'] != null)
-                  _buildProviderPill('Ola', '🚕', '#f5c518', providers['ola'], textColor),
-                if (providers['uber'] != null)
-                  _buildProviderPill('Uber', '🚗', '#94a3b8', providers['uber'], textColor),
-                if (providers['namma_yatri'] != null)
-                  _buildProviderPill('Namma Yatri', '🛺', '#22c55e', providers['namma_yatri'], textColor),
-                if (providers['rapido'] != null)
-                  _buildProviderPill('Rapido', '🏍️', '#ea580c', providers['rapido'], textColor),
+                if (providers['ola'] != null || providers['goride'] != null)
+                  _buildProviderPill('GoRide', '🚕', '#84cc16', providers['ola'] ?? providers['goride'], textColor),
+                if (providers['uber'] != null || providers['swiftcab'] != null)
+                  _buildProviderPill('SwiftCab', '🚗', '#94a3b8', providers['uber'] ?? providers['swiftcab'], textColor),
+                if (providers['namma_yatri'] != null || providers['nammamove'] != null)
+                  _buildProviderPill('NammaMove', '🛺', '#eab308', providers['namma_yatri'] ?? providers['nammamove'], textColor),
+                if (providers['rapido'] != null || providers['swiftgo'] != null)
+                  _buildProviderPill('SwiftGo', '🏍️', '#ea580c', providers['rapido'] ?? providers['swiftgo'], textColor),
               ],
             ),
             if (embed['distance_km'] != null) ...[
@@ -1061,6 +1088,76 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  String _cleanLocationName(String loc) {
+    String res = loc.trim()
+        .replaceAll(RegExp(r'^[,\s.?!]+|[,\s.?!]+$'), '')
+        .replaceFirst(RegExp(r'^(?:the|from|to|at)\s+', caseSensitive: false), '')
+        .trim();
+    if (res.isNotEmpty) {
+      res = res.split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' ');
+    }
+    return res;
+  }
+
+  Map<String, String> _extractSourceAndDestination(String query) {
+    String clean = query.trim().replaceAll(RegExp(r'[?!.,]+$'), '').trim();
+    String lower = clean.toLowerCase();
+
+    String src = 'Majestic';
+    String dst = 'Indiranagar';
+    bool found = false;
+
+    // Pattern A: "... to <destination> from <source>" (e.g., "how to travel/tavel to bannerughatta circle from electronic city")
+    final toFromRegex = RegExp(r'(?:to|reach|going to)\s+([^?.,]+?)\s+(?:from|starting from|start from)\s+([^?.,]+)', caseSensitive: false);
+    final matchToFrom = toFromRegex.firstMatch(clean);
+    if (matchToFrom != null) {
+      dst = matchToFrom.group(1)!.trim();
+      src = matchToFrom.group(2)!.trim();
+      found = true;
+    }
+
+    // Pattern B: "... from <source> to <destination>" (e.g., "travel from electronic city to bannerughatta circle")
+    if (!found) {
+      final fromToRegex = RegExp(r'(?:from|starting from|start from)\s+([^?.,]+?)\s+(?:to|going to|reach)\s+([^?.,]+)', caseSensitive: false);
+      final matchFromTo = fromToRegex.firstMatch(clean);
+      if (matchFromTo != null) {
+        src = matchFromTo.group(1)!.trim();
+        dst = matchFromTo.group(2)!.trim();
+        found = true;
+      }
+    }
+
+    // Pattern C: "between <source> and <destination>"
+    if (!found) {
+      final betweenRegex = RegExp(r'between\s+([^?.,]+?)\s+and\s+([^?.,]+)', caseSensitive: false);
+      final matchBetween = betweenRegex.firstMatch(clean);
+      if (matchBetween != null) {
+        src = matchBetween.group(1)!.trim();
+        dst = matchBetween.group(2)!.trim();
+        found = true;
+      }
+    }
+
+    // Pattern D: "<source> to <destination>" (e.g. "Electronic City to Bannerghatta")
+    if (!found && lower.contains(' to ')) {
+      String stripped = clean.replaceFirst(RegExp(r'^(?:how\s+to\s+(?:travel|tavel|go|reach|get)\s+to|how\s+to\s+reach|how\s+to\s+go|how\s+do\s+i\s+(?:reach|get\s+to)|route\s+from|route\s+to)\s+', caseSensitive: false), '');
+      final parts = stripped.split(RegExp(r'\s+to\s+', caseSensitive: false));
+      if (parts.length >= 2) {
+        src = parts[0].trim();
+        dst = parts.sublist(1).join(' to ').trim();
+        found = true;
+      }
+    }
+
+    src = _cleanLocationName(src);
+    dst = _cleanLocationName(dst);
+
+    return {
+      'source': src.isEmpty ? 'Majestic' : src,
+      'destination': dst.isEmpty ? 'Indiranagar' : dst,
+    };
+  }
+
   Map<String, dynamic> _generateTransitAssistantReply(String query) {
     final q = query.toLowerCase().trim();
 
@@ -1078,23 +1175,16 @@ class _ChatScreenState extends State<ChatScreen> {
         'suggested_followups': [
           'Show routes to Majestic',
           'Metro vs Cab to Indiranagar',
-          'Ola fare from Majestic to Indiranagar',
+          'GoRide fare from Majestic to Indiranagar',
         ],
       };
     }
 
     // 2. Cab / Auto / Ola / Uber query
     if (q.contains('ola') || q.contains('uber') || q.contains('rapido') || q.contains('yatri') || q.contains('cab') || q.contains('auto')) {
-      String src = 'Majestic';
-      String dst = 'Indiranagar';
-      if (q.contains('to ')) {
-        final parts = q.split('to ');
-        if (parts.length > 1) dst = parts[1].trim();
-      }
-      if (q.contains('from ')) {
-        final p = q.split('from ')[1].split(' to ')[0].trim();
-        if (p.isNotEmpty) src = p;
-      }
+      final endpoints = _extractSourceAndDestination(query);
+      final src = endpoints['source']!;
+      final dst = endpoints['destination']!;
       return {
         'intent': 'cab_comparison',
         'text': 'Here are the estimated ride-hailing fares between $src and $dst across major Bengaluru providers:',
@@ -1138,17 +1228,10 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     // 4. Route query
-    if (q.contains('to ') || q.contains('route') || q.contains('bus') || q.contains('metro') || q.contains('how to reach') || q.contains('majestic')) {
-      String src = 'Majestic';
-      String dst = 'Indiranagar';
-      if (q.contains('to ')) {
-        final parts = q.split('to ');
-        if (parts.length > 1) dst = parts[1].trim();
-      }
-      if (q.contains('from ')) {
-        final p = q.split('from ')[1].split(' to ')[0].trim();
-        if (p.isNotEmpty) src = p;
-      }
+    if (q.contains('to ') || q.contains('route') || q.contains('bus') || q.contains('metro') || q.contains('how to reach') || q.contains('majestic') || q.contains('travel') || q.contains('tavel')) {
+      final endpoints = _extractSourceAndDestination(query);
+      final src = endpoints['source']!;
+      final dst = endpoints['destination']!;
       return {
         'intent': 'journey_comparison',
         'text': 'Here are the optimal multimodal transit options from $src to $dst. BMTC buses and Namma Metro offer frequent service along this corridor.',
@@ -1178,7 +1261,7 @@ class _ChatScreenState extends State<ChatScreen> {
         'Show routes to Majestic',
         'Metro vs Cab to Indiranagar',
         'Will it rain today?',
-        'Ola fare from Majestic to Indiranagar',
+        'GoRide fare from Majestic to Indiranagar',
       ],
     };
   }
@@ -1192,6 +1275,7 @@ class _ChatMessage {
   final Map<String, dynamic>? parameters;
   final Map<String, dynamic>? embeddedData;
   final List<String> suggestedFollowups;
+  final bool isGrounded;
 
   _ChatMessage({
     required this.text,
@@ -1201,5 +1285,6 @@ class _ChatMessage {
     this.parameters,
     this.embeddedData,
     this.suggestedFollowups = const [],
+    this.isGrounded = false,
   });
 }

@@ -86,12 +86,18 @@ async function apiStops() {
 
 async function apiChat(message, history = []) {
   try {
-    return await apiFetch("/api/chat", { method: "POST", body: JSON.stringify({ message, history }) });
+    return await apiFetch("/api/chatbot/query", {
+      method: "POST",
+      body: JSON.stringify({ message, history, user_id: 1 })
+    });
   } catch {
     try {
-      return await apiFetch("/api/chatbot/query", { method: "POST", body: JSON.stringify({ message, history }) });
+      return await apiFetch("/api/chat", {
+        method: "POST",
+        body: JSON.stringify({ message, history, user_id: 1 })
+      });
     } catch {
-      return { response: "I'm your Bengaluru Transport Assistant. How can I help you plan your journey today?" };
+      return { response: "I'm your Bengaluru Transport Assistant. How can I help you plan your journey today?", rag_grounded: false };
     }
   }
 }
@@ -269,7 +275,11 @@ function HomePage({ stops, onNav, onSearch }) {
     setChatHistory(prev => [...prev, { sender: "user", text: q }]);
     try {
       const res = await apiChat(q);
-      setChatHistory(prev => [...prev, { sender: "bot", text: res.text || res.response || "Here is what I found for you." }]);
+      setChatHistory(prev => [...prev, {
+        sender: "bot",
+        text: res.text || res.answer || res.response || "Here is what I found for you.",
+        rag_grounded: res.rag_grounded
+      }]);
     } catch {
       setChatHistory(prev => [...prev, { sender: "bot", text: "I'm currently unable to connect to the backend server." }]);
     }
@@ -773,8 +783,15 @@ function AssistantPage() {
     setInput("");
     setMsgs(prev => [...prev, { sender: "user", text: q }]);
     try {
-      const res = await apiChat(q);
-      setMsgs(prev => [...prev, { sender: "bot", text: res.text || res.response || "Here is the info for your query." }]);
+      const res = await apiChat(q, msgs.map(m => ({ sender: m.sender, text: m.text })));
+      const replyText = res.text || res.answer || res.response || "Here is the info for your query.";
+      setMsgs(prev => [...prev, {
+        sender: "bot",
+        text: replyText,
+        rag_grounded: res.rag_grounded,
+        sources: res.grounded_sources || [],
+        embedded_data: res.embedded_data
+      }]);
     } catch {
       setMsgs(prev => [...prev, { sender: "bot", text: "Unable to connect to assistant backend." }]);
     }
@@ -791,8 +808,15 @@ function AssistantPage() {
           {msgs.map((m, i) => (
             <div key={i} style={{ display: "flex", gap: 10, justifyContent: m.sender === "user" ? "flex-end" : "flex-start" }}>
               {m.sender === "bot" && <span style={{ fontSize: 24 }}>🤖</span>}
-              <div style={{ maxWidth: "80%", padding: "12px 16px", borderRadius: m.sender === "user" ? "16px 16px 4px 16px" : "4px 16px 16px 16px", background: m.sender === "user" ? T.grad : "#F3F4F6", color: m.sender === "user" ? "#fff" : T.text, fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-line" }}>
-                {m.text}
+              <div style={{ maxWidth: "80%", display: "flex", flexDirection: "column", gap: 4 }}>
+                {m.sender === "bot" && (m.rag_grounded || (m.sources && m.sources.length > 0)) && (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 4, alignSelf: "flex-start", fontSize: 10, fontWeight: 700, color: "#059669", background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)", padding: "2px 8px", borderRadius: 10 }}>
+                    <span>⚡ RAG Grounded Fact</span>
+                  </div>
+                )}
+                <div style={{ padding: "12px 16px", borderRadius: m.sender === "user" ? "16px 16px 4px 16px" : "4px 16px 16px 16px", background: m.sender === "user" ? T.grad : "#F3F4F6", color: m.sender === "user" ? "#fff" : T.text, fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                  {m.text}
+                </div>
               </div>
             </div>
           ))}

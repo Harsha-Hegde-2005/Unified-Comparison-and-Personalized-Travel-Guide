@@ -75,11 +75,19 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedUrl = prefs.getString('api_custom_base_url');
-      if (savedUrl != null && savedUrl.isNotEmpty && !savedUrl.contains('trycloudflare.com')) {
-        baseUrl = savedUrl;
-      } else if (savedUrl != null && savedUrl.contains('trycloudflare.com')) {
-        // Discard expired temporary tunnel URL
-        await prefs.remove('api_custom_base_url');
+      if (savedUrl != null && savedUrl.isNotEmpty) {
+        final isDead = savedUrl.contains('trycloudflare.com') ||
+            savedUrl.contains('localhost') ||
+            savedUrl.contains('10.0.2.2') ||
+            savedUrl.contains('127.0.0.1') ||
+            savedUrl.contains('unified-comparison-and-personalized');
+        if (isDead) {
+          await prefs.remove('api_custom_base_url');
+          baseUrl = defaultBaseUrl;
+        } else {
+          baseUrl = sanitizeUrl(savedUrl);
+        }
+      } else {
         baseUrl = defaultBaseUrl;
       }
       final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
@@ -109,27 +117,26 @@ class ApiService {
     try {
       final res = await http
           .get(Uri.parse('$baseUrl$path'), headers: authHeaders)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 35));
       if (res.statusCode == 200) {
         return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
       }
     } catch (e) {
       debugPrint('[ApiService] GET $path error on $baseUrl: $e');
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        final altBase = baseUrl.contains('localhost')
-            ? baseUrl.replaceAll('localhost', '10.0.2.2')
-            : (baseUrl.contains('10.0.2.2') ? baseUrl.replaceAll('10.0.2.2', 'localhost') : null);
-        if (altBase != null) {
-          try {
-            final res = await http
-                .get(Uri.parse('$altBase$path'), headers: authHeaders)
-                .timeout(const Duration(seconds: 8));
-            if (res.statusCode == 200) {
-              baseUrl = altBase;
-              return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-            }
-          } catch (_) {}
-        }
+      if (baseUrl != defaultBaseUrl) {
+        try {
+          final res = await http
+              .get(Uri.parse('$defaultBaseUrl$path'), headers: authHeaders)
+              .timeout(const Duration(seconds: 25));
+          if (res.statusCode == 200) {
+            baseUrl = defaultBaseUrl;
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('api_custom_base_url', defaultBaseUrl);
+            } catch (_) {}
+            return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+          }
+        } catch (_) {}
       }
     }
     return null;
@@ -147,7 +154,7 @@ class ApiService {
             headers: authHeaders,
             body: json.encode(body),
           )
-          .timeout(const Duration(seconds: 35));
+          .timeout(const Duration(seconds: 50));
       if (res.statusCode == 200) {
         return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
       } else {
@@ -155,25 +162,24 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('[ApiService] POST $path error on $baseUrl: $e');
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        final altBase = baseUrl.contains('localhost')
-            ? baseUrl.replaceAll('localhost', '10.0.2.2')
-            : (baseUrl.contains('10.0.2.2') ? baseUrl.replaceAll('10.0.2.2', 'localhost') : null);
-        if (altBase != null) {
-          try {
-            final res = await http
-                .post(
-                  Uri.parse('$altBase$path'),
-                  headers: authHeaders,
-                  body: json.encode(body),
-                )
-                .timeout(const Duration(seconds: 15));
-            if (res.statusCode == 200) {
-              baseUrl = altBase;
-              return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-            }
-          } catch (_) {}
-        }
+      if (baseUrl != defaultBaseUrl) {
+        try {
+          final res = await http
+              .post(
+                Uri.parse('$defaultBaseUrl$path'),
+                headers: authHeaders,
+                body: json.encode(body),
+              )
+              .timeout(const Duration(seconds: 40));
+          if (res.statusCode == 200) {
+            baseUrl = defaultBaseUrl;
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('api_custom_base_url', defaultBaseUrl);
+            } catch (_) {}
+            return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+          }
+        } catch (_) {}
       }
     }
     return null;
@@ -300,6 +306,7 @@ class ApiService {
     final Map<String, dynamic> body = {
       'message': message,
       'history': history,
+      'user_id': 1,
     };
     if (sessionId != null && sessionId.isNotEmpty) body['session_id'] = sessionId;
     if (latitude != null) body['latitude'] = latitude;
@@ -327,7 +334,14 @@ class ApiService {
     };
     if (time != null && time.isNotEmpty) body['time'] = time;
     if (vehicle != null && vehicle.isNotEmpty) body['vehicle'] = vehicle;
-    return _post('/api/compare', body);
+
+    var res = await _post('/api/compare', body);
+    if (res == null) {
+      // Backend may be waking up from cold sleep on Render. Retry once.
+      await Future.delayed(const Duration(seconds: 2));
+      res = await _post('/api/compare', body);
+    }
+    return res;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -410,6 +424,23 @@ class ApiService {
 
   static Future<Map<String, dynamic>?> fetchRideBusRoutes() async =>
       _get('/api/ride/bus/routes');
+
+  static Future<Map<String, dynamic>?> snapStop({
+    required double userLat,
+    required double userLng,
+    required List<Map<String, dynamic>> routeStops,
+    String? destStop,
+    int currentIndex = 0,
+  }) async {
+    final body = {
+      'user_lat': userLat,
+      'user_lng': userLng,
+      'route_stops': routeStops,
+      'destination_stop_name': destStop ?? '',
+      'current_stop_index': currentIndex,
+    };
+    return _post('/api/ride/snap-stop', body);
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BMTC ROUTES / TIMETABLE / STOPS  (/api/bmtc/*)

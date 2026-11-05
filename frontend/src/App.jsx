@@ -75,7 +75,7 @@ const C = {
 const MC = {
   bmtc: { label: "BMTC Bus", short: "BUS", color: "#f97316", bg: "#1a0f06", icon: "bus", line: "Ordinary · Vajra · AC" },
   metro: { label: "Namma Metro", short: "METRO", color: "#8b5cf6", bg: "#100c1a", icon: "metro", line: "Green · Purple · Yellow" },
-  cab: { label: "Cab / Auto", short: "CAB", color: "#f59e0b", bg: "#1a1200", icon: "cab", line: "Namma Yatri · Ola · Uber · Rapido" },
+  cab: { label: "Cab / Auto", short: "CAB", color: "#f59e0b", bg: "#1a1200", icon: "cab", line: "NammaMove · GoRide · SwiftCab · SwiftGo" },
   car: { label: "Own Vehicle", short: "CAR", color: "#10b981", bg: "#051510", icon: "car", line: "Fuel + Parking est." },
   multimodal: { label: "Multimodal Transit", short: "MULTI", color: "#ec4899", bg: "#1c0d18", icon: "transfer", line: "Bus + Metro + Auto combos" },
   bicycle: { label: "Cycling", short: "CYCLE", color: "#06b6d4", bg: "#022329", icon: "bicycle", line: "Eco-friendly & healthy" },
@@ -5404,10 +5404,10 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
         };
 
         const PROVIDER_STYLES = {
-          namma_yatri: { bg: "#eab308", text: "#000", label: "Namma Yatri" },
-          uber: { bg: "#374151", text: "#fff", label: "Uber" },
-          ola: { bg: "#84cc16", text: "#000", label: "Ola" },
-          rapido: { bg: "#ea580c", text: "#fff", label: "Rapido" },
+          namma_yatri: { bg: "#eab308", text: "#000", label: "NammaMove" },
+          uber: { bg: "#374151", text: "#fff", label: "SwiftCab" },
+          ola: { bg: "#84cc16", text: "#000", label: "GoRide" },
+          rapido: { bg: "#ea580c", text: "#fff", label: "SwiftGo" },
         };
 
         // Special badge config for all vehicle types
@@ -5441,10 +5441,10 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
 
         const providerOptions = [
           { id: "all", label: "All Providers", icon: "🌐", color: m.color },
-          { id: "namma_yatri", label: "Namma Yatri", icon: "🛺", color: "#eab308" },
-          { id: "ola", label: "Ola", icon: "🚗", color: "#84cc16" },
-          { id: "uber", label: "Uber", icon: "🚗", color: "#e2e8f0" },
-          { id: "rapido", label: "Rapido", icon: "🏍️", color: "#ea580c" },
+          { id: "namma_yatri", label: "NammaMove", icon: "🛺", color: "#eab308" },
+          { id: "ola", label: "GoRide", icon: "🚗", color: "#84cc16" },
+          { id: "uber", label: "SwiftCab", icon: "🚗", color: "#e2e8f0" },
+          { id: "rapido", label: "SwiftGo", icon: "🏍️", color: "#ea580c" },
         ];
 
         const filteredEsts = data.all_estimates.filter(est => {
@@ -5890,7 +5890,7 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
    COMPARE TABLE
 ───────────────────────────────────────────────────────────── */
 function CompareTable({ results }) {
-  const modes = Object.keys(results).filter(m => results[m]?.available);
+  const modes = Object.keys(results).filter(m => results[m]?.available && results[m]?.operational !== false && results[m]?.service_status !== "closed");
   const rows = [
     { label: "Duration", key: "time", lower: true, fmt: v => `${v} min` },
     { label: "Cost", key: "cost", lower: true, fmt: v => `₹${v}` },
@@ -7248,10 +7248,10 @@ function ComparisonDashboard({ data, onSelectRoute }) {
     bmtc: "BMTC Bus",
     metro: "Namma Metro",
     multimodal: "Bus + Metro",
-    ola: "Ola Cab",
-    uber: "Uber Cab",
-    rapido: "Rapido Ride",
-    namma_yatri: "Namma Yatri",
+    ola: "GoRide Cab",
+    uber: "SwiftCab Cab",
+    rapido: "SwiftGo Ride",
+    namma_yatri: "NammaMove",
     car: "Personal Car",
     bike: "Personal Bike"
   };
@@ -7641,7 +7641,8 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
           message: text,
           history: messages.map(m => ({ sender: m.sender, text: m.text })),
           latitude,
-          longitude
+          longitude,
+          user_id: 1
         }),
       });
 
@@ -7654,11 +7655,13 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
 
       setMessages(prev => [...prev, {
         sender: "bot",
-        text: data.text || data.answer,
+        text: data.text || data.answer || data.response,
         intent: data.intent,
         parameters: data.parameters,
         embedded_data: data.embedded_data,
-        suggested_followups: data.suggested_followups || []
+        suggested_followups: data.suggested_followups || [],
+        rag_grounded: data.rag_grounded,
+        sources: data.grounded_sources || []
       }]);
     } catch (err) {
       setMessages(prev => [...prev, {
@@ -7712,7 +7715,10 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
   };
 
   const chips = [
-    { text: "Ola fare from Majestic to Indiranagar" },
+    { text: "What time does the metro open on Sunday?" },
+    { text: "When does my driving license expire?" },
+    { text: "Give me the schedule for route 356" },
+    { text: "GoRide fare from Majestic to Indiranagar" },
     { text: "Nearest bus stop to Bangalore Palace" },
     { text: "Fuel cost: Whitefield to Electronic City by car" },
     { text: "Will it rain at 5 PM today?" },
@@ -7837,6 +7843,23 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
                   <div style={{ fontSize: 16, marginBottom: 4 }}>🤖</div>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: "80%" }}>
+                  {m.sender === "bot" && (m.rag_grounded || (m.sources && m.sources.length > 0)) && (
+                    <div style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      alignSelf: "flex-start",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: "#10b981",
+                      background: "rgba(16, 185, 129, 0.12)",
+                      border: "1px solid rgba(16, 185, 129, 0.25)",
+                      padding: "2px 8px",
+                      borderRadius: 12
+                    }}>
+                      <span>⚡ RAG Grounded Fact</span>
+                    </div>
+                  )}
                   <div style={{
                     padding: "12px 16px",
                     borderRadius: m.sender === "user" ? "18px 18px 2px 18px" : "18px 18px 18px 2px",
@@ -7972,7 +7995,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
                         {m.parameters?.source} → {m.parameters?.destination}
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-                        {[["ola", "Ola", "#f5c518"], ["uber", "Uber", "#e0e0e0"], ["namma_yatri", "Namma Yatri", "#22c55e"], ["rapido", "Rapido", "#3b82f6"]].map(([pkey, label, clr]) =>
+                        {[["ola", "GoRide", "#84cc16"], ["uber", "SwiftCab", "#e0e0e0"], ["namma_yatri", "NammaMove", "#eab308"], ["rapido", "SwiftGo", "#ea580c"]].map(([pkey, label, clr]) =>
                           m.embedded_data.providers?.[pkey] && (
                             <div key={pkey} style={{ background: clr + "18", borderRadius: 8, padding: "6px 8px", border: `1px solid ${clr}33` }}>
                               <div style={{ fontSize: 10, fontWeight: 800, color: clr }}>{label}</div>
@@ -8388,10 +8411,10 @@ function AIRecommendationsPanel({
   };
 
   const PROVIDER_STYLES = {
-    namma_yatri: { bg: "#eab308", text: "#000", label: "Namma Yatri" },
-    uber: { bg: "#374151", text: "#fff", label: "Uber" },
-    ola: { bg: "#84cc16", text: "#000", label: "Ola" },
-    rapido: { bg: "#ea580c", text: "#fff", label: "Rapido" },
+    namma_yatri: { bg: "#eab308", text: "#000", label: "NammaMove" },
+    uber: { bg: "#374151", text: "#fff", label: "SwiftCab" },
+    ola: { bg: "#84cc16", text: "#000", label: "GoRide" },
+    rapido: { bg: "#ea580c", text: "#fff", label: "SwiftGo" },
   };
 
   const SPECIAL_BADGES = {
@@ -8468,10 +8491,10 @@ function AIRecommendationsPanel({
 
           const providerOptions = [
             { id: "all", label: "All Providers", icon: "🌐", color: config.color },
-            { id: "namma_yatri", label: "Namma Yatri", icon: "🛺", color: "#eab308" },
-            { id: "ola", label: "Ola", icon: "🚗", color: "#84cc16" },
-            { id: "uber", label: "Uber", icon: "🚗", color: "#e2e8f0" },
-            { id: "rapido", label: "Rapido", icon: "🏍️", color: "#ea580c" },
+            { id: "namma_yatri", label: "NammaMove", icon: "🛺", color: "#eab308" },
+            { id: "ola", label: "GoRide", icon: "🚗", color: "#84cc16" },
+            { id: "uber", label: "SwiftCab", icon: "🚗", color: "#e2e8f0" },
+            { id: "rapido", label: "SwiftGo", icon: "🏍️", color: "#ea580c" },
           ];
 
           return (
@@ -10761,7 +10784,7 @@ export default function App() {
             <div>
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.03em" }}>Plan your journey</div>
-                <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>BMTC · Metro · Namma Yatri · Personal Vehicle</div>
+                <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>BMTC · Metro · NammaMove · Personal Vehicle</div>
               </div>
 
               {/* Ride Mode Quick Banner CTA */}
@@ -11118,8 +11141,40 @@ export default function App() {
                 }} />
               )}
 
+              {/* Closed Transit Notification Banner */}
+              {selectedData && (!selectedData.available || selectedData.operational === false || selectedData.service_status === "closed") && (
+                <div style={{
+                  marginTop: 20,
+                  background: "rgba(239, 68, 68, 0.1)",
+                  border: "1.5px solid rgba(239, 68, 68, 0.35)",
+                  borderRadius: 16,
+                  padding: "18px 22px",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 14
+                }}>
+                  <div style={{ fontSize: 24 }}>🌙</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: "#f87171" }}>
+                      {MC[selected]?.label || selected.toUpperCase()} Closed at Selected Departure Time
+                    </div>
+                    <div style={{ fontSize: 13, color: C.muted, marginTop: 4, lineHeight: 1.4 }}>
+                      {selectedData.error || selectedData.message || "Transit services are non-operational at selected departure hours (05:00 AM – 11:30 PM)."}
+                    </div>
+                    {selectedData.next_service && (
+                      <div style={{ marginTop: 8, display: "inline-block", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#10b981" }}>
+                        🌅 Next scheduled service resumes at {selectedData.next_service}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>
+                      💡 Tip: Choose <strong>Cab / Auto</strong> (GoRide, SwiftCab, SwiftGo, NammaMove) or <strong>Own Vehicle</strong> for 24/7 late-night commute.
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* CTA */}
-              {selectedData?.available && (
+              {selectedData?.available && selectedData?.operational !== false && (
                 <div style={{ marginTop: 20, background: `linear-gradient(135deg, ${MC[selected].color}18, ${MC[selected].color}06)`, border: `1.5px solid ${MC[selected].color}44`, borderRadius: 16, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                   <div>
                     <div style={{ fontSize: 12, color: C.muted }}>You selected</div>

@@ -5,6 +5,13 @@ Standardized Travel Tool Layer for Bengaluru Travel Assistant.
 Implements Tools A through L as verified, deterministic backend functions.
 """
 
+import os
+import sys
+
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
+
 import math
 import time
 from datetime import datetime, timedelta
@@ -45,7 +52,7 @@ class TravelTools:
         arrival_deadline: Optional[datetime] = None,
     ) -> Dict[str, Any]:
         """Search valid journey alternatives across BMTC, Metro, Cab, Personal Vehicle, Multimodal."""
-        from main import (
+        from backend.main import (
             bmtc_plan,
             metro_plan,
             multimodal_plan,
@@ -160,7 +167,7 @@ class TravelTools:
     # ── Tool B: compare_journeys ──────────────────────────────────────────────
     def compare_journeys(self, origin: str, destination: str) -> Dict[str, Any]:
         """Compare public transit, cab, personal vehicle, and multimodal options side-by-side."""
-        from main import _resolve_any_location_coords, _osrm_distance, _get_all_ride_fares
+        from backend.main import _resolve_any_location_coords, _osrm_distance, _get_all_ride_fares
 
         src_c = _resolve_any_location_coords(origin)
         dst_c = _resolve_any_location_coords(destination)
@@ -194,7 +201,7 @@ class TravelTools:
         comparisons = [
             {"mode": "bmtc", "label": "BMTC Bus", "cost": bmtc_cost, "duration_minutes": bmtc_time, "type": "public_transit"},
             {"mode": "metro", "label": "Namma Metro", "cost": metro_cost, "duration_minutes": metro_time, "type": "public_transit"},
-            {"mode": "cab", "label": "Cab/Auto (Ola/Uber/Yatri)", "cost": cab_cost, "duration_minutes": int(drive_min), "type": "ride_hailing"},
+            {"mode": "cab", "label": "Cab/Auto (GoRide/SwiftCab/NammaMove)", "cost": cab_cost, "duration_minutes": int(drive_min), "type": "ride_hailing"},
             {"mode": "car", "label": "Personal Car", "cost": car_cost, "duration_minutes": int(drive_min), "type": "private_vehicle"},
         ]
 
@@ -240,7 +247,7 @@ class TravelTools:
     # ── Tool D: find_nearest_bus_stops ──────────────────────────────────────
     def find_nearest_bus_stops(self, location_or_coords: Any, radius_km: float = 2.0) -> Dict[str, Any]:
         """Find nearest BMTC bus stops using geospatial distance."""
-        from main import _resolve_any_location_coords, STOP_COORDS, _haversine_distance
+        from backend.main import _resolve_any_location_coords, STOP_COORDS, _haversine_distance
 
         coords = None
         loc_name = str(location_or_coords)
@@ -277,7 +284,7 @@ class TravelTools:
     # ── Tool E: get_metro_route ───────────────────────────────────────────────
     def get_metro_route(self, origin_station: str, destination_station: str) -> Dict[str, Any]:
         """Get Namma Metro route, fare, line interchange, and duration."""
-        from main import _resolve_any_location_coords, _osrm_distance
+        from backend.main import _resolve_any_location_coords, _osrm_distance
 
         src_c = _resolve_any_location_coords(origin_station)
         dst_c = _resolve_any_location_coords(destination_station)
@@ -303,7 +310,7 @@ class TravelTools:
     # ── Tool F: estimate_cab ──────────────────────────────────────────────────
     def estimate_cab(self, origin: str, destination: str) -> Dict[str, Any]:
         """Get fare ranges across Ola, Uber, Rapido, and Namma Yatri."""
-        from main import _resolve_any_location_coords, _osrm_distance, _get_all_ride_fares
+        from backend.main import _resolve_any_location_coords, _osrm_distance, _get_all_ride_fares
 
         src_c = _resolve_any_location_coords(origin)
         dst_c = _resolve_any_location_coords(destination)
@@ -321,7 +328,7 @@ class TravelTools:
             "destination": destination,
             "distance_km": round(dist_km, 2),
             "duration_minutes": int(dur_min),
-            "provider": "Fare Estimation Model (Ola/Uber/Rapido/Namma Yatri)",
+            "provider": "Fare Estimation Model (GoRide/SwiftCab/SwiftGo/NammaMove)",
             "is_live_quote": False,
             "providers": fares
         }
@@ -329,7 +336,7 @@ class TravelTools:
     # ── Tool G: estimate_personal_vehicle ────────────────────────────────────
     def estimate_personal_vehicle(self, origin: str, destination: str, vehicle_type: str = "car") -> Dict[str, Any]:
         """Calculate driving distance, time, fuel consumption, and fuel cost."""
-        from main import _resolve_any_location_coords, _osrm_distance, _calc_fuel_cost
+        from backend.main import _resolve_any_location_coords, _osrm_distance, _calc_fuel_cost
 
         src_c = _resolve_any_location_coords(origin)
         dst_c = _resolve_any_location_coords(destination)
@@ -391,7 +398,7 @@ class TravelTools:
     # ── Tool J: find_nearby_places ────────────────────────────────────────────
     def find_nearby_places(self, location_or_coords: Any, category: str = "restaurant", radius_km: float = 2.5) -> Dict[str, Any]:
         """Find nearby POIs (restaurants, hospitals, attractions, malls, etc.) sorted by distance."""
-        from main import _resolve_any_location_coords
+        from backend.main import _resolve_any_location_coords
         from poi_data import get_nearby_pois
 
         coords = None
@@ -434,13 +441,13 @@ class TravelTools:
         and nearby food recommendations.
         """
         import itertools
-        from main import _resolve_any_location_coords, _osrm_distance
+        from backend.main import _resolve_any_location_coords, _osrm_distance
         from poi_data import get_poi, get_restaurants_near
 
         wps = waypoints or destinations or []
         if isinstance(start_time, str):
             try:
-                from main import engine as _eng
+                from backend.main import engine as _eng
                 start_dt = _eng.extract_time(start_time)
             except Exception:
                 start_dt = datetime.now().replace(hour=9, minute=0, second=0, microsecond=0)
@@ -560,8 +567,8 @@ class TravelTools:
             )
         else:
             guidance = (
-                "Bengaluru has comprehensive transit options: BMTC Buses, Namma Metro, Cabs (Ola/Uber/Yatri), "
-                "and Rapido Bike Taxis. Public transit is recommended during peak hours (8-11 AM & 5-8 PM)."
+                "Bengaluru has comprehensive transit options: BMTC Buses, Namma Metro, Cabs (GoRide/SwiftCab/NammaMove), "
+                "and SwiftGo Bike Taxis. Public transit is recommended during peak hours (8-11 AM & 5-8 PM)."
             )
 
         return {"available": True, "topic": topic, "guidance": guidance}

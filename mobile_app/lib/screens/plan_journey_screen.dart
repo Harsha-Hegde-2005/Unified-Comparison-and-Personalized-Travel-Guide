@@ -55,6 +55,7 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
   String? _selectedMode;
   Map<String, dynamic>? _selectedCabVehicle;
   Map<String, dynamic>? _selectedMultimodalOption;
+  String? _selectedBusNo;
 
   String _viewType = 'cards'; // 'cards' | 'table'
 
@@ -302,9 +303,25 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
   }
 
   Future<void> _updateMapPoints() async {
-    final modeData = (_results != null && _selectedMode != null)
+    final rawModeData = (_results != null && _selectedMode != null)
         ? _results![_selectedMode] as Map<String, dynamic>?
         : null;
+
+    final modeData = (_selectedMode == 'cab' && _selectedCabVehicle != null)
+        ? {
+            ...rawModeData ?? {},
+            ..._selectedCabVehicle!,
+            'segments': _selectedCabVehicle!['segments'] ?? rawModeData?['segments'],
+            'guide': _selectedCabVehicle!['guide'] ?? rawModeData?['guide'],
+          }
+        : (_selectedMode == 'multimodal' && _selectedMultimodalOption != null)
+            ? {
+                ...rawModeData ?? {},
+                ..._selectedMultimodalOption!,
+                'segments': _selectedMultimodalOption!['segments'] ?? rawModeData?['segments'],
+                'guide': _selectedMultimodalOption!['guide'] ?? rawModeData?['guide'],
+              }
+            : rawModeData;
 
     final List<String> intermediateStops = [];
     if (modeData != null && modeData['segments'] is List) {
@@ -422,10 +439,14 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
           }
 
           if (segPts.length >= 2) {
-            final segProfile = isWalk ? 'foot' : 'driving';
-            final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: segProfile);
+            List<ll.LatLng> finalPts = segPts;
+            if (!isMetro) {
+              final segProfile = isWalk ? 'foot' : 'driving';
+              final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: segProfile);
+              if (roadPts.isNotEmpty) finalPts = roadPts;
+            }
             segPolylines.add({
-              'points': roadPts.isNotEmpty ? roadPts : segPts,
+              'points': finalPts,
               'color': segColor,
               'isWalk': isWalk,
               'isMetro': isMetro,
@@ -503,17 +524,38 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
       _showDelayOffer = false;
     });
 
+    final formattedTime = _timeController.text.trim().isNotEmpty
+        ? _timeController.text.trim()
+        : "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}";
+
     final res = await ApiService.compareRoutes(
       source: cleanSrc,
       destination: cleanDst,
-      time: _timeController.text.trim(),
+      time: formattedTime,
       preference: _preference,
       vehicle: _selectedVehicle,
-    ).timeout(const Duration(seconds: 35), onTimeout: () => null);
+    ).timeout(const Duration(seconds: 55), onTimeout: () => null);
 
     Map<String, dynamic>? finalRes = res;
     if (finalRes == null || finalRes['results'] is! Map<String, dynamic>) {
-      finalRes = _buildFallbackResults(cleanSrc, cleanDst);
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Unable to connect to live transit server. Please check your internet or retry.';
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('⚠️ Transit server is warming up or connection timed out.'),
+            backgroundColor: Colors.redAccent,
+            action: SnackBarAction(
+              label: 'RETRY',
+              textColor: Colors.white,
+              onPressed: _doSearch,
+            ),
+          ),
+        );
+      }
+      return;
     }
 
     final resultsMap = finalRes['results'] as Map<String, dynamic>;
@@ -547,12 +589,22 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
       _isLoading = false;
       _results = resultsMap;
       _recommendations = recs;
-      _journeyMeta = finalRes?['journey'] as Map<String, dynamic>?;
-      _trafficMeta = finalRes?['traffic'] as Map<String, dynamic>?;
-      _weatherMeta = finalRes?['weather'] as Map<String, dynamic>?;
-      _selectedMode = topMode ?? 'bmtc';
+      _journeyMeta = finalRes['journey'] as Map<String, dynamic>?;
+      _trafficMeta = finalRes['traffic'] as Map<String, dynamic>?;
+      _weatherMeta = finalRes['weather'] as Map<String, dynamic>?;
+      final validFallback = resultsMap['cab']?['available'] == true
+          ? 'cab'
+          : (resultsMap['car']?['available'] == true
+              ? 'car'
+              : (resultsMap['bmtc']?['available'] == true && resultsMap['bmtc']?['operational'] != false ? 'bmtc' : 'cab'));
+      _selectedMode = topMode ?? validFallback;
       _selectedCabVehicle = cabEst;
       _selectedMultimodalOption = multiOpt;
+      _selectedBusNo = resultsMap['bmtc']?['bus_number']?.toString() ??
+          resultsMap['bmtc']?['route']?.toString() ??
+          ((resultsMap['bmtc']?['all_direct'] as List?)?.isNotEmpty == true
+              ? (resultsMap['bmtc']?['all_direct'] as List).first.toString()
+              : null);
       _errorMessage = null;
       _showWalkOffer = dist > 0 && dist <= 1.5;
       _walkOfferData = {'dist': dist};
@@ -643,194 +695,16 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     }
   }
 
-  Map<String, dynamic> _buildFallbackResults(String src, String dst) {
-    final cleanSrc = src.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
-    final cleanDst = dst.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
-
-    // Resolve nearest real BMTC stop name for specific landmark destinations
-    String alightingStopName = cleanDst;
-    final dLow = cleanDst.toLowerCase();
-    if (dLow.contains('cafe') || dLow.contains('kushi') || dLow.contains('srirampura')) {
-      alightingStopName = 'Royal Enclave / Srirampura Cross';
-    } else if (dLow.contains('pes') || dLow.contains('electronic city')) {
-      alightingStopName = 'Electronic City Wipro Gate';
-    } else if (dLow.contains('itpb') || dLow.contains('whitefield')) {
-      alightingStopName = 'Whitefield TTMC';
-    }
-
-    String busNo = '201 / 600-FD';
-    int transfers = 0;
-    int totalCost = 25;
-    List<String> intermediateStops = [cleanSrc, 'City Center', alightingStopName];
-
-    final sLow = cleanSrc.toLowerCase();
-    final dLat = _dstCoord?.latitude ?? 12.9716;
-    final dLng = _dstCoord?.longitude ?? 77.5946;
-
-    if (dLat > 13.01 || dLow.contains('cafe') || dLow.contains('yelahanka') || dLow.contains('hebbal') || dLow.contains('jakkur')) {
-      // North Bengaluru corridor transfer
-      busNo = '45-B ➔ 288-C';
-      transfers = 1;
-      totalCost = 35; // Leg 1: ₹15 + Leg 2: ₹20 = ₹35 total transfer fare
-      intermediateStops = [cleanSrc, 'Corporation', 'Mekhri Circle', 'Hebbal TTMC', alightingStopName];
-    } else if (dLng > 77.67 || dLow.contains('whitefield') || dLow.contains('marathahalli') || dLow.contains('itpb')) {
-      // East Bengaluru corridor transfer
-      busNo = '201 ➔ 500-D';
-      transfers = 1;
-      totalCost = 35; // Leg 1: ₹15 + Leg 2: ₹20 = ₹35 total transfer fare
-      intermediateStops = [cleanSrc, 'Domlur TTMC', 'Marathahalli Bridge', alightingStopName];
-    } else if (dLat < 12.89 || dLow.contains('electronic city') || dLow.contains('bommasandra') || dLow.contains('attibele')) {
-      // South Bengaluru corridor direct
-      busNo = '600-KB / 600-FD / 356-M';
-      transfers = 0;
-      totalCost = 30;
-      intermediateStops = [cleanSrc, 'Banashankari TTMC', 'Silk Board', alightingStopName];
-    } else if (sLow.contains('majestic') || dLow.contains('majestic') || dLow.contains('ksr')) {
-      // Central corridor direct
-      busNo = '356-M / KBS-3E / 349-D';
-      transfers = 0;
-      totalCost = 25;
-      intermediateStops = [cleanSrc, 'Corporation', 'KSR Majestic TTMC', alightingStopName];
-    }
-
-    final String primaryBus = busNo.split(' ➔ ').first.split(' / ').first;
-    final String secondBus = busNo.contains('➔') ? busNo.split(' ➔ ').last.trim() : primaryBus;
-
-    final double cabDistance = (_srcCoord != null && _dstCoord != null)
-        ? GeolocationHelper.distanceBetween(_srcCoord!.latitude, _srcCoord!.longitude, _dstCoord!.latitude, _dstCoord!.longitude) * 1.3
-        : 14.5;
-    final int autoCost = (cabDistance * 15 + 36).round();
-    final int autoCostMax = (autoCost * 1.15).round();
-    final int cabCost = (cabDistance * 19 + 50).round();
-    final int cabCostMax = (cabCost * 1.2).round();
-
-    return {
-      'results': {
-        'bmtc': {
-          'available': true,
-          'mode': 'bmtc',
-          'time': 42,
-          'cost': totalCost,
-          'distance': 14.5,
-          'transfers': transfers,
-          'bus_number': busNo,
-          'route': primaryBus,
-          'waiting_time': 5,
-          'frequency': transfers > 0 ? 'Transfer via Corporation' : 'Every 8-12 mins',
-          'all_direct': transfers == 0 ? busNo.split(' / ') : [busNo],
-          'guide': [
-            {'text': 'Walk 250m (3 min) to $cleanSrc bus stop', 'icon': 'walk'},
-            {'text': 'Board Bus $primaryBus at $cleanSrc towards ${intermediateStops.length > 2 ? intermediateStops[1] : alightingStopName} (5 stops)', 'icon': 'bus', 'detail': '₹15 · Leg 1'},
-            if (transfers > 0) ...[
-              {'text': 'Get down at ${intermediateStops[1]} bus stop & transfer to Bus $secondBus', 'icon': 'transfer', 'detail': 'Interchange: ${intermediateStops[1]}'},
-              {'text': 'Board Bus $secondBus at ${intermediateStops[1]} towards $alightingStopName (12 stops)', 'icon': 'bus', 'detail': '₹20 · Leg 2'},
-            ],
-            {'text': 'Disembark at $alightingStopName bus stop and walk 150m to $cleanDst', 'icon': 'walk'}
-          ],
-          'segments': [
-            {'type': 'walk', 'from': cleanSrc, 'to': intermediateStops.first, 'distance': 0.25, 'duration': 3, 'stops': [cleanSrc, intermediateStops.first]},
-            {
-              'type': 'bmtc',
-              'route': primaryBus,
-              'from': intermediateStops.first,
-              'to': intermediateStops.last,
-              'distance': 12.0,
-              'duration': 32,
-              'stops': intermediateStops,
-            },
-            {'type': 'walk', 'from': intermediateStops.last, 'to': cleanDst, 'distance': 0.25, 'duration': 3, 'stops': [intermediateStops.last, cleanDst]}
-          ]
-        },
-        'metro': {
-          'available': true,
-          'mode': 'metro',
-          'time': 32,
-          'cost': 35,
-          'distance': 13.8,
-          'transfers': 0,
-          'line': 'Purple Line',
-          'guide': [
-            {'text': 'Walk 400m to Metro Station', 'icon': 'walk'},
-            {'text': 'Board Metro Purple Line (9 stations)', 'icon': 'metro'},
-            {'text': 'Exit Metro Station & walk 200m to $cleanDst', 'icon': 'walk'}
-          ],
-          'segments': [
-            {'type': 'walk', 'from': cleanSrc, 'to': 'Metro Station', 'distance': 0.4, 'duration': 5},
-            {'type': 'metro', 'line': 'Purple Line', 'from': 'Metro Station', 'to': '$cleanDst Metro', 'distance': 13.2, 'duration': 24},
-            {'type': 'walk', 'from': '$cleanDst Metro', 'to': cleanDst, 'distance': 0.2, 'duration': 3}
-          ]
-        },
-        'cab': {
-          'available': true,
-          'mode': 'cab',
-          'time': 28,
-          'cost': autoCost,
-          'cost_max': autoCostMax,
-          'distance': cabDistance,
-          'transfers': 0,
-          'all_estimates': [
-            {'provider': 'Namma Yatri', 'provider_key': 'namma_yatri', 'vehicle': 'Auto', 'vehicle_key': 'auto', 'vehicle_name': 'Auto', 'time': 28, 'cost': autoCost, 'cost_max': autoCostMax, 'distance': cabDistance},
-            {'provider': 'Uber', 'provider_key': 'uber', 'vehicle': 'Uber Go', 'vehicle_key': 'uber_go', 'vehicle_name': 'Uber Go', 'time': 26, 'cost': cabCost, 'cost_max': cabCostMax, 'distance': cabDistance},
-            {'provider': 'Ola', 'provider_key': 'ola', 'vehicle': 'Ola Mini', 'vehicle_key': 'mini', 'vehicle_name': 'Ola Mini', 'time': 27, 'cost': (cabCost * 0.95).round(), 'cost_max': (cabCostMax * 0.95).round(), 'distance': cabDistance},
-            {'provider': 'Rapido', 'provider_key': 'rapido', 'vehicle': 'Rapido Auto', 'vehicle_key': 'auto', 'vehicle_name': 'Rapido Auto', 'time': 29, 'cost': autoCost - 5, 'cost_max': autoCostMax - 5, 'distance': cabDistance}
-          ],
-          'guide': [
-            {'text': 'Book Auto/Cab from $cleanSrc', 'icon': 'cab'},
-            {'text': 'Direct door-to-door ride to $cleanDst', 'icon': 'cab'}
-          ],
-          'segments': [
-            {'type': 'cab', 'from': cleanSrc, 'to': cleanDst, 'distance': cabDistance, 'duration': 28}
-          ]
-        },
-        'car': {
-          'available': true,
-          'mode': 'car',
-          'time': 25,
-          'cost': 95,
-          'distance': 14.5,
-          'transfers': 0,
-          'guide': [
-            {'text': 'Drive via Outer Ring Road from $cleanSrc to $cleanDst', 'icon': 'car'}
-          ],
-          'segments': [
-            {'type': 'car', 'from': cleanSrc, 'to': cleanDst, 'distance': 14.5, 'duration': 25}
-          ]
-        },
-        'multimodal': {
-          'available': true,
-          'mode': 'multimodal',
-          'time': 34,
-          'cost': 55,
-          'distance': 14.1,
-          'transfers': 1,
-          'all_options': [
-            {'title': 'Metro + Auto First Last Mile', 'time': 34, 'cost': 55, 'distance': 14.1, 'transfers': 1}
-          ],
-          'guide': [
-            {'text': 'Take Auto to nearest Metro Station', 'icon': 'cab'},
-            {'text': 'Board Metro to $cleanDst Metro Station', 'icon': 'metro'},
-            {'text': 'Walk 150m to $cleanDst', 'icon': 'walk'}
-          ],
-          'segments': [
-            {'type': 'cab', 'from': cleanSrc, 'to': 'Metro Station', 'distance': 1.5, 'duration': 5},
-            {'type': 'metro', 'line': 'Metro', 'from': 'Metro Station', 'to': '$cleanDst Metro', 'distance': 12.4, 'duration': 26},
-            {'type': 'walk', 'from': '$cleanDst Metro', 'to': cleanDst, 'distance': 0.2, 'duration': 3}
-          ]
-        }
-      },
-      'recommendations': [
-        {'mode': 'bmtc', 'tag': 'Cheapest', 'score': 95, 'reason': 'Most economical ride (₹24) with direct route.'},
-        {'mode': 'metro', 'tag': 'Fastest', 'score': 92, 'reason': 'Traffic-free commute saving 13 mins.'},
-        {'mode': 'cab', 'tag': 'Convenient', 'score': 88, 'reason': 'Door-to-door auto/cab booking.'}
-      ]
-    };
-  }
 
   List<Map<String, dynamic>> _buildSmartRankerFallback(Map<String, dynamic> results, String pref) {
     final list = <Map<String, dynamic>>[];
     final modes = ['bmtc', 'metro', 'cab', 'car', 'multimodal'];
     for (final m in modes) {
-      if (results.containsKey(m) && results[m]?['available'] == true) {
+      final isAvailable = results.containsKey(m) &&
+          results[m]?['available'] == true &&
+          results[m]?['operational'] != false &&
+          results[m]?['service_status'] != 'closed';
+      if (isAvailable) {
         final cost = results[m]['cost'] ?? 0;
         final time = results[m]['time'] ?? 0;
         int score = 85;
@@ -881,7 +755,73 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     _doSearch();
   }
 
-  void _openTimelineModal(Map<String, dynamic> modeData, String mode) {
+  void _openTimelineModal(Map<String, dynamic> rawModeData, String mode) {
+    Map<String, dynamic> modeData;
+    if (mode == 'cab' && _selectedCabVehicle != null) {
+      modeData = {
+        ...rawModeData,
+        ..._selectedCabVehicle!,
+        'segments': _selectedCabVehicle!['segments'] ?? rawModeData['segments'],
+        'guide': _selectedCabVehicle!['guide'] ?? rawModeData['guide'],
+      };
+    } else if (mode == 'multimodal' && _selectedMultimodalOption != null) {
+      modeData = {
+        ...rawModeData,
+        ..._selectedMultimodalOption!,
+        'segments': _selectedMultimodalOption!['segments'] ?? rawModeData['segments'],
+        'guide': _selectedMultimodalOption!['guide'] ?? rawModeData['guide'],
+      };
+    } else if (mode == 'bmtc' && _selectedBusNo != null) {
+      final rawGuide = (rawModeData['guide'] as List<dynamic>?) ?? [];
+      final updatedGuide = rawGuide.map((step) {
+        if (step is String) {
+          return step.replaceAll(
+            RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+            'BMTC Bus ',
+          );
+        } else if (step is Map) {
+          final copy = Map<String, dynamic>.from(step);
+          if (copy['instruction'] != null) {
+            copy['instruction'] = copy['instruction'].toString().replaceAll(
+              RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+              'BMTC Bus ',
+            );
+          }
+          if (copy['text'] != null) {
+            copy['text'] = copy['text'].toString().replaceAll(
+              RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+              'BMTC Bus ',
+            );
+          }
+          return copy;
+        }
+        return step;
+      }).toList();
+
+      final rawSegments = (rawModeData['segments'] as List<dynamic>?) ?? [];
+      final updatedSegments = rawSegments.map((seg) {
+        if (seg is Map<String, dynamic>) {
+          final copy = Map<String, dynamic>.from(seg);
+          if (copy['type'] == 'bus' || copy['route'] != null) {
+            copy['route'] = _selectedBusNo;
+            copy['bus_number'] = _selectedBusNo;
+          }
+          return copy;
+        }
+        return seg;
+      }).toList();
+
+      modeData = {
+        ...rawModeData,
+        'bus_number': _selectedBusNo,
+        'route': _selectedBusNo,
+        'guide': updatedGuide,
+        'segments': updatedSegments,
+      };
+    } else {
+      modeData = rawModeData;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -913,17 +853,86 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     );
   }
 
-  void _openDetailsScreen(Map<String, dynamic> modeData, String mode) {
+  void _openDetailsScreen(Map<String, dynamic> rawModeData, String mode) {
+    Map<String, dynamic> modeData;
+    if (mode == 'cab' && _selectedCabVehicle != null) {
+      modeData = {
+        ...rawModeData,
+        ..._selectedCabVehicle!,
+        'mode': mode,
+        'segments': _selectedCabVehicle!['segments'] ?? rawModeData['segments'],
+        'guide': _selectedCabVehicle!['guide'] ?? rawModeData['guide'],
+      };
+    } else if (mode == 'multimodal' && _selectedMultimodalOption != null) {
+      modeData = {
+        ...rawModeData,
+        ..._selectedMultimodalOption!,
+        'mode': mode,
+        'segments': _selectedMultimodalOption!['segments'] ?? rawModeData['segments'],
+        'guide': _selectedMultimodalOption!['guide'] ?? rawModeData['guide'],
+      };
+    } else if (mode == 'bmtc' && _selectedBusNo != null) {
+      final rawGuide = (rawModeData['guide'] as List<dynamic>?) ?? [];
+      final updatedGuide = rawGuide.map((step) {
+        if (step is String) {
+          return step.replaceAll(
+            RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+            'BMTC Bus ',
+          );
+        } else if (step is Map) {
+          final copy = Map<String, dynamic>.from(step);
+          if (copy['instruction'] != null) {
+            copy['instruction'] = copy['instruction'].toString().replaceAll(
+              RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+              'BMTC Bus ',
+            );
+          }
+          if (copy['text'] != null) {
+            copy['text'] = copy['text'].toString().replaceAll(
+              RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+              'BMTC Bus ',
+            );
+          }
+          return copy;
+        }
+        return step;
+      }).toList();
+
+      final rawSegments = (rawModeData['segments'] as List<dynamic>?) ?? [];
+      final updatedSegments = rawSegments.map((seg) {
+        if (seg is Map<String, dynamic>) {
+          final copy = Map<String, dynamic>.from(seg);
+          if (copy['type'] == 'bus' || copy['route'] != null) {
+            copy['route'] = _selectedBusNo;
+            copy['bus_number'] = _selectedBusNo;
+          }
+          return copy;
+        }
+        return seg;
+      }).toList();
+
+      modeData = {
+        ...rawModeData,
+        'mode': mode,
+        'bus_number': _selectedBusNo,
+        'route': _selectedBusNo,
+        'guide': updatedGuide,
+        'segments': updatedSegments,
+      };
+    } else {
+      modeData = {
+        ...rawModeData,
+        'mode': mode,
+      };
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => RouteDetailsScreen(
           source: _sourceController.text.trim(),
           destination: _destController.text.trim(),
-          option: {
-            ...modeData,
-            'mode': mode,
-          },
+          option: modeData,
           srcCoord: _srcCoord,
           dstCoord: _dstCoord,
         ),
@@ -952,7 +961,15 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                 context: context,
                 isScrollControlled: true,
                 backgroundColor: Colors.transparent,
-                builder: (context) => const RideModeModal(),
+                builder: (context) => RideModeModal(
+                  initialData: {
+                    'bus_number': _selectedBusNo ?? _results?['bmtc']?['bus_number'] ?? _results?['bmtc']?['route'],
+                    'all_direct': _results?['bmtc']?['all_direct'],
+                    'source': _sourceController.text.trim(),
+                    'destination': _destController.text.trim(),
+                    'mode': _selectedMode,
+                  },
+                ),
               );
             },
           ),
@@ -1485,6 +1502,7 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                     modeKey: m,
                     data: d,
                     isSelected: _selectedMode == m,
+                    selectedBusNo: m == 'bmtc' ? _selectedBusNo : null,
                     source: _sourceController.text.trim(),
                     destination: _destController.text.trim(),
                     onSelect: () {
@@ -1492,19 +1510,33 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                       _updateMapPoints();
                     },
                     selectedCabVehicle: _selectedCabVehicle,
-                    onSelectCabVehicle: (v) => setState(() => _selectedCabVehicle = v),
+                    onSelectCabVehicle: (v) {
+                      setState(() => _selectedCabVehicle = v);
+                      if (_selectedMode == 'cab') _updateMapPoints();
+                    },
                     selectedMultimodalOption: _selectedMultimodalOption,
-                    onSelectMultimodalOption: (opt) => setState(() => _selectedMultimodalOption = opt),
+                    onSelectMultimodalOption: (opt) {
+                      setState(() => _selectedMultimodalOption = opt);
+                      if (_selectedMode == 'multimodal') _updateMapPoints();
+                    },
                     onSaveJourney: () => _saveCurrentJourney(m, d),
                     onNavigate: () => _openDetailsScreen(d, m),
                     onViewTimeline: () => _openTimelineModal(d, m),
                     onSelectBus: (busNo) {
                       setState(() {
+                        _selectedBusNo = busNo;
                         _results?['bmtc']?['bus_number'] = busNo;
                         _results?['bmtc']?['route'] = busNo;
                         _selectedMode = 'bmtc';
                       });
                       _updateMapPoints();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Selected BMTC bus $busNo! Route updated.'),
+                          backgroundColor: AppTheme.bmtcColor,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
                     },
                   );
                 }),

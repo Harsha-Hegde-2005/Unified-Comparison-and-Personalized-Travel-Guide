@@ -648,13 +648,12 @@ except Exception:
 
 def _parse_time(t: str | None) -> datetime:
     if not t:
-        return normalize_search_start_time(datetime.now())
+        return datetime.now()
     try:
         h, m = map(int, t.split(":"))
-        dt = datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
-        return normalize_search_start_time(dt)
+        return datetime.now().replace(hour=h, minute=m, second=0, microsecond=0)
     except Exception:
-        return normalize_search_start_time(datetime.now())
+        return datetime.now()
 
 
 def _fmt(dt: datetime) -> str:
@@ -820,7 +819,7 @@ def _cab_estimate(src: str, dst: str, dep_time: datetime) -> dict:
             "stops": [src, dst],
         }],
         "guide": [
-            {"step": 1, "icon": "cab",  "text": "Request Ola / Uber", "duration": "~5 min"},
+            {"step": 1, "icon": "cab",  "text": "Request GoRide / SwiftCab", "duration": "~5 min"},
             {"step": 2, "icon": "car",  "text": f"Direct ride to {dst}",
              "duration": f"{est_min} min", "detail": f"₹{est_fare} est. · Door-to-door"},
         ],
@@ -898,6 +897,72 @@ def _car_estimate(src: str, dst: str, dep_time: datetime, src_coords=None, dst_c
 
 _metro_cache = {}
 
+def is_metro_operational(dt: datetime) -> tuple[bool, str, str]:
+    """
+    Verifies Namma Metro revenue timetable operating hours:
+    - Monday - Saturday: 05:00 AM to 23:00 PM (11:00 PM)
+    - Sunday: 07:00 AM to 23:00 PM (11:00 PM)
+    Returns: (is_operational, next_service_time_str, user_friendly_reason)
+    """
+    weekday = dt.weekday()  # 0=Monday, ..., 6=Sunday
+    minutes = dt.hour * 60 + dt.minute
+
+    # Sunday starts at 07:00 AM (420 min); other days start at 05:00 AM (300 min)
+    start_min = 7 * 60 if weekday == 6 else 5 * 60
+    end_min = 23 * 60  # 11:00 PM
+
+    if start_min <= minutes <= end_min:
+        return True, "", ""
+
+    if minutes < start_min:
+        next_svc = "07:00 AM" if weekday == 6 else "05:00 AM"
+    else:
+        tomorrow_weekday = (weekday + 1) % 7
+        next_svc = "07:00 AM" if tomorrow_weekday == 6 else "05:00 AM"
+
+    time_str = dt.strftime("%I:%M %p")
+    reason = (
+        f"Namma Metro is currently closed at {time_str}. "
+        f"Operating hours are 05:00 AM – 11:00 PM (Mon–Sat) and 07:00 AM – 11:00 PM (Sun). "
+        f"Next train departs at {next_svc}."
+    )
+    return False, next_svc, reason
+
+
+def is_bmtc_operational(dt: datetime, routes_found: list[str] | None = None) -> tuple[bool, str, str]:
+    """
+    Verifies BMTC bus timetable operating hours:
+    - Regular network (Ordinary, Vajra, AC): 05:00 AM to 23:30 PM (11:30 PM)
+    - 24/7 Airport / Night services: Routes starting with 'KIA-' or 'N-' operate 24x7.
+    Returns: (is_operational, next_service_time_str, user_friendly_reason)
+    """
+    minutes = dt.hour * 60 + dt.minute
+    start_min = 5 * 60        # 05:00 AM
+    end_min   = 23 * 60 + 30  # 11:30 PM
+
+    if start_min <= minutes <= end_min:
+        return True, "", ""
+
+    # Outside regular hours (23:30 to 05:00): check if 24/7 routes are available
+    if routes_found:
+        has_247 = any(
+            str(r).upper().strip().startswith("KIA-") or
+            str(r).upper().strip().startswith("N-") or
+            "NIGHT" in str(r).upper()
+            for r in routes_found
+        )
+        if has_247:
+            return True, "", ""
+
+    next_svc = "05:00 AM"
+    time_str = dt.strftime("%I:%M %p")
+    reason = (
+        f"BMTC regular buses do not operate at {time_str} (service hours: 05:00 AM – 11:30 PM). "
+        f"Next regular bus departs at {next_svc}. For late-night travel, please consider Cabs or Autos."
+    )
+    return False, next_svc, reason
+
+
 @app.post("/api/metro/plan")
 def metro_plan(req: JourneyRequest):
     cache_key = (req.source, req.destination, req.time, req.preference)
@@ -907,6 +972,24 @@ def metro_plan(req: JourneyRequest):
     from shared.utils import resolve_stop_name, clean_input_name
 
     dep_time = _parse_time(req.time)
+
+    # 0. Timetable Operating Hours Verification
+    is_op, next_svc, op_reason = is_metro_operational(dep_time)
+    if not is_op:
+        res = {
+            "available": False,
+            "operational": False,
+            "mode": "metro",
+            "service_status": "closed",
+            "reason": "outside_service_hours",
+            "operating_hours": "05:00 AM – 11:00 PM (Mon–Sat), 07:00 AM – 11:00 PM (Sun)",
+            "next_service": next_svc,
+            "departure": next_svc,
+            "error": op_reason,
+            "message": op_reason,
+        }
+        _metro_cache[cache_key] = res
+        return res
 
     start_lat = None
     start_lng = None
@@ -1364,6 +1447,28 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
             raise HTTPException(status_code=404,
                                  detail="No BMTC route found between these stops")
 
+# Timetable Operational Verification
+    all_candidate_routes = [d.get("route", "") for d in direct]
+    for t in transfers:
+        all_candidate_routes.extend(t.get("buses", []))
+
+    is_op, next_svc, op_reason = is_bmtc_operational(dep_time, all_candidate_routes)
+    if not is_op:
+        res = {
+            "available": False,
+            "operational": False,
+            "mode": "bmtc",
+            "service_status": "closed",
+            "reason": "outside_service_hours",
+            "operating_hours": "05:00 AM – 11:30 PM (24/7 for KIA Airport buses)",
+            "next_service": next_svc,
+            "departure": next_svc,
+            "error": op_reason,
+            "message": op_reason,
+        }
+        _bmtc_cache[cache_key] = res
+        return res
+
     # Choose whether to recommend a direct bus or transfer option based on preference:
     use_direct = True
     if not direct:
@@ -1417,6 +1522,21 @@ def bmtc_plan(req: JourneyRequest, max_options: int = 8):
                 end_walk_dist = d
                 end_walk_mins = max(1, int(d * 12.5))
             destination = actual_destination
+
+        if waiting_time > 90:
+            res = {
+                "available": False,
+                "operational": False,
+                "mode": "bmtc",
+                "service_status": "service_ended_today",
+                "reason": "service_concluded_for_today",
+                "next_service": "05:00 AM",
+                "departure": "05:00 AM",
+                "error": "Scheduled BMTC bus service on this route has concluded for the night. Next bus departs tomorrow at 05:00 AM.",
+                "message": "Scheduled BMTC bus service on this route has concluded for the night. Next bus departs tomorrow at 05:00 AM.",
+            }
+            _bmtc_cache[cache_key] = res
+            return res
 
         total_mins = start_walk_mins + transit_mins + end_walk_mins + waiting_time
         cost = best.get("fare") or 20
@@ -2547,28 +2667,28 @@ def _generic_cab_estimates(provider_key: str, provider_name: str, src_lat, src_l
 
 
 def _namma_yatri_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
-    return _generic_cab_estimates("namma_yatri", "Namma Yatri", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
+    return _generic_cab_estimates("namma_yatri", "NammaMove", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
 
 def _ola_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
-    return _generic_cab_estimates("ola", "Ola", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
+    return _generic_cab_estimates("ola", "GoRide", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
 
 def _rapido_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
-    return _generic_cab_estimates("rapido", "Rapido", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
+    return _generic_cab_estimates("rapido", "SwiftGo", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
 
 def _uber_estimates(src_lat, src_lng, dst_lat, dst_lng, dep_time, weather: str = "clear") -> list[dict]:
-    return _generic_cab_estimates("uber", "Uber", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
+    return _generic_cab_estimates("uber", "SwiftCab", src_lat, src_lng, dst_lat, dst_lng, dep_time, weather)
 
 
 # ── Provider registry ─────────────────────────────────────────────────────────
 
 RIDE_PROVIDERS = {
-    "namma_yatri": {"fn": _namma_yatri_estimates, "label": "Namma Yatri", "live": True},
-    "ola":         {"fn": _ola_estimates,          "label": "Ola",         "live": False},
-    "uber":        {"fn": _uber_estimates,          "label": "Uber",        "live": False},
-    "rapido":      {"fn": _rapido_estimates,        "label": "Rapido",      "live": False},
+    "namma_yatri": {"fn": _namma_yatri_estimates, "label": "NammaMove", "live": True},
+    "ola":         {"fn": _ola_estimates,          "label": "GoRide",    "live": False},
+    "uber":        {"fn": _uber_estimates,         "label": "SwiftCab",  "live": False},
+    "rapido":      {"fn": _rapido_estimates,       "label": "SwiftGo",   "live": False},
 }
 
 
@@ -2832,6 +2952,18 @@ def vehicle_estimate(req: VehicleRequest):
 
 
 def multimodal_plan(source: str, destination: str, dep_time: datetime, preference: str = "cost", weather: str = "clear", primary_bmtc: dict = None, primary_metro: dict = None) -> dict:
+    metro_op, _, _ = is_metro_operational(dep_time)
+    bmtc_op, _, _ = is_bmtc_operational(dep_time)
+    if not metro_op and not bmtc_op:
+        return {
+            "available": False,
+            "operational": False,
+            "mode": "multimodal",
+            "service_status": "closed",
+            "reason": "transit_closed_at_hour",
+            "error": f"Public transit (BMTC & Metro) is not operational at {dep_time.strftime('%I:%M %p')}. Combined multimodal options are unavailable during late-night hours.",
+        }
+
     from multimodal.config import INTERCHANGE_POINTS
     from shared.utils import resolve_stop_name, clean_input_name
 
@@ -2933,7 +3065,7 @@ def multimodal_plan(source: str, destination: str, dep_time: datetime, preferenc
         travel_min = max(3, int(dist_km / 22 * 60))
         cheapest_fare = max(36, int(36 + max(0.0, dist_km - 2.0) * 15))
         best_vehicle = "Auto"
-        best_provider = "Namma Yatri"
+        best_provider = "NammaMove"
         best_icon = "🛺"
 
         arrival_time = start_time + timedelta(minutes=travel_min)
@@ -3527,9 +3659,9 @@ def compare(req: CompareRequest):
     except Exception as e:
         results["multimodal"] = {"available": False, "mode": "multimodal", "error": str(e)}
 
-    # Tag the recommended option
+# Tag the recommended option (strictly operational transit options)
     pref      = req.preference or "cost"
-    available = {k: v for k, v in results.items() if v.get("available")}
+    available = {k: v for k, v in results.items() if v.get("available") and v.get("operational", True) is not False}
     if available:
         if pref == "cost":
             best = min(available, key=lambda k: available[k].get("cost", 9999))
@@ -4213,6 +4345,7 @@ class ChatbotRequest(BaseModel):
     lng: Optional[float] = None
     user_lat: Optional[float] = None
     user_lng: Optional[float] = None
+    user_id: Optional[int] = 1
 
 def _geocode_location(place: str):
     """Geocode any Bangalore place name to (lat, lon). Returns None on failure."""
@@ -4485,10 +4618,14 @@ MODE_LABELS_MAIN = {
     "bmtc": "BMTC Bus",
     "metro": "Namma Metro",
     "multimodal": "Bus + Metro",
-    "ola": "Ola Cab",
-    "uber": "Uber Cab",
-    "rapido": "Rapido Ride",
-    "namma_yatri": "Namma Yatri",
+    "ola": "GoRide Cab",
+    "goride": "GoRide Cab",
+    "uber": "SwiftCab Cab",
+    "swiftcab": "SwiftCab Cab",
+    "rapido": "SwiftGo Ride",
+    "swiftgo": "SwiftGo Ride",
+    "namma_yatri": "NammaMove",
+    "nammamove": "NammaMove",
     "car": "Personal Car",
     "bike": "Personal Bike"
 }
@@ -4761,6 +4898,7 @@ def _get_fallback_nearby_places(lat: float, lng: float, category: str) -> list[d
     return results
 
 
+@app.post("/api/chat")
 @app.post("/api/chatbot/query")
 def chatbot_query(req: ChatbotRequest):
     st_time = time.time()
@@ -5352,6 +5490,7 @@ def chatbot_query(req: ChatbotRequest):
                 
                 explore_places = []
                 explore_cat = params.get("explore_category")
+                dst_coords = _resolve_any_location_coords(destination) if destination else None
                 if explore_cat and dst_coords:
                     explore_places = _google_nearby_places(dst_coords[0], dst_coords[1], explore_cat)
                     if not explore_places:
@@ -5588,20 +5727,48 @@ def chatbot_query(req: ChatbotRequest):
 
     text_response = engine.format_response(intent, params, data)
 
-    from groq_chat import is_groq_configured, generate_groq_reply
-    # Grounded anti-hallucination guard: Factual transit routes, schedules, fares,
-    # opening hours, and location facts are computed from real databases and must
-    # not be overwritten by LLM hallucinations.
-    grounded_intents = (
-        "poi_detail", "current_location", "bus_schedule_query", "weather_query",
-        "ride_cost", "fuel_cost", "ac_bus_available", "nearest_stops", "traffic_query",
-        "journey_time", "journey_cost", "possible_ways", "multimodal_journey",
-        "clarify_location", "offtopic"
-    )
-    if is_groq_configured() and intent not in grounded_intents:
-        groq_text = generate_groq_reply(req.message, req.history, context_data={"intent": intent, "params": params, "data": data, "ground_truth": text_response})
-        if groq_text:
-            text_response = groq_text
+    # ── RAG Grounding Pipeline (Section 5 Grounded Architecture) ───────────
+    from rag_engine import rag_assistant
+
+    user_id = req.user_id if hasattr(req, "user_id") and req.user_id else 1
+    is_glovebox_query = intent in ("glovebox_query", "garage_query") or any(k in processed_message.lower() for k in [
+        "license", "driving license", "dl expiry", "insurance", "rc book", "puc", "glovebox",
+        "my vehicle", "my car", "my bike", "in my garage", "saved document", "saved doc"
+    ])
+
+    if is_glovebox_query:
+        intent = "glovebox_query"
+        rag_res = rag_assistant.execute_rag_pipeline(
+            query=processed_message,
+            intent=intent,
+            params=params,
+            user_id=user_id,
+            history=req.history
+        )
+        text_response = rag_res["answer"]
+        data["documents"] = rag_res["retrieved_data"].get("documents", [])
+        data["vehicles"] = rag_res["retrieved_data"].get("vehicles", [])
+        embedded_data = {
+            "type": "glovebox_docs",
+            "documents": data["documents"],
+            "vehicles": data["vehicles"]
+        }
+    else:
+        # Pass computed itinerary / GTFS facts to RAG assistant
+        rag_res = rag_assistant.execute_rag_pipeline(
+            query=processed_message,
+            intent=intent,
+            params=params,
+            itinerary_data=data,
+            user_id=user_id,
+            history=req.history
+        )
+        if rag_res.get("used_llm"):
+            text_response = rag_res["answer"]
+        elif intent in ("general", "bus_schedule_query", "general_transit_qa") and rag_res.get("answer"):
+            text_response = rag_res["answer"]
+        elif not text_response and rag_res.get("answer"):
+            text_response = rag_res["answer"]
 
     serialized_params = {}
     for k, v in params.items():
@@ -5626,6 +5793,10 @@ def chatbot_query(req: ChatbotRequest):
         "session_id": session.session_id,
         "text": text_response,
         "answer": text_response,
+        "response": text_response,
+        "rag_grounded": True,
+        "grounded_sources": rag_res.get("knowledge_facts") or [],
+        "retrieval_ms": rag_res.get("retrieval_latency_ms", 0.0),
         "intent": intent,
         "needs_clarification": (intent in ("clarification", "clarify_location")),
         "resolved_context": session.to_dict(),
@@ -5641,6 +5812,42 @@ def chatbot_query(req: ChatbotRequest):
 @app.get("/api/chatbot/metrics")
 def get_chatbot_metrics():
     return PerformanceMetricsTracker().get_metrics_summary()
+
+
+@app.post("/api/chatbot/rag")
+def chatbot_rag_endpoint(req: ChatbotRequest):
+    """
+    Dedicated in-memory RAG endpoint executing indexed GTFS retrieval,
+    Glovebox vault lookup, and Grounded LLaMA 3.3 generation.
+    """
+    from rag_engine import rag_assistant
+
+    user_id = req.user_id if hasattr(req, "user_id") and req.user_id else 1
+    engine = ChatbotEngine(
+        bmtc_stops=ALL_STOPS, metro_stations=_metro_stations,
+        all_vehicles=_all_vehicles, poi_names=_POI_NAMES,
+    )
+    processed_message = engine.resolve_pronouns(req.message, req.history)
+    matched_stops = engine.extract_stops(processed_message)
+    intent, params = engine.classify_intent(processed_message, matched_stops)
+
+    rag_res = rag_assistant.execute_rag_pipeline(
+        query=processed_message,
+        intent=intent,
+        params=params,
+        user_id=user_id,
+        history=req.history
+    )
+    return {
+        "query": req.message,
+        "intent": rag_res["intent"],
+        "answer": rag_res["answer"],
+        "retrieved_data": rag_res["retrieved_data"],
+        "knowledge_facts": rag_res["knowledge_facts"],
+        "grounded_context": rag_res["grounded_context"],
+        "used_llm": rag_res["used_llm"],
+        "latency_ms": rag_res["total_turnaround_ms"]
+    }
 
 
 # ── User Auth, Garage, and Document Library Endpoints ──────────────────────
@@ -6116,5 +6323,7 @@ def snap_stop(payload: dict = Body(...)):
         },
         "remaining_stops": remaining
     }
+
+
 
 

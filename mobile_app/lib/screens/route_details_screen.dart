@@ -1,3 +1,4 @@
+import '../utils/voice_navigation_engine.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
@@ -41,6 +42,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
   StreamSubscription<ll.LatLng>? _gpsSubscription;
   double _liveProgress = 0.0;
   ll.LatLng? _liveGpsPoint;
+  VoiceNavigationEngine? _voiceEngine;
 
   static const Map<String, ll.LatLng> _knownCoords = {
     'majestic': ll.LatLng(12.9767, 77.5713),
@@ -104,6 +106,33 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
     final cleanSrc = widget.source.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
     final cleanDst = widget.destination.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+
+    final busNo = opt['bus_number']?.toString() ?? opt['route']?.toString();
+    if (optMode == 'bmtc' && busNo != null && busNo.isNotEmpty) {
+      try {
+        final rDetails = await ApiService.fetchRouteDetails(busNo);
+        if (rDetails != null && rDetails['stops'] is List) {
+          final bStops = (rDetails['stops'] as List).map((e) => e.toString()).toList();
+          if (bStops.isNotEmpty) {
+            int sIdx = -1, dIdx = -1;
+            for (int i = 0; i < bStops.length; i++) {
+              final st = bStops[i].toLowerCase();
+              if (sIdx == -1 && (st.contains(cleanSrc.toLowerCase()) || cleanSrc.toLowerCase().contains(st))) {
+                sIdx = i;
+              }
+              if (dIdx == -1 && (st.contains(cleanDst.toLowerCase()) || cleanDst.toLowerCase().contains(st))) {
+                dIdx = i;
+              }
+            }
+            if (sIdx != -1 && dIdx != -1 && sIdx < dIdx) {
+              stops.addAll(bStops.sublist(sIdx, dIdx + 1));
+            } else {
+              stops.addAll(bStops);
+            }
+          }
+        }
+      } catch (_) {}
+    }
 
     stops.insert(0, cleanSrc);
     stops.add(cleanDst);
@@ -192,10 +221,14 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           }
 
           if (segPts.length >= 2) {
-            final profile = isWalk ? 'foot' : 'driving';
-            final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: profile);
+            List<ll.LatLng> finalPts = segPts;
+            if (!isMetro) {
+              final profile = isWalk ? 'foot' : 'driving';
+              final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: profile);
+              if (roadPts.isNotEmpty) finalPts = roadPts;
+            }
             segPolylines.add({
-              'points': roadPts.isNotEmpty ? roadPts : segPts,
+              'points': finalPts,
               'color': segColor,
               'isWalk': isWalk,
               'isMetro': isMetro,
@@ -253,6 +286,15 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         const SnackBar(content: Text('⏹ Live GPS Navigation stopped')),
       );
     } else {
+      final navMode = widget.option['mode'] == 'car'
+          ? VoiceNavMode.personalVehicle
+          : (widget.option['mode'] == 'walk' ? VoiceNavMode.walking : VoiceNavMode.bus);
+      _voiceEngine = VoiceNavigationEngine(
+        mode: navMode,
+        destinationName: widget.option['destination']?.toString() ?? 'Destination',
+      );
+      _voiceEngine!.resetState();
+
       setState(() {
         _isLiveNavigating = true;
         _liveProgress = 0.0;
@@ -290,6 +332,21 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       _liveProgress = prog;
       _activeSegmentIndex = stepIdx;
     });
+
+    final mode = widget.option['mode']?.toString() ?? 'bmtc';
+    if (_voiceEngine != null && (mode == 'car' || mode == 'walk' || mode == 'bicycle')) {
+      final remMeters = (1.0 - (prog / 100.0)) * totalDistance;
+      final stepInstruction = (guide != null && stepIdx < guide.length) ? guide[stepIdx].toString() : 'Continue on route';
+      final stepFraction = guide != null && guide.isNotEmpty ? totalDistance / guide.length : 200.0;
+      final distToStep = ((1.0 - ((prog / 100.0) * (guide?.length ?? 1) - stepIdx)).clamp(0.0, 1.0)) * stepFraction;
+
+      _voiceEngine!.onRoadDistanceUpdated(
+        distanceToManeuverMeters: distToStep,
+        maneuverInstruction: stepInstruction,
+        stepIndex: stepIdx,
+        totalRemainingMeters: remMeters,
+      );
+    }
   }
 
   @override

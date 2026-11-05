@@ -28,7 +28,7 @@ TRAVEL_KEYWORDS: List[str] = [
     "cross", "nagar", "road", "circle", "junction", "bengaluru", "bangalore",
     "pass", "smart card", "terminal", "vayu vajra", "schedule", "timetable",
     "itinerary", "day trip", "visit", "destination", "way to", "ways", "option", "options",
-    "location", "locatoin", "where am i", "where i am", "my location", "current location", "gps"
+    "location", "locatoin", "where am i", "where i am", "my location", "current location", "gps", "license", "driving license", "dl", "insurance", "puc", "rc book", "rc", "glovebox", "garage", "vault", "document", "documents", "vehicles", "metro timings", "first train", "last train", "frequency", "headway", "tariff", "fares", "luggage", "smartcard"
 ]
 
 GREETING_KEYWORDS: List[str] = [
