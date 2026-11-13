@@ -6340,7 +6340,39 @@ function CompareTable({ results }) {
 /* ─────────────────────────────────────────────────────────────
    DASHBOARD
 ───────────────────────────────────────────────────────────── */
-function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpen, setGarageOpen, gloveboxOpen, setGloveboxOpen, onRefreshVehicles, mapStyle, setMapStyle, useOsm, setUseOsm, stops, setShowWeatherModal, setShowStopsInfo, setShowSettings, isMobile = false }) {
+function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpen, setGarageOpen, gloveboxOpen, setGloveboxOpen, onRefreshVehicles, mapStyle, setMapStyle, useOsm, setUseOsm, stops, setShowWeatherModal, setShowStopsInfo, setShowSettings, isMobile = false, dashView, setDashView }) {
+  const [internalView, setInternalView] = useState("home");
+  const activeView = dashView !== undefined ? dashView : internalView;
+  const setActiveView = (v) => {
+    if (setDashView) setDashView(v);
+    setInternalView(v);
+  };
+
+  useEffect(() => {
+    if (garageOpen) {
+      setActiveView("my_garage");
+    }
+  }, [garageOpen]);
+
+  useEffect(() => {
+    if (gloveboxOpen) {
+      setActiveView("digital_glovebox");
+    }
+  }, [gloveboxOpen]);
+
+  const handleBackToHome = () => {
+    setActiveView("home");
+    if (setGarageOpen) setGarageOpen(false);
+    if (setGloveboxOpen) setGloveboxOpen(false);
+  };
+
+  const getGreeting = () => {
+    const hr = new Date().getHours();
+    if (hr < 12) return "Good Morning";
+    if (hr < 17) return "Good Afternoon";
+    return "Good Evening";
+  };
+
   const [data, setData] = useState({ stats: [], recent: [], saved: [] });
   const [vehicles, setVehicles] = useState([]);
   const [showBicyclePopup, setShowBicyclePopup] = useState(false);
@@ -6572,335 +6604,612 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
   })();
 
   return (
-    <div style={{ fontFamily: "inherit" }}>
-      {/* Visual Welcome Banner */}
-      <div style={{
-        background: currentTheme === 'light' 
-          ? "linear-gradient(135deg, #eae8ff 0%, #f5e8ff 100%)" 
-          : "linear-gradient(135deg, #17122a 0%, #1e102d 100%)",
-        border: `1px solid ${C.border}`,
-        borderRadius: 24,
-        padding: isMobile ? "22px 18px" : "36px 40px",
-        marginBottom: isMobile ? 20 : 32,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        position: "relative",
-        overflow: "hidden",
-        minHeight: isMobile ? 110 : 140
-      }}>
-        {/* Background Vidhana Soudha Cityscape blending on the right */}
-        <div style={{
-          position: "absolute",
-          right: 0,
-          bottom: 0,
-          height: "100%",
-          width: isMobile ? "40%" : "50%",
-          opacity: isMobile ? 0.35 : 1,
-          pointerEvents: "none",
-          zIndex: 1
-        }}>
-          <img src={heroImg} alt="Bengaluru Landmarks" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "right bottom" }} />
-        </div>
+    <div style={{ fontFamily: "inherit", width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
+      {/* ─────────────────────────────────────────────────────────────
+          1-PAGE NON-SCROLLABLE HOME DASHBOARD
+      ───────────────────────────────────────────────────────────── */}
+      {activeView === "home" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 12 : 18, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
+          {/* Visual Welcome Banner */}
+          <div style={{
+            background: currentTheme === 'light' 
+              ? "linear-gradient(135deg, #eae8ff 0%, #f5e8ff 100%)" 
+              : "linear-gradient(135deg, #17122a 0%, #1e102d 100%)",
+            border: `1px solid ${C.border}`,
+            borderRadius: isMobile ? 18 : 22,
+            padding: isMobile ? "16px 16px" : "22px 30px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            position: "relative",
+            overflow: "hidden",
+            minHeight: isMobile ? 90 : 105,
+            boxShadow: "rgba(0, 0, 0, 0.02) 0 8px 24px"
+          }}>
+            {/* Background Vidhana Soudha Cityscape blending on the right */}
+            <div style={{
+              position: "absolute",
+              right: 0,
+              bottom: 0,
+              height: "100%",
+              width: isMobile ? "35%" : "45%",
+              opacity: isMobile ? 0.25 : 0.9,
+              pointerEvents: "none",
+              zIndex: 1
+            }}>
+              <img src={heroImg} alt="Bengaluru Landmarks" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "right bottom" }} />
+            </div>
 
-        <div style={{ zIndex: 2, position: "relative", maxWidth: isMobile ? "75%" : "60%" }}>
-          <h1 style={{ fontSize: isMobile ? 22 : 32, fontWeight: 900, color: C.text, margin: "0 0 8px 0", letterSpacing: "-0.03em" }}>Good Morning, {username}! 👋</h1>
-          <p style={{ color: C.muted, fontSize: isMobile ? 12 : 14, fontWeight: 600, margin: 0 }}>Let's make your journey easy and efficient.</p>
-        </div>
-      </div>
+            <div style={{ zIndex: 2, position: "relative", maxWidth: isMobile ? "62%" : "60%" }}>
+              <h1 style={{ fontSize: isMobile ? 19 : 28, fontWeight: 900, color: C.text, margin: "0 0 6px 0", letterSpacing: "-0.03em" }}>
+                {getGreeting()}, {username || "Traveler"}! 👋
+              </h1>
+              <p style={{ color: C.muted, fontSize: isMobile ? 11.5 : 13.5, fontWeight: 600, margin: 0 }}>
+                Bengaluru's Unified Multi-Modal Transit Guide.
+              </p>
+            </div>
 
-      {/* Stats Cards Row */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 12 : 20, marginBottom: isMobile ? 20 : 32 }}>
-        {displayStats.map((s) => (
-          <div 
-            key={s.label} 
-            style={{ 
-              background: C.card, 
-              border: `1px solid ${C.border}`, 
-              borderRadius: 20, 
-              padding: isMobile ? "14px 16px" : "20px 24px", 
-              boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
-              transition: "all 0.25s ease",
-              cursor: "default"
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.04) 0 12px 24px";
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = "none";
-              e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.01) 0 10px 30px";
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 16 }}>
-              <div style={{ 
-                width: isMobile ? 36 : 44, 
-                height: isMobile ? 36 : 44, 
-                borderRadius: "50%", 
-                background: s.bg,
-                display: "flex", 
-                alignItems: "center", 
-                justifyContent: "center",
-                flexShrink: 0
-              }}>
-                <Ic n={s.icon} s={isMobile ? 16 : 18} c={s.color} sw={2.2} />
-              </div>
-              <div>
-                <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 900, color: C.text, lineHeight: "1.2" }}>{s.val}</div>
-                <div style={{ fontSize: isMobile ? 11.5 : 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 9.5, color: C.muted, fontWeight: 600, marginTop: 1 }}>{s.sub}</div>
-              </div>
+            <div style={{ zIndex: 2, position: "relative", flexShrink: 0 }}>
+              <button
+                onClick={onPlan}
+                style={{
+                  background: "linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: 14,
+                  padding: isMobile ? "10px 16px" : "13px 26px",
+                  fontSize: isMobile ? 13 : 15,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  boxShadow: "0 8px 20px rgba(124, 58, 237, 0.35)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontFamily: "inherit",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 12px 28px rgba(124, 58, 237, 0.5)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "none";
+                  e.currentTarget.style.boxShadow = "0 8px 20px rgba(124, 58, 237, 0.35)";
+                }}
+              >
+                <span>🚀 Plan Journey</span>
+                <span style={{ fontSize: 16 }}>→</span>
+              </button>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Row 1: Recent Searches (left) & Saved Places (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr)", gap: isMobile ? 14 : 24, marginBottom: isMobile ? 16 : 24, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
-        
-        {/* Recent Searches */}
-        <div style={{ 
-          background: C.card, 
-          border: `1px solid ${C.border}`, 
-          borderRadius: isMobile ? 18 : 24, 
-          padding: isMobile ? "16px 14px" : "28px 24px",
-          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-          width: "100%",
-          maxWidth: "100%",
-          boxSizing: "border-box",
-          overflow: "hidden"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 14 : 20, minWidth: 0 }}>
-            <h2 style={{ fontSize: isMobile ? 15 : 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0, minWidth: 0 }}>
-              <Ic n="clock" s={16} c={C.text} sw={2.2} /> Recent Searches
-            </h2>
-            {data.recent?.length > 0 && (
-              <span style={{ fontSize: 11, background: "rgba(124, 58, 237, 0.08)", color: C.accent, padding: "4px 10px", borderRadius: 20, fontWeight: 700, flexShrink: 0 }}>
-                {data.recent.length} searches
-              </span>
-            )}
-          </div>
-          
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, minWidth: 0, width: "100%" }}>
-            {data.recent && data.recent.length > 0 ? (
-              data.recent.slice(0, 3).map((r, i) => (
-                <div 
-                  key={r.id || i}
-                  onClick={() => onSelectRoute(r.from, r.to)}
-                  style={{ 
-                    display: "flex", 
-                    alignItems: "center", 
-                    gap: isMobile ? 10 : 14, 
-                    padding: isMobile ? "10px 12px" : "12px 14px", 
-                    borderRadius: isMobile ? 12 : 16, 
-                    cursor: "pointer", 
-                    background: C.dim,
-                    border: `1px solid ${C.border}`,
-                    transition: "all 0.2s",
-                    minWidth: 0,
-                    width: "100%",
-                    boxSizing: "border-box"
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = currentTheme === 'light' ? "#f1efff" : "#241f3d";
-                    e.currentTarget.style.borderColor = C.accent + "33";
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = C.dim;
-                    e.currentTarget.style.borderColor = C.border;
-                  }}
-                >
-                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(124, 58, 237, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Ic n="search" s={14} c={C.accent} sw={2.2} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.from} → {r.to}</div>
-                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.date}</div>
-                  </div>
-                  <div style={{ fontSize: 11, color: C.accent, fontWeight: 700, flexShrink: 0, marginLeft: 6 }}>Search →</div>
+          {/* Stats Cards Row */}
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 10 : 16 }}>
+            {displayStats.map((s) => (
+              <div 
+                key={s.label} 
+                style={{ 
+                  background: C.card, 
+                  border: `1px solid ${C.border}`, 
+                  borderRadius: 16, 
+                  padding: isMobile ? "10px 12px" : "12px 18px", 
+                  boxShadow: "rgba(0, 0, 0, 0.01) 0 6px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: isMobile ? 10 : 14
+                }}
+              >
+                <div style={{ 
+                  width: isMobile ? 32 : 38, 
+                  height: isMobile ? 32 : 38, 
+                  borderRadius: "50%", 
+                  background: s.bg,
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  flexShrink: 0
+                }}>
+                  <Ic n={s.icon} s={isMobile ? 14 : 16} c={s.color} sw={2.2} />
                 </div>
-              ))
-            ) : (
-              <div style={{ textAlign: "center", padding: isMobile ? "20px 0" : "40px 0", color: C.muted, fontSize: 13, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
-                <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Ic n="search" s={16} c={C.muted} sw={2.2} />
+                <div>
+                  <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 900, color: C.text, lineHeight: "1.15" }}>{s.val}</div>
+                  <div style={{ fontSize: isMobile ? 10.5 : 12, fontWeight: 700, color: C.text, marginTop: 2 }}>{s.label}</div>
+                  <div style={{ fontSize: 9, color: C.muted, fontWeight: 600 }}>{s.sub}</div>
                 </div>
-                No recent searches. Start planning to view routes!
               </div>
-            )}
+            ))}
+          </div>
+
+          {/* 6 Feature Launch Buttons / Cards */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)",
+            gap: isMobile ? 12 : 16,
+            width: "100%",
+            boxSizing: "border-box"
+          }}>
+            {[
+              {
+                id: "recent_searches",
+                title: "Recent Searches",
+                desc: "Revisit your recent routes & travel queries",
+                icon: "clock",
+                color: "#7c3aed",
+                bg: "rgba(124, 58, 237, 0.08)",
+                badge: `${data.recent?.length || 0} Searches`,
+                onClick: () => setActiveView("recent_searches")
+              },
+              {
+                id: "saved_places",
+                title: "Saved Places",
+                desc: "Bookmarks, frequent trips & saved stops",
+                icon: "star",
+                color: "#f59e0b",
+                bg: "rgba(245, 158, 11, 0.08)",
+                badge: `${data.saved?.length || 0} Saved`,
+                onClick: () => setActiveView("saved_places")
+              },
+              {
+                id: "my_garage",
+                title: "My Garage",
+                desc: "Personal vehicles, mileage & fuel cost calculator",
+                icon: "car",
+                color: "#10b981",
+                bg: "rgba(16, 185, 129, 0.08)",
+                badge: `${vehicles.length} Vehicle${vehicles.length === 1 ? '' : 's'}`,
+                onClick: () => setActiveView("my_garage")
+              },
+              {
+                id: "digital_glovebox",
+                title: "Digital Glovebox",
+                desc: "Secure DL, RC, insurance & PUC documents",
+                icon: "folder",
+                color: "#3b82f6",
+                bg: "rgba(59, 130, 246, 0.08)",
+                badge: `${documents.length} Doc${documents.length === 1 ? '' : 's'}`,
+                onClick: () => setActiveView("digital_glovebox")
+              },
+              {
+                id: "quick_actions",
+                title: "Quick Actions",
+                desc: "Live map, fare charts, weather & transit alerts",
+                icon: "now",
+                color: "#ec4899",
+                bg: "rgba(236, 72, 153, 0.08)",
+                badge: "Live Tools",
+                onClick: () => setActiveView("quick_actions")
+              },
+              {
+                id: "settings",
+                title: "Settings",
+                desc: "Themes, audio guidance & routing preferences",
+                icon: "settings",
+                color: "#8b5cf6",
+                bg: "rgba(139, 92, 246, 0.08)",
+                badge: "Configure",
+                onClick: () => setShowSettings(true)
+              }
+            ].map(feat => (
+              <button
+                key={feat.id}
+                onClick={feat.onClick}
+                style={{
+                  background: C.card,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: isMobile ? 16 : 18,
+                  padding: isMobile ? "14px 12px" : "18px 20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  boxShadow: "rgba(0, 0, 0, 0.01) 0 6px 18px",
+                  transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                  minHeight: isMobile ? 110 : 126
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "translateY(-3px)";
+                  e.currentTarget.style.borderColor = feat.color + "55";
+                  e.currentTarget.style.boxShadow = `0 10px 24px ${feat.color}18`;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "none";
+                  e.currentTarget.style.borderColor = C.border;
+                  e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.01) 0 6px 18px";
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 10 }}>
+                  <div style={{
+                    width: isMobile ? 34 : 40,
+                    height: isMobile ? 34 : 40,
+                    borderRadius: 12,
+                    background: feat.bg,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}>
+                    <Ic n={feat.icon} s={isMobile ? 16 : 18} c={feat.color} sw={2.2} />
+                  </div>
+                  <span style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    color: feat.color,
+                    background: feat.bg,
+                    padding: "3px 8px",
+                    borderRadius: 12
+                  }}>
+                    {feat.badge}
+                  </span>
+                </div>
+
+                <div>
+                  <div style={{
+                    fontSize: isMobile ? 13.5 : 15,
+                    fontWeight: 800,
+                    color: C.text,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between"
+                  }}>
+                    <span>{feat.title}</span>
+                    <span style={{ fontSize: 13, color: feat.color }}>→</span>
+                  </div>
+                  <div style={{
+                    fontSize: isMobile ? 11 : 12,
+                    color: C.muted,
+                    marginTop: 3,
+                    fontWeight: 500,
+                    lineHeight: 1.35
+                  }}>
+                    {feat.desc}
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
+      )}
 
-        {/* Saved Places */}
-        <div id="saved-places-card" style={{ 
-          background: C.card, 
-          border: `1px solid ${C.border}`, 
-          borderRadius: isMobile ? 18 : 24, 
-          padding: isMobile ? "16px 14px" : "28px 24px",
-          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-          width: "100%",
-          maxWidth: "100%",
-          boxSizing: "border-box",
-          overflow: "hidden"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 14 : 20, minWidth: 0 }}>
-            <h2 style={{ fontSize: isMobile ? 15 : 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0, minWidth: 0 }}>
-              <Ic n="star" s={16} c="#f59e0b" sw={2.2} /> Saved Places
-            </h2>
-            <button 
-              onClick={onPlan} 
-              style={{ background: "none", border: "none", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", padding: 0, flexShrink: 0 }}
+      {/* ─────────────────────────────────────────────────────────────
+          FRESH PAGE 1: RECENT SEARCHES
+      ───────────────────────────────────────────────────────────── */}
+      {activeView === "recent_searches" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                onClick={handleBackToHome}
+                style={{
+                  background: C.dim,
+                  border: `1.5px solid ${C.border2}`,
+                  borderRadius: 12,
+                  padding: "8px 14px",
+                  color: C.text,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "inherit"
+                }}
+              >
+                <span>←</span> Back to Home
+              </button>
+              <div>
+                <h2 style={{ fontSize: isMobile ? 18 : 24, fontWeight: 900, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <Ic n="clock" s={20} c="#7c3aed" sw={2.2} /> Recent Searches
+                </h2>
+                <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0 0" }}>
+                  Revisit past searches or start a new route calculation
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onPlan}
+              style={{
+                background: "linear-gradient(135deg, #7c3aed, #9333ea)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 12,
+                padding: "8px 16px",
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit"
+              }}
             >
-              View all
+              + Plan New Route
             </button>
           </div>
-          
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, justifyContent: "center", minWidth: 0, width: "100%" }}>
-            {data.saved && data.saved.length > 0 ? (
-              data.saved.slice(0, 3).map((r, i) => {
+
+          {data.recent && data.recent.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 14 }}>
+              {data.recent.map((r, i) => (
+                <div
+                  key={r.id || i}
+                  onClick={() => onSelectRoute(r.from, r.to)}
+                  style={{
+                    background: C.card,
+                    border: `1.5px solid ${C.border}`,
+                    borderRadius: 16,
+                    padding: "16px 18px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 14
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = "#7c3aed66";
+                    e.currentTarget.style.boxShadow = "0 8px 20px rgba(124, 58, 237, 0.1)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = C.border;
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(124, 58, 237, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Ic n="search" s={16} c="#7c3aed" sw={2.2} />
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {r.from} → {r.to}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2, fontWeight: 500 }}>
+                        {r.date}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ color: "#7c3aed", fontWeight: 800, fontSize: 12, flexShrink: 0 }}>
+                    Search →
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: "50px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 50, height: 50, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Ic n="search" s={20} c={C.muted} sw={2.2} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>No Recent Searches</div>
+              <div style={{ fontSize: 12, color: C.muted, maxWidth: 360 }}>
+                Your planned and searched routes across BMTC, Metro and Cabs will show up here.
+              </div>
+              <button
+                onClick={onPlan}
+                style={{
+                  marginTop: 8,
+                  background: "linear-gradient(135deg, #7c3aed, #9333ea)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 12,
+                  padding: "9px 20px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer"
+                }}
+              >
+                Plan a Journey
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          FRESH PAGE 2: SAVED PLACES
+      ───────────────────────────────────────────────────────────── */}
+      {activeView === "saved_places" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                onClick={handleBackToHome}
+                style={{
+                  background: C.dim,
+                  border: `1.5px solid ${C.border2}`,
+                  borderRadius: 12,
+                  padding: "8px 14px",
+                  color: C.text,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "inherit"
+                }}
+              >
+                <span>←</span> Back to Home
+              </button>
+              <div>
+                <h2 style={{ fontSize: isMobile ? 18 : 24, fontWeight: 900, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <Ic n="star" s={20} c="#f59e0b" sw={2.2} /> Saved Places & Routes
+                </h2>
+                <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0 0" }}>
+                  Bookmark your frequent routes, office commutes, and favorite destinations
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onPlan}
+              style={{
+                background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 12,
+                padding: "8px 16px",
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit"
+              }}
+            >
+              + Add New Place
+            </button>
+          </div>
+
+          {data.saved && data.saved.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 14 }}>
+              {data.saved.map((r, i) => {
                 const modeColor = MC[r.mode]?.color || C.accent;
                 const modeBg = MC[r.mode]?.bg || "rgba(124, 58, 237, 0.05)";
                 return (
-                  <div 
+                  <div
                     key={r.id || i}
                     onClick={() => onSelectRoute(r.from, r.to)}
-                    style={{ 
-                      display: "flex", 
-                      alignItems: "center", 
-                      gap: isMobile ? 10 : 14, 
-                      padding: isMobile ? "10px 12px" : "12px 14px", 
-                      borderRadius: isMobile ? 12 : 16, 
-                      cursor: "pointer", 
-                      background: C.dim,
-                      border: `1px solid ${C.border}`,
-                      transition: "all 0.2s",
-                      minWidth: 0,
-                      width: "100%",
-                      boxSizing: "border-box"
+                    style={{
+                      background: C.card,
+                      border: `1.5px solid ${C.border}`,
+                      borderRadius: 16,
+                      padding: "16px 18px",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 14
                     }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.background = currentTheme === 'light' ? "#f1efff" : "#241f3d";
-                      e.currentTarget.style.borderColor = C.accent + "33";
+                      e.currentTarget.style.borderColor = modeColor + "66";
+                      e.currentTarget.style.boxShadow = `0 8px 20px ${modeColor}15`;
                     }}
                     onMouseLeave={e => {
-                      e.currentTarget.style.background = C.dim;
                       e.currentTarget.style.borderColor = C.border;
+                      e.currentTarget.style.boxShadow = "none";
                     }}
                   >
-                    <div style={{ width: 34, height: 34, borderRadius: 10, background: modeBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <Ic n={MC[r.mode]?.icon || "mappin"} s={15} c={modeColor} sw={2} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {r.custom_name ? r.custom_name : `${r.from} → ${r.to}`}
-                        </span>
-                        {r.custom_name && <Pill color={modeColor} small>{MC[r.mode]?.short || "SAVED"}</Pill>}
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+                      <div style={{ width: 42, height: 42, borderRadius: 12, background: modeBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <Ic n={MC[r.mode]?.icon || "mappin"} s={18} c={modeColor} sw={2} />
                       </div>
-                      {r.custom_name && <div style={{ fontSize: 11, color: C.muted, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.from} → {r.to}</div>}
-                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.date} · Est. Cost: ₹{r.cost}</div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 14, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {r.custom_name ? r.custom_name : `${r.from} → ${r.to}`}
+                          </span>
+                          {r.custom_name && <Pill color={modeColor} small>{MC[r.mode]?.short || "SAVED"}</Pill>}
+                        </div>
+                        {r.custom_name && (
+                          <div style={{ fontSize: 11.5, color: C.muted, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {r.from} → {r.to}
+                          </div>
+                        )}
+                        <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500 }}>
+                          {r.date} · Est. Cost: ₹{r.cost}
+                        </div>
+                      </div>
                     </div>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleDeleteSavedRoute(r.id); }} 
-                      style={{ 
-                        background: "none", 
-                        border: "none", 
-                        color: C.red, 
-                        cursor: "pointer", 
-                        padding: "6px",
-                        borderRadius: 8,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        transition: "background 0.2s",
-                        flexShrink: 0,
-                        marginLeft: 6
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
-                      onMouseLeave={e => e.currentTarget.style.background = "none"}
-                    >
-                      <Ic n="x" s={14} c={C.red} />
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                      <span style={{ fontSize: 12, color: modeColor, fontWeight: 700 }}>Plan →</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteSavedRoute(r.id); }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: C.red,
+                          cursor: "pointer",
+                          padding: "6px",
+                          borderRadius: 8
+                        }}
+                        title="Remove saved place"
+                      >
+                        <Ic n="x" s={14} c={C.red} />
+                      </button>
+                    </div>
                   </div>
                 );
-              })
-            ) : (
-              <div style={{ textAlign: "center", padding: "16px 0", color: C.muted, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-                <div style={{ width: 48, height: 48, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Ic n="star" s={18} c={C.muted} sw={2.2} />
-                </div>
-                <div style={{ fontWeight: 800, color: C.text }}>No saved Places yet</div>
-                <div style={{ fontSize: 11, color: C.muted }}>Bookmark your favourite locations and routes</div>
-                <button 
-                  onClick={onPlan} 
-                  style={{
-                    marginTop: 8,
-                    background: "none",
-                    border: `1.5px solid ${C.accent}`,
-                    borderRadius: 10,
-                    padding: "8px 20px",
-                    color: C.accent,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    transition: "all 0.2s"
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = C.accent; e.currentTarget.style.color = "#ffffff"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.accent; }}
-                >
-                  + Add Place
-                </button>
+              })}
+            </div>
+          ) : (
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: "50px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 50, height: 50, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Ic n="star" s={20} c="#f59e0b" sw={2.2} />
               </div>
-            )}
-          </div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>No Saved Places Yet</div>
+              <div style={{ fontSize: 12, color: C.muted, maxWidth: 360 }}>
+                Bookmark your daily home-office routes or frequent transit stops for one-click access.
+              </div>
+              <button
+                onClick={onPlan}
+                style={{
+                  marginTop: 8,
+                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 12,
+                  padding: "9px 20px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer"
+                }}
+              >
+                + Add First Place
+              </button>
+            </div>
+          )}
         </div>
+      )}
 
-      </div>
-
-      {/* Row 2: My Garage (left) & Digital Glovebox (center) & Quick Actions (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr)", gap: isMobile ? 16 : 24, marginBottom: isMobile ? 16 : 24, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
-        
-        {/* My Garage */}
-        <div id="my-garage-card" style={{ 
-          background: C.card, 
-          border: `1px solid ${C.border}`, 
-          borderRadius: 24, 
-          padding: "28px 24px",
-          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
-          display: "flex",
-          flexDirection: "column"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
-              <Ic n="car" s={16} c={C.text} sw={2.2} /> My Garage
-            </h2>
-            <button 
-              onClick={() => setGarageOpen(!garageOpen)} 
-              style={{ 
-                background: "none", 
-                border: `1.5px solid ${garageOpen ? C.border2 : C.accent}`, 
-                borderRadius: 10, 
-                padding: "6px 14px", 
-                fontSize: 11, 
+      {/* ─────────────────────────────────────────────────────────────
+          FRESH PAGE 3: MY GARAGE
+      ───────────────────────────────────────────────────────────── */}
+      {activeView === "my_garage" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                onClick={handleBackToHome}
+                style={{
+                  background: C.dim,
+                  border: `1.5px solid ${C.border2}`,
+                  borderRadius: 12,
+                  padding: "8px 14px",
+                  color: C.text,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "inherit"
+                }}
+              >
+                <span>←</span> Back to Home
+              </button>
+              <div>
+                <h2 style={{ fontSize: isMobile ? 18 : 24, fontWeight: 900, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <Ic n="car" s={20} c="#10b981" sw={2.2} /> My Garage
+                </h2>
+                <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0 0" }}>
+                  Add vehicles to calculate accurate personal driving costs and EV savings
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setGarageOpen(!garageOpen)}
+              style={{
+                background: "linear-gradient(135deg, #10b981, #059669)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 12,
+                padding: "8px 16px",
+                fontSize: 12.5,
                 fontWeight: 700,
-                color: garageOpen ? C.muted : C.accent, 
-                cursor: "pointer", 
-                fontFamily: "inherit",
-                transition: "all 0.2s"
+                cursor: "pointer",
+                fontFamily: "inherit"
               }}
             >
-              {garageOpen ? "Close" : "+ Add"}
+              {garageOpen ? "Close Form" : "+ Add Vehicle"}
             </button>
           </div>
- 
+
           {garageOpen && (
-            <form onSubmit={handleAddVehicle} style={{ background: C.dim, borderRadius: 16, padding: 16, marginBottom: 16, border: `1px solid ${C.border}` }}>
+            <form onSubmit={handleAddVehicle} style={{ background: C.dim, borderRadius: 16, padding: 18, marginBottom: 20, border: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 12, textTransform: "uppercase" }}>New Vehicle Specs</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {/* Vehicle Model with Autocomplete Dropdown */}
@@ -7059,7 +7368,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                 <button 
                   type="submit" 
                   style={{ 
-                    background: "linear-gradient(135deg, #7c3aed, #a855f7)", 
+                    background: "linear-gradient(135deg, #10b981, #059669)", 
                     border: "none", 
                     color: "white", 
                     borderRadius: 12, 
@@ -7075,18 +7384,18 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               </div>
             </form>
           )}
- 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 14 }}>
             {vehicles.length > 0 ? (
-              vehicles.slice(0, 3).map(v => (
-                <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.dim, border: `1px solid ${C.border}`, borderRadius: 16 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(16, 185, 129, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: 14 }}>{v.fuel_type === "EV" ? "⚡" : "🚗"}</span>
+              vehicles.map(v => (
+                <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 16 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(16, 185, 129, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontSize: 16 }}>{v.fuel_type === "EV" ? "⚡" : "🚗"}</span>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</div>
-                    <div style={{ fontSize: 10, color: C.muted, marginTop: 2, fontWeight: 500 }}>
-                      Type: {v.fuel_type} - Efficiency: {v.efficiency} {v.fuel_type === "EV" ? "km/kWh" : "km/L"}
+                    <div style={{ fontSize: 14, fontWeight: 800, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</div>
+                    <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2, fontWeight: 500 }}>
+                      Type: {v.fuel_type} · Efficiency: {v.efficiency} {v.fuel_type === "EV" ? "km/kWh" : "km/L"}
                     </div>
                   </div>
                   <button 
@@ -7100,62 +7409,100 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                       borderRadius: 8,
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      transition: "background 0.2s"
+                      justifyContent: "center"
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
-                    onMouseLeave={e => e.currentTarget.style.background = "none"}
+                    title="Remove vehicle"
                   >
                     <Ic n="x" s={14} c={C.red} />
                   </button>
                 </div>
               ))
             ) : (
-              <div style={{ textAlign: "center", padding: "30px 0", color: C.muted, fontSize: 12, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Ic n="car" s={18} c={C.muted} sw={2.2} />
+              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "50px 20px", color: C.muted, background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+                <div style={{ width: 50, height: 50, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Ic n="car" s={20} c={C.muted} sw={2.2} />
                 </div>
-                No vehicles added yet. Add vehicles to calculate journey driving costs!
+                <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>No Vehicles Added Yet</div>
+                <div style={{ fontSize: 12, color: C.muted, maxWidth: 360 }}>
+                  Add your car, bike or EV to get personalized fuel cost and driving comparisons.
+                </div>
+                <button
+                  onClick={() => setGarageOpen(true)}
+                  style={{
+                    marginTop: 8,
+                    background: "linear-gradient(135deg, #10b981, #059669)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 12,
+                    padding: "9px 20px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer"
+                  }}
+                >
+                  + Add First Vehicle
+                </button>
               </div>
             )}
           </div>
         </div>
+      )}
 
-        {/* Digital Glovebox */}
-        <div id="digital-glovebox-card" style={{ 
-          background: C.card, 
-          border: `1px solid ${C.border}`, 
-          borderRadius: 24, 
-          padding: "28px 24px",
-          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
-          display: "flex",
-          flexDirection: "column"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
-              <Ic n="folder" s={16} c={C.text} sw={2.2} /> Digital Glovebox
-            </h2>
-            <button 
-              onClick={() => setGloveboxOpen(!gloveboxOpen)} 
-              style={{ 
-                background: "none", 
-                border: `1.5px solid ${gloveboxOpen ? C.border2 : C.accent}`, 
-                borderRadius: 10, 
-                padding: "6px 14px", 
-                fontSize: 11, 
+      {/* ─────────────────────────────────────────────────────────────
+          FRESH PAGE 4: DIGITAL GLOVEBOX
+      ───────────────────────────────────────────────────────────── */}
+      {activeView === "digital_glovebox" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                onClick={handleBackToHome}
+                style={{
+                  background: C.dim,
+                  border: `1.5px solid ${C.border2}`,
+                  borderRadius: 12,
+                  padding: "8px 14px",
+                  color: C.text,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "inherit"
+                }}
+              >
+                <span>←</span> Back to Home
+              </button>
+              <div>
+                <h2 style={{ fontSize: isMobile ? 18 : 24, fontWeight: 900, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <Ic n="folder" s={20} c="#3b82f6" sw={2.2} /> Digital Glovebox
+                </h2>
+                <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0 0" }}>
+                  Securely store and monitor expiry dates for DL, RC, Insurance & PUC
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setGloveboxOpen(!gloveboxOpen)}
+              style={{
+                background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 12,
+                padding: "8px 16px",
+                fontSize: 12.5,
                 fontWeight: 700,
-                color: gloveboxOpen ? C.muted : C.accent, 
-                cursor: "pointer", 
-                fontFamily: "inherit",
-                transition: "all 0.2s"
+                cursor: "pointer",
+                fontFamily: "inherit"
               }}
             >
-              {gloveboxOpen ? "Close" : "+ Add"}
+              {gloveboxOpen ? "Close Form" : "+ Add Document"}
             </button>
           </div>
 
           {gloveboxOpen && (
-            <form onSubmit={handleAddDocument} style={{ background: C.dim, borderRadius: 16, padding: 16, marginBottom: 16, border: `1px solid ${C.border}` }}>
+            <form onSubmit={handleAddDocument} style={{ background: C.dim, borderRadius: 16, padding: 18, marginBottom: 20, border: `1px solid ${C.border}` }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 12, textTransform: "uppercase" }}>New Document Upload</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <select 
@@ -7190,7 +7537,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                 <button 
                   type="submit" 
                   style={{ 
-                    background: "linear-gradient(135deg, #7c3aed, #a855f7)", 
+                    background: "linear-gradient(135deg, #3b82f6, #2563eb)", 
                     border: "none", 
                     color: "white", 
                     borderRadius: 12, 
@@ -7207,30 +7554,30 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
             </form>
           )}
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 14 }}>
             {documents.length > 0 ? (
-              documents.slice(0, 3).map(d => {
+              documents.map(d => {
                 const status = getDocExpiryStatus(d.expiry_date);
                 return (
-                  <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: C.dim, border: `1px solid ${C.border}`, borderRadius: 16 }}>
+                  <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: C.card, border: `1.5px solid ${C.border}`, borderRadius: 16 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{d.doc_type}</span>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{d.doc_type}</span>
                         <Pill color={status.color} small>{status.label}</Pill>
                       </div>
-                      <div style={{ fontSize: 10, color: C.muted, marginTop: 4, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>No: {d.doc_number}</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>No: {d.doc_number}</div>
                     </div>
-                    <div style={{ display: "flex", gap: 4 }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <button 
                         type="button"
                         onClick={() => setPreviewDoc(d)}
                         style={{ 
-                          background: "rgba(124, 58, 237, 0.08)", 
-                          color: C.accent, 
-                          border: `1px solid rgba(124, 58, 237, 0.2)`, 
+                          background: "rgba(59, 130, 246, 0.08)", 
+                          color: "#3b82f6", 
+                          border: `1px solid rgba(59, 130, 246, 0.25)`, 
                           borderRadius: 8, 
-                          padding: "4px 10px", 
-                          fontSize: 11, 
+                          padding: "5px 12px", 
+                          fontSize: 11.5, 
                           fontWeight: 700, 
                           cursor: "pointer",
                           fontFamily: "inherit"
@@ -7251,48 +7598,92 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                           alignItems: "center",
                           justifyContent: "center"
                         }}
+                        title="Delete document"
                       >
-                        <Ic n="x" s={12} c={C.red} />
+                        <Ic n="x" s={14} c={C.red} />
                       </button>
                     </div>
                   </div>
                 );
               })
             ) : (
-              <div style={{ textAlign: "center", padding: "30px 0", color: C.muted, fontSize: 12, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Ic n="doc" s={18} c={C.muted} sw={2.2} />
+              <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "50px 20px", color: C.muted, background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+                <div style={{ width: 50, height: 50, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Ic n="folder" s={20} c={C.muted} sw={2.2} />
                 </div>
-                <div style={{ fontWeight: 800, color: C.text }}>No documents uploaded yet</div>
-                <div style={{ fontSize: 11, color: C.muted }}>Secure DL, insurance & RC here.</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: C.text }}>No Documents Uploaded Yet</div>
+                <div style={{ fontSize: 12, color: C.muted, maxWidth: 360 }}>
+                  Upload Driving License, RC, Insurance & PUC to store them securely and get timely renewal alerts.
+                </div>
+                <button
+                  onClick={() => setGloveboxOpen(true)}
+                  style={{
+                    marginTop: 8,
+                    background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 12,
+                    padding: "9px 20px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer"
+                  }}
+                >
+                  + Upload Document
+                </button>
               </div>
             )}
           </div>
         </div>
+      )}
 
-        {/* Quick Actions */}
-        <div style={{ 
-          background: C.card, 
-          border: `1px solid ${C.border}`, 
-          borderRadius: 24, 
-          padding: "28px 24px",
-          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
-          display: "flex",
-          flexDirection: "column"
-        }}>
-          <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-            <Ic n="now" s={16} c="#f59e0b" sw={2.2} /> Quick Actions
-          </h2>
-          
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, flex: 1 }}>
+      {/* ─────────────────────────────────────────────────────────────
+          FRESH PAGE 5: QUICK ACTIONS & LIVE TOOLS
+      ───────────────────────────────────────────────────────────── */}
+      {activeView === "quick_actions" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                onClick={handleBackToHome}
+                style={{
+                  background: C.dim,
+                  border: `1.5px solid ${C.border2}`,
+                  borderRadius: 12,
+                  padding: "8px 14px",
+                  color: C.text,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "inherit"
+                }}
+              >
+                <span>←</span> Back to Home
+              </button>
+              <div>
+                <h2 style={{ fontSize: isMobile ? 18 : 24, fontWeight: 900, color: C.text, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <Ic n="now" s={20} c="#ec4899" sw={2.2} /> Quick Actions & Transit Tools
+                </h2>
+                <p style={{ fontSize: 12, color: C.muted, margin: "2px 0 0 0" }}>
+                  Live map, fare charts, weather, traffic alerts and route lookup
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Tools Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
             {[
-              { id: "live_map", label: "Live Map", sub: "Track vehicles", icon: "gps", color: "#10b981", bg: "rgba(16, 185, 129, 0.08)" },
-              { id: "fare_guide", label: "Fare Guide", sub: "Check fares", icon: "table", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.08)" },
-              { id: "alerts", label: "Alerts", sub: "Stay updated", icon: "bell", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
-              { id: "search_saved_routes", label: "Search Saved Routes", sub: "Find saved journeys", icon: "search", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
-              { id: "search_place", label: "Search a Place", sub: "Find any location", icon: "gps", color: "#ec4899", bg: "rgba(236, 72, 153, 0.08)" },
-              { id: "route_lookup_journey", label: "Route Lookup for a Journey", sub: "Plan from A to B", icon: "route", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
-              { id: "settings", label: "Settings", sub: "App configuration", icon: "settings", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
+              { id: "live_map", label: "Live Map", sub: "Track live transit", icon: "gps", color: "#10b981", bg: "rgba(16, 185, 129, 0.08)" },
+              { id: "fare_guide", label: "Fare Guide", sub: "BMTC & Metro fares", icon: "table", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.08)" },
+              { id: "alerts", label: "Alerts & Weather", sub: "Rain & road updates", icon: "bell", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
+              { id: "search_saved_routes", label: "Search Saved Routes", sub: "Filter saved trips", icon: "search", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
+              { id: "search_place", label: "Search a Place", sub: "Bus stops & stations", icon: "gps", color: "#ec4899", bg: "rgba(236, 72, 153, 0.08)" },
+              { id: "route_lookup_journey", label: "Route Lookup", sub: "Point-to-point journey", icon: "route", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
+              { id: "settings", label: "Settings", sub: "Preferences & audio", icon: "settings", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
             ].map(act => (
               <div 
                 key={act.label}
@@ -7314,156 +7705,106 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                   }
                 }}
                 style={{ 
-                  border: `1px solid ${C.border}`,
+                  border: `1.5px solid ${C.border}`,
                   borderRadius: 16, 
-                  padding: "12px 14px", 
+                  padding: "16px", 
                   display: "flex", 
                   flexDirection: "column", 
-                  gap: 8,
-                  background: C.dim,
+                  gap: 10,
+                  background: C.card,
                   cursor: "pointer",
-                  transition: "all 0.2s"
+                  transition: "all 0.2s ease"
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.transform = "scale(1.02)";
-                  e.currentTarget.style.background = C.card;
-                  e.currentTarget.style.borderColor = act.color + "30";
-                  e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.04) 0 8px 16px";
+                  e.currentTarget.style.transform = "translateY(-3px)";
+                  e.currentTarget.style.borderColor = act.color + "55";
+                  e.currentTarget.style.boxShadow = `0 8px 20px ${act.color}15`;
                 }}
                 onMouseLeave={e => {
                   e.currentTarget.style.transform = "none";
-                  e.currentTarget.style.background = C.dim;
                   e.currentTarget.style.borderColor = C.border;
                   e.currentTarget.style.boxShadow = "none";
                 }}
               >
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: act.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Ic n={act.icon} s={14} c={act.color} sw={2.2} />
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: act.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Ic n={act.icon} s={16} c={act.color} sw={2.2} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{act.label}</div>
-                  <div style={{ fontSize: 10, color: C.muted, marginTop: 2, fontWeight: 500 }}>{act.sub}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 800, color: C.text }}>{act.label}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500 }}>{act.sub}</div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
 
-      </div>
-
-      {/* Row 3: Commute Suggestions (left) & Travel Alerts (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 16 : 24 }}>
-        
-        {/* Commute Suggestions */}
-        <div style={{ 
-          background: C.card, 
-          border: `1px solid ${C.border}`, 
-          borderRadius: 24, 
-          padding: "28px 24px",
-          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
-          display: "flex",
-          flexDirection: "column"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
-              <Ic n="rocket" s={16} c={C.accent} sw={2.2} /> Commute Suggestions
-            </h2>
-            <button 
-              onClick={onPlan} 
-              style={{ background: "none", border: "none", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", padding: 0 }}
-            >
-              See all
-            </button>
-          </div>
-
-          <div style={{
-            background: C.accent + "0a",
-            border: `1px solid ${C.accent}20`,
-            borderRadius: 16,
-            padding: "16px 20px",
-            display: "flex",
-            alignItems: "center",
-            gap: 16
-          }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: C.accent + "1c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Ic n="rocket" s={16} c={C.accent} sw={2.2} />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Beat the traffic!</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontWeight: 500, lineHeight: 1.4 }}>Travel before 9:00 AM to save up to 25% time on your commute.</div>
-            </div>
-          </div>
-
-          {/* Dots Pagination */}
-          <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 16 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.accent }} />
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.border2 }} />
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.border2 }} />
-          </div>
-        </div>
-
-        {/* Travel Alerts */}
-        <div id="travel-alerts-card" style={{ 
-          background: C.card, 
-          border: `1px solid ${C.border}`, 
-          borderRadius: 24, 
-          padding: "28px 24px",
-          boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
-          display: "flex",
-          flexDirection: "column"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
-              <Ic n="bell" s={16} c={C.red} sw={2.2} /> Travel Alerts
-            </h2>
-            <button 
-              onClick={onPlan} 
-              style={{ background: "none", border: "none", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", padding: 0 }}
-            >
-              View all
-            </button>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {/* Transit Alert */}
-            <div style={{
-              background: C.red + "08",
-              border: `1px solid ${C.red}18`,
-              borderRadius: 16,
-              padding: "12px 16px",
+          {/* Commute Suggestions & Travel Alerts cards */}
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
+            {/* Commute Suggestions */}
+            <div style={{ 
+              background: C.card, 
+              border: `1px solid ${C.border}`, 
+              borderRadius: 20, 
+              padding: "20px 22px",
               display: "flex",
-              alignItems: "center",
+              flexDirection: "column",
               gap: 12
             }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.red + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Ic n="alert" s={14} c={C.red} sw={2.2} />
+              <div style={{ fontSize: 15, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8 }}>
+                <Ic n="rocket" s={16} c={C.accent} sw={2.2} /> Commute Suggestions
               </div>
-              <div>
-                <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>Transit: No active alerts</div>
-                <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2, fontWeight: 500 }}>No disruptions on your saved routes.</div>
+              <div style={{
+                background: C.accent + "0a",
+                border: `1px solid ${C.accent}20`,
+                borderRadius: 14,
+                padding: "14px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: 14
+              }}>
+                <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.accent + "1c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Ic n="rocket" s={15} c={C.accent} sw={2.2} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Beat the traffic!</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 3, fontWeight: 500 }}>Travel before 9:00 AM to save up to 25% time on your commute.</div>
+                </div>
               </div>
             </div>
 
-            {/* Weather Alert */}
-            <div style={{
-              background: C.accent + "08",
-              border: `1px solid ${C.accent}18`,
-              borderRadius: 16,
-              padding: "12px 16px",
+            {/* Travel Alerts */}
+            <div style={{ 
+              background: C.card, 
+              border: `1px solid ${C.border}`, 
+              borderRadius: 20, 
+              padding: "20px 22px",
               display: "flex",
-              alignItems: "center",
+              flexDirection: "column",
               gap: 12
             }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.accent + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 14 }}>☀️</span>
+              <div style={{ fontSize: 15, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8 }}>
+                <Ic n="bell" s={16} c={C.red} sw={2.2} /> Live Transit Alerts
               </div>
-              <div>
-                <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>Weather: 27°C Partly Cloudy</div>
-                <div style={{ fontSize: 10.5, color: C.muted, marginTop: 2, fontWeight: 500 }}>Perfect commute weather. No rain expected today.</div>
+              <div style={{
+                background: C.red + "08",
+                border: `1px solid ${C.red}18`,
+                borderRadius: 14,
+                padding: "12px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 12
+              }}>
+                <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.red + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Ic n="alert" s={14} c={C.red} sw={2.2} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>Transit: All normal</div>
+                  <div style={{ fontSize: 10.5, color: C.muted, marginTop: 1, fontWeight: 500 }}>No major disruptions reported on BMTC or Metro.</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+      )}
 
         {/* Bicycle Register Modal Popup */}
         {showBicyclePopup && (
@@ -7686,7 +8027,6 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
         </div>
       )}
 
-      </div>
     </div>
   );
 }
@@ -9937,6 +10277,7 @@ export default function App() {
   };
 
   const [page, setPage] = useState("dashboard");
+  const [dashView, setDashView] = useState("home");
   const [showBicycleOffer, setShowBicycleOffer] = useState(false);
   const [bicycleOfferRoute, setBicycleOfferRoute] = useState(null);
   const [showWalkOffer, setShowWalkOffer] = useState(false);
@@ -10813,7 +11154,7 @@ export default function App() {
                     key={n.id}
                     onClick={() => {
                       if (isMobile) setMobileSidebarOpen(false);
-                      if (n.id === "dashboard") { setPage("dashboard"); }
+                      if (n.id === "dashboard") { setPage("dashboard"); setDashView("home"); }
                       else if (n.id === "plan") { handleGoToPlan(); }
                       else if (n.id === "search_routes") { setPage("route_lookup"); window.scrollTo({ top: 0, behavior: "smooth" }); }
                       else if (n.id === "timetable") { setPage("timetable"); window.scrollTo({ top: 0, behavior: "smooth" }); }
@@ -10875,10 +11216,8 @@ export default function App() {
                     onClick={() => {
                       if (n.id === "favourites") {
                         setPage("dashboard");
-                        setTimeout(() => {
-                          const el = document.getElementById("saved-places-card");
-                          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                        }, 100);
+                        setDashView("saved_places");
+                        if (isMobile) setMobileSidebarOpen(false);
                       } else if (n.id === "fare_calculator") {
                         setShowFareCalc(true);
                       } else if (n.id === "stops_info") {
@@ -10891,10 +11230,8 @@ export default function App() {
                         setShowWeatherModal(true);
                       } else if (n.id === "alerts_updates") {
                         setPage("dashboard");
-                        setTimeout(() => {
-                          const el = document.getElementById("travel-alerts-card");
-                          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                        }, 100);
+                        setDashView("quick_actions");
+                        if (isMobile) setMobileSidebarOpen(false);
                       }
                     }}
                     style={{
@@ -10966,16 +11303,20 @@ export default function App() {
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, cursor: "pointer" }} onClick={() => {
                       setPage("dashboard");
-                      setTimeout(() => {
-                        const el = document.getElementById(n.id === "my_garage" ? "my-garage-card" : "digital-glovebox-card");
-                        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                      }, 100);
+                      setDashView(n.id);
+                      if (isMobile) setMobileSidebarOpen(false);
                     }}>
                       <Ic n={n.icon} s={15} c="#8e8a9f" />
                       <span style={{ fontSize: 13.5, color: "#8e8a9f", fontWeight: 600 }}>{n.label}</span>
                     </div>
                     <button
-                      onClick={(e) => { e.stopPropagation(); n.onAdd(); }}
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setPage("dashboard"); 
+                        setDashView(n.id);
+                        n.onAdd(); 
+                        if (isMobile) setMobileSidebarOpen(false);
+                      }}
                       style={{
                         background: "none",
                         border: "1px solid #c084fc",
@@ -11279,6 +11620,8 @@ export default function App() {
             setShowStopsInfo={setShowStopsInfo}
             setShowSettings={setShowSettings}
             isMobile={isMobile}
+            dashView={dashView}
+            setDashView={setDashView}
           />
         )}
 
@@ -12571,7 +12914,7 @@ export default function App() {
           boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.12)"
         }}>
           {[
-            { id: "dashboard", label: "Home", icon: "home", action: () => setPage("dashboard") },
+            { id: "dashboard", label: "Home", icon: "home", action: () => { setPage("dashboard"); setDashView("home"); } },
             { id: "plan", label: "Plan", icon: "mappin", action: handleGoToPlan },
             { id: "ride_mode", label: "Ride Mode", icon: "bus", special: true, action: () => handleOpenRideMode() },
             { id: "features", label: "Features", icon: "grid", action: () => setShowFeaturesModal(true) },

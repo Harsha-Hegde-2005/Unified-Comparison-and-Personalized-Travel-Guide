@@ -285,12 +285,19 @@ function HomePage({ stops, onNav, onSearch }) {
     }
   };
 
+  const getGreeting = () => {
+    const hr = new Date().getHours();
+    if (hr < 12) return "Good Morning";
+    if (hr < 17) return "Good Afternoon";
+    return "Good Evening";
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: "20px 28px", maxWidth: 1240, margin: "0 auto" }}>
       {/* Top Greeting & Weather/Clock */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: T.text }}>Good Morning! 👋</h1>
+          <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: T.text }}>{getGreeting()}! 👋</h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: T.muted }}>Where will your journey take you today?</p>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
