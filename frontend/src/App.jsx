@@ -1492,8 +1492,8 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
   const currentLeg = currentLegIdx !== -1 ? navLegs[currentLegIdx] : null;
 
   return (
-    <div style={{ position: "relative", height: "100%", minHeight: 340, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.border}` }}>
-      <div ref={ref} style={{ width: "100%", height: "100%", minHeight: 340 }} />
+    <div style={{ position: "relative", height: "100%", minHeight: 180, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.border}` }}>
+      <div ref={ref} style={{ width: "100%", height: "100%", minHeight: 180 }} />
       {!(useOsm ? osmLoaded : loaded) && (
         <div style={{
           position: "absolute", inset: 0, background: C.surface,
@@ -5173,7 +5173,7 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
       boxShadow: isSelected ? `0 0 0 4px ${m.color}14, 0 12px 40px ${m.color}14` : "none",
       cursor: "pointer", transition: "all 0.18s", overflow: "hidden", position: "relative",
       display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%",
-      gridColumn: modeKey === "multimodal" ? "1 / -1" : "auto"
+      gridColumn: (modeKey === "multimodal" || (modeKey === "cab" && isSelected) || tab) ? "1 / -1" : "auto"
     }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         {data.tag && (
@@ -5183,13 +5183,28 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
       )}
 
       {/* Header */}
-      <div style={{ padding: "18px 18px 12px", display: "flex", gap: 12, alignItems: "center" }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, background: m.bg, border: `1.5px solid ${m.color}44`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Ic n={m.icon} s={22} c={m.color} />
+      <div style={{ padding: "16px 16px 10px", display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ width: 42, height: 42, borderRadius: 12, background: m.bg, border: `1.5px solid ${m.color}44`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Ic n={m.icon} s={20} c={m.color} />
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{m.label}</div>
-          <div style={{ fontSize: 11, color: C.muted }}>{m.line}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{m.label}</span>
+            {data.aiRank && (
+              <span style={{
+                background: data.aiRank === 1 ? "#fef08a" : "rgba(124, 58, 237, 0.1)",
+                color: data.aiRank === 1 ? "#854d0e" : "#7c3aed",
+                border: `1px solid ${data.aiRank === 1 ? "#fde047" : "rgba(124, 58, 237, 0.25)"}`,
+                borderRadius: 6,
+                padding: "1px 5px",
+                fontSize: 9.5,
+                fontWeight: 800
+              }}>
+                #{data.aiRank} AI {data.aiScore ? `(${data.aiScore}%)` : ""}
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{m.line}</div>
           {modeKey === "bmtc" && (
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
               {data.all_direct && data.all_direct.length > 0 ? (
@@ -8211,6 +8226,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
    JOURNEY CONTEXT BANNER (Location, Traffic & Weather ETA)
 ───────────────────────────────────────────────────────────── */
 function JourneyContextBanner({ journey, traffic, weather }) {
+  const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   if (!journey && !traffic && !weather) return null;
 
   const levelColors = {
@@ -8231,51 +8247,76 @@ function JourneyContextBanner({ journey, traffic, weather }) {
     <div style={{
       background: "linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)",
       border: "1.5px solid #ede9fe",
-      borderRadius: 20,
-      padding: 20,
-      marginBottom: 20,
-      boxShadow: "rgba(124, 58, 237, 0.04) 0 10px 30px",
+      borderRadius: 16,
+      padding: "10px 16px",
+      marginBottom: 16,
+      boxShadow: "rgba(124, 58, 237, 0.04) 0 6px 18px",
       display: "flex",
       flexDirection: "column",
-      gap: 14,
-      animation: "fadeIn 0.4s ease-out both"
+      gap: 10,
+      animation: "fadeIn 0.3s ease-out both"
     }}>
-      {/* Top row: Journey ETA & Traffic status */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(124, 58, 237, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 16 }}>⏱️</span>
-          </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 14, color: "#111827" }}>
-              {journey?.source} → {journey?.destination}
-            </div>
-            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600 }}>
-              Departure: {journey?.departure_time || "Now"} • Expected Arrival: ~{journey?.estimated_arrival_time || "ETA"} ({journey?.estimated_duration_min} min travel)
-            </div>
-          </div>
-        </div>
-
-        {/* Traffic Badge */}
-        {traffic && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      {/* Sleek Context Summary Row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {/* Traffic Pill */}
+          {traffic && (
             <div style={{
               background: tStyle.bg, color: tStyle.text, border: `1px solid ${tStyle.border}`,
-              padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", gap: 6
+              padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", gap: 5
             }}>
               <span>🚦</span>
               <span>{tStyle.label} {traffic.delay_min > 0 ? `(+${traffic.delay_min}m delay)` : ""}</span>
             </div>
-            <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 700, background: "#f3f4f6", padding: "5px 10px", borderRadius: 8 }}>
-              {traffic.source === "google" ? (traffic.type === "predicted" ? "Google Predicted Traffic" : "Google Live Traffic") : "Local Traffic Est."}
+          )}
+
+          {/* Weather summary pill */}
+          {weather && destW && (
+            <div style={{
+              background: "rgba(59, 130, 246, 0.08)", color: "#1d4ed8", border: "1px solid rgba(59, 130, 246, 0.25)",
+              padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 5
+            }}>
+              <span>🌦️</span>
+              <span>{destW.temperature}°C • {destW.rain_probability}% rain ({destW.condition || "Clear"})</span>
             </div>
-          </div>
+          )}
+
+          {/* Departure & Arrival ETA */}
+          {journey && (
+            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+              <span>⏱️ Departs {journey.departure_time || "Now"} • ETA ~{journey.estimated_arrival_time || "ETA"} ({journey.estimated_duration_min} min travel)</span>
+            </div>
+          )}
+        </div>
+
+        {/* Expand/Collapse Weather Route Details */}
+        {weather && (
+          <button
+            onClick={() => setShowWeatherDetails(!showWeatherDetails)}
+            style={{
+              background: showWeatherDetails ? "rgba(124, 58, 237, 0.1)" : "transparent",
+              border: `1px solid ${showWeatherDetails ? "#7c3aed" : "#e5e7eb"}`,
+              borderRadius: 8,
+              padding: "4px 10px",
+              fontSize: 11,
+              fontWeight: 700,
+              color: showWeatherDetails ? "#7c3aed" : "#6b7280",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontFamily: "inherit",
+              transition: "all 0.2s"
+            }}
+          >
+            <span>{showWeatherDetails ? "Hide Route Weather ▲" : "Weather Along Route ▼"}</span>
+          </button>
         )}
       </div>
 
-      {/* Middle row: Weather Journey Timeline */}
-      {weather && (
-        <div style={{ background: "#ffffff", border: "1px solid #f3f4f6", borderRadius: 14, padding: "14px 16px" }}>
+      {/* Expandable Corridor Checkpoints & Advisory */}
+      {showWeatherDetails && weather && (
+        <div style={{ background: "#ffffff", border: "1px solid #f3f4f6", borderRadius: 12, padding: "12px 14px", marginTop: 4 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: "#374151", letterSpacing: "0.03em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
               <span>🌦️</span> Weather Along Route (Location & ETA Aware)
@@ -8285,11 +8326,11 @@ function JourneyContextBanner({ journey, traffic, weather }) {
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", fontSize: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", fontSize: 11.5 }}>
             {/* Origin */}
             {origW && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#f9fafb", padding: "8px 12px", borderRadius: 10, border: "1px solid #f3f4f6" }}>
-                <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 700 }}>Starting Point ({weather.departure_time})</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#f9fafb", padding: "6px 10px", borderRadius: 8, border: "1px solid #f3f4f6" }}>
+                <span style={{ fontSize: 9.5, color: "#6b7280", fontWeight: 700 }}>Starting Point ({weather.departure_time})</span>
                 <span style={{ fontWeight: 800, color: "#111827" }}>
                   {origW.temperature}°C • {origW.rain_probability}% rain ({origW.condition})
                 </span>
@@ -8300,8 +8341,8 @@ function JourneyContextBanner({ journey, traffic, weather }) {
             {checkpoints.map((cp, idx) => (
               <Fragment key={idx}>
                 <span style={{ color: "#9ca3af", fontWeight: 800 }}>→</span>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#f9fafb", padding: "8px 12px", borderRadius: 10, border: "1px solid #f3f4f6" }}>
-                  <span style={{ fontSize: 10, color: "#6b7280", fontWeight: 700 }}>{cp.name} ({cp.eta})</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#f9fafb", padding: "6px 10px", borderRadius: 8, border: "1px solid #f3f4f6" }}>
+                  <span style={{ fontSize: 9.5, color: "#6b7280", fontWeight: 700 }}>{cp.name} ({cp.eta})</span>
                   <span style={{ fontWeight: 800, color: "#111827" }}>
                     {cp.weather.temperature}°C • {cp.weather.rain_probability}% rain
                   </span>
@@ -8313,8 +8354,8 @@ function JourneyContextBanner({ journey, traffic, weather }) {
             {destW && (
               <>
                 <span style={{ color: "#9ca3af", fontWeight: 800 }}>→</span>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#eff6ff", padding: "8px 12px", borderRadius: 10, border: "1px solid #dbeafe" }}>
-                  <span style={{ fontSize: 10, color: "#2563eb", fontWeight: 700 }}>Destination ETA ({weather.estimated_arrival_time})</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#eff6ff", padding: "6px 10px", borderRadius: 8, border: "1px solid #dbeafe" }}>
+                  <span style={{ fontSize: 9.5, color: "#2563eb", fontWeight: 700 }}>Destination ETA ({weather.estimated_arrival_time})</span>
                   <span style={{ fontWeight: 800, color: "#1e40af" }}>
                     {destW.temperature}°C • {destW.rain_probability}% rain ({destW.condition})
                   </span>
@@ -8322,32 +8363,33 @@ function JourneyContextBanner({ journey, traffic, weather }) {
               </>
             )}
           </div>
-        </div>
-      )}
 
-      {/* Advisory Banner */}
-      {weather?.advisory && (
-        <div style={{
-          background: weather.weather_change_detected ? "rgba(245, 158, 11, 0.08)" : "rgba(59, 130, 246, 0.08)",
-          border: `1.5px solid ${weather.weather_change_detected ? "rgba(245, 158, 11, 0.3)" : "rgba(59, 130, 246, 0.3)"}`,
-          borderRadius: 12,
-          padding: "12px 16px",
-          fontSize: 12,
-          fontWeight: 600,
-          color: weather.weather_change_detected ? "#92400e" : "#1e40af",
-          lineHeight: "1.4",
-          display: "flex",
-          alignItems: "center",
-          gap: 8
-        }}>
-          {weather.advisory}
-        </div>
-      )}
+          {/* Advisory Banner */}
+          {weather?.advisory && (
+            <div style={{
+              marginTop: 10,
+              background: weather.weather_change_detected ? "rgba(245, 158, 11, 0.08)" : "rgba(59, 130, 246, 0.08)",
+              border: `1px solid ${weather.weather_change_detected ? "rgba(245, 158, 11, 0.3)" : "rgba(59, 130, 246, 0.3)"}`,
+              borderRadius: 8,
+              padding: "8px 12px",
+              fontSize: 11,
+              fontWeight: 600,
+              color: weather.weather_change_detected ? "#92400e" : "#1e40af",
+              lineHeight: "1.4",
+              display: "flex",
+              alignItems: "center",
+              gap: 8
+            }}>
+              {weather.advisory}
+            </div>
+          )}
 
-      {/* Outdoor Comfort Note */}
-      {weather?.outdoor_comfort_note && (
-        <div style={{ fontSize: 11, color: "#d97706", fontWeight: 700, display: "flex", alignItems: "center", gap: 6, background: "#fffbeb", padding: "8px 12px", borderRadius: 10, border: "1px solid #fef3c7" }}>
-          <span>🌡️</span> {weather.outdoor_comfort_note}
+          {/* Outdoor Comfort Note */}
+          {weather?.outdoor_comfort_note && (
+            <div style={{ marginTop: 6, fontSize: 10.5, color: "#d97706", fontWeight: 700, display: "flex", alignItems: "center", gap: 6, background: "#fffbeb", padding: "6px 10px", borderRadius: 8, border: "1px solid #fef3c7" }}>
+              <span>🌡️</span> {weather.outdoor_comfort_note}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -8355,7 +8397,7 @@ function JourneyContextBanner({ journey, traffic, weather }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   MAIN APP
+   EXPLAINABLE AI (XAI) & SMART RANKER PANEL
 ───────────────────────────────────────────────────────────── */
 function AIRecommendationsPanel({
   recommendations,
@@ -8368,9 +8410,7 @@ function AIRecommendationsPanel({
   selectedMultimodalOption,
   setSelectedMultimodalOption
 }) {
-  const [expandedIndex, setExpandedIndex] = useState(null);
-  const [cabFilter, setCabFilter] = useState("all");
-  const [cabProviderFilter, setCabProviderFilter] = useState("all");
+  const [showAllExplanations, setShowAllExplanations] = useState(false);
 
   if (!recommendations || recommendations.length === 0) return null;
 
@@ -8382,557 +8422,199 @@ function AIRecommendationsPanel({
     multimodal: { color: "#ec4899", bg: "rgba(236, 72, 153, 0.08)", icon: "transfer", label: "Multimodal Transit" }
   };
 
-  const getVehicleCategory = (est) => {
-    const key = (est.vehicle_key || "").toLowerCase();
-    const name = (est.vehicle_name || "").toLowerCase();
-    if (est.parcel || est.vtype === "parcel" || key.includes("parcel")) return "parcel";
-    if (est.rental || est.vtype === "rental" || key.includes("hourly") || key.includes("rental")) return "rental";
-    if (est.pet || est.vtype === "pet") return "pet";
-    if (est.book_any || est.vtype === "book_any" || name === "book any") return "book_any";
-    if (key.includes("auto") || name.includes("auto")) return "auto";
-    if (est.vtype === "scooty" || key.includes("scooty") || name.includes("scooty")) return "scooty";
-    if (est.saver || est.vtype === "saver" || key.includes("saver")) return "saver";
-    if (key.includes("bike") || name.includes("bike") || key.includes("moto") || name.includes("moto")) return "bike";
-    if (est.vtype === "priority" || key.includes("priority")) return "priority";
-    if (est.black || est.vtype === "black") return "black";
-    if (
-      key.includes("ac_cab") || name.includes("cab (ac)") ||
-      key.includes("premier") || name.includes("premier") ||
-      key.includes("prime") || name.includes("prime") ||
-      key.includes("prime_plus") || name.includes("prime plus") ||
-      key.includes("green") || name.includes("green") ||
-      key.includes("lux") || name.includes("lux") ||
-      key.includes("sedan") || name.includes("sedan") ||
-      key.includes("go_ac") || name.includes("go ac") ||
-      name.includes("ac cab") || name.includes("ac,")
-    ) return "ac_cab";
-    if (key.includes("xl") || name.includes("xl") || key.includes("suv") || name.includes("suv")) return "other";
-    return "cab";
-  };
-
-  const PROVIDER_STYLES = {
-    namma_yatri: { bg: "#eab308", text: "#000", label: "NammaMove" },
-    uber: { bg: "#374151", text: "#fff", label: "SwiftCab" },
-    ola: { bg: "#84cc16", text: "#000", label: "GoRide" },
-    rapido: { bg: "#ea580c", text: "#fff", label: "SwiftGo" },
-  };
-
-  const SPECIAL_BADGES = {
-    parcel: { label: "PARCEL", color: "#f59e0b", icon: "📦" },
-    rental: { label: "HOURLY", color: "#8b5cf6", icon: "⏱️" },
-    priority: { label: "PRIORITY", color: "#06b6d4", icon: "⚡" },
-    pet: { label: "PET", color: "#f472b6", icon: "🐾" },
-    saver: { label: "SAVER", color: "#22c55e", icon: "💰" },
-    black: { label: "BLACK", color: "#a3a3a3", icon: "💎" },
-    scooty: { label: "SCOOTY", color: "#fb923c", icon: "🛵" },
-    book_any: { label: "BOOK ANY", color: "#eab308", icon: "⚡🚗" },
-  };
-
-  const categories = [
-    { id: "all", label: "All Types", icon: "🌐" },
-    { id: "auto", label: "Auto", icon: "🛺" },
-    { id: "book_any", label: "Book Any", icon: "⚡🚗" },
-    { id: "cab", label: "Cab", icon: "🚗" },
-    { id: "ac_cab", label: "AC Cab", icon: "❄️" },
-    { id: "bike", label: "Bike", icon: "🏍️" },
-    { id: "scooty", label: "Scooty", icon: "🛵" },
-    { id: "priority", label: "Priority", icon: "⚡" },
-    { id: "black", label: "Black", icon: "💎" },
-    { id: "pet", label: "Pet", icon: "🐾" },
-    { id: "saver", label: "Saver", icon: "💰" },
-    { id: "rental", label: "Hourly", icon: "⏱️" },
-    { id: "parcel", label: "Parcel", icon: "📦" },
-    { id: "other", label: "Other", icon: "🚙" },
-  ];
+  // Find recommendation corresponding to the currently selected mode, or default to top #1
+  const activeRec = recommendations.find(r => r.mode === selected) || recommendations[0];
+  const activeConfig = modeColors[activeRec?.mode] || { color: C.accent, bg: "rgba(124, 58, 237, 0.08)", icon: "bus", label: activeRec?.mode };
+  const activeData = results[activeRec?.mode] || {};
+  const activeRank = recommendations.findIndex(r => r.mode === activeRec?.mode) + 1;
 
   return (
     <div style={{
       background: "#ffffff",
       border: `1.5px solid #ede9fe`,
-      borderRadius: 24,
-      padding: 24,
-      marginBottom: 24,
-      boxShadow: "rgba(124, 58, 237, 0.04) 0 10px 30px",
-      animation: "fadeIn 0.5s ease-out both"
+      borderRadius: 18,
+      padding: "16px 18px",
+      marginTop: 0,
+      marginBottom: 14,
+      boxShadow: "rgba(124, 58, 237, 0.04) 0 8px 24px",
+      animation: "fadeIn 0.4s ease-out both"
     }}>
-      {/* Title */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+      {/* Title & Badge */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
-            width: 38, height: 38, borderRadius: 10,
+            width: 32, height: 32, borderRadius: 8,
             background: "linear-gradient(135deg, #7c3aed, #ec4899)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "rgba(124, 58, 237, 0.2) 0 4px 10px"
+            boxShadow: "rgba(124, 58, 237, 0.2) 0 3px 8px"
           }}>
-            <span style={{ fontSize: 18 }}>🤖</span>
+            <span style={{ fontSize: 16 }}>🤖</span>
           </div>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 16, color: "#1e1b24", letterSpacing: "-0.02em", lineHeight: "1.1" }}>U-Transit AI Smart Ranker</div>
-            <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, marginTop: 3 }}>Explainable AI & Top-K Routing</div>
+            <div style={{ fontWeight: 900, fontSize: 14, color: "#1e1b24", letterSpacing: "-0.01em", lineHeight: "1.1" }}>
+              U-Transit AI Smart Ranker
+            </div>
+            <div style={{ fontSize: 9.5, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, marginTop: 2 }}>
+              Explainable AI (XAI) & Top-K Routing
+            </div>
           </div>
         </div>
-        <div style={{ background: "rgba(124, 58, 237, 0.08)", color: "#7c3aed", padding: "6px 12px", borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
-          ✨ Gemini Powered
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ background: "rgba(124, 58, 237, 0.08)", color: "#7c3aed", padding: "4px 10px", borderRadius: 8, fontSize: 10.5, fontWeight: 700 }}>
+            ✨ Gemini Powered
+          </div>
+          <button
+            onClick={() => setShowAllExplanations(!showAllExplanations)}
+            style={{
+              background: showAllExplanations ? "rgba(124, 58, 237, 0.1)" : "#f9fafb",
+              border: `1px solid ${showAllExplanations ? "#7c3aed" : "#e5e7eb"}`,
+              color: showAllExplanations ? "#7c3aed" : C.muted,
+              fontSize: 10.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              padding: "4px 9px",
+              borderRadius: 6,
+              transition: "all 0.2s"
+            }}
+          >
+            {showAllExplanations ? "Focus View ▲" : "Compare All Modes ▼"}
+          </button>
         </div>
       </div>
 
-      {/* List of recommendations */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Top-K Quick Ranking Pills */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 8, marginBottom: 12 }}>
         {recommendations.slice(0, 4).map((rec, idx) => {
-          const config = modeColors[rec.mode] || { color: C.accent, bg: "rgba(124, 58, 237, 0.08)", icon: "bus", label: rec.mode };
-          const isSelected = selected === rec.mode;
-          const isExpanded = expandedIndex === idx;
-
-          // Find actual time & cost from results
-          const actualData = results[rec.mode] || {};
-          const time = actualData.time || 0;
-          const cost = actualData.cost || 0;
-          const transfers = actualData.transfers || 0;
-
-          const providerOptions = [
-            { id: "all", label: "All Providers", icon: "🌐", color: config.color },
-            { id: "namma_yatri", label: "NammaMove", icon: "🛺", color: "#eab308" },
-            { id: "ola", label: "GoRide", icon: "🚗", color: "#84cc16" },
-            { id: "uber", label: "SwiftCab", icon: "🚗", color: "#e2e8f0" },
-            { id: "rapido", label: "SwiftGo", icon: "🏍️", color: "#ea580c" },
-          ];
-
+          const cfg = modeColors[rec.mode] || { color: C.accent, bg: "rgba(124, 58, 237, 0.08)", icon: "bus", label: rec.mode };
+          const isSel = selected === rec.mode;
+          const actual = results[rec.mode] || {};
           return (
             <div
               key={rec.mode}
-              style={{
-                background: "#ffffff",
-                border: `1.5px solid ${isSelected ? "#7c3aed" : "#eef0f6"}`,
-                borderRadius: 20,
-                padding: "16px 20px",
-                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-                cursor: "pointer",
-                boxShadow: isSelected ? "0 10px 25px -5px rgba(124, 58, 237, 0.08), 0 8px 10px -6px rgba(124, 58, 237, 0.08)" : "none",
-                animation: "fadeIn 0.5s ease-out both",
-                animationDelay: `${idx * 0.08}s`
-              }}
               onClick={() => setSelected(rec.mode)}
-              onMouseEnter={e => {
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.borderColor = isSelected ? "#7c3aed" : "rgba(124, 58, 237, 0.3)";
-                e.currentTarget.style.boxShadow = "0 12px 24px -10px rgba(124, 58, 237, 0.15)";
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.transform = "none";
-                e.currentTarget.style.borderColor = isSelected ? "#7c3aed" : "#eef0f6";
-                e.currentTarget.style.boxShadow = isSelected ? "0 10px 25px -5px rgba(124, 58, 237, 0.08)" : "none";
+              style={{
+                background: isSel ? `${cfg.color}10` : "#f9fafb",
+                border: `1.5px solid ${isSel ? cfg.color : "#eef0f6"}`,
+                borderRadius: 12,
+                padding: "8px 10px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                display: "flex",
+                flexDirection: "column",
+                gap: 3,
+                boxShadow: isSel ? `0 4px 14px ${cfg.color}18` : "none"
               }}
             >
-              {/* Main row */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  {/* Rank badge */}
-                  <div style={{
-                    width: 28, height: 28, borderRadius: "50%",
-                    background: idx === 0 ? "linear-gradient(135deg, #fef08a, #fef9c3)" : "#f3f4f6",
-                    color: idx === 0 ? "#ca8a04" : "#4b5563",
-                    border: `1px solid ${idx === 0 ? "#fde047" : "#e5e7eb"}`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontWeight: 900, fontSize: 12, flexShrink: 0
-                  }}>
-                    #{idx + 1}
-                  </div>
-
-                  {/* Mode Icon Container */}
-                  <div style={{
-                    width: 44, height: 44, borderRadius: 12,
-                    background: config.bg,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    flexShrink: 0
-                  }}>
-                    <Ic n={config.icon} s={22} c={config.color} sw={2} />
-                  </div>
-
-                  {/* Details Block */}
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontWeight: 900, fontSize: 15, color: "#1e1b24" }}>
-                        {config.label}
-                      </span>
-                      <span style={{
-                        background: `${config.color}15`,
-                        color: config.color,
-                        padding: "3px 8px",
-                        borderRadius: 6,
-                        fontSize: 9.5,
-                        fontWeight: 800,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.02em"
-                      }}>
-                        {rec.score}% MATCH
-                      </span>
-                    </div>
-
-                    {/* Stats List */}
-                    <div style={{ display: "flex", gap: 16, color: "#64748b", fontSize: 12, marginTop: 6, fontWeight: 600, alignItems: "center" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>💰 ₹{cost}</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>🕒 {time} mins</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>🎯 {transfers} transfer(s)</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>🌿 {rec.emissions || 0}g CO₂</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExpandedIndex(isExpanded ? null : idx);
-                    }}
-                    style={{
-                      background: "none", border: "none", color: C.muted,
-                      fontSize: 12, fontWeight: 700, cursor: "pointer",
-                      padding: "4px 8px", borderRadius: 6, display: "flex",
-                      alignItems: "center", gap: 4, fontFamily: "inherit",
-                      transition: "color 0.2s"
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.color = "#1e1b24"}
-                    onMouseLeave={e => e.currentTarget.style.color = C.muted}
-                  >
-                    <span>Show Details</span>
-                    <span style={{ 
-                      display: "inline-block", 
-                      transition: "transform 0.2s ease",
-                      transform: isExpanded ? "rotate(180deg)" : "none" 
-                    }}>▾</span>
-                  </button>
-
-                  {/* Circular selection button */}
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelected(rec.mode);
-                    }}
-                    style={{
-                      width: 26, height: 26, borderRadius: "50%",
-                      background: isSelected ? "#7c3aed" : "#ffffff",
-                      border: `2px solid ${isSelected ? "#7c3aed" : "#d1d5db"}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", transition: "all 0.2s"
-                    }}
-                  >
-                    {isSelected ? (
-                      <Ic n="arrow" s={10} c="white" sw={3} />
-                    ) : (
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "transparent" }} />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Explanation Card */}
-              <div style={{
-                marginTop: 12,
-                fontSize: 12.5,
-                lineHeight: "18px",
-                color: "#4b5563",
-                background: "#ffffff",
-                padding: "10px 14px",
-                borderRadius: 12,
-                border: "1px solid #f1f1f5",
-                borderLeft: `4px solid ${config.color || C.accent}`,
-                fontWeight: 500
-              }}>
-                <strong>Why recommended:</strong> {rec.explanation}
-                {rec.data_sources && (
-                  <div style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid #f1f1f5", fontSize: 10.5, color: "#6b7280", display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <span>📊 <strong>Sources:</strong></span>
-                    <span>🚦 {rec.data_sources.traffic}</span>
-                    <span>🌧️ {rec.data_sources.weather}</span>
-                    <span>🚌 {rec.data_sources.bmtc}</span>
-                    <span>🚕 {rec.data_sources.fare}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Inline cab option details (rendered inside ranker card if expanded and mode is cab) */}
-              {isExpanded && rec.mode === "cab" && actualData.all_estimates && (
-                <div onClick={e => e.stopPropagation()} style={{
-                  marginTop: 14,
-                  padding: "14px 16px",
-                  borderTop: `1px solid ${C.border}`,
-                  background: C.bg + "33",
-                  borderRadius: 14
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{
+                  fontSize: 9.5, fontWeight: 900,
+                  background: idx === 0 ? "#fef08a" : "#e5e7eb",
+                  color: idx === 0 ? "#854d0e" : "#4b5563",
+                  padding: "1px 6px", borderRadius: 6
                 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, marginBottom: 10, letterSpacing: "0.05em" }}>
-                    AVAILABLE VEHICLES & PROVIDERS
-                  </div>
-
-                  {/* Category Filter Pills */}
-                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 8, scrollbarWidth: "none" }}>
-                    {categories.map(cat => {
-                      const count = actualData.all_estimates.filter(est =>
-                        (cat.id === "all" || getVehicleCategory(est) === cat.id) &&
-                        (cabProviderFilter === "all" || est.provider_key === cabProviderFilter)
-                      ).length;
-
-                      if (count === 0 && cat.id !== "all") return null;
-
-                      const isCatActive = cabFilter === cat.id;
-                      return (
-                        <button
-                          key={cat.id}
-                          onClick={() => setCabFilter(cat.id)}
-                          style={{
-                            background: isCatActive ? config.color + "22" : C.surface,
-                            border: `1.5px solid ${isCatActive ? config.color : C.border2}`,
-                            borderRadius: 20,
-                            padding: "6px 12px",
-                            color: isCatActive ? config.color : C.muted,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            transition: "all 0.15s",
-                            fontFamily: "inherit"
-                          }}
-                        >
-                          <span>{cat.icon}</span>
-                          <span>{cat.label}</span>
-                          <span style={{
-                            fontSize: 9,
-                            background: isCatActive ? config.color + "44" : C.border2,
-                            color: isCatActive ? config.color : C.muted,
-                            borderRadius: 10,
-                            padding: "1px 5px",
-                            marginLeft: 2
-                          }}>{count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Provider Filter Pills */}
-                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, marginBottom: 12, scrollbarWidth: "none" }}>
-                    {providerOptions.map(prov => {
-                      const count = actualData.all_estimates.filter(est =>
-                        (prov.id === "all" || est.provider_key === prov.id) &&
-                        (cabFilter === "all" || getVehicleCategory(est) === cabFilter)
-                      ).length;
-
-                      if (count === 0 && prov.id !== "all") return null;
-
-                      const isProvActive = cabProviderFilter === prov.id;
-                      const activeColor = prov.color;
-                      return (
-                        <button
-                          key={prov.id}
-                          onClick={() => setCabProviderFilter(prov.id)}
-                          style={{
-                            background: isProvActive ? activeColor + "22" : C.surface,
-                            border: `1.5px solid ${isProvActive ? activeColor : C.border2}`,
-                            borderRadius: 20,
-                            padding: "6px 12px",
-                            color: isProvActive ? activeColor : C.muted,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            transition: "all 0.15s",
-                            fontFamily: "inherit"
-                          }}
-                        >
-                          <span>{prov.icon}</span>
-                          <span>{prov.label}</span>
-                          <span style={{
-                            fontSize: 9,
-                            background: isProvActive ? activeColor + "44" : C.border2,
-                            color: isProvActive ? activeColor : C.muted,
-                            borderRadius: 10,
-                            padding: "1px 5px",
-                            marginLeft: 2
-                          }}>{count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Vehicle list */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
-                    {actualData.all_estimates.filter(est => {
-                      const matchesType = cabFilter === "all" || getVehicleCategory(est) === cabFilter;
-                      const matchesProvider = cabProviderFilter === "all" || est.provider_key === cabProviderFilter;
-                      return matchesType && matchesProvider;
-                    }).map((est, eIdx) => {
-                      const isVehSelected = selectedCabVehicle &&
-                        selectedCabVehicle.provider_key === est.provider_key &&
-                        selectedCabVehicle.vehicle_key === est.vehicle_key;
-
-                      const pStyle = PROVIDER_STYLES[est.provider_key] || { bg: C.surface, text: C.text, label: est.provider };
-                      const isUnavailable = est.is_vehicle_available === false;
-                      const specialBadge = SPECIAL_BADGES[getVehicleCategory(est)] || null;
-
-                      return (
-                        <button
-                          key={eIdx}
-                          onClick={() => {
-                            if (isUnavailable) return;
-                            setSelectedCabVehicle(est);
-                            setSelected("cab");
-                          }}
-                          style={{
-                            background: isUnavailable ? C.surface + "88" : isVehSelected ? C.surface : C.card,
-                            border: `1.5px solid ${isUnavailable ? C.border : isVehSelected ? config.color : C.border}`,
-                            borderRadius: 12,
-                            padding: "10px 14px",
-                            cursor: isUnavailable ? "not-allowed" : "pointer",
-                            width: "100%",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            transition: "all 0.15s",
-                            opacity: isUnavailable ? 0.55 : 1,
-                            boxShadow: isVehSelected ? `0 4px 16px ${config.color}15` : "none",
-                            fontFamily: "inherit"
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ fontSize: 22 }}>{est.icon || "🚗"}</div>
-                            <div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                                <span style={{ fontSize: 13, fontWeight: 800 }}>{est.vehicle_name}</span>
-                                <span style={{
-                                  fontSize: 8,
-                                  background: pStyle.bg,
-                                  color: pStyle.text,
-                                  padding: "1px 5px",
-                                  borderRadius: 4,
-                                  fontWeight: 700
-                                }}>{pStyle.label.toUpperCase()}</span>
-                                {specialBadge && (
-                                  <span style={{
-                                    fontSize: 8,
-                                    background: specialBadge.color + "18",
-                                    color: specialBadge.color,
-                                    padding: "1px 5px",
-                                    borderRadius: 4,
-                                    fontWeight: 700
-                                  }}>{specialBadge.icon} {specialBadge.label}</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: 14, fontWeight: 900, color: isVehSelected ? config.color : C.text }}>
-                              ₹{est.cost}
-                            </div>
-                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                              ⏱ {est.time} min
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Inline multimodal option details (rendered inside ranker card if expanded and mode is multimodal) */}
-              {isExpanded && rec.mode === "multimodal" && actualData.all_options && (
-                <div onClick={e => e.stopPropagation()} style={{
-                  marginTop: 14,
-                  padding: "14px 16px",
-                  borderTop: `1px solid ${C.border}`,
-                  background: C.bg + "33",
-                  borderRadius: 14
-                }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, marginBottom: 10, letterSpacing: "0.05em" }}>
-                    SELECT MULTIMODAL COMBINATION
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
-                    {actualData.all_options.map((opt, oidx) => {
-                      const isOptSelected = selectedMultimodalOption && selectedMultimodalOption.combination_type === opt.combination_type;
-                      return (
-                        <button
-                          key={oidx}
-                          onClick={() => {
-                            setSelectedMultimodalOption(opt);
-                            setSelected("multimodal");
-                          }}
-                          style={{
-                            background: isOptSelected ? config.color + "14" : C.surface,
-                            border: `1.5px solid ${isOptSelected ? config.color : C.border2}`,
-                            borderRadius: 10,
-                            padding: "10px 14px",
-                            width: "100%",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            transition: "all 0.15s",
-                            boxShadow: isOptSelected ? `0 4px 16px ${config.color}15` : "none",
-                            fontFamily: "inherit",
-                            cursor: "pointer"
-                          }}
-                        >
-                          <div style={{ textAlign: "left" }}>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: isOptSelected ? config.color : C.text }}>
-                              {opt.combination_label}
-                            </div>
-                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                              {opt.route_summary}
-                            </div>
-                          </div>
-                          <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: 14, fontWeight: 900, color: isOptSelected ? config.color : C.text }}>₹{opt.cost}</div>
-                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>⏱ {opt.time} min</div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Collapsible Utility score breakdown */}
-              {isExpanded && (
-                <div style={{
-                  marginTop: 14,
-                  paddingTop: 12,
-                  borderTop: "1px solid #eef0f6",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                  animation: "fadeIn 0.2s ease-out"
-                }} onClick={(e) => e.stopPropagation()}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4, letterSpacing: "0.05em" }}>RECOMMENDATION CRITERIA BREAKDOWN</div>
-                  {[
-                    { label: "⚡ Speed suitability", score: rec.details?.time_score || 0, color: "#3b82f6" },
-                    { label: "💰 Cost / Economy", score: rec.details?.cost_score || 0, color: "#10b981" },
-                    { label: "🎯 Comfort & Transfers", score: rec.details?.comfort_score || 0, color: "#8b5cf6" },
-                    { label: "🌿 Carbon footprint rating", score: rec.details?.eco_score || 0, color: "#059669" },
-                    { label: "⛈️ Weather resilience", score: rec.details?.weather_score || 0, color: "#ea580c" }
-                  ].map(item => (
-                    <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 150, fontSize: 11, color: "#4b5563", fontWeight: 600 }}>{item.label}</div>
-                      <div style={{ flex: 1, height: 6, background: "#f3f4f6", borderRadius: 3, position: "relative" }}>
-                        <div style={{
-                          width: `${item.score}%`,
-                          height: "100%",
-                          background: item.color,
-                          borderRadius: 3,
-                          transition: "width 0.4s ease-out"
-                        }} />
-                      </div>
-                      <div style={{ width: 30, fontSize: 11, color: "#1e1b24", fontWeight: 700, textAlign: "right" }}>{item.score}%</div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                  #{idx + 1}
+                </span>
+                <span style={{ fontSize: 9.5, fontWeight: 800, color: cfg.color }}>
+                  {rec.score}% MATCH
+                </span>
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 12, color: "#1e1b24", display: "flex", alignItems: "center", gap: 4 }}>
+                <Ic n={cfg.icon} s={13} c={cfg.color} />
+                <span>{cfg.label}</span>
+              </div>
+              <div style={{ fontSize: 10.5, color: "#64748b", fontWeight: 600 }}>
+                ₹{actual.cost || 0} • {actual.time || 0}m
+              </div>
             </div>
           );
         })}
       </div>
+
+      {/* Active Mode XAI Insight Box */}
+      {activeRec && (
+        <div style={{
+          background: "#fafafa",
+          border: `1px solid #f1f1f5`,
+          borderLeft: `4px solid ${activeConfig.color || C.accent}`,
+          borderRadius: 12,
+          padding: "10px 14px",
+          fontSize: 12,
+          color: "#374151"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
+            <span style={{ fontWeight: 800, color: activeConfig.color, fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}>
+              <span>💡</span> Why AI recommends <strong>{activeConfig.label}</strong> (#{activeRank} Ranked Option)
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+              <span>💰 ₹{activeData.cost || 0}</span>
+              <span>⏱️ {activeData.time || 0}m</span>
+              <span>🌿 {activeRec.emissions || 0}g CO₂</span>
+            </div>
+          </div>
+          <div style={{ lineHeight: "17px", color: "#4b5563", fontSize: 11.5 }}>
+            {activeRec.explanation}
+          </div>
+
+          {/* Criteria Breakdown Progress */}
+          {activeRec.details && (
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f1f1f5", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 6 }}>
+              {[
+                { label: "⚡ Speed", score: activeRec.details.time_score || 85, color: "#3b82f6" },
+                { label: "💰 Economy", score: activeRec.details.cost_score || 80, color: "#10b981" },
+                { label: "🎯 Comfort", score: activeRec.details.comfort_score || 75, color: "#8b5cf6" },
+                { label: "🌿 Eco Rating", score: activeRec.details.eco_score || 90, color: "#059669" },
+                { label: "⛈️ Weather", score: activeRec.details.weather_score || 85, color: "#ea580c" }
+              ].map(item => (
+                <div key={item.label} style={{ background: "#ffffff", padding: "4px 8px", borderRadius: 6, border: "1px solid #eef0f6" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, fontWeight: 700, color: "#6b7280" }}>
+                    <span>{item.label}</span>
+                    <span style={{ color: item.color }}>{item.score}%</span>
+                  </div>
+                  <div style={{ height: 3, background: "#f3f4f6", borderRadius: 2, marginTop: 3 }}>
+                    <div style={{ width: `${item.score}%`, height: "100%", background: item.color, borderRadius: 2 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeRec.data_sources && (
+            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #f1f1f5", fontSize: 10, color: "#6b7280", display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <span>📊 <strong>Sources:</strong></span>
+              <span>🚦 {activeRec.data_sources.traffic}</span>
+              <span>🌧️ {activeRec.data_sources.weather}</span>
+              <span>🚌 {activeRec.data_sources.bmtc}</span>
+              <span>🚕 {activeRec.data_sources.fare}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Expanded view for all explanations if requested */}
+      {showAllExplanations && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+          {recommendations.slice(0, 4).map((rec, idx) => {
+            const cfg = modeColors[rec.mode] || { color: C.accent, label: rec.mode };
+            return (
+              <div key={rec.mode} style={{
+                background: "#ffffff",
+                border: `1px solid #f1f1f5`,
+                borderLeft: `4px solid ${cfg.color}`,
+                borderRadius: 8,
+                padding: "8px 12px",
+                fontSize: 11.5
+              }}>
+                <div style={{ fontWeight: 800, color: cfg.color, marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                  <span>#{idx + 1} {cfg.label}</span>
+                  <span>{rec.score}% Match</span>
+                </div>
+                <div style={{ color: "#4b5563", lineHeight: "16px", fontSize: 11 }}>{rec.explanation}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -11069,6 +10751,8 @@ export default function App() {
               {view === "cards" ? (
                 <>
                   <JourneyContextBanner journey={journeyMeta} traffic={trafficMeta} weather={weatherMeta} />
+
+                  {/* Explainable AI (XAI) & Smart Ranker Panel (Top of Result Cards) */}
                   <AIRecommendationsPanel
                     recommendations={recommendations}
                     results={results}
@@ -11080,9 +10764,17 @@ export default function App() {
                     selectedMultimodalOption={selectedMultimodalOption}
                     setSelectedMultimodalOption={setSelectedMultimodalOption}
                   />
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14, marginTop: 20 }}>
+
+                  {/* Modality Result Cards Grid (BMTC, Metro, Cabs, Own Vehicle) */}
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                    gap: 12,
+                    marginBottom: 16
+                  }}>
                     {results && Object.keys(results).map(m => {
-                      const cardData = (m === "cab" && selectedCabVehicle) ? {
+                      const recInfo = recommendations?.find(r => r.mode === m);
+                      const baseData = (m === "cab" && selectedCabVehicle) ? {
                         ...results.cab,
                         ...selectedCabVehicle,
                         segments: selectedCabVehicle.segments,
@@ -11099,6 +10791,13 @@ export default function App() {
                         time: selectedMultimodalOption.time,
                         distance: selectedMultimodalOption.distance,
                       } : results[m];
+
+                      const cardData = {
+                        ...baseData,
+                        aiRank: recInfo ? recommendations.indexOf(recInfo) + 1 : null,
+                        aiScore: recInfo ? recInfo.score : null
+                      };
+
                       return (
                         <ResultCard
                           key={m}
@@ -11238,17 +10937,15 @@ export default function App() {
                 </div>
               )}
 
-              {/* Map View Box */}
+              {/* Map View Box (Top half of the screen: 50% split) */}
               <div style={{
-                height: selectedData?.available && selectedData?.guide && selectedData.guide.length > 0
-                  ? "min(42vh, 340px)"
-                  : "calc(100vh - 150px)",
-                minHeight: 250,
+                flex: selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 ? "1 1 50%" : "1",
+                height: selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 ? "calc(50% - 24px)" : "calc(100vh - 150px)",
+                minHeight: 0,
                 borderRadius: 16,
                 overflow: "hidden",
                 border: `1px solid ${C.border}`,
                 boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-                flexShrink: 0,
                 position: "relative"
               }}>
                 {mapView === "linear" && selectedData ? (
@@ -11275,11 +10972,12 @@ export default function App() {
                 )}
               </div>
 
-              {/* Step-by-Step Guide Box */}
+              {/* Step-by-Step Guide Box (Bottom half of the screen: 50% split) */}
               {selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 && (
                 <div style={{
-                  flex: 1,
-                  minHeight: 180,
+                  flex: "1 1 50%",
+                  height: "calc(50% - 24px)",
+                  minHeight: 0,
                   background: C.card,
                   border: `1px solid ${C.border}`,
                   borderRadius: 16,

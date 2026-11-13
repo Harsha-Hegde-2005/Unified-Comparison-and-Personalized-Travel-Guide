@@ -64,3 +64,31 @@ research.zip
 *.zip
 cloudflared.exe
 scratch/
+
+# Microsoft Office temporary lock files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# Vercel deployment cache and project links
+.vercel/
+.vercel
+
+# Databases, local sessions, and journals
+*.sqlite3-journal
+*.db-journal
+
+# Secrets, API credentials, and tokens
+*credentials*.json
+*service_account*.json
+*.secret
+secrets/
+
+# Dissertation builder scratch & extracted assets
+pes_templates/
+extracted_project_info/
+extracted_template_media/
+report_builder/
+report_images/
+build_pes_capstone_dissertation.py
+test_page_no.docx
