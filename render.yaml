@@ -1,8 +1,8 @@
 services:
   - type: web
-    name: unified-transit-backend
+    name: bmtc-transit-api
     runtime: python
-    buildCommand: pip install -r requirements.txt && python backend/build_gtfs_db.py
+    buildCommand: pip install -r requirements.txt
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     plan: free
     healthCheckPath: /healthz

@@ -1,6 +1,10 @@
+# Use official lightweight Python 3.11 image
 FROM python:3.11-slim
 
-WORKDIR /app
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -8,21 +12,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Set working directory
+WORKDIR /app
 
-# Copy application code and database assets
-COPY backend/ ./backend/
-COPY database/ ./database/
-COPY unified_transit.db ./unified_transit.db
-COPY main.py ./main.py
+# Install Python dependencies
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Configure environment
-ENV PORT=8000 \
-    PYTHONUNBUFFERED=1
+# Copy backend source code, datasets, and local database
+COPY backend/ /app/backend/
+COPY database/ /app/database/
+COPY unified_transit.db /app/
 
+# Expose application port
 EXPOSE 8000
 
-# Launch FastAPI using Uvicorn bound to dynamic $PORT
+# Start FastAPI application dynamically binding to environment PORT
 CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

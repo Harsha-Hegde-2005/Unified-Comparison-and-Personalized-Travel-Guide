@@ -22,8 +22,7 @@ pydantic>=2.0
 # Testing
 pytest>=8.0.0
 pytest-cov>=4.1.0
-# Starlette's TestClient requires HTTPX2 with current FastAPI/Starlette releases.
-httpx2>=2.0
+httpx>=0.24.0
 
 # Optional but recommended
 scikit-learn>=1.3.0  # For potential optimizations
