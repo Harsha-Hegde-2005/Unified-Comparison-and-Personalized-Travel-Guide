@@ -4318,7 +4318,7 @@ function AllBusesPanel({ src, dst, time, onClose, onSelectBus }) {
 /* ─────────────────────────────────────────────────────────────
    ROUTE SEARCH PANEL  (with autocomplete)
 ───────────────────────────────────────────────────────────── */
-function RouteSearchPanel() {
+function RouteSearchPanel({ onClose } = {}) {
   const [activeMode, setActiveMode] = useState("bmtc"); // "bmtc" | "metro"
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -4375,8 +4375,13 @@ function RouteSearchPanel() {
     : [];
 
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20 }}>
-      <div style={{ fontWeight: 800, fontSize: 15, color: C.text, marginBottom: 14 }}>Route & Station Lookup</div>
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, position: "relative" }}>
+      {onClose && (
+        <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 16 }}>✕</button>
+      )}
+      <div style={{ fontWeight: 800, fontSize: 15, color: C.text, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+        <Ic n="route" s={16} c={C.accent} /> Route & Station Lookup
+      </div>
 
       {/* Mode Selector Buttons */}
       <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
@@ -5350,7 +5355,21 @@ function StopsInfoPanel({ onClose, stops }) {
 /* ─────────────────────────────────────────────────────────────
    RESULT CARD
 ───────────────────────────────────────────────────────────── */
-function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, setSelectedCabVehicle, selectedMultimodalOption, setSelectedMultimodalOption, onOpenRideMode, onStartNavigation }) {
+function ResultCard({
+  modeKey,
+  data,
+  selected,
+  onSelect,
+  selectedCabVehicle,
+  setSelectedCabVehicle,
+  selectedMultimodalOption,
+  setSelectedMultimodalOption,
+  onOpenRideMode,
+  onStartNavigation,
+  onOpenModeDetail,
+  onOpenSeeAllBuses,
+  isDetailView = false
+}) {
   const [tab, setTab] = useState(null);
   const [cabFilter, setCabFilter] = useState("all");
   const [cabProviderFilter, setCabProviderFilter] = useState("all");
@@ -5390,7 +5409,7 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
   );
 
   return (
-    <div onClick={() => onSelect(modeKey)} style={{
+    <div onClick={() => onOpenModeDetail ? onOpenModeDetail(modeKey) : onSelect(modeKey)} style={{
       background: C.card, borderRadius: 16,
       border: `2px solid ${isSelected ? m.color : data.recommended ? m.color + "55" : C.border}`,
       boxShadow: isSelected ? `0 0 0 4px ${m.color}14, 0 12px 40px ${m.color}14` : "none",
@@ -5452,6 +5471,33 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
                   </span>
                 ))
               ) : null}
+            </div>
+          )}
+          {modeKey === "bmtc" && onOpenSeeAllBuses && (
+            <div style={{ marginTop: 8 }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenSeeAllBuses();
+                }}
+                style={{
+                  background: "rgba(245, 158, 11, 0.12)",
+                  border: "1px solid rgba(245, 158, 11, 0.35)",
+                  color: "#f59e0b",
+                  borderRadius: 8,
+                  padding: "5px 10px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontFamily: "inherit"
+                }}
+              >
+                <Ic n="list" s={13} c="#f59e0b" />
+                <span>See All Buses ({data.all_direct?.length || "Available"}) →</span>
+              </button>
             </div>
           )}
         </div>
@@ -6114,12 +6160,14 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
       )}
 
       {/* Select bar */}
-      <div style={{ background: isSelected ? m.color : m.bg, padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.18s" }}>
-        {isSelected && <Ic n="check" s={13} c="white" />}
-        <span style={{ fontSize: 12, fontWeight: 700, color: isSelected ? "white" : m.color }}>
-          {isSelected ? "Selected ✓" : "Select this option"}
-        </span>
-      </div>
+      {!isDetailView && (
+        <div style={{ background: isSelected ? m.color : m.bg, padding: "11px 18px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.18s" }}>
+          {isSelected && <Ic n="check" s={13} c="white" />}
+          <span style={{ fontSize: 12.5, fontWeight: 800, color: isSelected ? "white" : m.color }}>
+            View {m.label} Route, Map & Guidelines →
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -6451,7 +6499,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
       </div>
 
       {/* Row 1: Recent Searches (left) & Saved Places (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 14 : 24, marginBottom: isMobile ? 16 : 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr)", gap: isMobile ? 14 : 24, marginBottom: isMobile ? 16 : 24, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
         
         {/* Recent Searches */}
         <div style={{ 
@@ -6461,20 +6509,25 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           padding: isMobile ? "16px 14px" : "28px 24px",
           boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
           display: "flex",
-          flexDirection: "column"
+          flexDirection: "column",
+          minWidth: 0,
+          width: "100%",
+          maxWidth: "100%",
+          boxSizing: "border-box",
+          overflow: "hidden"
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 14 : 20 }}>
-            <h2 style={{ fontSize: isMobile ? 15 : 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 14 : 20, minWidth: 0 }}>
+            <h2 style={{ fontSize: isMobile ? 15 : 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0, minWidth: 0 }}>
               <Ic n="clock" s={16} c={C.text} sw={2.2} /> Recent Searches
             </h2>
             {data.recent?.length > 0 && (
-              <span style={{ fontSize: 11, background: "rgba(124, 58, 237, 0.08)", color: C.accent, padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>
+              <span style={{ fontSize: 11, background: "rgba(124, 58, 237, 0.08)", color: C.accent, padding: "4px 10px", borderRadius: 20, fontWeight: 700, flexShrink: 0 }}>
                 {data.recent.length} searches
               </span>
             )}
           </div>
           
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, minWidth: 0, width: "100%" }}>
             {data.recent && data.recent.length > 0 ? (
               data.recent.slice(0, 3).map((r, i) => (
                 <div 
@@ -6489,7 +6542,10 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     cursor: "pointer", 
                     background: C.dim,
                     border: `1px solid ${C.border}`,
-                    transition: "all 0.2s" 
+                    transition: "all 0.2s",
+                    minWidth: 0,
+                    width: "100%",
+                    boxSizing: "border-box"
                   }}
                   onMouseEnter={e => {
                     e.currentTarget.style.background = currentTheme === 'light' ? "#f1efff" : "#241f3d";
@@ -6503,11 +6559,11 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                   <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(124, 58, 237, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <Ic n="search" s={14} c={C.accent} sw={2.2} />
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.from} → {r.to}</div>
-                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500 }}>{r.date}</div>
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.date}</div>
                   </div>
-                  <div style={{ fontSize: 11, color: C.accent, fontWeight: 700 }}>Search →</div>
+                  <div style={{ fontSize: 11, color: C.accent, fontWeight: 700, flexShrink: 0, marginLeft: 6 }}>Search →</div>
                 </div>
               ))
             ) : (
@@ -6529,21 +6585,26 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           padding: isMobile ? "16px 14px" : "28px 24px",
           boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
           display: "flex",
-          flexDirection: "column"
+          flexDirection: "column",
+          minWidth: 0,
+          width: "100%",
+          maxWidth: "100%",
+          boxSizing: "border-box",
+          overflow: "hidden"
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 14 : 20 }}>
-            <h2 style={{ fontSize: isMobile ? 15 : 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 14 : 20, minWidth: 0 }}>
+            <h2 style={{ fontSize: isMobile ? 15 : 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0, minWidth: 0 }}>
               <Ic n="star" s={16} c="#f59e0b" sw={2.2} /> Saved Places
             </h2>
             <button 
               onClick={onPlan} 
-              style={{ background: "none", border: "none", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", padding: 0 }}
+              style={{ background: "none", border: "none", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", padding: 0, flexShrink: 0 }}
             >
               View all
             </button>
           </div>
           
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, justifyContent: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, justifyContent: "center", minWidth: 0, width: "100%" }}>
             {data.saved && data.saved.length > 0 ? (
               data.saved.slice(0, 3).map((r, i) => {
                 const modeColor = MC[r.mode]?.color || C.accent;
@@ -6561,7 +6622,10 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                       cursor: "pointer", 
                       background: C.dim,
                       border: `1px solid ${C.border}`,
-                      transition: "all 0.2s" 
+                      transition: "all 0.2s",
+                      minWidth: 0,
+                      width: "100%",
+                      boxSizing: "border-box"
                     }}
                     onMouseEnter={e => {
                       e.currentTarget.style.background = currentTheme === 'light' ? "#f1efff" : "#241f3d";
@@ -6575,15 +6639,15 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     <div style={{ width: 34, height: 34, borderRadius: 10, background: modeBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <Ic n={MC[r.mode]?.icon || "mappin"} s={15} c={modeColor} sw={2} />
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {r.custom_name ? r.custom_name : `${r.from} → ${r.to}`}
                         </span>
                         {r.custom_name && <Pill color={modeColor} small>{MC[r.mode]?.short || "SAVED"}</Pill>}
                       </div>
                       {r.custom_name && <div style={{ fontSize: 11, color: C.muted, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.from} → {r.to}</div>}
-                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500 }}>{r.date} · Est. Cost: ₹{r.cost}</div>
+                      <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.date} · Est. Cost: ₹{r.cost}</div>
                     </div>
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleDeleteSavedRoute(r.id); }} 
@@ -6597,7 +6661,9 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        transition: "background 0.2s"
+                        transition: "background 0.2s",
+                        flexShrink: 0,
+                        marginLeft: 6
                       }}
                       onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
                       onMouseLeave={e => e.currentTarget.style.background = "none"}
@@ -6641,7 +6707,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
       </div>
 
       {/* Row 2: My Garage (left) & Digital Glovebox (center) & Quick Actions (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1.1fr", gap: isMobile ? 16 : 24, marginBottom: isMobile ? 16 : 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr)", gap: isMobile ? 16 : 24, marginBottom: isMobile ? 16 : 24, width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
         
         {/* My Garage */}
         <div id="my-garage-card" style={{ 
@@ -9502,9 +9568,11 @@ export default function App() {
   const [showLiveMapModal, setShowLiveMapModal] = useState(false);
   const [showFareGuideModal, setShowFareGuideModal] = useState(false);
   const [showSearchSavedRoutesModal, setShowSearchSavedRoutesModal] = useState(false);
+  const [modeDetailPage, setModeDetailPage] = useState(null);
 
   const handleGoToPlan = () => {
     setPage("plan");
+    setModeDetailPage(null);
     setShowRouteSearch(false);
     setShowTimetable(false);
     setShowAllBuses(false);
@@ -9669,7 +9737,7 @@ export default function App() {
     } else if (time === "") {
       setIsRealTime(true);
     }
-    setLoading(true); setError(null); setShowAllBuses(false);
+    setLoading(true); setError(null); setShowAllBuses(false); setModeDetailPage(null);
     try {
       const res = await apiCompare(source, destination, customTime || time || nowTime(), prefOverride || pref, selectedVehicle);
       setResults(res.results);
@@ -10342,9 +10410,9 @@ export default function App() {
                 { id: "search_routes", icon: "route", label: "Search Routes" },
                 { id: "timetable", icon: "clock", label: "Timetable" }
               ].map(n => {
-                const isActive = (n.id === "dashboard" && page === "dashboard") || (n.id === "plan" && page === "plan" && !showRouteSearch && !showTimetable);
-                const isRouteSearchActive = n.id === "search_routes" && page === "plan" && showRouteSearch;
-                const isTimetableActive = n.id === "timetable" && page === "plan" && showTimetable;
+                const isActive = (n.id === "dashboard" && page === "dashboard") || (n.id === "plan" && page === "plan");
+                const isRouteSearchActive = n.id === "search_routes" && page === "route_lookup";
+                const isTimetableActive = n.id === "timetable" && page === "timetable";
                 const isItemActive = isActive || isRouteSearchActive || isTimetableActive;
 
                 return (
@@ -10354,8 +10422,8 @@ export default function App() {
                       if (isMobile) setMobileSidebarOpen(false);
                       if (n.id === "dashboard") { setPage("dashboard"); }
                       else if (n.id === "plan") { handleGoToPlan(); }
-                      else if (n.id === "search_routes") { setPage("plan"); setShowRouteSearch(true); setShowAllBuses(false); setShowTimetable(false); }
-                      else if (n.id === "timetable") { setPage("plan"); setShowTimetable(true); setShowAllBuses(false); setShowRouteSearch(false); }
+                      else if (n.id === "search_routes") { setPage("route_lookup"); window.scrollTo({ top: 0, behavior: "smooth" }); }
+                      else if (n.id === "timetable") { setPage("timetable"); window.scrollTo({ top: 0, behavior: "smooth" }); }
                     }}
                     style={{
                       background: isItemActive ? "linear-gradient(90deg, rgba(124, 58, 237, 0.16) 0%, rgba(124, 58, 237, 0.04) 100%)" : "none",
@@ -10423,8 +10491,9 @@ export default function App() {
                       } else if (n.id === "stops_info") {
                         setShowStopsInfo(true);
                       } else if (n.id === "route_lookup") {
-                        setPage("plan");
-                        setShowRouteSearch(true);
+                        if (isMobile) setMobileSidebarOpen(false);
+                        setPage("route_lookup");
+                        window.scrollTo({ top: 0, behavior: "smooth" });
                       } else if (n.id === "weather_alerts") {
                         setShowWeatherModal(true);
                       } else if (n.id === "alerts_updates") {
@@ -10933,31 +11002,7 @@ export default function App() {
                     <><Ic n="arrow" s={18} c="white" sw={2.5} />Compare All Options</>
                   )}
                 </button>
-
-                {/* Secondary BMTC actions */}
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button onClick={() => { if (!src || !dst) return; setShowAllBuses(!showAllBuses); setShowRouteSearch(false); setShowTimetable(false); }} style={{ flex: 1, background: showAllBuses ? MC.bmtc.color + "20" : C.surface, border: `1px solid ${showAllBuses ? MC.bmtc.color : C.border2}`, borderRadius: 10, padding: "9px 8px", fontSize: 12, fontWeight: 700, color: showAllBuses ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                    <Ic n="list" s={13} c={showAllBuses ? MC.bmtc.color : C.muted} /> See All Buses
-                  </button>
-                  <button onClick={() => { setShowRouteSearch(!showRouteSearch); setShowAllBuses(false); setShowTimetable(false); }} style={{ flex: 1, background: showRouteSearch ? MC.bmtc.color + "20" : C.surface, border: `1px solid ${showRouteSearch ? MC.bmtc.color : C.border2}`, borderRadius: 10, padding: "9px 8px", fontSize: 12, fontWeight: 700, color: showRouteSearch ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                    <Ic n="route" s={13} c={showRouteSearch ? MC.bmtc.color : C.muted} /> Route Lookup
-                  </button>
-                  <button onClick={() => { setShowTimetable(!showTimetable); setShowAllBuses(false); setShowRouteSearch(false); }} style={{ flex: 1, background: showTimetable ? C.accent + "20" : C.surface, border: `1px solid ${showTimetable ? C.accent : C.border2}`, borderRadius: 10, padding: "9px 8px", fontSize: 12, fontWeight: 700, color: showTimetable ? C.accent : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                    <Ic n="clock" s={13} c={showTimetable ? C.accent : C.muted} /> Timetable
-                  </button>
-                </div>
               </div>
-
-              {/* All Buses Panel */}
-              {showAllBuses && src && dst && (
-                <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} onSelectBus={handleSelectBus} />
-              )}
-
-              {/* Route Search Panel */}
-              {showRouteSearch && <RouteSearchPanel />}
-
-              {/* Timetable Panel */}
-              {showTimetable && <TimetablePanel onClose={() => setShowTimetable(false)} stops={stops} src={src} dst={dst} />}
 
               {/* Fare Calculator Panel */}
               {showFareCalc && <FareCalculatorPanel onClose={() => setShowFareCalc(false)} stops={stops} src={src} dst={dst} />}
@@ -10969,6 +11014,87 @@ export default function App() {
             <div style={{ height: isMobile ? 280 : "calc(100vh - 120px)", position: isMobile ? "static" : "sticky", top: 72, marginTop: isMobile ? 16 : 0, borderRadius: 16, overflow: "hidden" }}>
               <GoogleMap key="dashboard-map" src={src} dst={dst} segments={null} activeMode={null} activeSegmentIndex={null} setActiveSegmentIndex={() => { }} useOsm={useOsm} setUseOsm={setUseOsm} mapStyle={mapStyle} />
             </div>
+          </div>
+        )}
+
+        {/* TIMETABLE PAGE */}
+        {page === "timetable" && (
+          <div style={{ maxWidth: 960, margin: "0 auto", width: "100%", paddingBottom: 40 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <button
+                onClick={() => {
+                  if (results) setPage("results");
+                  else setPage("dashboard");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                style={{
+                  background: C.surface,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 10,
+                  padding: "8px 14px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: C.text,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "inherit"
+                }}
+              >
+                ← Back
+              </button>
+              <div style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>Transit Timetables & Schedules</div>
+            </div>
+            <TimetablePanel
+              onClose={() => {
+                if (results) setPage("results");
+                else setPage("dashboard");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              stops={stops}
+              src={src}
+              dst={dst}
+            />
+          </div>
+        )}
+
+        {/* ROUTE LOOKUP PAGE */}
+        {page === "route_lookup" && (
+          <div style={{ maxWidth: 960, margin: "0 auto", width: "100%", paddingBottom: 40 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <button
+                onClick={() => {
+                  if (results) setPage("results");
+                  else setPage("dashboard");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                style={{
+                  background: C.surface,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 10,
+                  padding: "8px 14px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: C.text,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "inherit"
+                }}
+              >
+                ← Back
+              </button>
+              <div style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>Transit Route Lookup & Sequences</div>
+            </div>
+            <RouteSearchPanel
+              onClose={() => {
+                if (results) setPage("results");
+                else setPage("dashboard");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
           </div>
         )}
 
@@ -11067,32 +11193,207 @@ export default function App() {
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "space-between" : "flex-end", alignItems: "center" }}>
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <button onClick={() => setPage("plan")} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, color: C.muted, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>← Edit</button>
-                    {[{ v: "cards", icon: "grid", label: "Cards" }, { v: "compare", icon: "table", label: "Compare" }].map(b => (
+                    {!modeDetailPage && [{ v: "cards", icon: "grid", label: "Cards" }, { v: "compare", icon: "table", label: "Compare" }].map(b => (
                       <button key={b.v} onClick={() => setView(b.v)} style={{ background: view === b.v ? C.accent : C.card, border: `1px solid ${view === b.v ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: view === b.v ? "white" : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
                         <Ic n={b.icon} s={13} c={view === b.v ? "white" : C.muted} /> {b.label}
                       </button>
                     ))}
-                  </div>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", overflowX: isMobile ? "auto" : "visible", maxWidth: "100%", paddingBottom: isMobile ? 4 : 0 }}>
-                    <button onClick={() => { setShowAllBuses(!showAllBuses); setShowRouteSearch(false); setShowTimetable(false); }} style={{ background: showAllBuses ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showAllBuses ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 10px", fontSize: 12, color: showAllBuses ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
-                      <Ic n="list" s={13} c={showAllBuses ? MC.bmtc.color : C.muted} /> Buses
-                    </button>
-                    <button onClick={() => { setShowRouteSearch(!showRouteSearch); setShowAllBuses(false); setShowTimetable(false); }} style={{ background: showRouteSearch ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showRouteSearch ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 10px", fontSize: 12, color: showRouteSearch ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
-                      <Ic n="route" s={13} c={showRouteSearch ? MC.bmtc.color : C.muted} /> Route
-                    </button>
-                    <button onClick={() => { setShowTimetable(!showTimetable); setShowAllBuses(false); setShowRouteSearch(false); }} style={{ background: showTimetable ? C.accent + "20" : C.card, border: `1px solid ${showTimetable ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 10px", fontSize: 12, color: showTimetable ? C.accent : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
-                      <Ic n="clock" s={13} c={showTimetable ? C.accent : C.muted} /> Timetable
-                    </button>
+                    {modeDetailPage && (
+                      <button onClick={() => setModeDetailPage(null)} style={{ background: C.card, border: `1px solid ${C.border2}`, borderRadius: 8, padding: "7px 14px", fontSize: 12, color: C.accent, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
+                        ← All Modes
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* See All Buses inline */}
-              {showAllBuses && <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} onSelectBus={handleSelectBus} />}
-              {showRouteSearch && <div style={{ marginBottom: 16 }}><RouteSearchPanel /></div>}
-              {showTimetable && <TimetablePanel results={results} onClose={() => setShowTimetable(false)} stops={stops} src={src} dst={dst} time={time} />}
+              {/* Mode Switcher Tabs when in Single-Mode Detail View */}
+              {modeDetailPage && (
+                <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, marginBottom: 16 }}>
+                  {results && Object.keys(results).map(mk => {
+                    const isCur = modeDetailPage === mk;
+                    return (
+                      <button
+                        key={mk}
+                        onClick={() => { setSelected(mk); setModeDetailPage(mk); }}
+                        style={{
+                          background: isCur ? MC[mk].color : C.card,
+                          color: isCur ? "#ffffff" : C.muted,
+                          border: `1px solid ${isCur ? MC[mk].color : C.border2}`,
+                          borderRadius: 10,
+                          padding: "7px 14px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          whiteSpace: "nowrap",
+                          fontFamily: "inherit",
+                          boxShadow: isCur ? `0 4px 12px ${MC[mk].color}33` : "none"
+                        }}
+                      >
+                        <Ic n={MC[mk].icon} s={14} c={isCur ? "#ffffff" : MC[mk].color} />
+                        {MC[mk].short || MC[mk].label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-              {view === "cards" ? (
+              {/* DEDICATED SINGLE-MODE CONTENT */}
+              {modeDetailPage ? (
+                <div>
+                  <div style={{ marginBottom: 16 }}>
+                    {(() => {
+                      const m = modeDetailPage;
+                      const recInfo = recommendations?.find(r => r.mode === m);
+                      const baseData = (m === "cab" && selectedCabVehicle) ? {
+                        ...results.cab,
+                        ...selectedCabVehicle,
+                        segments: selectedCabVehicle.segments,
+                        guide: selectedCabVehicle.guide,
+                        cost: selectedCabVehicle.cost,
+                        time: selectedCabVehicle.time,
+                        distance: selectedCabVehicle.distance,
+                      } : (m === "multimodal" && selectedMultimodalOption) ? {
+                        ...results.multimodal,
+                        ...selectedMultimodalOption,
+                        segments: selectedMultimodalOption.segments,
+                        guide: selectedMultimodalOption.guide,
+                        cost: selectedMultimodalOption.cost,
+                        time: selectedMultimodalOption.time,
+                        distance: selectedMultimodalOption.distance,
+                      } : results[m];
+
+                      const cardData = {
+                        ...baseData,
+                        aiRank: recInfo ? recommendations.indexOf(recInfo) + 1 : null,
+                        aiScore: recInfo ? recInfo.score : null
+                      };
+
+                      return (
+                        <ResultCard
+                          key={m}
+                          modeKey={m}
+                          data={cardData}
+                          selected={m}
+                          onSelect={setSelected}
+                          selectedCabVehicle={selectedCabVehicle}
+                          setSelectedCabVehicle={setSelectedCabVehicle}
+                          selectedMultimodalOption={selectedMultimodalOption}
+                          setSelectedMultimodalOption={setSelectedMultimodalOption}
+                          onOpenRideMode={handleOpenRideMode}
+                          onStartNavigation={handleStartNavigation}
+                          onOpenSeeAllBuses={() => setShowAllBuses(!showAllBuses)}
+                          isDetailView={true}
+                        />
+                      );
+                    })()}
+                  </div>
+
+                  {/* See All Buses inline if BMTC */}
+                  {modeDetailPage === "bmtc" && showAllBuses && (
+                    <div style={{ marginBottom: 16 }}>
+                      <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} onSelectBus={handleSelectBus} />
+                    </div>
+                  )}
+
+                  {/* Action Bar for Dedicated Mode Page: Ride Mode + Start Navigation + Save */}
+                  <div style={{
+                    marginTop: 16,
+                    background: `linear-gradient(135deg, ${MC[modeDetailPage]?.color}18, ${MC[modeDetailPage]?.color}08)`,
+                    border: `1.5px solid ${MC[modeDetailPage]?.color}44`,
+                    borderRadius: 16,
+                    padding: "16px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap"
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase" }}>Selected Mode</div>
+                      <div style={{ fontSize: 16, fontWeight: 900, color: C.text }}>{MC[modeDetailPage]?.label}</div>
+                      <div style={{ fontSize: 12, color: MC[modeDetailPage]?.color, marginTop: 2, fontWeight: 600 }}>
+                        {selectedData?.time ? `${selectedData.time} min · ₹${selectedData.cost} · ${selectedData.distance} km` : "Ready to travel"}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                      {saveSuccessMsg && (
+                        <span style={{ fontSize: 12, color: C.green, fontWeight: 700 }}>
+                          {saveSuccessMsg}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => {
+                          let rideType = modeDetailPage === "metro" ? "METRO" : "BUS";
+                          let busNo = selectedData?.all_direct && selectedData.all_direct.length > 0 ? selectedData.all_direct[0] : (selectedData?.segments?.[0]?.route || "500C");
+                          let line = modeDetailPage === "metro" ? "Purple Line" : undefined;
+                          handleOpenRideMode({ type: rideType, busNumber: busNo, line: line });
+                        }}
+                        style={{
+                          background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)",
+                          border: "none",
+                          borderRadius: 10,
+                          padding: "10px 18px",
+                          color: "white",
+                          fontSize: 12.5,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          boxShadow: "0 4px 14px rgba(124, 58, 237, 0.35)"
+                        }}
+                      >
+                        <span>🚀</span> Ride Mode
+                      </button>
+                      <button
+                        onClick={handleStartNavigation}
+                        style={{
+                          background: MC[modeDetailPage]?.color || C.accent,
+                          border: "none",
+                          borderRadius: 10,
+                          padding: "10px 20px",
+                          color: "white",
+                          fontSize: 12.5,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          boxShadow: `0 4px 14px ${MC[modeDetailPage]?.color || C.accent}44`
+                        }}
+                      >
+                        <Ic n="share" s={14} c="white" /> Start Navigation
+                      </button>
+                      <button
+                        onClick={handleSaveJourney}
+                        disabled={saving}
+                        style={{
+                          background: C.card,
+                          border: `1px solid ${C.border2}`,
+                          borderRadius: 10,
+                          padding: "10px 14px",
+                          color: C.muted,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: saving ? "wait" : "pointer",
+                          fontFamily: "inherit",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5
+                        }}
+                      >
+                        <Ic n="save" s={13} c={C.muted} /> {saving ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : view === "cards" ? (
                 <>
                   <JourneyContextBanner journey={journeyMeta} traffic={trafficMeta} weather={weatherMeta} />
 
@@ -11101,7 +11402,7 @@ export default function App() {
                     recommendations={recommendations}
                     results={results}
                     selected={selected}
-                    setSelected={setSelected}
+                    setSelected={(m) => { setSelected(m); setModeDetailPage(m); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                     mc={MC}
                     selectedCabVehicle={selectedCabVehicle}
                     setSelectedCabVehicle={setSelectedCabVehicle}
@@ -11148,7 +11449,21 @@ export default function App() {
                           modeKey={m}
                           data={cardData}
                           selected={selected}
-                          onSelect={setSelected}
+                          onSelect={(modeKey) => {
+                            setSelected(modeKey);
+                            setModeDetailPage(modeKey);
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          onOpenModeDetail={(modeKey) => {
+                            setSelected(modeKey);
+                            setModeDetailPage(modeKey);
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          onOpenSeeAllBuses={() => {
+                            setSelected("bmtc");
+                            setModeDetailPage("bmtc");
+                            setShowAllBuses(true);
+                          }}
                           selectedCabVehicle={selectedCabVehicle}
                           setSelectedCabVehicle={setSelectedCabVehicle}
                           selectedMultimodalOption={selectedMultimodalOption}
@@ -11653,16 +11968,14 @@ export default function App() {
         isOpen={showFeaturesModal}
         onClose={() => setShowFeaturesModal(false)}
         onOpenTimetable={() => {
-          setPage("plan");
-          setShowTimetable(true);
-          setShowRouteSearch(false);
-          setShowAllBuses(false);
+          setPage("timetable");
+          setShowFeaturesModal(false);
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }}
         onOpenRouteLookup={() => {
-          setPage("plan");
-          setShowRouteSearch(true);
-          setShowTimetable(false);
-          setShowAllBuses(false);
+          setPage("route_lookup");
+          setShowFeaturesModal(false);
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }}
         onOpenStopsInfo={() => setShowStopsInfo(true)}
         onOpenFareCalc={() => setShowFareCalc(true)}
@@ -11848,8 +12161,8 @@ export default function App() {
             { id: "menu", label: "Menu", icon: "menu", action: () => setMobileSidebarOpen(true) },
           ].map(tab => {
             const isTabActive = (tab.id === "dashboard" && page === "dashboard") || 
-                                (tab.id === "plan" && page === "plan" && !showRouteSearch && !showTimetable) ||
-                                (tab.id === "features" && showFeaturesModal);
+                                (tab.id === "plan" && page === "plan") ||
+                                (tab.id === "features" && (showFeaturesModal || page === "timetable" || page === "route_lookup"));
             
             if (tab.special) {
               return (
