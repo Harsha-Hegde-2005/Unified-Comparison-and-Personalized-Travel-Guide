@@ -268,11 +268,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _openDocumentFile(Map<String, dynamic> doc) {
-    final filePath = doc['file_path']?.toString() ?? '';
     final docId = doc['id'];
-    final fileUrl = filePath.isNotEmpty
-        ? (filePath.startsWith('http') ? filePath : '${ApiService.baseUrl}$filePath')
-        : '${ApiService.baseUrl}/api/user/documents/$docId/file';
+    final tokenParam = ApiService.token != null && ApiService.token!.isNotEmpty ? '?token=${Uri.encodeComponent(ApiService.token!)}' : '';
+    final fileUrl = '${ApiService.baseUrl}/api/user/documents/$docId/file$tokenParam';
 
     final dType = doc['doc_type'] ?? doc['name'] ?? doc['document_type'] ?? 'Document';
     final dNum = doc['doc_number'] ?? doc['number'] ?? '';
@@ -358,9 +356,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: () {
-                if (kIsWeb) {
-                  WebHelper.openUrl(fileUrl);
-                }
+                WebHelper.openUrl(fileUrl);
               },
               icon: const Icon(Icons.open_in_new_rounded, size: 16),
               label: const Text('Open & View File'),

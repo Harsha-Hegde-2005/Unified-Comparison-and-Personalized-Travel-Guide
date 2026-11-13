@@ -5711,28 +5711,6 @@ function ResultCard({
         </div>
       </div>
 
-      {/* Cab Fare Estimate Advisory Banner */}
-      {modeKey === "cab" && (
-        <div style={{
-          margin: "0 14px 14px",
-          padding: "12px 14px",
-          borderRadius: 12,
-          background: "rgba(245, 158, 11, 0.08)",
-          border: "1.5px solid rgba(245, 158, 11, 0.3)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 6
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#f59e0b", fontWeight: 800, fontSize: 12 }}>
-            <span>⚠️</span>
-            <span>Cab Fare Estimate Advisory</span>
-          </div>
-          <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>
-            ℹ️ Fare estimate: Due to the unavailability of official and real-time fare slabs, this fare is an approximate estimate based on our available pricing model. Actual prices may vary. Please check the official cab app for the exact fare before booking.
-          </div>
-        </div>
-      )}
-
       {/* Stats strip */}
       <div style={{ margin: "0 14px 14px", background: C.surface, borderRadius: 10, padding: "10px 14px", display: "flex", flexWrap: "wrap" }}>
         {[
@@ -6289,74 +6267,6 @@ function ResultCard({
       </div>
       </div>
 
-      {/* Ride Mode CTA Button for Bus/Metro/Multimodal */}
-      {(modeKey === "bmtc" || modeKey === "metro" || modeKey === "multimodal") && onOpenRideMode && (
-        <div style={{ padding: "0 18px 10px 18px", background: C.card }}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              let rideType = modeKey === "metro" ? "METRO" : "BUS";
-              let busNo = data?.all_direct && data.all_direct.length > 0 ? data.all_direct[0] : (data?.segments?.[0]?.route || "500C");
-              let line = modeKey === "metro" ? "Purple Line" : undefined;
-              onOpenRideMode({ type: rideType, busNumber: busNo, line: line });
-            }}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: 10,
-              backgroundColor: "#7c3aed",
-              border: "none",
-              color: "#ffffff",
-              fontSize: 12,
-              fontWeight: 800,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              boxShadow: "0 4px 12px rgba(124, 58, 237, 0.3)",
-              fontFamily: "inherit"
-            }}
-          >
-            <span>🚀</span>
-            <span>Enter Live Ride Mode for this Trip</span>
-          </button>
-        </div>
-      )}
-
-      {/* Dynamic Live Navigation CTA Button for Personal Vehicle */}
-      {modeKey === "car" && onStartNavigation && (
-        <div style={{ padding: "0 18px 10px 18px", background: C.card }}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect("car");
-              onStartNavigation();
-            }}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: 10,
-              backgroundColor: "#10b981",
-              border: "none",
-              color: "#ffffff",
-              fontSize: 12,
-              fontWeight: 800,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
-              fontFamily: "inherit"
-            }}
-          >
-            <span>🚗</span>
-            <span>Start Live Moving Drive Navigation (Real GPS)</span>
-          </button>
-        </div>
-      )}
-
       {/* Select bar */}
       {!isDetailView && (
         <div style={{ background: isSelected ? m.color : m.bg, padding: "11px 18px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.18s" }}>
@@ -6508,6 +6418,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
   const [docNum, setDocNum] = useState("");
   const [docExpiry, setDocExpiry] = useState("");
   const [docFile, setDocFile] = useState(null);
+  const [previewDoc, setPreviewDoc] = useState(null);
 
 
 
@@ -7310,23 +7221,23 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                       <div style={{ fontSize: 10, color: C.muted, marginTop: 4, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>No: {d.doc_number}</div>
                     </div>
                     <div style={{ display: "flex", gap: 4 }}>
-                      <a 
-                        href={`${API_BASE}${d.file_path}`} 
-                        target="_blank" 
-                        rel="noreferrer" 
+                      <button 
+                        type="button"
+                        onClick={() => setPreviewDoc(d)}
                         style={{ 
                           background: "rgba(124, 58, 237, 0.08)", 
                           color: C.accent, 
                           border: `1px solid rgba(124, 58, 237, 0.2)`, 
                           borderRadius: 8, 
-                          padding: "4px 8px", 
+                          padding: "4px 10px", 
                           fontSize: 11, 
                           fontWeight: 700, 
-                          textDecoration: "none"
+                          cursor: "pointer",
+                          fontFamily: "inherit"
                         }}
                       >
                         View
-                      </a>
+                      </button>
                       <button 
                         onClick={() => handleDeleteDocument(d.id)} 
                         style={{ 
@@ -7668,6 +7579,111 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           onSearch={(s, d) => onSelectRoute(s, d)}
           onClose={() => setShowRouteLookupJourneyModal(false)}
         />
+      )}
+
+      {/* In-App Document Previewer Modal */}
+      {previewDoc && (
+        <div
+          onClick={() => setPreviewDoc(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(8, 9, 15, 0.8)",
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: isMobile ? 12 : 24,
+            zIndex: 10000
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: C.surface,
+              border: `1px solid ${C.border}`,
+              borderRadius: 24,
+              width: "100%",
+              maxWidth: 820,
+              maxHeight: "92vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              boxShadow: "0 25px 50px rgba(0,0,0,0.6)"
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 24 }}>📄</span>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: C.text }}>{previewDoc.doc_type}</div>
+                  <div style={{ fontSize: 12, color: C.muted }}>Number: {previewDoc.doc_number || "N/A"} · Expiry: {previewDoc.expiry_date || "N/A"}</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <a
+                  href={`${API_BASE}/api/user/documents/${previewDoc.id}/file?token=${encodeURIComponent(token)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: "rgba(124, 58, 237, 0.12)",
+                    border: "1px solid rgba(124, 58, 237, 0.3)",
+                    color: C.accent,
+                    borderRadius: 10,
+                    padding: "7px 14px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  ↗ Open Full Screen
+                </a>
+                <button
+                  onClick={() => setPreviewDoc(null)}
+                  style={{
+                    background: C.dim,
+                    border: `1px solid ${C.border2}`,
+                    color: C.muted,
+                    fontSize: 16,
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Document Content Frame */}
+            <div style={{ flex: 1, padding: 16, overflowY: "auto", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b0d14", minHeight: 420 }}>
+              {previewDoc.file_path && previewDoc.file_path.toLowerCase().endsWith(".pdf") ? (
+                <iframe
+                  src={`${API_BASE}/api/user/documents/${previewDoc.id}/file?token=${encodeURIComponent(token)}`}
+                  title="PDF Viewer"
+                  style={{ width: "100%", height: "68vh", border: "none", borderRadius: 12, background: "#ffffff" }}
+                />
+              ) : (
+                <img
+                  src={`${API_BASE}/api/user/documents/${previewDoc.id}/file?token=${encodeURIComponent(token)}`}
+                  alt={previewDoc.doc_type}
+                  style={{ maxWidth: "100%", maxHeight: "68vh", objectFit: "contain", borderRadius: 12 }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       </div>
@@ -11325,9 +11341,8 @@ export default function App() {
                 </div>
                 <StopInput value={dst} onChange={setDst} placeholder="To — stop or area…" dot={C.red} options={stops.all} />
 
-                {/* Time */}
+                {/* Departure Time */}
                 <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, marginBottom: 8, letterSpacing: "0.05em" }}>DEPARTURE TIME</div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <input type="time" value={time} onChange={e => { setTime(e.target.value); setIsRealTime(!e.target.value); }}
                       style={{ flex: 1, background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 10, color: C.text, padding: "10px 12px", fontSize: 13, outline: "none", fontFamily: "inherit" }}
@@ -11908,8 +11923,8 @@ export default function App() {
                 </div>
               )}
 
-              {/* CTA */}
-              {selectedData?.available && selectedData?.operational !== false && (
+              {/* CTA for Cards View */}
+              {!modeDetailPage && selectedData?.available && selectedData?.operational !== false && (
                 <div style={{ marginTop: 20, background: `linear-gradient(135deg, ${MC[selected].color}18, ${MC[selected].color}06)`, border: `1.5px solid ${MC[selected].color}44`, borderRadius: 16, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                   <div>
                     <div style={{ fontSize: 12, color: C.muted }}>You selected</div>
@@ -11918,17 +11933,42 @@ export default function App() {
                       {selectedData.time} min · ₹{selectedData.cost} · {selectedData.transfers} transfer(s) · {selectedData.distance} km
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     {saveSuccessMsg && (
                       <span style={{ fontSize: 12, color: C.green, fontWeight: 700 }}>
                         {saveSuccessMsg}
                       </span>
                     )}
-                    <button onClick={handleSaveJourney} disabled={saving} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 10, padding: "10px 16px", color: C.muted, fontSize: 12, cursor: saving ? "wait" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
-                      <Ic n="save" s={13} c={C.muted} /> {saving ? "Saving..." : "Save"}
+                    <button
+                      onClick={() => {
+                        let rideType = selected === "metro" ? "METRO" : "BUS";
+                        let busNo = selectedData?.all_direct && selectedData.all_direct.length > 0 ? selectedData.all_direct[0] : (selectedData?.segments?.[0]?.route || "500C");
+                        let line = selected === "metro" ? "Purple Line" : undefined;
+                        handleOpenRideMode({ type: rideType, busNumber: busNo, line: line });
+                      }}
+                      style={{
+                        background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)",
+                        border: "none",
+                        borderRadius: 10,
+                        padding: "10px 16px",
+                        color: "white",
+                        fontSize: 12.5,
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        boxShadow: "0 4px 12px rgba(124, 58, 237, 0.3)"
+                      }}
+                    >
+                      <span>🚀</span> Ride Mode
                     </button>
                     <button onClick={handleStartNavigation} style={{ background: MC[selected].color, border: "none", borderRadius: 10, padding: "10px 22px", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: `0 4px 20px ${MC[selected].color}44`, display: "flex", alignItems: "center", gap: 6 }}>
                       <Ic n="share" s={14} c="white" /> Start Navigation
+                    </button>
+                    <button onClick={handleSaveJourney} disabled={saving} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 10, padding: "10px 16px", color: C.muted, fontSize: 12, cursor: saving ? "wait" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
+                      <Ic n="save" s={13} c={C.muted} /> {saving ? "Saving..." : "Save"}
                     </button>
                   </div>
                 </div>

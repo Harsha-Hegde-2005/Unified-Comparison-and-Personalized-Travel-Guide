@@ -3836,44 +3836,7 @@ def get_ride_bus_routes():
     return {"status": "success", "popular_routes": popular, "all_routes": popular, "routes": popular, "count": len(popular)}
 
 
-@app.get("/api/ride/bus/stops")
-def get_ride_bus_stops(route: str):
-    """Return ordered stops for a BMTC route with coordinates."""
-    from modes.bmtc.core.gtfs import get_route_stops
-    raw_stops = get_route_stops(route)
-    if not raw_stops:
-        raw_stops = ["Electronic City", "Silk Board", "Dairy Circle", "Lalbagh", "Corporation", "Majestic"]
-        
-    out = []
-    for sname in raw_stops:
-        coords = get_stop_coords(sname)
-        if coords:
-            out.append({"stop_name": sname, "name": sname, "lat": coords[0], "lng": coords[1]})
-        else:
-            out.append({"stop_name": sname, "name": sname, "lat": 12.9716, "lng": 77.5946})
-            
-    return {"status": "success", "route": route, "stops": out, "count": len(out)}
 
-
-@app.get("/api/ride/metro/lines")
-def get_ride_metro_lines():
-    """Return Namma Metro lines with station coordinates."""
-    lines_data = {}
-    try:
-        lines = _metro_planner.routing_engine.lines
-        for line_name, station_names in lines.items():
-            st_list = []
-            for sname in station_names:
-                coords = get_stop_coords(sname)
-                if coords:
-                    st_list.append({"stop_name": sname, "name": sname, "lat": coords[0], "lng": coords[1]})
-                else:
-                    st_list.append({"stop_name": sname, "name": sname, "lat": 12.9716, "lng": 77.5946})
-            lines_data[line_name] = st_list
-    except Exception as e:
-        print(f"Error fetching metro lines: {e}")
-        
-    return {"status": "success", "lines": lines_data}
 
 
 
@@ -5857,9 +5820,9 @@ def chatbot_rag_endpoint(req: ChatbotRequest):
 import shutil
 from fastapi.staticfiles import StaticFiles
 from db import get_db, User, Journey, Vehicle, Document
-from auth import hash_password, verify_password, create_access_token, get_current_user
+from auth import hash_password, verify_password, create_access_token, get_current_user, decode_access_token
 from sqlalchemy.orm import Session
-from fastapi import Depends, UploadFile, File, Form
+from fastapi import Depends, UploadFile, File, Form, Header
 
 # Mount uploads static folder
 uploads_path = os.path.join(_HERE, "uploads")
@@ -6101,16 +6064,59 @@ def delete_user_document(doc_id: int, current_user: User = Depends(get_current_u
     return {"status": "success"}
 
 @app.get("/api/user/documents/{doc_id}/file")
-def get_user_document_file(doc_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_user_document_file(
+    doc_id: int,
+    token: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    raw_token = None
+    if authorization and authorization.startswith("Bearer "):
+        raw_token = authorization.split(" ")[1].strip()
+    elif token:
+        raw_token = token.strip()
+
+    if not raw_token:
+        raise HTTPException(status_code=401, detail="Authentication token required to view document")
+
+    payload = decode_access_token(raw_token)
+    if not payload or "sub" not in payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    current_user = db.query(User).filter(User.username == payload["sub"]).first()
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     doc = db.query(Document).filter(Document.id == doc_id, Document.user_id == current_user.id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+
     filename = doc.file_path.split("/")[-1]
     file_full = os.path.join(_HERE, "uploads", filename)
     if not os.path.exists(file_full):
         raise HTTPException(status_code=404, detail="File on disk not found")
+
+    ext = os.path.splitext(filename)[1].lower()
+    media_map = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        ".txt": "text/plain"
+    }
+    media_type = media_map.get(ext, "application/octet-stream")
+
     from fastapi.responses import FileResponse
-    return FileResponse(file_full)
+    return FileResponse(
+        file_full,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f"inline; filename=\"{filename}\"",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
 
 @app.get("/api/config/google-maps-key")
 def get_google_maps_key():
@@ -6239,30 +6245,73 @@ def get_ride_bus_routes():
 
 
 @app.get("/api/ride/bus/stops")
-def get_ride_bus_stops(route: str):
-    stops_list = get_route_stop_names(route)
-    if not stops_list:
-        stops_list = ["Silk Board", "HSR Layout", "Bellandur", "Marathahalli", "Tin Factory", "Kalyan Nagar", "Hebbal", "Majestic"]
+def get_ride_bus_stops(route: str, direction: str = "forward"):
+    route_clean = route.strip()
+    stops_list = get_route_stop_names(route_clean)
+    rev_stops = get_route_stop_names(route_clean + "_REV")
+    if not stops_list and rev_stops:
+        stops_list = rev_stops
+        rev_stops = []
     
+    is_rev = direction.lower() in ("return", "reverse", "rev", "backward", "down")
+    if is_rev:
+        if rev_stops and len(rev_stops) > 0:
+            chosen = rev_stops
+        elif stops_list:
+            chosen = list(reversed(stops_list))
+        else:
+            chosen = []
+    else:
+        chosen = stops_list or []
+    
+    if not chosen:
+        chosen = ["Silk Board", "HSR Layout", "Bellandur", "Marathahalli", "Tin Factory", "Kalyan Nagar", "Hebbal", "Majestic"]
+        if is_rev:
+            chosen = list(reversed(chosen))
+            
     result = []
-    for s in stops_list:
+    for s in chosen:
         coords = get_stop_coords(s)
         result.append({
             "stop_name": s,
             "lat": coords[0] if coords else None,
             "lng": coords[1] if coords else None
         })
-    return {"route": route, "stops": result}
+
+    forward_list = []
+    for s in (stops_list or chosen):
+        c = get_stop_coords(s)
+        forward_list.append({"stop_name": s, "lat": c[0] if c else None, "lng": c[1] if c else None})
+
+    reverse_list = []
+    rev_source = rev_stops if (rev_stops and len(rev_stops) > 0) else list(reversed(stops_list or chosen))
+    for s in rev_source:
+        c = get_stop_coords(s)
+        reverse_list.append({"stop_name": s, "lat": c[0] if c else None, "lng": c[1] if c else None})
+
+    return {
+        "status": "success",
+        "route": route_clean,
+        "direction": "return" if is_rev else "forward",
+        "stops": result,
+        "forward_stops": forward_list,
+        "reverse_stops": reverse_list,
+        "count": len(result)
+    }
 
 
 @app.get("/api/ride/metro/lines")
-def get_ride_metro_lines():
-    purple = ["Challaghatta", "Kengeri", "Mysore Road", "Vijayanagar", "Majestic", "MG Road", "Indiranagar", "Baiyappanahalli", "KR Pura", "Whitefield"]
+def get_ride_metro_lines(direction: str = "forward"):
+    purple = ["Challaghatta", "Kengeri", "Mysore Road", "Vijayanagar", "Majestic", "MG Road", "Indiranagar", "Baiyappanahalli", "KR Pura", "Whitefield (Kadugodi)"]
     green = ["Silk Institute", "Yelachenahalli", "Banashankari", "Jayanagar", "Majestic", "Malleshwaram", "Yeshwanthpur", "Nagasandra", "Madavara"]
-    
-    def format_line(stations):
+    yellow = ["R.V. Road", "Jayadeva Hospital", "BTM Layout", "Central Silk Board", "Bommanahalli", "Electronic City", "Infosys Foundation Konappana Agrahara", "Hebbagodi", "Bommasandra"]
+
+    is_rev = direction.lower() in ("return", "reverse", "rev", "backward", "down")
+
+    def format_line(stations, reverse=False):
+        sts = list(reversed(stations)) if reverse else stations
         res = []
-        for st in stations:
+        for st in sts:
             coords = get_stop_coords(st)
             res.append({
                 "stop_name": st,
@@ -6272,9 +6321,22 @@ def get_ride_metro_lines():
         return res
 
     return {
+        "status": "success",
+        "direction": "return" if is_rev else "forward",
         "lines": {
-            "Purple Line": format_line(purple),
-            "Green Line": format_line(green)
+            "Purple Line": format_line(purple, is_rev),
+            "Green Line": format_line(green, is_rev),
+            "Yellow Line": format_line(yellow, is_rev)
+        },
+        "forward_lines": {
+            "Purple Line": format_line(purple, False),
+            "Green Line": format_line(green, False),
+            "Yellow Line": format_line(yellow, False)
+        },
+        "reverse_lines": {
+            "Purple Line": format_line(purple, True),
+            "Green Line": format_line(green, True),
+            "Yellow Line": format_line(yellow, True)
         }
     }
 

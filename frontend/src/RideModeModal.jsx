@@ -29,10 +29,14 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
   const [allBusRoutes, setAllBusRoutes] = useState([]);
   const [metroLines, setMetroLines] = useState({});
 
+  // 2-Way Direction & Route Setup State
+  const [routeDirection, setRouteDirection] = useState("forward"); // 'forward' | 'return'
+
   // Bus Setup State
   const [selectedBusNumber, setSelectedBusNumber] = useState("");
   const [busSearchQuery, setBusSearchQuery] = useState("");
   const [busStops, setBusStops] = useState([]);
+  const [busBoardingStop, setBusBoardingStop] = useState("");
   const [busDestination, setBusDestination] = useState("");
 
   // Metro Setup State
@@ -184,14 +188,14 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
   // Fetch stops when bus number changes
   useEffect(() => {
     if (selectedBusNumber) {
-      fetchBusStops(selectedBusNumber);
+      fetchBusStops(selectedBusNumber, routeDirection);
     }
   }, [selectedBusNumber]);
 
-  const fetchBusStops = async (busNo) => {
+  const fetchBusStops = async (busNo, dir = routeDirection) => {
     if (!busNo) return;
     try {
-      const res = await fetch(`${API_BASE}/api/ride/bus/stops?route=${encodeURIComponent(busNo)}`);
+      const res = await fetch(`${API_BASE}/api/ride/bus/stops?route=${encodeURIComponent(busNo)}&direction=${dir}`);
       const data = await res.json();
       if (data.stops) {
         const normStops = data.stops.map((st) => ({
@@ -200,8 +204,10 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
         }));
         setBusStops(normStops);
         if (normStops.length > 0) {
+          setBusBoardingStop((prev) => (normStops.some(s => s.stop_name === prev) ? prev : normStops[0].stop_name));
           setBusDestination(normStops[normStops.length - 1].stop_name);
         } else {
+          setBusBoardingStop("");
           setBusDestination("");
         }
       }
@@ -210,15 +216,34 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
     }
   };
 
+  // Swap 2-Way Direction (A -> B <==> B -> A)
+  const handleSwapDirection = () => {
+    const nextDir = routeDirection === "forward" ? "return" : "forward";
+    setRouteDirection(nextDir);
+    if (rideType === "BUS") {
+      fetchBusStops(selectedBusNumber, nextDir);
+    } else {
+      const reversedStations = [...metroStations].reverse();
+      setMetroStations(reversedStations);
+      if (reversedStations.length > 0) {
+        setMetroOrigin(reversedStations[0].stop_name);
+        setMetroDestination(reversedStations[reversedStations.length - 1].stop_name);
+      }
+    }
+  };
 
   // Handle Metro line change
   const handleMetroLineChange = (lineName) => {
     setSelectedMetroLine(lineName);
-    const stations = metroLines[lineName] || [];
-    setMetroStations(stations);
-    if (stations.length > 0) {
-      setMetroOrigin(stations[0].stop_name);
-      setMetroDestination(stations[stations.length - 1].stop_name);
+    const stations = (metroLines[lineName] || []).map(st => ({
+      ...st,
+      stop_name: st.stop_name || st.name || "Station"
+    }));
+    const ordered = routeDirection === "return" ? [...stations].reverse() : stations;
+    setMetroStations(ordered);
+    if (ordered.length > 0) {
+      setMetroOrigin(ordered[0].stop_name);
+      setMetroDestination(ordered[ordered.length - 1].stop_name);
     }
   };
 
@@ -250,6 +275,8 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
     let stopsToUse = [];
     let destName = "";
     let vehicleName = "";
+    let startIdx = 0;
+    let boardingStopName = "";
 
     if (rideType === "BUS") {
       if (!selectedBusNumber) {
@@ -263,6 +290,10 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
       stopsToUse = busStops;
       destName = busDestination;
       vehicleName = `Bus ${selectedBusNumber}`;
+      
+      const foundIdx = busStops.findIndex(s => s.stop_name === busBoardingStop);
+      startIdx = foundIdx >= 0 ? foundIdx : (detectedCurrentStopIndex || 0);
+      boardingStopName = busBoardingStop || stopsToUse[startIdx]?.stop_name || "Starting Stop";
     } else {
       if (!selectedMetroLine) {
         alert("Please select a Metro Line.");
@@ -275,6 +306,10 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
       stopsToUse = metroStations;
       destName = metroDestination;
       vehicleName = selectedMetroLine;
+
+      const foundIdx = metroStations.findIndex(s => s.stop_name === metroOrigin);
+      startIdx = foundIdx >= 0 ? foundIdx : (detectedCurrentStopIndex || 0);
+      boardingStopName = metroOrigin || stopsToUse[startIdx]?.stop_name || "Starting Station";
     }
 
     if (!stopsToUse || stopsToUse.length === 0) {
@@ -287,20 +322,23 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
       vehicleName,
       routeId: rideType === "BUS" ? selectedBusNumber : selectedMetroLine,
       destination: destName,
+      boardingStop: boardingStopName,
+      boardingIndex: startIdx,
       stops: stopsToUse,
       totalStopsCount: stopsToUse.length,
+      direction: routeDirection
     };
 
     setRideSession(session);
-    setCurrentStopIndex(detectedCurrentStopIndex || 0);
+    setCurrentStopIndex(startIdx);
     setTriggeredAlerts([]);
     setRideStartTime(Date.now());
     setOffRouteWarningDismissed(false);
     setStep("TRACKING");
 
-    // Perform initial stop snapping
+    // Perform initial stop snapping starting from chosen boarding stop
     if (userLocation) {
-      await performStopSnap(userLocation, stopsToUse, destName, detectedCurrentStopIndex || 0);
+      await performStopSnap(userLocation, stopsToUse, destName, startIdx);
     } else {
       requestGpsLocation();
     }
@@ -738,47 +776,110 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
                     </div>
                   </div>
 
-                  {/* GPS Auto-Detected Current / Source Stop */}
-                  <div style={{
-                    backgroundColor: "#171a29",
-                    border: "1px solid #10b981",
-                    borderRadius: "12px",
-                    padding: "12px 16px",
-                    marginBottom: "16px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between"
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span style={{ fontSize: "20px" }}>📍</span>
-                      <div>
-                        <div style={{ fontSize: "10px", fontWeight: "700", color: "#10b981", letterSpacing: "0.05em" }}>
-                          CURRENT / SOURCE STOP (AUTO-DETECTED VIA GPS)
-                        </div>
-                        <div style={{ fontSize: "14px", fontWeight: "700", color: "#ffffff", marginTop: "2px" }}>
-                          {gpsLoading
-                            ? "Acquiring live GPS location..."
-                            : detectedCurrentStopObj
-                            ? `${detectedCurrentStopObj.stop_name} (Stop #${detectedCurrentStopIndex + 1})`
-                            : "GPS Active · Snapping to route"}
-                        </div>
+                  {/* Direction Indicator & 2-Way Swap Toggle */}
+                  {busStops.length > 0 && (
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      background: "#191d2e",
+                      border: "1px solid #3b4260",
+                      borderRadius: "12px",
+                      padding: "10px 14px",
+                      marginBottom: "16px"
+                    }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: "700", color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          Route Direction (2-Way)
+                        </span>
+                        <span style={{ fontSize: "13px", fontWeight: "700", color: "#ffffff" }}>
+                          {busStops[0]?.stop_name} ➔ {busStops[busStops.length - 1]?.stop_name}
+                        </span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={handleSwapDirection}
+                        style={{
+                          background: "rgba(167, 139, 250, 0.15)",
+                          border: "1px solid #a78bfa",
+                          color: "#c4b5fd",
+                          padding: "7px 12px",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px"
+                        }}
+                      >
+                        <span>⇄</span> Swap Direction
+                      </button>
                     </div>
-                    <button
-                      onClick={requestGpsLocation}
-                      style={{
-                        background: "rgba(16, 185, 129, 0.15)",
-                        border: "1px solid #10b981",
-                        color: "#10b981",
-                        padding: "6px 12px",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                        fontWeight: "700",
-                        cursor: "pointer"
-                      }}
-                    >
-                      {gpsLoading ? "Detecting..." : "Refresh GPS"}
-                    </button>
+                  )}
+
+                  {/* Boarding / Intermediate Stop Selection */}
+                  <div style={{ marginBottom: "16px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <label style={{ fontWeight: "600", color: "#d1d5db", margin: 0 }}>
+                        Boarding / Intermediate Stop:
+                      </label>
+                      {detectedCurrentStopObj && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBusBoardingStop(detectedCurrentStopObj.stop_name);
+                          }}
+                          style={{
+                            background: "rgba(16, 185, 129, 0.15)",
+                            border: "1px solid #10b981",
+                            color: "#10b981",
+                            padding: "4px 8px",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            cursor: "pointer"
+                          }}
+                        >
+                          📍 Snap to GPS ({detectedCurrentStopObj.stop_name})
+                        </button>
+                      )}
+                    </div>
+                    {busStops.length > 0 ? (
+                      <select
+                        value={busBoardingStop}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setBusBoardingStop(val);
+                          const bIdx = busStops.findIndex(s => s.stop_name === val);
+                          const dIdx = busStops.findIndex(s => s.stop_name === busDestination);
+                          if (dIdx <= bIdx && bIdx < busStops.length - 1) {
+                            setBusDestination(busStops[busStops.length - 1].stop_name);
+                          }
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "14px 16px",
+                          borderRadius: "12px",
+                          backgroundColor: "#171a29",
+                          border: "1.5px solid #8b5cf6",
+                          color: "#fff",
+                          fontSize: "15px",
+                          outline: "none",
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        {busStops.map((st, i) => (
+                          <option key={`board-${st.stop_name}-${i}`} value={st.stop_name}>
+                            Stop #{i + 1}: {st.stop_name} {detectedCurrentStopIndex === i ? "📍 (Near GPS)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div style={{ padding: "12px", color: "#8d95ab", fontSize: "13px" }}>
+                        Enter a bus route above to choose boarding stop.
+                      </div>
+                    )}
                   </div>
 
                   {/* Destination Stop Selection */}
@@ -797,16 +898,20 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
                           backgroundColor: "#171a29",
                           border: "1px solid #2d3248",
                           color: "#fff",
-                          fontSize: "16px",
+                          fontSize: "15px",
                           outline: "none",
                           boxSizing: "border-box",
                         }}
                       >
-                        {busStops.map((st, i) => (
-                          <option key={`${st.stop_name}-${i}`} value={st.stop_name}>
-                            {i + 1}. {st.stop_name}
-                          </option>
-                        ))}
+                        {busStops.map((st, i) => {
+                          const bIdx = busStops.findIndex(s => s.stop_name === busBoardingStop);
+                          const isBefore = bIdx >= 0 && i < bIdx;
+                          return (
+                            <option key={`dest-${st.stop_name}-${i}`} value={st.stop_name} disabled={isBefore}>
+                              {i + 1}. {st.stop_name} {bIdx >= 0 && i > bIdx ? `(${i - bIdx} stops from boarding)` : isBefore ? "(Passed / Prior Stop)" : ""}
+                            </option>
+                          );
+                        })}
                       </select>
                     ) : (
                       <div
@@ -863,47 +968,106 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
                     ))}
                   </div>
 
-                  {/* GPS Auto-Detected Current Metro Station */}
-                  <div style={{
-                    backgroundColor: "#171a29",
-                    border: "1px solid #10b981",
-                    borderRadius: "12px",
-                    padding: "12px 16px",
-                    marginBottom: "16px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between"
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span style={{ fontSize: "20px" }}>📍</span>
-                      <div>
-                        <div style={{ fontSize: "10px", fontWeight: "700", color: "#10b981", letterSpacing: "0.05em" }}>
-                          CURRENT METRO STATION (AUTO-DETECTED VIA GPS)
-                        </div>
-                        <div style={{ fontSize: "14px", fontWeight: "700", color: "#ffffff", marginTop: "2px" }}>
-                          {gpsLoading
-                            ? "Acquiring live GPS location..."
-                            : detectedCurrentStopObj
-                            ? `${detectedCurrentStopObj.stop_name} (Station #${detectedCurrentStopIndex + 1})`
-                            : "GPS Active · Snapping to station"}
-                        </div>
+                  {/* Metro Direction Indicator & 2-Way Swap Toggle */}
+                  {metroStations.length > 0 && (
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      background: "#191d2e",
+                      border: "1px solid #3b4260",
+                      borderRadius: "12px",
+                      padding: "10px 14px",
+                      marginBottom: "16px"
+                    }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: "700", color: "#a78bfa", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          Line Direction (2-Way)
+                        </span>
+                        <span style={{ fontSize: "13px", fontWeight: "700", color: "#ffffff" }}>
+                          {metroStations[0]?.stop_name} ➔ {metroStations[metroStations.length - 1]?.stop_name}
+                        </span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={handleSwapDirection}
+                        style={{
+                          background: "rgba(167, 139, 250, 0.15)",
+                          border: "1px solid #a78bfa",
+                          color: "#c4b5fd",
+                          padding: "7px 12px",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px"
+                        }}
+                      >
+                        <span>⇄</span> Swap Direction
+                      </button>
                     </div>
-                    <button
-                      onClick={requestGpsLocation}
-                      style={{
-                        background: "rgba(16, 185, 129, 0.15)",
-                        border: "1px solid #10b981",
-                        color: "#10b981",
-                        padding: "6px 12px",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                        fontWeight: "700",
-                        cursor: "pointer"
-                      }}
-                    >
-                      {gpsLoading ? "Detecting..." : "Refresh GPS"}
-                    </button>
+                  )}
+
+                  {/* Boarding / Intermediate Metro Station Selection */}
+                  <div style={{ marginBottom: "16px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <label style={{ fontWeight: "600", color: "#d1d5db", margin: 0 }}>
+                        Boarding / Intermediate Station:
+                      </label>
+                      {detectedCurrentStopObj && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMetroOrigin(detectedCurrentStopObj.stop_name);
+                          }}
+                          style={{
+                            background: "rgba(16, 185, 129, 0.15)",
+                            border: "1px solid #10b981",
+                            color: "#10b981",
+                            padding: "4px 8px",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            cursor: "pointer"
+                          }}
+                        >
+                          📍 Snap to GPS ({detectedCurrentStopObj.stop_name})
+                        </button>
+                      )}
+                    </div>
+                    {metroStations.length > 0 ? (
+                      <select
+                        value={metroOrigin}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMetroOrigin(val);
+                          const bIdx = metroStations.findIndex(s => s.stop_name === val);
+                          const dIdx = metroStations.findIndex(s => s.stop_name === metroDestination);
+                          if (dIdx <= bIdx && bIdx < metroStations.length - 1) {
+                            setMetroDestination(metroStations[metroStations.length - 1].stop_name);
+                          }
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "14px 16px",
+                          borderRadius: "12px",
+                          backgroundColor: "#171a29",
+                          border: "1.5px solid #8b5cf6",
+                          color: "#fff",
+                          fontSize: "15px",
+                          outline: "none",
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        {metroStations.map((st, i) => (
+                          <option key={`m-board-${st.stop_name}-${i}`} value={st.stop_name}>
+                            Station #{i + 1}: {st.stop_name} {detectedCurrentStopIndex === i ? "📍 (Near GPS)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    ) : null}
                   </div>
 
                   {metroStations.length > 0 && (
@@ -921,16 +1085,20 @@ export default function RideModeModal({ isOpen, onClose, initialData = null }) {
                           backgroundColor: "#171a29",
                           border: "1px solid #2d3248",
                           color: "#fff",
-                          fontSize: "16px",
+                          fontSize: "15px",
                           outline: "none",
                           boxSizing: "border-box",
                         }}
                       >
-                        {metroStations.map((st, i) => (
-                          <option key={`${st.stop_name}-${i}`} value={st.stop_name}>
-                            {i + 1}. {st.stop_name}
-                          </option>
-                        ))}
+                        {metroStations.map((st, i) => {
+                          const bIdx = metroStations.findIndex(s => s.stop_name === metroOrigin);
+                          const isBefore = bIdx >= 0 && i < bIdx;
+                          return (
+                            <option key={`m-dest-${st.stop_name}-${i}`} value={st.stop_name} disabled={isBefore}>
+                              {i + 1}. {st.stop_name} {bIdx >= 0 && i > bIdx ? `(${i - bIdx} stations from boarding)` : isBefore ? "(Passed / Prior Station)" : ""}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   )}

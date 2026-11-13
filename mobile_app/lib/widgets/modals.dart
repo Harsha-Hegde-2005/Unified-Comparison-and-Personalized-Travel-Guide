@@ -3144,6 +3144,8 @@ class _RideModeModalState extends State<RideModeModal> {
   String _selectedMetroLine = 'Purple Line';
   List<Map<String, dynamic>> _metroStations = [];
   String _metroDestination = '';
+  String _boardingStop = '';
+  String _direction = 'forward';
 
   ll.LatLng? _userLocation;
   bool _gpsLoading = false;
@@ -3153,6 +3155,25 @@ class _RideModeModalState extends State<RideModeModal> {
   // Voice Guidance Engine
   VoiceNavigationEngine? _voiceEngine;
   bool _isVoiceMuted = false;
+
+  void _swapDirection() {
+    setState(() {
+      _direction = _direction == 'forward' ? 'return' : 'forward';
+      if (_rideType == 'BUS') {
+        _busStops = _busStops.reversed.toList();
+        if (_busStops.isNotEmpty) {
+          _boardingStop = _busStops.first['stop_name'].toString();
+          _busDestination = _busStops.last['stop_name'].toString();
+        }
+      } else {
+        _metroStations = _metroStations.reversed.toList();
+        if (_metroStations.isNotEmpty) {
+          _boardingStop = _metroStations.first['stop_name'].toString();
+          _metroDestination = _metroStations.last['stop_name'].toString();
+        }
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -3233,6 +3254,7 @@ class _RideModeModalState extends State<RideModeModal> {
       setState(() {
         _busStops = stops;
         if (stops.isNotEmpty) {
+          _boardingStop = stops.first['stop_name'].toString();
           if (_busDestination.isEmpty || !stops.any((s) => s['stop_name'].toString().toLowerCase().contains(_busDestination.toLowerCase()))) {
             _busDestination = stops.last['stop_name'].toString();
           }
@@ -3318,6 +3340,9 @@ class _RideModeModalState extends State<RideModeModal> {
     final dest = _rideType == 'BUS' ? _busDestination : _metroDestination;
     if (list.isEmpty) return;
 
+    final bIdx = list.indexWhere((s) => s['stop_name'].toString().toLowerCase() == _boardingStop.toLowerCase());
+    final startIdx = bIdx >= 0 ? bIdx : _currentStopIndex;
+
     _voiceEngine = VoiceNavigationEngine(
       mode: _rideType == 'BUS' ? VoiceNavMode.bus : VoiceNavMode.metro,
       destinationName: dest,
@@ -3326,6 +3351,7 @@ class _RideModeModalState extends State<RideModeModal> {
     _voiceEngine!.resetState();
 
     setState(() {
+      _currentStopIndex = startIdx;
       _step = 'TRACKING';
     });
 
@@ -3686,44 +3712,123 @@ class _RideModeModalState extends State<RideModeModal> {
               const SizedBox(height: 14),
             ],
 
+            if (list.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E1B4B) : const Color(0xFFF3E8FF),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('DIRECTION (2-WAY)', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF7C3AED), letterSpacing: 0.5)),
+                          const SizedBox(height: 2),
+                          Text('${list.first['stop_name']} ➔ ${list.last['stop_name']}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor), overflow: TextOverflow.ellipsis),
+                        ],
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _swapDirection,
+                      icon: const Icon(Icons.swap_horiz_rounded, size: 16, color: Color(0xFF7C3AED)),
+                      label: const Text('Swap', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF7C3AED))),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            Text('Select Boarding / Intermediate Stop:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: mutedColor)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              initialValue: list.any((s) => s['stop_name'] == _boardingStop) ? _boardingStop : (list.isNotEmpty ? list.first['stop_name'].toString() : null),
+              decoration: InputDecoration(isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              items: list.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final s = entry.value;
+                final name = s['stop_name'].toString();
+                return DropdownMenuItem(value: name, child: Text('${idx + 1}. $name', style: TextStyle(color: textColor, fontSize: 13), overflow: TextOverflow.ellipsis));
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _boardingStop = val;
+                    final bIdx = list.indexWhere((s) => s['stop_name'] == val);
+                    final dIdx = list.indexWhere((s) => s['stop_name'] == dest);
+                    if (dIdx <= bIdx && bIdx < list.length - 1) {
+                      final newDest = list.last['stop_name'].toString();
+                      if (_rideType == 'BUS') {
+                        _busDestination = newDest;
+                      } else {
+                        _metroDestination = newDest;
+                      }
+                    }
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                color: const Color(0xFF10B981).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  const Text('📍', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 10),
+                  const Text('📍', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('CURRENT / BOARDING STOP (GPS AUTO-DETECTED)', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981), letterSpacing: 0.5)),
+                        const Text('GPS AUTO-DETECTED STOP', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981), letterSpacing: 0.5)),
                         const SizedBox(height: 2),
-                        Text(_gpsLoading ? 'Acquiring GPS location...' : currentStopName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor)),
+                        Text(_gpsLoading ? 'Acquiring GPS location...' : currentStopName, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textColor)),
                       ],
                     ),
                   ),
                   TextButton(
-                    onPressed: _requestGps,
-                    child: Text(_gpsLoading ? '...' : 'Refresh', style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      _requestGps();
+                      if (currentStopName.isNotEmpty && list.any((s) => s['stop_name'] == currentStopName)) {
+                        setState(() => _boardingStop = currentStopName);
+                      }
+                    },
+                    child: Text(_gpsLoading ? '...' : 'Snap GPS', style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
 
             Text('Select Destination Stop:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: mutedColor)),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
               initialValue: list.any((s) => s['stop_name'] == dest) ? dest : (list.isNotEmpty ? list.last['stop_name'].toString() : null),
               decoration: InputDecoration(isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-              items: list.map((s) {
+              items: list.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final s = entry.value;
                 final name = s['stop_name'].toString();
-                return DropdownMenuItem(value: name, child: Text(name, style: TextStyle(color: textColor, fontSize: 13), overflow: TextOverflow.ellipsis));
+                final bIdx = list.indexWhere((x) => x['stop_name'] == _boardingStop);
+                final isPassed = bIdx >= 0 && idx < bIdx;
+                return DropdownMenuItem(
+                  value: name,
+                  enabled: !isPassed,
+                  child: Text(
+                    '${idx + 1}. $name${isPassed ? ' (Passed)' : ''}',
+                    style: TextStyle(color: isPassed ? mutedColor : textColor, fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
               }).toList(),
               onChanged: (val) {
                 if (val != null) {
