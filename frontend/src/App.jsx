@@ -6617,13 +6617,10 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               : "linear-gradient(135deg, #17122a 0%, #1e102d 100%)",
             border: `1px solid ${C.border}`,
             borderRadius: isMobile ? 18 : 22,
-            padding: isMobile ? "16px 16px" : "22px 30px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
+            padding: isMobile ? "16px 14px" : "20px 28px",
             position: "relative",
             overflow: "hidden",
-            minHeight: isMobile ? 90 : 105,
+            minHeight: isMobile ? 90 : 100,
             boxShadow: "rgba(0, 0, 0, 0.02) 0 8px 24px"
           }}>
             {/* Background Vidhana Soudha Cityscape blending on the right */}
@@ -6632,54 +6629,99 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               right: 0,
               bottom: 0,
               height: "100%",
-              width: isMobile ? "35%" : "45%",
-              opacity: isMobile ? 0.25 : 0.9,
+              width: isMobile ? "32%" : "38%",
+              opacity: isMobile ? 0.2 : 0.85,
               pointerEvents: "none",
               zIndex: 1
             }}>
               <img src={heroImg} alt="Bengaluru Landmarks" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "right bottom" }} />
             </div>
 
-            <div style={{ zIndex: 2, position: "relative", maxWidth: isMobile ? "62%" : "60%" }}>
-              <h1 style={{ fontSize: isMobile ? 19 : 28, fontWeight: 900, color: C.text, margin: "0 0 6px 0", letterSpacing: "-0.03em" }}>
-                {getGreeting()}, {username || "Traveler"}! 👋
-              </h1>
-              <p style={{ color: C.muted, fontSize: isMobile ? 11.5 : 13.5, fontWeight: 600, margin: 0 }}>
-                Bengaluru's Unified Multi-Modal Transit Guide.
-              </p>
-            </div>
+            {/* Content Layer above the image */}
+            <div style={{
+              zIndex: 10,
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: isMobile ? "wrap" : "nowrap",
+              gap: isMobile ? 12 : 20,
+              width: "100%"
+            }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                  <h1 style={{ fontSize: isMobile ? 18 : 26, fontWeight: 900, color: C.text, margin: 0, letterSpacing: "-0.03em", whiteSpace: "nowrap" }}>
+                    {getGreeting()}, {username || "Traveler"}! 👋
+                  </h1>
+                  {/* Beside the greeting and above the image on desktop */}
+                  {!isMobile && (
+                    <button
+                      onClick={onPlan}
+                      style={{
+                        zIndex: 20,
+                        background: "linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: 14,
+                        padding: "10px 22px",
+                        fontSize: 13.5,
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        boxShadow: "0 6px 20px rgba(124, 58, 237, 0.35)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontFamily: "inherit",
+                        transition: "all 0.2s ease",
+                        flexShrink: 0
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.boxShadow = "0 10px 26px rgba(124, 58, 237, 0.5)";
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.transform = "none";
+                        e.currentTarget.style.boxShadow = "0 6px 20px rgba(124, 58, 237, 0.35)";
+                      }}
+                    >
+                      <span>🚀 Plan Journey</span>
+                      <span style={{ fontSize: 15 }}>→</span>
+                    </button>
+                  )}
+                </div>
+                <p style={{ color: C.muted, fontSize: isMobile ? 11.5 : 13, fontWeight: 600, margin: "6px 0 0 0" }}>
+                  Welcome to BengaluruGo · Unified Multi-Modal Transit Guide
+                </p>
+              </div>
 
-            <div style={{ zIndex: 2, position: "relative", flexShrink: 0 }}>
-              <button
-                onClick={onPlan}
-                style={{
-                  background: "linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)",
-                  color: "#ffffff",
-                  border: "none",
-                  borderRadius: 14,
-                  padding: isMobile ? "10px 16px" : "13px 26px",
-                  fontSize: isMobile ? 13 : 15,
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  boxShadow: "0 8px 20px rgba(124, 58, 237, 0.35)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontFamily: "inherit",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 12px 28px rgba(124, 58, 237, 0.5)";
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = "none";
-                  e.currentTarget.style.boxShadow = "0 8px 20px rgba(124, 58, 237, 0.35)";
-                }}
-              >
-                <span>🚀 Plan Journey</span>
-                <span style={{ fontSize: 16 }}>→</span>
-              </button>
+              {/* Mobile button placed above the image */}
+              {isMobile && (
+                <div style={{ width: "100%", zIndex: 20 }}>
+                  <button
+                    onClick={onPlan}
+                    style={{
+                      width: "100%",
+                      background: "linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: 12,
+                      padding: "10px 16px",
+                      fontSize: 13,
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      boxShadow: "0 6px 16px rgba(124, 58, 237, 0.35)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      fontFamily: "inherit"
+                    }}
+                  >
+                    <span>🚀 Plan Journey</span>
+                    <span style={{ fontSize: 15 }}>→</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -7675,7 +7717,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           </div>
 
           {/* Tools Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 14, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 14 }}>
             {[
               { id: "live_map", label: "Live Map", sub: "Track live transit", icon: "gps", color: "#10b981", bg: "rgba(16, 185, 129, 0.08)" },
               { id: "fare_guide", label: "Fare Guide", sub: "BMTC & Metro fares", icon: "table", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.08)" },
@@ -7683,7 +7725,6 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               { id: "search_saved_routes", label: "Search Saved Routes", sub: "Filter saved trips", icon: "search", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
               { id: "search_place", label: "Search a Place", sub: "Bus stops & stations", icon: "gps", color: "#ec4899", bg: "rgba(236, 72, 153, 0.08)" },
               { id: "route_lookup_journey", label: "Route Lookup", sub: "Point-to-point journey", icon: "route", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
-              { id: "settings", label: "Settings", sub: "Preferences & audio", icon: "settings", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
             ].map(act => (
               <div 
                 key={act.label}
@@ -7700,8 +7741,6 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     setShowStopsInfo(true);
                   } else if (act.id === "route_lookup_journey") {
                     setShowRouteLookupJourneyModal(true);
-                  } else if (act.id === "settings") {
-                    setShowSettings(true);
                   }
                 }}
                 style={{ 
@@ -7735,73 +7774,6 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Commute Suggestions & Travel Alerts cards */}
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16 }}>
-            {/* Commute Suggestions */}
-            <div style={{ 
-              background: C.card, 
-              border: `1px solid ${C.border}`, 
-              borderRadius: 20, 
-              padding: "20px 22px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 12
-            }}>
-              <div style={{ fontSize: 15, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8 }}>
-                <Ic n="rocket" s={16} c={C.accent} sw={2.2} /> Commute Suggestions
-              </div>
-              <div style={{
-                background: C.accent + "0a",
-                border: `1px solid ${C.accent}20`,
-                borderRadius: 14,
-                padding: "14px 16px",
-                display: "flex",
-                alignItems: "center",
-                gap: 14
-              }}>
-                <div style={{ width: 34, height: 34, borderRadius: "50%", background: C.accent + "1c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Ic n="rocket" s={15} c={C.accent} sw={2.2} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Beat the traffic!</div>
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 3, fontWeight: 500 }}>Travel before 9:00 AM to save up to 25% time on your commute.</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Travel Alerts */}
-            <div style={{ 
-              background: C.card, 
-              border: `1px solid ${C.border}`, 
-              borderRadius: 20, 
-              padding: "20px 22px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 12
-            }}>
-              <div style={{ fontSize: 15, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8 }}>
-                <Ic n="bell" s={16} c={C.red} sw={2.2} /> Live Transit Alerts
-              </div>
-              <div style={{
-                background: C.red + "08",
-                border: `1px solid ${C.red}18`,
-                borderRadius: 14,
-                padding: "12px 14px",
-                display: "flex",
-                alignItems: "center",
-                gap: 12
-              }}>
-                <div style={{ width: 30, height: 30, borderRadius: "50%", background: C.red + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Ic n="alert" s={14} c={C.red} sw={2.2} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>Transit: All normal</div>
-                  <div style={{ fontSize: 10.5, color: C.muted, marginTop: 1, fontWeight: 500 }}>No major disruptions reported on BMTC or Metro.</div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -8123,8 +8095,8 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login", isMob
           }}>
             <Ic n="bus" s={24} c="white" sw={2.2} />
           </div>
-          <div style={{ fontWeight: 900, fontSize: 22, color: C.text, letterSpacing: "-0.04em" }}>UTRS Bengaluru</div>
-          <div style={{ fontSize: 10, color: C.muted, letterSpacing: "0.15em", marginTop: 4, fontWeight: 700 }}>UNIFIED TRANSIT REGISTER</div>
+          <div style={{ fontWeight: 900, fontSize: 22, color: C.text, letterSpacing: "-0.04em" }}>BengaluruGo</div>
+          <div style={{ fontSize: 10, color: C.muted, letterSpacing: "0.15em", marginTop: 4, fontWeight: 700 }}>SMART UNIFIED TRANSIT GUIDE</div>
         </div>
 
         {/* Title */}
@@ -8622,7 +8594,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src, isMobi
   const [messages, setMessages] = useState([
     {
       sender: "bot",
-      text: "Hello! I am your Intelligent Travel Assistant. I can help you plan journeys across BMTC, Namma Metro, Cabs (Ola/Uber/Rapido/Yatri), and personal vehicles. Ask me routes, fares, next bus timings, nearby restaurants/hospitals, or multi-stop day trips!",
+      text: "Hello! I am your BengaluruGo Travel Assistant. I can help you plan journeys across BMTC, Namma Metro, Cabs (Ola/Uber/Rapido/Yatri), and personal vehicles. Ask me routes, fares, next bus timings, nearby restaurants/hospitals, or multi-stop day trips!",
       suggested_followups: ["Cheapest route to Majestic", "Next bus from Hosakerehalli", "Restaurants near Majestic", "Plan 3-stop day trip"]
     }
   ]);
@@ -10628,429 +10600,10 @@ export default function App() {
     const interval = setInterval(() => {
       setTime(nowTime());
       refreshSearchResults();
-    }, 10000); // Update local clock & fetch live recommendations every 10 seconds
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [page, isRealTime, refreshSearchResults]);
-
-  const routeCoordsRef = useRef({});
-
-  function getHaversineDistance(coords1, coords2) {
-    if (!coords1 || !coords2) return 999999;
-    const R = 6371e3;
-    const φ1 = (coords1.lat * Math.PI) / 180;
-    const φ2 = (coords2.lat * Math.PI) / 180;
-    const Δφ = ((coords2.lat - coords1.lat) * Math.PI) / 180;
-    const Δλ = ((coords2.lng - coords1.lng) * Math.PI) / 180;
-
-    const a =
-      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) *
-      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c;
-  }
-
-  const getStepTargetCoords = (stepIndex) => {
-    if (!selectedData?.guide || !selectedData.guide[stepIndex]) return null;
-    const step = selectedData.guide[stepIndex];
-    
-    if (stepIndex === selectedData.guide.length - 1) {
-      const finalSeg = selectedData.segments && selectedData.segments.length > 0 ? selectedData.segments[selectedData.segments.length - 1] : null;
-      if (finalSeg && finalSeg.to) {
-        const coords = routeCoordsRef.current[finalSeg.to];
-        if (coords) return { lat: coords[0], lng: coords[1] };
-      }
-      const match = parseMapPos(dst);
-      if (match) return match;
-      return null;
-    }
-
-    const text = step.text.toLowerCase();
-    for (const [stopName, coords] of Object.entries(routeCoordsRef.current)) {
-      if (text.includes(stopName.toLowerCase())) {
-        return { lat: coords[0], lng: coords[1] };
-      }
-    }
-    
-    const matchingSeg = selectedData.segments && selectedData.segments.length > stepIndex ? selectedData.segments[stepIndex] : null;
-    if (matchingSeg && matchingSeg.to) {
-      const coords = routeCoordsRef.current[matchingSeg.to];
-      if (coords) return { lat: coords[0], lng: coords[1] };
-    }
-    
-    return null;
-  };
-
-  const handleStartNavigation = async () => {
-    if (!selectedData || !navigator.geolocation) {
-      alert("Geolocation is not supported by your browser or no route selected.");
-      return;
-    }
-
-    const allRouteStops = [];
-    (selectedData?.segments || []).forEach(seg => {
-      if (seg.from) allRouteStops.push(seg.from);
-      if (seg.to) allRouteStops.push(seg.to);
-      if (seg.stops) allRouteStops.push(...seg.stops);
-    });
-    const uniqueStops = [...new Set(allRouteStops)];
-
-    try {
-      if (uniqueStops.length > 0) {
-        const coordsDict = await apiStopsCoords(uniqueStops);
-        routeCoordsRef.current = coordsDict || {};
-      }
-    } catch (e) {
-      console.warn("Failed to load stop coordinates for navigation:", e);
-    }
-
-    setIsNavigating(true);
-    setActiveStepIndex(0);
-
-    // Initial position lookup
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCurrentGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      },
-      (err) => {
-        console.warn("Initial position lookup failed:", err);
-      },
-      { enableHighAccuracy: true, timeout: 5000 }
-    );
-
-    const handleOrientation = (e) => {
-      let heading = e.webkitCompassHeading;
-      if (heading === undefined || heading === null) {
-        if (e.alpha !== null && e.alpha !== undefined) {
-          heading = 360 - e.alpha;
-        }
-      }
-      if (heading !== null && heading !== undefined) {
-        setGpsHeading(Math.round(heading));
-      }
-    };
-    window.addEventListener("deviceorientation", handleOrientation, true);
-    window.addEventListener("deviceorientationabsolute", handleOrientation, true);
-    window._gpsOrientationListener = handleOrientation;
-
-    const handleKeyDown = (e) => {
-      if (e.key === "ArrowLeft") {
-        setGpsHeading(prev => (prev - 15 + 360) % 360);
-      } else if (e.key === "ArrowRight") {
-        setGpsHeading(prev => (prev + 15) % 360);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown, true);
-    window._gpsKeyboardListener = handleKeyDown;
-
-    // Real Live GPS Tracking — moves as user moves
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const speedKmh = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
-
-        setCurrentGpsCoords({ lat, lng });
-        setGpsSpeed(speedKmh);
-        
-        if (pos.coords.heading !== null && pos.coords.heading !== undefined) {
-          setGpsHeading(Math.round(pos.coords.heading));
-        }
-
-        // Advance active step as user physically moves closer to target stop
-        setActiveStepIndex(prev => {
-          const targetCoords = getStepTargetCoords(prev);
-          if (targetCoords) {
-            const distToTarget = getHaversineDistance({ lat, lng }, targetCoords);
-            if (distToTarget <= 0.05) { // Within 50 meters
-              if (prev < (selectedData?.guide?.length || 0) - 1) {
-                if (navigator.vibrate) {
-                  navigator.vibrate([100, 50, 100]);
-                }
-                return prev + 1;
-              }
-            }
-          }
-          return prev;
-        });
-      },
-      (err) => {
-        console.warn("Watch position error:", err);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  };
-
-  const handleStopNavigation = () => {
-    setIsNavigating(false);
-    setCurrentGpsCoords(null);
-    setGpsSpeed(0);
-    setGpsHeading(0);
-    if (simTimerRef.current) {
-      clearInterval(simTimerRef.current);
-      simTimerRef.current = null;
-    }
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    if (window._gpsOrientationListener) {
-      window.removeEventListener("deviceorientation", window._gpsOrientationListener, true);
-      window.removeEventListener("deviceorientationabsolute", window._gpsOrientationListener, true);
-      window._gpsOrientationListener = null;
-    }
-    if (window._gpsKeyboardListener) {
-      window.removeEventListener("keydown", window._gpsKeyboardListener, true);
-      window._gpsKeyboardListener = null;
-    }
-  };
-
-  const handleAcceptBicycleOffer = () => {
-    setShowBicycleOffer(false);
-    if (!bicycleOfferRoute) return;
-
-    const { source, destination, distance } = bicycleOfferRoute;
-    const cycleTime = Math.round(distance * 4); // 4 min/km
-
-    // Inject bicycle result dynamic object
-    const updatedResults = {
-      ...results,
-      bicycle: {
-        available: true,
-        mode: "bicycle",
-        cost: 0,
-        time: cycleTime,
-        distance: distance,
-        transfers: 0,
-        segments: [{
-          route: "Bicycle Path",
-          type: "walk",
-          from: source,
-          to: destination,
-          stops: [source, destination],
-          duration: cycleTime,
-          fare: 0
-        }],
-        guide: [
-          { step: 1, icon: "bicycle", text: `Mount bicycle at ${source}`, duration: "" },
-          { step: 2, icon: "compass", text: `Cycle along safe roads to ${destination}`, duration: `${cycleTime} min` },
-          { step: 3, icon: "mappin", text: `Arrive at ${destination}`, duration: "" }
-        ]
-      }
-    };
-
-    setResults(updatedResults);
-
-    // Also inject into recommendations so it shows in smart ranker
-    const bicycleRec = {
-      mode: "bicycle",
-      score: 95.0,
-      rank: 1,
-      details: {
-        cost_score: 100,
-        time_score: 80,
-        comfort_score: 75,
-        eco_score: 100,
-        weather_score: 70,
-        traffic_score: 90
-      },
-      explanation: "Cycling is the most sustainable, traffic-immune, and cost-free option for this short journey.",
-      emissions: 0.0
-    };
-
-    setRecommendations([bicycleRec, ...recommendations]);
-    setSelected("bicycle");
-  };
-
-  const handleAcceptWalkOffer = () => {
-    setShowWalkOffer(false);
-    if (!walkOfferRoute) return;
-
-    const { source, destination, distance } = walkOfferRoute;
-    const walkTime = Math.round(distance * 12.5); // 12.5 min/km
-
-    const updatedResults = {
-      ...results,
-      walk: {
-        available: true,
-        mode: "walk",
-        cost: 0,
-        time: walkTime,
-        distance: distance,
-        transfers: 0,
-        segments: [{
-          route: "Walk Path",
-          type: "walk",
-          from: source,
-          to: destination,
-          stops: [source, destination],
-          duration: walkTime,
-          fare: 0
-        }],
-        guide: [
-          { step: 1, icon: "walk", text: `Start walking from ${source}`, duration: "" },
-          { step: 2, icon: "compass", text: `Walk along paths to ${destination}`, duration: `${walkTime} min` },
-          { step: 3, icon: "mappin", text: `Arrive at ${destination}`, duration: "" }
-        ]
-      }
-    };
-
-    setResults(updatedResults);
-
-    const walkRec = {
-      mode: "walk",
-      score: 98.0,
-      rank: 1,
-      details: {
-        cost_score: 100,
-        time_score: 90,
-        comfort_score: 80,
-        eco_score: 100,
-        weather_score: 70,
-        traffic_score: 100
-      },
-      explanation: "Walking is the healthiest, zero-cost, and most direct travel option for this short distance.",
-      emissions: 0.0
-    };
-
-    setRecommendations([walkRec, ...recommendations]);
-    setSelected("walk");
-  };
-
-  const handleAcceptTransitDelayOffer = (choice) => {
-    setShowTransitDelayOffer(false);
-    if (!transitDelayOfferRoute) return;
-
-    if (choice === "cab") {
-      setSelected("cab");
-      return;
-    }
-
-    // Otherwise, choice is "walk"
-    const { source, destination, distance } = transitDelayOfferRoute;
-    const walkTime = Math.round(distance * 12.5); // 12.5 min/km
-
-    const updatedResults = {
-      ...results,
-      walk: {
-        available: true,
-        mode: "walk",
-        cost: 0,
-        time: walkTime,
-        distance: distance,
-        transfers: 0,
-        segments: [{
-          route: "Walk Path",
-          type: "walk",
-          from: source,
-          to: destination,
-          stops: [source, destination],
-          duration: walkTime,
-          fare: 0
-        }],
-        guide: [
-          { step: 1, icon: "walk", text: `Start walking from ${source}`, duration: "" },
-          { step: 2, icon: "compass", text: `Walk along paths to ${destination}`, duration: `${walkTime} min` },
-          { step: 3, icon: "mappin", text: `Arrive at ${destination}`, duration: "" }
-        ]
-      }
-    };
-
-    setResults(updatedResults);
-
-    const walkRec = {
-      mode: "walk",
-      score: 92.0,
-      rank: 1,
-      details: {
-        cost_score: 100,
-        time_score: 75,
-        comfort_score: 70,
-        eco_score: 100,
-        weather_score: 65,
-        traffic_score: 100
-      },
-      explanation: "Walking avoids waiting long times for delayed transit buses/metro.",
-      emissions: 0.0
-    };
-
-    setRecommendations([walkRec, ...recommendations]);
-    setSelected("walk");
-  };
-
-  const onLoginSuccess = (username, userToken) => {
-    localStorage.setItem("username", username);
-    localStorage.setItem("token", userToken);
-    setUser(username);
-    setToken(userToken);
-    setPage("dashboard");
-    setShowAuth(false);
-  };
-
-  const onLogout = () => {
-    localStorage.removeItem("username");
-    localStorage.removeItem("token");
-    setUser(null);
-    setToken(null);
-    setResults(null);
-    setRecommendations([]);
-    setPage("dashboard");
-    setShowAuth(false);
-  };
-
-  const selectedData = (() => {
-    if (!results || !selected) return null;
-    if (selected === "cab" && selectedCabVehicle) {
-      return {
-        ...results.cab,
-        ...selectedCabVehicle,
-        segments: selectedCabVehicle.segments,
-        guide: selectedCabVehicle.guide,
-        cost: selectedCabVehicle.cost,
-        time: selectedCabVehicle.time,
-        distance: selectedCabVehicle.distance,
-      };
-    }
-    if (selected === "multimodal" && selectedMultimodalOption) {
-      return {
-        ...results.multimodal,
-        ...selectedMultimodalOption,
-        segments: selectedMultimodalOption.segments,
-        guide: selectedMultimodalOption.guide,
-        cost: selectedMultimodalOption.cost,
-        time: selectedMultimodalOption.time,
-        distance: selectedMultimodalOption.distance,
-      };
-    }
-    return results[selected];
-  })();
-  const prefs = [
-    { k: "cost", e: "💰", l: "Cheapest" },
-    { k: "time", e: "⚡", l: "Fastest" },
-    { k: "convenience", e: "🎯", l: "Comfortable" },
-  ];
-
-  if (!token) {
-    if (showAuth) {
-      return (
-        <AuthScreen 
-          onLoginSuccess={onLoginSuccess} 
-          onBackToHome={() => setShowAuth(false)} 
-          initialMode={authMode} 
-          isMobile={isMobile}
-        />
-      );
-    }
-    return (
-      <LandingPage 
-        onLoginClick={() => { setAuthMode("login"); setShowAuth(true); }} 
-        onSignUpClick={() => { setAuthMode("signup"); setShowAuth(true); }} 
-        isMobile={isMobile}
-      />
-    );
-  }
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Plus Jakarta Sans', 'Outfit', sans-serif", color: C.text, display: "flex" }}>
@@ -11101,9 +10654,9 @@ export default function App() {
               <Ic n="bus" s={20} c="white" sw={2.2} />
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 16, color: "#ffffff", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Bengaluru</div>
-              <div style={{ fontSize: 11, color: "#8e8a9f", fontWeight: 600 }}>Transport Navigator</div>
-              <div style={{ fontSize: 9, color: "#a855f7", fontWeight: 700, letterSpacing: "0.05em", marginTop: 2 }}>SMART. CONNECTED.</div>
+              <div style={{ fontWeight: 900, fontSize: 17, color: "#ffffff", letterSpacing: "-0.02em", lineHeight: "1.2" }}>BengaluruGo</div>
+              <div style={{ fontSize: 11, color: "#8e8a9f", fontWeight: 600 }}>Transit Guide</div>
+              <div style={{ fontSize: 9, color: "#a855f7", fontWeight: 700, letterSpacing: "0.05em", marginTop: 2 }}>SMART · UNIFIED · GO</div>
             </div>
           </div>
           {isMobile && (

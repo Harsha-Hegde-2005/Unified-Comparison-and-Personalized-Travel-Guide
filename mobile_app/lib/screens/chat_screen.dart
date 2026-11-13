@@ -40,7 +40,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _messages.add(
       _ChatMessage(
-        text: "Namaskara! 🙏 I am your Bengaluru Intelligent Transport Assistant. Ask me routes, fares, BMTC buses, Namma Metro, cab estimates, fuel costs, traffic status, or nearby restaurants, hotels, and tourist places!",
+        text: "Namaskara! 🙏 I am your BengaluruGo Travel Assistant. Ask me routes, fares, BMTC buses, Namma Metro, cab estimates, fuel costs, traffic status, or nearby restaurants, hotels, and tourist places!",
         isUser: false,
         timestamp: DateTime.now(),
         suggestedFollowups: [
@@ -215,7 +215,7 @@ class _ChatScreenState extends State<ChatScreen> {
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Commuter Assistant', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                Text('BengaluruGo Assistant', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                 Row(
                   children: [
                     Icon(Icons.circle, color: Color(0xFF10B981), size: 8),

@@ -144,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 18),
               Text(
-                'Bengaluru Transit',
+                'BengaluruGo',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w900,

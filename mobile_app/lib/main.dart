@@ -50,7 +50,7 @@ class _MyAppState extends State<MyApp> {
       valueListenable: themeNotifier,
       builder: (context, currentThemeMode, child) {
         return MaterialApp(
-          title: 'Bengaluru Commuter Assistant',
+          title: 'BengaluruGo',
           debugShowCheckedModeBanner: false,
           themeMode: currentThemeMode,
           theme: AppTheme.lightThemeData,

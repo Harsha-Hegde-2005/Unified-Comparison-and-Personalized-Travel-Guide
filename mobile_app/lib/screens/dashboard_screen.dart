@@ -408,7 +408,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bengaluru Commuter', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+        title: const Text('BengaluruGo', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
         actions: [
           // Ride Mode Companion Button (matches website header)
           Padding(
