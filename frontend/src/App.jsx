@@ -2008,10 +2008,13 @@ function StopInput({ value, onChange, placeholder, dot, options, showGps }) {
           top: "calc(100% + 4px)",
           left: 0,
           right: 0,
+          minWidth: "100%",
+          width: "100%",
+          boxSizing: "border-box",
           background: C.card,
           border: `1px solid ${C.border2}`,
           borderRadius: 12,
-          zIndex: 200,
+          zIndex: 500,
           maxHeight: 280,
           overflowY: "auto",
           boxShadow: "0 16px 48px #00000090"
@@ -2187,7 +2190,7 @@ function StopTimeline({ stops, color }) {
 /* ─────────────────────────────────────────────────────────────
    FARE CALCULATOR MODAL
 ───────────────────────────────────────────────────────────── */
-function FareCalculatorModal({ results, src, dst, stops, onClose, triggerSearch, loading }) {
+function FareCalculatorModal({ results, src, dst, stops, onClose, triggerSearch, loading, isMobile = false }) {
   const [localSrc, setLocalSrc] = useState(src || "");
   const [localDst, setLocalDst] = useState(dst || "");
 
@@ -2347,24 +2350,31 @@ function FareCalculatorModal({ results, src, dst, stops, onClose, triggerSearch,
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
       background: "rgba(8, 9, 15, 0.8)", backdropFilter: "blur(10px)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 99999
+      zIndex: 99999,
+      padding: isMobile ? 10 : 20,
+      boxSizing: "border-box"
     }} onClick={onClose}>
       <div style={{
         background: C.surface, border: `1px solid ${C.border}`,
-        borderRadius: 24, width: 660, maxHeight: "85vh", padding: 26,
+        borderRadius: isMobile ? 20 : 24,
+        width: isMobile ? "100%" : 660,
+        maxWidth: 660,
+        maxHeight: isMobile ? "90vh" : "85vh",
+        padding: isMobile ? "18px 14px" : 26,
         boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
-        display: "flex", flexDirection: "column", gap: 18
+        display: "flex", flexDirection: "column", gap: 18,
+        boxSizing: "border-box"
       }} onClick={(e) => e.stopPropagation()}>
         
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: C.text, margin: 0 }}>Multi-Modal Fare & Stops Calculator</h2>
+            <h2 style={{ fontSize: isMobile ? 16 : 18, fontWeight: 900, color: C.text, margin: 0 }}>Multi-Modal Fare & Stops Calculator</h2>
             <p style={{ fontSize: 11.5, color: C.muted, margin: "2px 0 0 0" }}>Calculate detailed stop-by-stop fares and station lists side-by-side</p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 18 }}>✕</button>
         </div>
 
-        <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 14, padding: 14, display: "flex", gap: 12, alignItems: "flex-end", position: "relative", zIndex: 10 }}>
+        <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 14, padding: isMobile ? 12 : 14, display: "flex", flexDirection: isMobile ? "column" : "row", gap: 12, alignItems: isMobile ? "stretch" : "flex-end", position: "relative", zIndex: 10 }}>
           <div style={{ flex: 1, position: "relative" }}>
             <label style={{ fontSize: 10, fontWeight: 800, color: C.muted, textTransform: "uppercase" }}>From</label>
             <StopInput
@@ -2423,7 +2433,7 @@ function FareCalculatorModal({ results, src, dst, stops, onClose, triggerSearch,
 /* ─────────────────────────────────────────────────────────────
    STOPS & STATIONS EXPLORER MODAL
 ───────────────────────────────────────────────────────────── */
-function StopsInfoModal({ stops, onClose }) {
+function StopsInfoModal({ stops, onClose, isMobile = false }) {
   const [searchValue, setSearchValue] = useState("");
   const [nearbyStops, setNearbyStops] = useState([]);
   const [loadingNearby, setLoadingNearby] = useState(false);
@@ -2510,13 +2520,20 @@ function StopsInfoModal({ stops, onClose }) {
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
       background: "rgba(8, 9, 15, 0.8)", backdropFilter: "blur(10px)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 99999
+      zIndex: 99999,
+      padding: isMobile ? 10 : 20,
+      boxSizing: "border-box"
     }} onClick={onClose}>
       <div style={{
         background: C.surface, border: `1px solid ${C.border}`,
-        borderRadius: 24, width: 780, height: "80vh", padding: 26,
+        borderRadius: isMobile ? 20 : 24,
+        width: isMobile ? "100%" : 780,
+        maxWidth: 780,
+        height: isMobile ? "90vh" : "80vh",
+        padding: isMobile ? "18px 14px" : 26,
         boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
-        display: "flex", flexDirection: "column", gap: 16
+        display: "flex", flexDirection: "column", gap: 16,
+        boxSizing: "border-box"
       }} onClick={(e) => e.stopPropagation()}>
         
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -2709,9 +2726,207 @@ function StopsInfoModal({ stops, onClose }) {
 
 
 /* ─────────────────────────────────────────────────────────────
+   FEATURES BOTTOM SHEET / MODAL
+───────────────────────────────────────────────────────────── */
+function FeaturesModal({ isOpen, onClose, onOpenTimetable, onOpenRouteLookup, onOpenStopsInfo, onOpenFareCalc, onOpenWeather, isMobile = false }) {
+  if (!isOpen) return null;
+
+  const features = [
+    {
+      id: "timetable",
+      title: "Timetable & Schedules",
+      badge: "BUS & METRO",
+      badgeColor: "#06b6d4",
+      desc: "Live departure times, next bus timings, and metro station frequency",
+      icon: "clock",
+      iconColor: "#06b6d4",
+      iconBg: "rgba(6, 182, 212, 0.12)",
+      onClick: () => { onClose(); onOpenTimetable(); }
+    },
+    {
+      id: "route_lookup",
+      title: "Route Lookup",
+      badge: "BUS & METRO",
+      badgeColor: "#7c3aed",
+      desc: "Full sequence of stops for any BMTC bus route or Namma Metro line",
+      icon: "route",
+      iconColor: "#a855f7",
+      iconBg: "rgba(168, 85, 247, 0.12)",
+      onClick: () => { onClose(); onOpenRouteLookup(); }
+    },
+    {
+      id: "stops_info",
+      title: "Stops & Stations Info",
+      badge: "FACILITIES",
+      badgeColor: "#10b981",
+      desc: "Nearby bus stops & metro stations with platforms, parking & live arrivals",
+      icon: "mappin",
+      iconColor: "#10b981",
+      iconBg: "rgba(16, 185, 129, 0.12)",
+      onClick: () => { onClose(); onOpenStopsInfo(); }
+    },
+    {
+      id: "fare_calc",
+      title: "Fare Calculator",
+      badge: "MULTI-MODAL",
+      badgeColor: "#f59e0b",
+      desc: "Compare ticket prices and travel costs across Bus, Metro, Auto, and Cabs",
+      icon: "tag",
+      iconColor: "#f59e0b",
+      iconBg: "rgba(245, 158, 11, 0.12)",
+      onClick: () => { onClose(); onOpenFareCalc(); }
+    },
+    {
+      id: "weather_alerts",
+      title: "Weather Alerts",
+      badge: "RAIN & ADVICE",
+      badgeColor: "#3b82f6",
+      desc: "Precipitation along your route with tailored wet weather transit guidance",
+      icon: "sparkles",
+      iconColor: "#3b82f6",
+      iconBg: "rgba(59, 130, 246, 0.12)",
+      onClick: () => { onClose(); onOpenWeather(); }
+    }
+  ];
+
+  return (
+    <div 
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(8, 9, 15, 0.75)",
+        backdropFilter: "blur(8px)",
+        zIndex: 99998,
+        display: "flex",
+        alignItems: isMobile ? "flex-end" : "center",
+        justifyContent: "center",
+        padding: isMobile ? 0 : 20,
+        boxSizing: "border-box"
+      }}
+    >
+      <div 
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: C.surface,
+          border: `1px solid ${C.border2}`,
+          borderRadius: isMobile ? "24px 24px 0 0" : 24,
+          width: isMobile ? "100%" : 480,
+          maxHeight: isMobile ? "85vh" : "85vh",
+          padding: isMobile ? "20px 18px calc(24px + env(safe-area-inset-bottom, 0px))" : 28,
+          boxShadow: "0 24px 60px rgba(0, 0, 0, 0.6)",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box"
+        }}
+      >
+        {isMobile && (
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: C.border2, margin: "0 auto 16px" }} />
+        )}
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: C.text, letterSpacing: "-0.03em" }}>
+              Transit Features & Services
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 600 }}>
+              Timetables, stops, routes & fare tools
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            style={{
+              background: C.dim,
+              border: `1px solid ${C.border}`,
+              color: C.muted,
+              borderRadius: "50%",
+              width: 32,
+              height: 32,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              fontSize: 14
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", maxHeight: "60vh", paddingRight: 2 }}>
+          {features.map(f => (
+            <div
+              key={f.id}
+              onClick={f.onClick}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                padding: "14px 16px",
+                borderRadius: 16,
+                background: C.card,
+                border: `1px solid ${C.border}`,
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = C.dim;
+                e.currentTarget.style.borderColor = C.accent + "44";
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = C.card;
+                e.currentTarget.style.borderColor = C.border;
+                e.currentTarget.style.transform = "none";
+              }}
+            >
+              <div style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                background: f.iconBg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0
+              }}>
+                <Ic n={f.icon} s={19} c={f.iconColor} sw={2.2} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{f.title}</span>
+                  <span style={{
+                    fontSize: 9,
+                    fontWeight: 800,
+                    padding: "2px 6px",
+                    borderRadius: 6,
+                    background: f.badgeColor + "18",
+                    color: f.badgeColor,
+                    letterSpacing: "0.04em"
+                  }}>
+                    {f.badge}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: C.muted, marginTop: 3, fontWeight: 500, lineHeight: 1.3 }}>
+                  {f.desc}
+                </div>
+              </div>
+              <span style={{ color: C.muted, fontSize: 16, fontWeight: 700 }}>→</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
    WEATHER ALERTS & ROUTE REPORT MODAL
 ───────────────────────────────────────────────────────────── */
-function WeatherReportModal({ stops, sourceName, destName, onClose }) {
+function WeatherReportModal({ stops, sourceName, destName, onClose, isMobile = false }) {
   const [searchValue, setSearchValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [weatherData, setWeatherData] = useState(null);
@@ -2843,24 +3058,31 @@ function WeatherReportModal({ stops, sourceName, destName, onClose }) {
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
       background: "rgba(8, 9, 15, 0.8)", backdropFilter: "blur(10px)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 99999
+      zIndex: 99999,
+      padding: isMobile ? 10 : 20,
+      boxSizing: "border-box"
     }} onClick={onClose}>
       <div style={{
         background: C.surface, border: `1px solid ${C.border}`,
-        borderRadius: 24, width: 780, height: "80vh", padding: 26,
+        borderRadius: isMobile ? 20 : 24,
+        width: isMobile ? "100%" : 780,
+        maxWidth: 780,
+        height: isMobile ? "90vh" : "80vh",
+        padding: isMobile ? "18px 14px" : 26,
         boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
-        display: "flex", flexDirection: "column", gap: 16
+        display: "flex", flexDirection: "column", gap: 16,
+        boxSizing: "border-box"
       }} onClick={(e) => e.stopPropagation()}>
         
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: C.text, margin: 0 }}>Weather Alerts & Route Forecaster</h2>
+            <h2 style={{ fontSize: isMobile ? 16 : 18, fontWeight: 900, color: C.text, margin: 0 }}>Weather Alerts & Route Forecaster</h2>
             <p style={{ fontSize: 11.5, color: C.muted, margin: "2px 0 0 0" }}>Check real-time weather details for any location or view warnings along your active journey path</p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 18 }}>✕</button>
         </div>
 
-        <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 16, padding: isMobile ? "12px 14px" : 16, display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ position: "relative", zIndex: 10 }}>
             <label style={{ fontSize: 10, fontWeight: 800, color: C.muted, textTransform: "uppercase" }}>Check Weather for a Location</label>
             <StopInput
@@ -2873,9 +3095,9 @@ function WeatherReportModal({ stops, sourceName, destName, onClose }) {
           </div>
         </div>
 
-        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 18, minHeight: 0 }}>
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.2fr", gap: isMobile ? 16 : 18, minHeight: 0, overflowY: isMobile ? "auto" : "visible" }}>
           
-          <div style={{ display: "flex", flexDirection: "column", borderRight: `1px solid ${C.border2}`, paddingRight: 16, minHeight: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", borderRight: isMobile ? "none" : `1px solid ${C.border2}`, borderBottom: isMobile ? `1px solid ${C.border2}` : "none", paddingRight: isMobile ? 0 : 16, paddingBottom: isMobile ? 16 : 0, minHeight: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, textTransform: "uppercase", marginBottom: 12, letterSpacing: "0.05em" }}>
               LOCATION REPORT
             </div>
@@ -2929,14 +3151,14 @@ function WeatherReportModal({ stops, sourceName, destName, onClose }) {
               ROUTE TRANSIT WEATHER
             </div>
             
-            <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10, position: "relative", zIndex: 9, marginBottom: 14 }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <div style={{ flex: 1, position: "relative" }}>
-                  <label style={{ fontSize: 9, fontWeight: 800, color: C.muted }}>ROUTE SOURCE</label>
+            <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10, position: "relative", zIndex: 30, marginBottom: 14 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ position: "relative", zIndex: 20 }}>
+                  <label style={{ fontSize: 9.5, fontWeight: 800, color: C.muted, marginBottom: 4, display: "block" }}>ROUTE SOURCE</label>
                   <StopInput value={srcSearch} onChange={setSrcSearch} placeholder="Start point..." dot={C.green} options={stops?.all || []} />
                 </div>
-                <div style={{ flex: 1, position: "relative" }}>
-                  <label style={{ fontSize: 9, fontWeight: 800, color: C.muted }}>ROUTE DESTINATION</label>
+                <div style={{ position: "relative", zIndex: 10 }}>
+                  <label style={{ fontSize: 9.5, fontWeight: 800, color: C.muted, marginBottom: 4, display: "block" }}>ROUTE DESTINATION</label>
                   <StopInput value={dstSearch} onChange={setDstSearch} placeholder="End point..." dot={C.red} options={stops?.all || []} />
                 </div>
               </div>
@@ -6229,20 +6451,20 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
       </div>
 
       {/* Row 1: Recent Searches (left) & Saved Places (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 16 : 24, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 14 : 24, marginBottom: isMobile ? 16 : 24 }}>
         
         {/* Recent Searches */}
         <div style={{ 
           background: C.card, 
           border: `1px solid ${C.border}`, 
-          borderRadius: 24, 
-          padding: "28px 24px",
+          borderRadius: isMobile ? 18 : 24, 
+          padding: isMobile ? "16px 14px" : "28px 24px",
           boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
           display: "flex",
           flexDirection: "column"
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 14 : 20 }}>
+            <h2 style={{ fontSize: isMobile ? 15 : 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
               <Ic n="clock" s={16} c={C.text} sw={2.2} /> Recent Searches
             </h2>
             {data.recent?.length > 0 && (
@@ -6261,9 +6483,9 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                   style={{ 
                     display: "flex", 
                     alignItems: "center", 
-                    gap: 14, 
-                    padding: "12px 14px", 
-                    borderRadius: 16, 
+                    gap: isMobile ? 10 : 14, 
+                    padding: isMobile ? "10px 12px" : "12px 14px", 
+                    borderRadius: isMobile ? 12 : 16, 
                     cursor: "pointer", 
                     background: C.dim,
                     border: `1px solid ${C.border}`,
@@ -6278,7 +6500,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     e.currentTarget.style.borderColor = C.border;
                   }}
                 >
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(124, 58, 237, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(124, 58, 237, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <Ic n="search" s={14} c={C.accent} sw={2.2} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -6289,9 +6511,9 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                 </div>
               ))
             ) : (
-              <div style={{ textAlign: "center", padding: "40px 0", color: C.muted, fontSize: 13, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
-                <div style={{ width: 44, height: 44, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Ic n="search" s={18} c={C.muted} sw={2.2} />
+              <div style={{ textAlign: "center", padding: isMobile ? "20px 0" : "40px 0", color: C.muted, fontSize: 13, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Ic n="search" s={16} c={C.muted} sw={2.2} />
                 </div>
                 No recent searches. Start planning to view routes!
               </div>
@@ -6303,14 +6525,14 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
         <div id="saved-places-card" style={{ 
           background: C.card, 
           border: `1px solid ${C.border}`, 
-          borderRadius: 24, 
-          padding: "28px 24px",
+          borderRadius: isMobile ? 18 : 24, 
+          padding: isMobile ? "16px 14px" : "28px 24px",
           boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
           display: "flex",
           flexDirection: "column"
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 14 : 20 }}>
+            <h2 style={{ fontSize: isMobile ? 15 : 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
               <Ic n="star" s={16} c="#f59e0b" sw={2.2} /> Saved Places
             </h2>
             <button 
@@ -6333,9 +6555,9 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     style={{ 
                       display: "flex", 
                       alignItems: "center", 
-                      gap: 14, 
-                      padding: "12px 14px", 
-                      borderRadius: 16, 
+                      gap: isMobile ? 10 : 14, 
+                      padding: isMobile ? "10px 12px" : "12px 14px", 
+                      borderRadius: isMobile ? 12 : 16, 
                       cursor: "pointer", 
                       background: C.dim,
                       border: `1px solid ${C.border}`,
@@ -6350,7 +6572,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                       e.currentTarget.style.borderColor = C.border;
                     }}
                   >
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: modeBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: modeBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <Ic n={MC[r.mode]?.icon || "mappin"} s={15} c={modeColor} sw={2} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -7016,7 +7238,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
   );
 }
 
-function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
+function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login", isMobile = false }) {
   const [isLogin, setIsLogin] = useState(initialMode !== "signup");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -7052,7 +7274,8 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      padding: 20,
+      padding: isMobile ? "20px 14px" : 20,
+      boxSizing: "border-box",
       fontFamily: "'Plus Jakarta Sans', 'Outfit', 'Segoe UI', sans-serif"
     }}>
       {onBackToHome && (
@@ -7083,9 +7306,11 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
       <div style={{
         background: C.surface,
         border: `1px solid ${C.border2}`,
-        borderRadius: 24,
-        width: 420,
-        padding: 36,
+        borderRadius: isMobile ? 20 : 24,
+        width: "100%",
+        maxWidth: 400,
+        boxSizing: "border-box",
+        padding: isMobile ? "24px 20px" : 36,
         boxShadow: "0 20px 50px rgba(26, 22, 37, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02)",
         position: "relative"
       }}>
@@ -7114,8 +7339,8 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
           {isLogin ? "Sign In to your Account" : "Create your Account"}
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14, width: "100%", boxSizing: "border-box" }}>
+          <div style={{ width: "100%", boxSizing: "border-box" }}>
             <input
               type="text"
               placeholder="Username"
@@ -7126,6 +7351,7 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
               required
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 background: C.surface,
                 border: `1.5px solid ${userFocused ? C.accent : C.border2}`,
                 borderRadius: 12,
@@ -7139,7 +7365,7 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
               }}
             />
           </div>
-          <div>
+          <div style={{ width: "100%", boxSizing: "border-box" }}>
             <input
               type="password"
               placeholder="Password"
@@ -7150,6 +7376,7 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
               required
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 background: C.surface,
                 border: `1.5px solid ${passFocused ? C.accent : C.border2}`,
                 borderRadius: 12,
@@ -7186,6 +7413,7 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
             disabled={loading}
             style={{
               width: "100%",
+              boxSizing: "border-box",
               background: `linear-gradient(135deg, ${C.accent}, #a855f7)`,
               border: "none",
               color: "white",
@@ -7595,7 +7823,7 @@ function NearbyPlacesDashboard({ data, onSelectPlace }) {
   );
 }
 
-function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
+function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src, isMobile = false }) {
   const [open, setOpen] = useState(false);
   const [sessionId, setSessionId] = useState(() => localStorage.getItem("bmtc_chatbot_session") || "session_" + Date.now());
   const [messages, setMessages] = useState([
@@ -7744,14 +7972,20 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
   ];
 
   return (
-    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, fontFamily: "inherit" }}>
+    <div style={{
+      position: "fixed",
+      bottom: isMobile ? "calc(74px + env(safe-area-inset-bottom, 0px))" : 24,
+      right: isMobile ? 16 : 24,
+      zIndex: 9999,
+      fontFamily: "inherit"
+    }}>
       {/* Floating Button */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
           style={{
-            width: 60,
-            height: 60,
+            width: isMobile ? 52 : 60,
+            height: isMobile ? 52 : 60,
             borderRadius: "50%",
             background: "linear-gradient(135deg, #f97316, #8b5cf6)",
             border: "none",
@@ -7772,7 +8006,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
             e.currentTarget.style.boxShadow = "0 8px 32px rgba(249, 115, 22, 0.4)";
           }}
         >
-          <Ic n="chat" s={28} c="white" sw={2} />
+          <Ic n="chat" s={isMobile ? 24 : 28} c="white" sw={2} />
           <span style={{ position: "absolute", top: 2, right: 2, width: 12, height: 12, borderRadius: "50%", background: C.green, border: "2px solid #08090f" }} />
         </button>
       )}
@@ -7780,8 +8014,20 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
       {/* Chat Window */}
       {open && (
         <div style={{
-          width: 400,
-          height: 580,
+          position: isMobile ? "fixed" : "relative",
+          ...(isMobile ? {
+            top: 60,
+            bottom: "calc(72px + env(safe-area-inset-bottom, 0px))",
+            left: 10,
+            right: 10,
+            width: "auto",
+            height: "auto",
+            maxWidth: 480,
+            margin: "0 auto",
+          } : {
+            width: 400,
+            height: 580,
+          }),
           background: C.surface,
           border: `1px solid ${C.border2}`,
           borderRadius: 20,
@@ -7790,6 +8036,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
           flexDirection: "column",
           overflow: "hidden",
           backdropFilter: "blur(20px)",
+          zIndex: 10000,
           animation: "fadeIn 0.25s ease-out"
         }}>
           {/* Header */}
@@ -9251,9 +9498,23 @@ export default function App() {
   const [showFareCalc, setShowFareCalc] = useState(false);
   const [showStopsInfo, setShowStopsInfo] = useState(false);
   const [showWeatherModal, setShowWeatherModal] = useState(false);
+  const [showFeaturesModal, setShowFeaturesModal] = useState(false);
   const [showLiveMapModal, setShowLiveMapModal] = useState(false);
   const [showFareGuideModal, setShowFareGuideModal] = useState(false);
   const [showSearchSavedRoutesModal, setShowSearchSavedRoutesModal] = useState(false);
+
+  const handleGoToPlan = () => {
+    setPage("plan");
+    setShowRouteSearch(false);
+    setShowTimetable(false);
+    setShowAllBuses(false);
+    setShowFareCalc(false);
+    setShowStopsInfo(false);
+    setShowWeatherModal(false);
+    setShowFeaturesModal(false);
+    setMobileSidebarOpen(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const [isNavigating, setIsNavigating] = useState(false);
   const [currentGpsCoords, setCurrentGpsCoords] = useState(null);
   const [gpsSpeed, setGpsSpeed] = useState(0);
@@ -9976,6 +10237,7 @@ export default function App() {
           onLoginSuccess={onLoginSuccess} 
           onBackToHome={() => setShowAuth(false)} 
           initialMode={authMode} 
+          isMobile={isMobile}
         />
       );
     }
@@ -10091,7 +10353,7 @@ export default function App() {
                     onClick={() => {
                       if (isMobile) setMobileSidebarOpen(false);
                       if (n.id === "dashboard") { setPage("dashboard"); }
-                      else if (n.id === "plan") { setPage("plan"); setShowRouteSearch(false); setShowTimetable(false); }
+                      else if (n.id === "plan") { handleGoToPlan(); }
                       else if (n.id === "search_routes") { setPage("plan"); setShowRouteSearch(true); setShowAllBuses(false); setShowTimetable(false); }
                       else if (n.id === "timetable") { setPage("plan"); setShowTimetable(true); setShowAllBuses(false); setShowRouteSearch(false); }
                     }}
@@ -10534,11 +10796,11 @@ export default function App() {
           <Dashboard
             token={token}
             username={user}
-            onPlan={() => setPage("plan")}
+            onPlan={handleGoToPlan}
             onSelectRoute={(from_stop, to_stop) => {
               setSrc(from_stop);
               setDst(to_stop);
-              setPage("plan");
+              handleGoToPlan();
             }}
             onLogout={onLogout}
             garageOpen={garageOpen}
@@ -10740,26 +11002,6 @@ export default function App() {
                     <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, marginTop: 4 }}>COMPLETED</div>
                   </div>
                 </div>
-
-                {/* Active Step Instructions Card */}
-                {selectedData?.guide && selectedData.guide[activeStepIndex] && (
-                  <div style={{ background: (MC[selected]?.color || C.accent) + "12", borderLeft: `5px solid ${MC[selected]?.color || C.accent}`, borderRadius: "4px 12px 12px 4px", padding: 16, marginBottom: 20 }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: MC[selected]?.color || C.accent, letterSpacing: "0.05em", marginBottom: 6 }}>CURRENT INSTRUCTION</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text, lineHeight: 1.4 }}>
-                      {selectedData.guide[activeStepIndex].text}
-                    </div>
-                    {selectedData.guide[activeStepIndex].detail && (
-                      <div style={{ fontSize: 12, color: C.muted, marginTop: 6, fontWeight: 600 }}>
-                        {selectedData.guide[activeStepIndex].detail}
-                      </div>
-                    )}
-                    {selectedData.guide[activeStepIndex].duration && (
-                      <div style={{ display: "inline-block", background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, color: C.accent, marginTop: 10 }}>
-                        ⏱️ {selectedData.guide[activeStepIndex].duration}
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Next Step Preview */}
                 {selectedData?.guide && selectedData.guide[activeStepIndex + 1] && (
@@ -11385,6 +11627,7 @@ export default function App() {
           onClose={() => setShowFareCalc(false)}
           triggerSearch={triggerSearch}
           loading={loading}
+          isMobile={isMobile}
         />
       )}
 
@@ -11392,6 +11635,7 @@ export default function App() {
         <StopsInfoModal
           stops={stops}
           onClose={() => setShowStopsInfo(false)}
+          isMobile={isMobile}
         />
       )}
 
@@ -11401,10 +11645,39 @@ export default function App() {
           sourceName={src}
           destName={dst}
           onClose={() => setShowWeatherModal(false)}
+          isMobile={isMobile}
         />
       )}
 
-      <ChatbotWidget triggerSearch={triggerSearch} setSelected={setSelected} setSrc={setSrc} setDst={setDst} src={src} />
+      <FeaturesModal
+        isOpen={showFeaturesModal}
+        onClose={() => setShowFeaturesModal(false)}
+        onOpenTimetable={() => {
+          setPage("plan");
+          setShowTimetable(true);
+          setShowRouteSearch(false);
+          setShowAllBuses(false);
+        }}
+        onOpenRouteLookup={() => {
+          setPage("plan");
+          setShowRouteSearch(true);
+          setShowTimetable(false);
+          setShowAllBuses(false);
+        }}
+        onOpenStopsInfo={() => setShowStopsInfo(true)}
+        onOpenFareCalc={() => setShowFareCalc(true)}
+        onOpenWeather={() => setShowWeatherModal(true)}
+        isMobile={isMobile}
+      />
+
+      <ChatbotWidget
+        triggerSearch={triggerSearch}
+        setSelected={setSelected}
+        setSrc={setSrc}
+        setDst={setDst}
+        src={src}
+        isMobile={isMobile}
+      />
 
       <RideModeModal
         isOpen={showRideModeModal}
@@ -11569,14 +11842,14 @@ export default function App() {
         }}>
           {[
             { id: "dashboard", label: "Home", icon: "home", action: () => setPage("dashboard") },
-            { id: "plan", label: "Plan", icon: "mappin", action: () => { setPage("plan"); setShowRouteSearch(false); setShowTimetable(false); } },
+            { id: "plan", label: "Plan", icon: "mappin", action: handleGoToPlan },
             { id: "ride_mode", label: "Ride Mode", icon: "bus", special: true, action: () => handleOpenRideMode() },
-            { id: "routes", label: "Routes", icon: "route", action: () => { setPage("plan"); setShowRouteSearch(true); setShowTimetable(false); setShowAllBuses(false); } },
+            { id: "features", label: "Features", icon: "grid", action: () => setShowFeaturesModal(true) },
             { id: "menu", label: "Menu", icon: "menu", action: () => setMobileSidebarOpen(true) },
           ].map(tab => {
             const isTabActive = (tab.id === "dashboard" && page === "dashboard") || 
-                                (tab.id === "plan" && page === "plan" && !showRouteSearch) ||
-                                (tab.id === "routes" && page === "plan" && showRouteSearch);
+                                (tab.id === "plan" && page === "plan" && !showRouteSearch && !showTimetable) ||
+                                (tab.id === "features" && showFeaturesModal);
             
             if (tab.special) {
               return (
