@@ -6176,7 +6176,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           <img src={heroImg} alt="Bengaluru Landmarks" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "right bottom" }} />
         </div>
 
-        <div style={{ zIndex: 2, position: "relative" }}>
+        <div style={{ zIndex: 2, position: "relative", maxWidth: isMobile ? "75%" : "60%" }}>
           <h1 style={{ fontSize: isMobile ? 22 : 32, fontWeight: 900, color: C.text, margin: "0 0 8px 0", letterSpacing: "-0.03em" }}>Good Morning, {username}! 👋</h1>
           <p style={{ color: C.muted, fontSize: isMobile ? 12 : 14, fontWeight: 600, margin: 0 }}>Let's make your journey easy and efficient.</p>
         </div>
@@ -6419,7 +6419,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
       </div>
 
       {/* Row 2: My Garage (left) & Digital Glovebox (center) & Quick Actions (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.1fr", gap: 24, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1.1fr", gap: isMobile ? 16 : 24, marginBottom: isMobile ? 16 : 24 }}>
         
         {/* My Garage */}
         <div id="my-garage-card" style={{ 
@@ -6782,7 +6782,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
       </div>
 
       {/* Row 3: Commute Suggestions (left) & Travel Alerts (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 16 : 24 }}>
         
         {/* Commute Suggestions */}
         <div style={{ 
@@ -8621,7 +8621,7 @@ function AIRecommendationsPanel({
   );
 }
 
-function LandingPage({ onLoginClick, onSignUpClick }) {
+function LandingPage({ onLoginClick, onSignUpClick, isMobile = false }) {
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -8652,14 +8652,14 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
   ];
 
   return (
-    <div style={{ background: "#f8fafc", color: "#1e293b", fontFamily: "'Plus Jakarta Sans', 'Outfit', sans-serif", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ background: "#f8fafc", color: "#1e293b", fontFamily: "'Plus Jakarta Sans', 'Outfit', sans-serif", minHeight: "100vh", display: "flex", flexDirection: "column", overflowX: "hidden", maxWidth: "100vw" }}>
       
       {/* Header */}
       <header style={{
         background: "#ffffff",
         borderBottom: "1px solid #f1f5f9",
-        padding: "0 40px",
-        height: 76,
+        padding: isMobile ? "0 16px" : "0 40px",
+        height: isMobile ? 64 : 76,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -8669,106 +8669,108 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
         boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
       }}>
         {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => scrollToSection("home")}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => scrollToSection("home")}>
           <div style={{
-            width: 44,
-            height: 44,
-            borderRadius: 14,
+            width: isMobile ? 38 : 44,
+            height: isMobile ? 38 : 44,
+            borderRadius: isMobile ? 12 : 14,
             background: "linear-gradient(135deg, #7c3aed, #ec4899)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             boxShadow: "rgba(124, 58, 237, 0.25) 0 8px 16px"
           }}>
-            <Ic n="bus" s={20} c="white" sw={2.2} />
+            <Ic n="bus" s={isMobile ? 18 : 20} c="white" sw={2.2} />
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: "#1e1b24", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Bengaluru</div>
-            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Transport Navigator</div>
+            <div style={{ fontWeight: 800, fontSize: isMobile ? 14 : 16, color: "#1e1b24", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Bengaluru</div>
+            <div style={{ fontSize: isMobile ? 10 : 11, color: "#64748b", fontWeight: 600 }}>Transport Navigator</div>
             <div style={{ fontSize: 9, color: "#7c3aed", fontWeight: 700, letterSpacing: "0.05em", marginTop: 2 }}>SMART. CONNECTED.</div>
           </div>
         </div>
 
-        {/* Navigation Links */}
-        <nav style={{ display: "flex", alignItems: "center", gap: 28, marginLeft: "auto", marginRight: 40 }}>
-          {["Home", "Features", "Routes", "Services", "About Us", "Contact"].map((item) => {
-            const sectionMap = {
-              "Home": "home",
-              "Features": "features",
-              "Routes": "services",
-              "Services": "services",
-              "About Us": "about",
-              "Contact": "footer"
-            };
-            const id = sectionMap[item];
-            return (
-              <button
-                key={item}
-                onClick={() => scrollToSection(id)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: item === "Home" ? "#7c3aed" : "#64748b",
-                  cursor: "pointer",
-                  padding: "8px 4px",
-                  borderBottom: item === "Home" ? "2px solid #7c3aed" : "2px solid transparent",
-                  transition: "all 0.2s"
-                }}
-                onMouseEnter={e => { e.currentTarget.style.color = "#7c3aed"; }}
-                onMouseLeave={e => { if (item !== "Home") e.currentTarget.style.color = "#64748b"; }}
-              >
-                {item}
-              </button>
-            );
-          })}
-        </nav>
+        {/* Navigation Links (Desktop only) */}
+        {!isMobile && (
+          <nav style={{ display: "flex", alignItems: "center", gap: 28, marginLeft: "auto", marginRight: 40 }}>
+            {["Home", "Features", "Routes", "Services", "About Us", "Contact"].map((item) => {
+              const sectionMap = {
+                "Home": "home",
+                "Features": "features",
+                "Routes": "services",
+                "Services": "services",
+                "About Us": "about",
+                "Contact": "footer"
+              };
+              const id = sectionMap[item];
+              return (
+                <button
+                  key={item}
+                  onClick={() => scrollToSection(id)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: item === "Home" ? "#7c3aed" : "#64748b",
+                    cursor: "pointer",
+                    padding: "8px 4px",
+                    borderBottom: item === "Home" ? "2px solid #7c3aed" : "2px solid transparent",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = "#7c3aed"; }}
+                  onMouseLeave={e => { if (item !== "Home") e.currentTarget.style.color = "#64748b"; }}
+                >
+                  {item}
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         {/* Authentication Buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, marginLeft: isMobile ? "auto" : 0 }}>
           <button
             onClick={onLoginClick}
             style={{
               background: "none",
               border: "1.5px solid #e2e8f0",
-              borderRadius: 12,
-              padding: "10px 20px",
+              borderRadius: isMobile ? 10 : 12,
+              padding: isMobile ? "8px 12px" : "10px 20px",
               color: "#1e293b",
               fontWeight: 700,
-              fontSize: 13,
+              fontSize: isMobile ? 12 : 13,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 6,
               transition: "all 0.2s"
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#7c3aed"; e.currentTarget.style.color = "#7c3aed"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#1e293b"; }}
           >
-            <Ic n="user" s={14} c="currentColor" /> Login
+            <Ic n="user" s={13} c="currentColor" /> Login
           </button>
           <button
             onClick={onSignUpClick}
             style={{
               background: "#7c3aed",
               border: "none",
-              borderRadius: 12,
-              padding: "11px 22px",
+              borderRadius: isMobile ? 10 : 12,
+              padding: isMobile ? "8px 14px" : "11px 22px",
               color: "#ffffff",
               fontWeight: 700,
-              fontSize: 13,
+              fontSize: isMobile ? 12 : 13,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 6,
               boxShadow: "rgba(124, 58, 237, 0.25) 0 4px 12px",
               transition: "all 0.2s"
             }}
             onMouseEnter={e => { e.currentTarget.style.opacity = 0.95; e.currentTarget.style.transform = "translateY(-1px)"; }}
             onMouseLeave={e => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = "none"; }}
           >
-            <Ic n="users" s={14} c="#ffffff" /> Sign Up
+            <Ic n="users" s={13} c="#ffffff" /> Sign Up
           </button>
         </div>
       </header>
@@ -8776,17 +8778,17 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
       {/* Hero Section */}
       <section id="home" style={{
         background: "linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%)",
-        padding: "60px 40px",
+        padding: isMobile ? "32px 16px" : "60px 40px",
         position: "relative",
         overflow: "hidden",
         borderBottom: "1px solid #f1f5f9"
       }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.2fr", gap: 40, maxWidth: 1300, margin: "0 auto", alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.1fr 1.2fr", gap: isMobile ? 24 : 40, maxWidth: 1300, margin: "0 auto", alignItems: "center" }}>
           
           {/* Left Text and Buttons */}
           <div style={{ zIndex: 2 }}>
             <h1 style={{
-              fontSize: 48,
+              fontSize: isMobile ? 30 : 48,
               fontWeight: 900,
               color: "#1e1b24",
               lineHeight: 1.15,
@@ -8799,15 +8801,15 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
             </h1>
             <p style={{
               color: "#64748b",
-              fontSize: 16,
+              fontSize: isMobile ? 13.5 : 16,
               lineHeight: 1.6,
-              margin: "24px 0 32px 0",
+              margin: isMobile ? "16px 0 20px 0" : "24px 0 32px 0",
               fontWeight: 500
             }}>
               Your all-in-one solution for navigating Bengaluru.<br />
               Find the best routes across bus, metro, cabs and more.
             </p>
-            <div style={{ display: "flex", gap: 16 }}>
+            <div style={{ display: "flex", gap: isMobile ? 10 : 16, flexWrap: "wrap" }}>
               <button
                 onClick={onSignUpClick}
                 style={{
@@ -8815,13 +8817,13 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
                   border: "none",
                   color: "#ffffff",
                   borderRadius: 14,
-                  padding: "16px 28px",
-                  fontSize: 14,
+                  padding: isMobile ? "12px 20px" : "16px 28px",
+                  fontSize: isMobile ? 13 : 14,
                   fontWeight: 700,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
+                  gap: 8,
                   boxShadow: "rgba(124, 58, 237, 0.35) 0 10px 20px",
                   transition: "all 0.2s"
                 }}
@@ -8837,13 +8839,13 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
                   border: "2px solid #7c3aed",
                   color: "#7c3aed",
                   borderRadius: 14,
-                  padding: "14px 28px",
-                  fontSize: 14,
+                  padding: isMobile ? "12px 20px" : "14px 28px",
+                  fontSize: isMobile ? 13 : 14,
                   fontWeight: 700,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
+                  gap: 8,
                   transition: "all 0.2s"
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = "rgba(124, 58, 237, 0.04)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
@@ -8855,7 +8857,7 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
           </div>
 
           {/* Right Image Graphic & Overlay Card */}
-          <div style={{ position: "relative", height: 420, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ position: "relative", height: isMobile ? 220 : 420, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {/* The Cityscape Hero Image */}
             <div style={{
               width: "100%",
@@ -8869,53 +8871,55 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
               <img src={heroImg} alt="Bengaluru Cityscape" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
 
-            {/* Floating Info Card */}
-            <div style={{
-              position: "absolute",
-              right: -30,
-              top: "50%",
-              transform: "translateY(-50%)",
-              background: "#ffffff",
-              borderRadius: 20,
-              width: 240,
-              padding: "24px 20px",
-              boxShadow: "0 20px 50px rgba(26,22,37,0.1), 0 1px 3px rgba(0,0,0,0.02)",
-              border: "1px solid #ede9fe",
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-              zIndex: 3
-            }}>
-              {[
-                { label: "Live Tracking", sub: "Real-time vehicle updates", icon: "gps", color: "#3b82f6", bg: "#eff6ff" },
-                { label: "Best Routes", sub: "Fastest & economical", icon: "route", color: "#8b5cf6", bg: "#f5f3ff" },
-                { label: "Multiple Modes", sub: "All transport in one place", icon: "grid", color: "#ec4899", bg: "#fdf2f8" },
-                { label: "AI Assistant", sub: "24/7 travel support", icon: "chat", color: "#10b981", bg: "#ecfdf5" },
-              ].map(item => (
-                <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Ic n={item.icon} s={15} c={item.color} sw={2.2} />
+            {/* Floating Info Card (Desktop only) */}
+            {!isMobile && (
+              <div style={{
+                position: "absolute",
+                right: -30,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "#ffffff",
+                borderRadius: 20,
+                width: 240,
+                padding: "24px 20px",
+                boxShadow: "0 20px 50px rgba(26,22,37,0.1), 0 1px 3px rgba(0,0,0,0.02)",
+                border: "1px solid #ede9fe",
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+                zIndex: 3
+              }}>
+                {[
+                  { label: "Live Tracking", sub: "Real-time vehicle updates", icon: "gps", color: "#3b82f6", bg: "#eff6ff" },
+                  { label: "Best Routes", sub: "Fastest & economical", icon: "route", color: "#8b5cf6", bg: "#f5f3ff" },
+                  { label: "Multiple Modes", sub: "All transport in one place", icon: "grid", color: "#ec4899", bg: "#fdf2f8" },
+                  { label: "AI Assistant", sub: "24/7 travel support", icon: "chat", color: "#10b981", bg: "#ecfdf5" },
+                ].map(item => (
+                  <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Ic n={item.icon} s={15} c={item.color} sw={2.2} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: "#1e293b" }}>{item.label}</div>
+                      <div style={{ fontSize: 10, color: "#64748b", marginTop: 2, fontWeight: 500 }}>{item.sub}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#1e293b" }}>{item.label}</div>
-                    <div style={{ fontSize: 10, color: "#64748b", marginTop: 2, fontWeight: 500 }}>{item.sub}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
 
       {/* Transit Services Section */}
-      <section id="services" style={{ padding: "80px 40px", background: "#ffffff" }}>
+      <section id="services" style={{ padding: isMobile ? "40px 16px" : "80px 40px", background: "#ffffff" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           
-          <h2 style={{ fontSize: 24, fontWeight: 900, color: "#1e1b24", textAlign: "center", marginBottom: 40, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
+          <h2 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 900, color: "#1e1b24", textAlign: "center", marginBottom: isMobile ? 24 : 40, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
             Explore Transit Options
           </h2>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: isMobile ? 12 : 20 }}>
             {services.map(s => (
               <div
                 key={s.name}
@@ -8983,22 +8987,22 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
 
           {/* Stats Bar Ribbon */}
           <div style={{
-            marginTop: 60,
+            marginTop: isMobile ? 32 : 60,
             background: "linear-gradient(135deg, rgba(124, 58, 237, 0.03) 0%, rgba(236, 72, 153, 0.03) 100%)",
             border: "1px solid rgba(124, 58, 237, 0.08)",
             borderRadius: 24,
-            padding: "24px 40px",
+            padding: isMobile ? "16px 14px" : "24px 40px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            justifyContent: isMobile ? "center" : "space-between",
             flexWrap: "wrap",
-            gap: 20
+            gap: isMobile ? 12 : 20
           }}>
             {stats.map(item => (
-              <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <Ic n={item.icon} s={16} c="#7c3aed" sw={2.2} />
-                <span style={{ fontSize: 14, fontWeight: 500, color: "#475569" }}>
-                  <strong style={{ fontSize: 16, fontWeight: 800, color: "#1e1b24", marginRight: 4 }}>{item.val}</strong> {item.label}
+              <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Ic n={item.icon} s={15} c="#7c3aed" sw={2.2} />
+                <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 500, color: "#475569" }}>
+                  <strong style={{ fontSize: isMobile ? 13.5 : 16, fontWeight: 800, color: "#1e1b24", marginRight: 4 }}>{item.val}</strong> {item.label}
                 </span>
               </div>
             ))}
@@ -9008,14 +9012,14 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
       </section>
 
       {/* Why Choose Us Features Section */}
-      <section id="features" style={{ padding: "80px 40px", background: "#f8fafc", borderTop: "1px solid #f1f5f9" }}>
+      <section id="features" style={{ padding: isMobile ? "40px 16px" : "80px 40px", background: "#f8fafc", borderTop: "1px solid #f1f5f9" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           
-          <h2 style={{ fontSize: 24, fontWeight: 900, color: "#1e1b24", textAlign: "center", marginBottom: 40, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
+          <h2 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 900, color: "#1e1b24", textAlign: "center", marginBottom: isMobile ? 24 : 40, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
             Why Choose Us?
           </h2>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: isMobile ? 12 : 20 }}>
             {whyChooseUs.map(f => (
               <div key={f.title} style={{
                 background: "#ffffff",
@@ -9048,23 +9052,23 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
       </section>
 
       {/* About Us & Move Bengaluru Forward Section */}
-      <section id="about" style={{ padding: "80px 40px", background: "#ffffff", borderTop: "1px solid #f1f5f9" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 30 }}>
+      <section id="about" style={{ padding: isMobile ? "40px 16px" : "80px 40px", background: "#ffffff", borderTop: "1px solid #f1f5f9" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.1fr 1fr", gap: isMobile ? 16 : 30 }}>
           
           {/* Card 1: About Us */}
           <div style={{
             background: "#ffffff",
             border: "1px solid #ede9fe",
             borderRadius: 24,
-            padding: "36px",
+            padding: isMobile ? "22px 18px" : "36px",
             boxShadow: "0 10px 30px rgba(0,0,0,0.01)",
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between"
           }}>
             <div>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e1b24", margin: "0 0 16px 0" }}>About Us</h2>
-              <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, fontWeight: 500, margin: 0 }}>
+              <h2 style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: "#1e1b24", margin: "0 0 12px 0" }}>About Us</h2>
+              <p style={{ fontSize: isMobile ? 12 : 13, color: "#64748b", lineHeight: 1.6, fontWeight: 500, margin: 0 }}>
                 Bengaluru Transport Navigator is an initiative to make public transportation simple, smart and accessible for everyone.
                 Our mission is to connect Bengaluru, one journey at a time.
               </p>
@@ -9072,20 +9076,20 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
             <button
               onClick={onSignUpClick}
               style={{
-                marginTop: 28,
+                marginTop: isMobile ? 16 : 28,
                 background: "none",
                 border: "1.5px solid #7c3aed",
                 borderRadius: 12,
-                padding: "10px 20px",
+                padding: "8px 16px",
                 color: "#7c3aed",
                 fontWeight: 700,
-                fontSize: 13,
+                fontSize: 12,
                 cursor: "pointer",
                 fontFamily: "inherit",
                 alignSelf: "start",
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: 6,
                 transition: "all 0.2s"
               }}
               onMouseEnter={e => { e.currentTarget.style.background = "rgba(124, 58, 237, 0.04)"; }}
@@ -9099,15 +9103,16 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
           <div style={{
             background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)",
             borderRadius: 24,
-            padding: "36px",
+            padding: isMobile ? "22px 18px" : "36px",
             color: "#ffffff",
             position: "relative",
             overflow: "hidden",
-            boxShadow: "rgba(124, 58, 237, 0.2) 0 10px 30px"
+            boxShadow: "rgba(124, 58, 237, 0.2) 0 10px 30px",
+            minHeight: isMobile ? 130 : "auto"
           }}>
-            <div style={{ maxWidth: "60%", zIndex: 2, position: "relative" }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", margin: "0 0 8px 0" }}>Move Bengaluru Forward</h2>
-              <p style={{ fontSize: 12, opacity: 0.9, lineHeight: 1.5, fontWeight: 500, margin: 0 }}>
+            <div style={{ maxWidth: isMobile ? "70%" : "60%", zIndex: 2, position: "relative" }}>
+              <h2 style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: "#ffffff", margin: "0 0 8px 0" }}>Move Bengaluru Forward</h2>
+              <p style={{ fontSize: isMobile ? 11.5 : 12, opacity: 0.9, lineHeight: 1.5, fontWeight: 500, margin: 0 }}>
                 Smart choices. Better cities. Join us in making commutes efficient.
               </p>
             </div>
@@ -9978,6 +9983,7 @@ export default function App() {
       <LandingPage 
         onLoginClick={() => { setAuthMode("login"); setShowAuth(true); }} 
         onSignUpClick={() => { setAuthMode("signup"); setShowAuth(true); }} 
+        isMobile={isMobile}
       />
     );
   }
@@ -10456,22 +10462,24 @@ export default function App() {
               <span>Ride Mode</span>
             </button>
 
-            {/* Weather Card */}
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              gap: isMobile ? 6 : 12, 
-              background: C.dim, 
-              border: `1px solid ${C.border}`, 
-              padding: isMobile ? "6px 10px" : "8px 16px", 
-              borderRadius: 14 
-            }}>
-              <span style={{ fontSize: isMobile ? 15 : 18 }}>☀️</span>
-              <div>
-                <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>27°C</div>
-                {!isMobile && <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>Partly Cloudy</div>}
+            {/* Weather Card (desktop only to prevent header clutter on mobile) */}
+            {!isMobile && (
+              <div style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 12, 
+                background: C.dim, 
+                border: `1px solid ${C.border}`, 
+                padding: "8px 16px", 
+                borderRadius: 14 
+              }}>
+                <span style={{ fontSize: 18 }}>☀️</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>27°C</div>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>Partly Cloudy</div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Date/Time Card (desktop only) */}
             {!isMobile && (
@@ -10814,22 +10822,26 @@ export default function App() {
                   <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 900, letterSpacing: "-0.02em" }}>{src} → {dst}</div>
                   <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Departs {time || nowTime()} · Preference: {pref}</div>
                 </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button onClick={() => setPage("plan")} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, color: C.muted, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>← Edit</button>
-                  <button onClick={() => { setShowAllBuses(!showAllBuses); setShowRouteSearch(false); setShowTimetable(false); }} style={{ background: showAllBuses ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showAllBuses ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: showAllBuses ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
-                    <Ic n="list" s={13} c={showAllBuses ? MC.bmtc.color : C.muted} /> See All Buses
-                  </button>
-                  <button onClick={() => { setShowRouteSearch(!showRouteSearch); setShowAllBuses(false); setShowTimetable(false); }} style={{ background: showRouteSearch ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showRouteSearch ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: showRouteSearch ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
-                    <Ic n="route" s={13} c={showRouteSearch ? MC.bmtc.color : C.muted} /> Route Lookup
-                  </button>
-                  <button onClick={() => { setShowTimetable(!showTimetable); setShowAllBuses(false); setShowRouteSearch(false); }} style={{ background: showTimetable ? C.accent + "20" : C.card, border: `1px solid ${showTimetable ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: showTimetable ? C.accent : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
-                    <Ic n="clock" s={13} c={showTimetable ? C.accent : C.muted} /> Timetable
-                  </button>
-                  {[{ v: "cards", icon: "grid", label: "Cards" }, { v: "compare", icon: "table", label: "Compare" }].map(b => (
-                    <button key={b.v} onClick={() => setView(b.v)} style={{ background: view === b.v ? C.accent : C.card, border: `1px solid ${view === b.v ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: view === b.v ? "white" : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
-                      <Ic n={b.icon} s={13} c={view === b.v ? "white" : C.muted} /> {b.label}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "space-between" : "flex-end", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <button onClick={() => setPage("plan")} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, color: C.muted, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>← Edit</button>
+                    {[{ v: "cards", icon: "grid", label: "Cards" }, { v: "compare", icon: "table", label: "Compare" }].map(b => (
+                      <button key={b.v} onClick={() => setView(b.v)} style={{ background: view === b.v ? C.accent : C.card, border: `1px solid ${view === b.v ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: view === b.v ? "white" : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
+                        <Ic n={b.icon} s={13} c={view === b.v ? "white" : C.muted} /> {b.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", overflowX: isMobile ? "auto" : "visible", maxWidth: "100%", paddingBottom: isMobile ? 4 : 0 }}>
+                    <button onClick={() => { setShowAllBuses(!showAllBuses); setShowRouteSearch(false); setShowTimetable(false); }} style={{ background: showAllBuses ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showAllBuses ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 10px", fontSize: 12, color: showAllBuses ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
+                      <Ic n="list" s={13} c={showAllBuses ? MC.bmtc.color : C.muted} /> Buses
                     </button>
-                  ))}
+                    <button onClick={() => { setShowRouteSearch(!showRouteSearch); setShowAllBuses(false); setShowTimetable(false); }} style={{ background: showRouteSearch ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showRouteSearch ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 10px", fontSize: 12, color: showRouteSearch ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
+                      <Ic n="route" s={13} c={showRouteSearch ? MC.bmtc.color : C.muted} /> Route
+                    </button>
+                    <button onClick={() => { setShowTimetable(!showTimetable); setShowAllBuses(false); setShowRouteSearch(false); }} style={{ background: showTimetable ? C.accent + "20" : C.card, border: `1px solid ${showTimetable ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 10px", fontSize: 12, color: showTimetable ? C.accent : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
+                      <Ic n="clock" s={13} c={showTimetable ? C.accent : C.muted} /> Timetable
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -11544,14 +11556,15 @@ export default function App() {
           bottom: 0,
           left: 0,
           right: 0,
-          height: 62,
+          minHeight: 64,
+          height: "calc(62px + env(safe-area-inset-bottom, 0px))",
           background: C.card,
           borderTop: `1px solid ${C.border}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-around",
           zIndex: 900,
-          padding: "4px 8px env(safe-area-inset-bottom, 8px)",
+          padding: "4px 8px env(safe-area-inset-bottom, 6px)",
           boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.12)"
         }}>
           {[
