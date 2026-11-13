@@ -131,6 +131,7 @@ const P = {
   youtube: "M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 00-1.95 1.96A29 29 0 001 11.54a29 29 0 00.46 5.12 2.78 2.78 0 001.95 1.96C5.12 19.08 12 19.08 12 19.08s6.88 0 8.59 0a2.78 2.78 0 001.95-1.96 29 29 0 00.46-5.12 29 29 0 00-.46-5.12z M9.54 15.08V8l6 3.54-6 3.54z",
   bicycle: "M18.5 17.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zm-13 0a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z M12 15h3.5l1.5-4.5H12M12 15l-3-6H5M12 9V6M9.5 6.5h5",
   settings: "M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.63-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z",
+  menu: "M3 12h18M3 6h18M3 18h18",
 };
 
 
@@ -5961,7 +5962,7 @@ function CompareTable({ results }) {
 /* ─────────────────────────────────────────────────────────────
    DASHBOARD
 ───────────────────────────────────────────────────────────── */
-function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpen, setGarageOpen, gloveboxOpen, setGloveboxOpen, onRefreshVehicles, mapStyle, setMapStyle, useOsm, setUseOsm, stops, setShowWeatherModal, setShowStopsInfo, setShowSettings }) {
+function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpen, setGarageOpen, gloveboxOpen, setGloveboxOpen, onRefreshVehicles, mapStyle, setMapStyle, useOsm, setUseOsm, stops, setShowWeatherModal, setShowStopsInfo, setShowSettings, isMobile = false }) {
   const [data, setData] = useState({ stats: [], recent: [], saved: [] });
   const [vehicles, setVehicles] = useState([]);
   const [showBicyclePopup, setShowBicyclePopup] = useState(false);
@@ -6152,14 +6153,14 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           : "linear-gradient(135deg, #17122a 0%, #1e102d 100%)",
         border: `1px solid ${C.border}`,
         borderRadius: 24,
-        padding: "36px 40px",
-        marginBottom: 32,
+        padding: isMobile ? "22px 18px" : "36px 40px",
+        marginBottom: isMobile ? 20 : 32,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         position: "relative",
         overflow: "hidden",
-        minHeight: 140
+        minHeight: isMobile ? 110 : 140
       }}>
         {/* Background Vidhana Soudha Cityscape blending on the right */}
         <div style={{
@@ -6167,7 +6168,8 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           right: 0,
           bottom: 0,
           height: "100%",
-          width: "50%",
+          width: isMobile ? "40%" : "50%",
+          opacity: isMobile ? 0.35 : 1,
           pointerEvents: "none",
           zIndex: 1
         }}>
@@ -6175,13 +6177,13 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
         </div>
 
         <div style={{ zIndex: 2, position: "relative" }}>
-          <h1 style={{ fontSize: 32, fontWeight: 900, color: C.text, margin: "0 0 8px 0", letterSpacing: "-0.03em" }}>Good Morning, {username}! 👋</h1>
-          <p style={{ color: C.muted, fontSize: 14, fontWeight: 600, margin: 0 }}>Let's make your journey easy and efficient.</p>
+          <h1 style={{ fontSize: isMobile ? 22 : 32, fontWeight: 900, color: C.text, margin: "0 0 8px 0", letterSpacing: "-0.03em" }}>Good Morning, {username}! 👋</h1>
+          <p style={{ color: C.muted, fontSize: isMobile ? 12 : 14, fontWeight: 600, margin: 0 }}>Let's make your journey easy and efficient.</p>
         </div>
       </div>
 
       {/* Stats Cards Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 32 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 12 : 20, marginBottom: isMobile ? 20 : 32 }}>
         {displayStats.map((s) => (
           <div 
             key={s.label} 
@@ -6189,7 +6191,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               background: C.card, 
               border: `1px solid ${C.border}`, 
               borderRadius: 20, 
-              padding: "20px 24px", 
+              padding: isMobile ? "14px 16px" : "20px 24px", 
               boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
               transition: "all 0.25s ease",
               cursor: "default"
@@ -6203,10 +6205,10 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.01) 0 10px 30px";
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 16 }}>
               <div style={{ 
-                width: 44, 
-                height: 44, 
+                width: isMobile ? 36 : 44, 
+                height: isMobile ? 36 : 44, 
                 borderRadius: "50%", 
                 background: s.bg,
                 display: "flex", 
@@ -6214,12 +6216,12 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                 justifyContent: "center",
                 flexShrink: 0
               }}>
-                <Ic n={s.icon} s={18} c={s.color} sw={2.2} />
+                <Ic n={s.icon} s={isMobile ? 16 : 18} c={s.color} sw={2.2} />
               </div>
               <div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: C.text, lineHeight: "1.2" }}>{s.val}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 1 }}>{s.sub}</div>
+                <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 900, color: C.text, lineHeight: "1.2" }}>{s.val}</div>
+                <div style={{ fontSize: isMobile ? 11.5 : 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 9.5, color: C.muted, fontWeight: 600, marginTop: 1 }}>{s.sub}</div>
               </div>
             </div>
           </div>
@@ -6227,7 +6229,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
       </div>
 
       {/* Row 1: Recent Searches (left) & Saved Places (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 16 : 24, marginBottom: 24 }}>
         
         {/* Recent Searches */}
         <div style={{ 
@@ -9210,6 +9212,16 @@ export default function App() {
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login");
 
+  // Mobile responsiveness & drawer state
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 1024 : false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Ride Mode State
   const [showRideModeModal, setShowRideModeModal] = useState(false);
   const [rideModeInitialData, setRideModeInitialData] = useState(null);
@@ -9972,6 +9984,21 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Plus Jakarta Sans', 'Outfit', sans-serif", color: C.text, display: "flex" }}>
+      {/* Mobile Drawer Backdrop */}
+      {isMobile && mobileSidebarOpen && (
+        <div 
+          onClick={() => setMobileSidebarOpen(false)} 
+          style={{ 
+            position: "fixed", 
+            inset: 0, 
+            background: "rgba(0,0,0,0.65)", 
+            backdropFilter: "blur(4px)", 
+            zIndex: 998,
+            transition: "opacity 0.25s ease" 
+          }} 
+        />
+      )}
+
       {/* SIDEBAR */}
       <aside style={{
         width: 280,
@@ -9983,28 +10010,55 @@ export default function App() {
         top: 0,
         bottom: 0,
         left: 0,
-        zIndex: 100,
-        boxShadow: "rgba(0, 0, 0, 0.15) 2px 0 12px 0"
+        zIndex: isMobile ? 999 : 100,
+        transform: isMobile ? (mobileSidebarOpen ? "translateX(0)" : "translateX(-100%)") : "none",
+        transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        boxShadow: "rgba(0, 0, 0, 0.25) 2px 0 16px 0"
       }}>
         {/* Brand/Logo */}
-        <div style={{ padding: "24px 28px 20px", display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 44,
-            height: 44,
-            borderRadius: 14,
-            background: "linear-gradient(135deg, #7c3aed, #ec4899)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "rgba(124, 58, 237, 0.25) 0 8px 16px"
-          }}>
-            <Ic n="bus" s={20} c="white" sw={2.2} />
+        <div style={{ padding: "24px 20px 20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              background: "linear-gradient(135deg, #7c3aed, #ec4899)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "rgba(124, 58, 237, 0.25) 0 8px 16px"
+            }}>
+              <Ic n="bus" s={20} c="white" sw={2.2} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "#ffffff", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Bengaluru</div>
+              <div style={{ fontSize: 11, color: "#8e8a9f", fontWeight: 600 }}>Transport Navigator</div>
+              <div style={{ fontSize: 9, color: "#a855f7", fontWeight: 700, letterSpacing: "0.05em", marginTop: 2 }}>SMART. CONNECTED.</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: "#ffffff", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Bengaluru</div>
-            <div style={{ fontSize: 11, color: "#8e8a9f", fontWeight: 600 }}>Transport Navigator</div>
-            <div style={{ fontSize: 9, color: "#a855f7", fontWeight: 700, letterSpacing: "0.05em", marginTop: 2 }}>SMART. CONNECTED.</div>
-          </div>
+          {isMobile && (
+            <button
+              onClick={() => setMobileSidebarOpen(false)}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "none",
+                borderRadius: 10,
+                width: 34,
+                height: 34,
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                fontSize: 16,
+                fontWeight: "bold",
+                fontFamily: "inherit"
+              }}
+              aria-label="Close sidebar"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Sidebar Nav Categories */}
@@ -10029,6 +10083,7 @@ export default function App() {
                   <button
                     key={n.id}
                     onClick={() => {
+                      if (isMobile) setMobileSidebarOpen(false);
                       if (n.id === "dashboard") { setPage("dashboard"); }
                       else if (n.id === "plan") { setPage("plan"); setShowRouteSearch(false); setShowTimetable(false); }
                       else if (n.id === "search_routes") { setPage("plan"); setShowRouteSearch(true); setShowAllBuses(false); setShowTimetable(false); }
@@ -10321,13 +10376,22 @@ export default function App() {
       </aside>
 
       {/* MAIN CONTENT CONTAINER */}
-      <div style={{ flex: 1, marginLeft: 280, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div style={{
+        flex: 1,
+        marginLeft: isMobile ? 0 : 280,
+        display: "flex",
+        flexDirection: "column",
+        minWidth: 0,
+        width: isMobile ? "100%" : "calc(100% - 280px)",
+        maxWidth: "100vw",
+        overflowX: "hidden"
+      }}>
         {/* TOP HEADER */}
         <header style={{
-          height: 70,
+          height: isMobile ? 60 : 70,
           background: C.card,
           borderBottom: `1px solid ${C.border}`,
-          padding: "0 40px",
+          padding: isMobile ? "0 14px" : "0 40px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -10335,27 +10399,50 @@ export default function App() {
           top: 0,
           zIndex: 90
         }}>
-          {/* Greeting depending on page */}
-          <div>
-            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Welcome Back</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginTop: 2 }}>{user} 👋</div>
+          {/* Greeting depending on page + Mobile Hamburger Menu */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {isMobile && (
+              <button
+                onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+                style={{
+                  background: C.surface,
+                  border: `1px solid ${C.border2}`,
+                  borderRadius: 10,
+                  width: 38,
+                  height: 38,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: C.text,
+                  padding: 0
+                }}
+                aria-label="Toggle navigation menu"
+              >
+                <Ic n="menu" s={18} c={C.text} sw={2.2} />
+              </button>
+            )}
+            <div>
+              <div style={{ fontSize: isMobile ? 9.5 : 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Welcome Back</div>
+              <div style={{ fontSize: isMobile ? 14 : 16, fontWeight: 800, color: C.text, marginTop: 1 }}>{user} 👋</div>
+            </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 16 }}>
             {/* Ride Mode Header Button */}
             <button
               onClick={() => handleOpenRideMode()}
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: isMobile ? 5 : 8,
                 background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)",
                 border: "none",
-                padding: "8px 16px",
-                borderRadius: 16,
+                padding: isMobile ? "6px 12px" : "8px 16px",
+                borderRadius: isMobile ? 12 : 16,
                 color: "#ffffff",
                 fontWeight: 800,
-                fontSize: 13,
+                fontSize: isMobile ? 11.5 : 13,
                 cursor: "pointer",
                 boxShadow: "0 4px 14px rgba(124, 58, 237, 0.4)",
                 transition: "transform 0.15s ease",
@@ -10365,7 +10452,7 @@ export default function App() {
               onMouseLeave={(e) => (e.currentTarget.style.transform = "none")}
               title="Enter Live Bus / Metro Tracking Mode"
             >
-              <span style={{ fontSize: 16 }}>🚌</span>
+              <span style={{ fontSize: isMobile ? 14 : 16 }}>🚌</span>
               <span>Ride Mode</span>
             </button>
 
@@ -10373,37 +10460,39 @@ export default function App() {
             <div style={{ 
               display: "flex", 
               alignItems: "center", 
-              gap: 12, 
+              gap: isMobile ? 6 : 12, 
               background: C.dim, 
               border: `1px solid ${C.border}`, 
-              padding: "8px 16px", 
-              borderRadius: 16 
+              padding: isMobile ? "6px 10px" : "8px 16px", 
+              borderRadius: 14 
             }}>
-              <span style={{ fontSize: 18 }}>☀️</span>
+              <span style={{ fontSize: isMobile ? 15 : 18 }}>☀️</span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>27°C</div>
-                <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>Partly Cloudy</div>
+                <div style={{ fontSize: isMobile ? 12 : 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>27°C</div>
+                {!isMobile && <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>Partly Cloudy</div>}
               </div>
             </div>
 
-            {/* Date/Time Card */}
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              gap: 12, 
-              background: C.dim, 
-              border: `1px solid ${C.border}`, 
-              padding: "8px 16px", 
-              borderRadius: 16 
-            }}>
-              <span style={{ fontSize: 18 }}>🕒</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>{nowTime()}</div>
-                <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>
-                  {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+            {/* Date/Time Card (desktop only) */}
+            {!isMobile && (
+              <div style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 12, 
+                background: C.dim, 
+                border: `1px solid ${C.border}`, 
+                padding: "8px 16px", 
+                borderRadius: 16 
+              }}>
+                <span style={{ fontSize: 18 }}>🕒</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>{nowTime()}</div>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>
+                    {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             
             {/* Logout Button */}
             <button
@@ -10411,9 +10500,9 @@ export default function App() {
               style={{
                 background: "rgba(239, 68, 68, 0.08)",
                 border: "none",
-                borderRadius: 14,
-                width: 42,
-                height: 42,
+                borderRadius: isMobile ? 10 : 14,
+                width: isMobile ? 36 : 42,
+                height: isMobile ? 36 : 42,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -10424,13 +10513,13 @@ export default function App() {
               onMouseLeave={e => { e.currentTarget.style.background = "rgba(239, 68, 68, 0.08)"; e.currentTarget.style.transform = "none"; }}
               title="Logout"
             >
-              <Ic n="logout" s={16} c={C.red} sw={2.2} />
+              <Ic n="logout" s={isMobile ? 15 : 16} c={C.red} sw={2.2} />
             </button>
           </div>
         </header>
 
         {/* MAIN BODY AREA */}
-        <main style={{ padding: "40px", flex: 1, minHeight: "calc(100vh - 70px)", boxSizing: "border-box" }}>
+        <main style={{ padding: isMobile ? "16px 12px 90px" : "40px", flex: 1, minHeight: "calc(100vh - 70px)", boxSizing: "border-box", maxWidth: "100%", overflowX: "hidden" }}>
 
         {/* DASHBOARD */}
         {page === "dashboard" && (
@@ -10457,12 +10546,13 @@ export default function App() {
             setShowWeatherModal={setShowWeatherModal}
             setShowStopsInfo={setShowStopsInfo}
             setShowSettings={setShowSettings}
+            isMobile={isMobile}
           />
         )}
 
         {/* PLAN */}
         {page === "plan" && (
-          <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 20, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "420px 1fr", gap: isMobile ? 16 : 20, alignItems: "start" }}>
             <div>
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.03em" }}>Plan your journey</div>
@@ -10606,7 +10696,7 @@ export default function App() {
               {showStopsInfo && <StopsInfoPanel onClose={() => setShowStopsInfo(false)} stops={stops} />}
             </div>
 
-            <div style={{ height: "calc(100vh - 120px)", position: "sticky", top: 72 }}>
+            <div style={{ height: isMobile ? 280 : "calc(100vh - 120px)", position: isMobile ? "static" : "sticky", top: 72, marginTop: isMobile ? 16 : 0, borderRadius: 16, overflow: "hidden" }}>
               <GoogleMap key="dashboard-map" src={src} dst={dst} segments={null} activeMode={null} activeSegmentIndex={null} setActiveSegmentIndex={() => { }} useOsm={useOsm} setUseOsm={setUseOsm} mapStyle={mapStyle} />
             </div>
           </div>
@@ -10615,9 +10705,9 @@ export default function App() {
         {/* RESULTS */}
         {page === "results" && results && (
           isNavigating ? (
-            <div style={{ display: "grid", gridTemplateColumns: "360px 1fr", gap: 20, alignItems: "start" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "360px 1fr", gap: 20, alignItems: "start" }}>
               {/* Left Side: Live Copilot HUD */}
-              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", position: "sticky", top: 72 }}>
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", position: isMobile ? "static" : "sticky", top: 72 }}>
                 {/* HUD Header */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -10695,7 +10785,7 @@ export default function App() {
               </div>
 
               {/* Right Side: Map */}
-              <div style={{ position: "sticky", top: 72, height: "calc(100vh - 120px)" }}>
+              <div style={{ position: isMobile ? "static" : "sticky", top: 72, height: isMobile ? 300 : "calc(100vh - 120px)", marginTop: isMobile ? 16 : 0, borderRadius: 16, overflow: "hidden" }}>
                 <GoogleMap
                   key="nav-map"
                   src={src}
@@ -10715,13 +10805,13 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 24, alignItems: "start" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: isMobile ? 16 : 24, alignItems: "start" }}>
             <div style={{ minWidth: 0 }}>
               {/* Header */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 13, color: C.muted }}>Best routes for</div>
-                  <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: "-0.02em" }}>{src} → {dst}</div>
+                  <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 900, letterSpacing: "-0.02em" }}>{src} → {dst}</div>
                   <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Departs {time || nowTime()} · Preference: {pref}</div>
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -10768,7 +10858,7 @@ export default function App() {
                   {/* Modality Result Cards Grid (BMTC, Metro, Cabs, Own Vehicle) */}
                   <div style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                    gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
                     gap: 12,
                     marginBottom: 16
                   }}>
@@ -10899,16 +10989,18 @@ export default function App() {
               )}
             </div>
 
-            {/* Right: Map + Guide (Half Screen) */}
+            {/* Right: Map + Guide (Half Screen on desktop, natural stack on mobile) */}
             <div style={{
-              position: "sticky",
+              position: isMobile ? "static" : "sticky",
               top: 72,
               display: "flex",
               flexDirection: "column",
               gap: 12,
-              height: "calc(100vh - 90px)",
-              maxHeight: "calc(100vh - 90px)",
-              minWidth: 0
+              height: isMobile ? "auto" : "calc(100vh - 90px)",
+              maxHeight: isMobile ? "none" : "calc(100vh - 90px)",
+              minWidth: 0,
+              width: "100%",
+              marginTop: isMobile ? 16 : 0
             }}>
               {selectedData?.available && (
                 <div style={{
@@ -10937,11 +11029,11 @@ export default function App() {
                 </div>
               )}
 
-              {/* Map View Box (Top half of the screen: 50% split) */}
+              {/* Map View Box (Top half of the screen: 50% split on desktop, 280px on mobile) */}
               <div style={{
-                flex: selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 ? "1 1 50%" : "1",
-                height: selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 ? "calc(50% - 24px)" : "calc(100vh - 150px)",
-                minHeight: 0,
+                flex: isMobile ? "none" : (selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 ? "1 1 50%" : "1"),
+                height: isMobile ? 280 : (selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 ? "calc(50% - 24px)" : "calc(100vh - 150px)"),
+                minHeight: isMobile ? 240 : 0,
                 borderRadius: 16,
                 overflow: "hidden",
                 border: `1px solid ${C.border}`,
@@ -10972,11 +11064,12 @@ export default function App() {
                 )}
               </div>
 
-              {/* Step-by-Step Guide Box (Bottom half of the screen: 50% split) */}
+              {/* Step-by-Step Guide Box (Bottom half of the screen: 50% split on desktop, scrollable auto on mobile) */}
               {selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 && (
                 <div style={{
-                  flex: "1 1 50%",
-                  height: "calc(50% - 24px)",
+                  flex: isMobile ? "none" : "1 1 50%",
+                  height: isMobile ? "auto" : "calc(50% - 24px)",
+                  maxHeight: isMobile ? 420 : "none",
                   minHeight: 0,
                   background: C.card,
                   border: `1px solid ${C.border}`,
@@ -11442,6 +11535,89 @@ export default function App() {
             <StopsInfoPanel onClose={() => setShowStopsInfo(false)} stops={stops} />
           </div>
         </div>
+      )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      {isMobile && (
+        <nav style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 62,
+          background: C.card,
+          borderTop: `1px solid ${C.border}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-around",
+          zIndex: 900,
+          padding: "4px 8px env(safe-area-inset-bottom, 8px)",
+          boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.12)"
+        }}>
+          {[
+            { id: "dashboard", label: "Home", icon: "home", action: () => setPage("dashboard") },
+            { id: "plan", label: "Plan", icon: "mappin", action: () => { setPage("plan"); setShowRouteSearch(false); setShowTimetable(false); } },
+            { id: "ride_mode", label: "Ride Mode", icon: "bus", special: true, action: () => handleOpenRideMode() },
+            { id: "routes", label: "Routes", icon: "route", action: () => { setPage("plan"); setShowRouteSearch(true); setShowTimetable(false); setShowAllBuses(false); } },
+            { id: "menu", label: "Menu", icon: "menu", action: () => setMobileSidebarOpen(true) },
+          ].map(tab => {
+            const isTabActive = (tab.id === "dashboard" && page === "dashboard") || 
+                                (tab.id === "plan" && page === "plan" && !showRouteSearch) ||
+                                (tab.id === "routes" && page === "plan" && showRouteSearch);
+            
+            if (tab.special) {
+              return (
+                <button
+                  key={tab.id}
+                  onClick={tab.action}
+                  style={{
+                    background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)",
+                    border: "none",
+                    borderRadius: 16,
+                    padding: "6px 14px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    color: "#ffffff",
+                    transform: "translateY(-6px)",
+                    boxShadow: "0 6px 16px rgba(124, 58, 237, 0.4)",
+                    fontFamily: "inherit"
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>🚌</span>
+                  <span style={{ fontSize: 9.5, fontWeight: 800, marginTop: 1 }}>Ride Mode</span>
+                </button>
+              );
+            }
+
+            return (
+              <button
+                key={tab.id}
+                onClick={tab.action}
+                style={{
+                  background: "none",
+                  border: "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: isTabActive ? C.accent : C.muted,
+                  padding: "4px 10px",
+                  fontFamily: "inherit",
+                  transition: "all 0.15s ease"
+                }}
+              >
+                <Ic n={tab.icon} s={18} c={isTabActive ? C.accent : C.muted} sw={2.2} />
+                <span style={{ fontSize: 10, fontWeight: isTabActive ? 800 : 600, marginTop: 3 }}>
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
       )}
 
       <style>{`
