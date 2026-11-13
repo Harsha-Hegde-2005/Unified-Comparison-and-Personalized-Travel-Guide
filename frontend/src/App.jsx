@@ -10605,6 +10605,140 @@ export default function App() {
     return () => clearInterval(interval);
   }, [page, isRealTime, refreshSearchResults]);
 
+  const handleAcceptTransitDelayOffer = (choice) => {
+    setShowTransitDelayOffer(false);
+    if (!transitDelayOfferRoute) return;
+
+    if (choice === "cab") {
+      setSelected("cab");
+      return;
+    }
+
+    // Otherwise, choice is "walk"
+    const { source, destination, distance } = transitDelayOfferRoute;
+    const walkTime = Math.round(distance * 12.5); // 12.5 min/km
+
+    const updatedResults = {
+      ...results,
+      walk: {
+        available: true,
+        mode: "walk",
+        cost: 0,
+        time: walkTime,
+        distance: distance,
+        transfers: 0,
+        segments: [{
+          route: "Walk Path",
+          type: "walk",
+          from: source,
+          to: destination,
+          stops: [source, destination],
+          duration: walkTime,
+          fare: 0
+        }],
+        guide: [
+          { step: 1, icon: "walk", text: `Start walking from ${source}`, duration: "" },
+          { step: 2, icon: "compass", text: `Walk along paths to ${destination}`, duration: `${walkTime} min` },
+          { step: 3, icon: "mappin", text: `Arrive at ${destination}`, duration: "" }
+        ]
+      }
+    };
+
+    setResults(updatedResults);
+
+    const walkRec = {
+      mode: "walk",
+      score: 92.0,
+      rank: 1,
+      details: {
+        cost_score: 100,
+        time_score: 75,
+        comfort_score: 70,
+        eco_score: 100,
+        weather_score: 65,
+        traffic_score: 100
+      },
+      explanation: "Walking avoids waiting long times for delayed transit buses/metro.",
+      emissions: 0.0
+    };
+
+    setRecommendations([walkRec, ...recommendations]);
+    setSelected("walk");
+  };
+
+  const onLoginSuccess = (username, userToken) => {
+    localStorage.setItem("username", username);
+    localStorage.setItem("token", userToken);
+    setUser(username);
+    setToken(userToken);
+    setPage("dashboard");
+    setShowAuth(false);
+  };
+
+  const onLogout = () => {
+    localStorage.removeItem("username");
+    localStorage.removeItem("token");
+    setUser(null);
+    setToken(null);
+    setResults(null);
+    setRecommendations([]);
+    setPage("dashboard");
+    setShowAuth(false);
+  };
+
+  const selectedData = (() => {
+    if (!results || !selected) return null;
+    if (selected === "cab" && selectedCabVehicle) {
+      return {
+        ...results.cab,
+        ...selectedCabVehicle,
+        segments: selectedCabVehicle.segments,
+        guide: selectedCabVehicle.guide,
+        cost: selectedCabVehicle.cost,
+        time: selectedCabVehicle.time,
+        distance: selectedCabVehicle.distance,
+      };
+    }
+    if (selected === "multimodal" && selectedMultimodalOption) {
+      return {
+        ...results.multimodal,
+        ...selectedMultimodalOption,
+        segments: selectedMultimodalOption.segments,
+        guide: selectedMultimodalOption.guide,
+        cost: selectedMultimodalOption.cost,
+        time: selectedMultimodalOption.time,
+        distance: selectedMultimodalOption.distance,
+      };
+    }
+    return results[selected];
+  })();
+
+  const prefs = [
+    { k: "cost", e: "💰", l: "Cheapest" },
+    { k: "time", e: "⚡", l: "Fastest" },
+    { k: "convenience", e: "🎯", l: "Comfortable" },
+  ];
+
+  if (!token) {
+    if (showAuth) {
+      return (
+        <AuthScreen 
+          onLoginSuccess={onLoginSuccess} 
+          onBackToHome={() => setShowAuth(false)} 
+          initialMode={authMode} 
+          isMobile={isMobile}
+        />
+      );
+    }
+    return (
+      <LandingPage 
+        onLoginClick={() => { setAuthMode("login"); setShowAuth(true); }} 
+        onSignUpClick={() => { setAuthMode("signup"); setShowAuth(true); }} 
+        isMobile={isMobile}
+      />
+    );
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Plus Jakarta Sans', 'Outfit', sans-serif", color: C.text, display: "flex" }}>
       {/* Mobile Drawer Backdrop */}
