@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BMTC Route Engine Benchmark Report</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0F172A; color: #F8FAFC; margin: 0; padding: 24px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { border-bottom: 2px solid #334155; padding-bottom: 16px; margin-bottom: 24px; }
+        h1 { margin: 0; color: #38BDF8; font-size: 28px; }
+        p { color: #94A3B8; margin: 4px 0 0 0; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .metric-box { background-color: #1E293B; border-radius: 8px; padding: 16px; text-align: center; border: 1px solid #334155; }
+        .metric-value { font-size: 28px; font-weight: bold; color: #38BDF8; margin-bottom: 4px; }
+        .metric-label { font-size: 13px; color: #94A3B8; text-transform: uppercase; tracking: 0.05em; }
+        .card { background-color: #1E293B; border-radius: 8px; padding: 20px; border: 1px solid #334155; margin-bottom: 24px; }
+        h2 { margin-top: 0; color: #F1F5F9; font-size: 20px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #334155; }
+        th { background-color: #0F172A; color: #94A3B8; font-weight: 600; }
+        tr:hover { background-color: #26354A; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+        .badge-passed { background-color: #065F46; color: #34D399; }
+        .badge-failed { background-color: #991B1B; color: #FCA5A5; }
+        .badge-warn { background-color: #92400E; color: #FDE68A; }
+        code { background-color: #0F172A; padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #38BDF8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>BMTC Route Benchmarking & Evaluation Dashboard</h1>
+            <p>Automated GTFS Reference & Ground-Truth Field Verification Report | Generated 2026-09-28 12:06:20</p>
+        </header>
+
+        
+
+        <div class="metrics-grid">
+            <div class="metric-box">
+                <div class="metric-value">0.0%</div>
+                <div class="metric-label">Valid Route Rate</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-value">100.0%</div>
+                <div class="metric-label">Route Coverage</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-value">₹10.8</div>
+                <div class="metric-label">Avg Fare Error (Ref)</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-value">44.1m</div>
+                <div class="metric-label">MAE Time Error (Ref)</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-value">₹25.5</div>
+                <div class="metric-label">Avg Fare Error (Field GT)</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-value">33.1m</div>
+                <div class="metric-label">MAE Time Error (Field GT)</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-value">597.1 ms</div>
+                <div class="metric-label">P50 Latency</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-value">1907.7 ms</div>
+                <div class="metric-label">P95 Latency</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Performance Breakdown</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                <div>
+                    <h3>By Journey Type</h3>
+                    <table>
+                        <tr><th>Type</th><th>Cases</th><th>Valid %</th></tr>
+                        <tr><td>direct</td><td>45</td><td>0.0%</td></tr><tr><td>transfer</td><td>7</td><td>0.0%</td></tr>
+                    </table>
+                </div>
+                <div>
+                    <h3>By Departure Period</h3>
+                    <table>
+                        <tr><th>Period</th><th>Cases</th><th>Valid %</th></tr>
+                        <tr><td>morning_peak</td><td>25</td><td>0.0%</td></tr><tr><td>evening_peak</td><td>13</td><td>0.0%</td></tr><tr><td>off_peak</td><td>12</td><td>0.0%</td></tr><tr><td>night</td><td>2</td><td>0.0%</td></tr>
+                    </table>
+                </div>
+                <div>
+                    <h3>By Preference</h3>
+                    <table>
+                        <tr><th>Preference</th><th>Cases</th><th>Valid %</th></tr>
+                        <tr><td>fastest</td><td>38</td><td>0.0%</td></tr><tr><td>cheapest</td><td>9</td><td>0.0%</td></tr><tr><td>fewest_transfers</td><td>3</td><td>0.0%</td></tr><tr><td>least_walking</td><td>2</td><td>0.0%</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Detailed Evaluation Results (52 Test Runs)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test ID</th>
+                        <th>Journey Query</th>
+                        <th>Period / Time</th>
+                        <th>Recommended Route(s)</th>
+                        <th>Validation Status</th>
+                        <th>Fare</th>
+                        <th>Duration</th>
+                        <th>Latency</th>
+                        <th>Ground Truth Log</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+            <tr>
+                <td><code>BMTC_BENCH_001</code></td>
+                <td><strong>Majestic to Silk Board Morning Peak</strong><br><small>Kempegowda Bus Station → Central Silk Board</small></td>
+                <td>morning_peak / 08:30</td>
+                <td>Walk, V-360B, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹35.0 <small>(Ref: ₹24)</small></td>
+                <td>53.0m <small>(Ref: 31m)</small></td>
+                <td>41225.32 ms</td>
+                <td><small>Observed: 201-J</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_002</code></td>
+                <td><strong>Hebbal to Silk Board Direct Outer Ring Road</strong><br><small>Hebbal → Central Silk Board</small></td>
+                <td>morning_peak / 09:00</td>
+                <td>Walk, V-500A, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹80.0 <small>(Ref: ₹35.0)</small></td>
+                <td>99.0m <small>(Ref: 48m)</small></td>
+                <td>448.21 ms</td>
+                <td><small>Observed: 500-D</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_003</code></td>
+                <td><strong>Banashankari to Indiranagar Peak</strong><br><small>Banashankari Bus Station → Indiranagar 100ft Road</small></td>
+                <td>evening_peak / 18:15</td>
+                <td>Walk, 201, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹28.0 <small>(Ref: ₹N/A)</small></td>
+                <td>110.0m <small>(Ref: N/Am)</small></td>
+                <td>12080.3 ms</td>
+                <td><small>Observed: 201</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_004</code></td>
+                <td><strong>Electronic City to Majestic Off-Peak</strong><br><small>Electronic City Wipro Gate → Kempegowda Bus Station</small></td>
+                <td>off_peak / 14:00</td>
+                <td>Walk, 355, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹30.0 <small>(Ref: ₹N/A)</small></td>
+                <td>71.0m <small>(Ref: N/Am)</small></td>
+                <td>381.51 ms</td>
+                <td><small>Observed: 356-N</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_005</code></td>
+                <td><strong>Whitefield TTMC to Majestic Peak</strong><br><small>Whitefield TTMC → Kempegowda Bus Station</small></td>
+                <td>morning_peak / 08:45</td>
+                <td>Walk, 333-E, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹30.0 <small>(Ref: ₹N/A)</small></td>
+                <td>86.0m <small>(Ref: N/Am)</small></td>
+                <td>254.38 ms</td>
+                <td><small>Observed: 335-E</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_006</code></td>
+                <td><strong>Kengeri to Tin Factory Transfer Journey</strong><br><small>Kengeri Bus Station → Tin Factory</small></td>
+                <td>evening_peak / 17:45</td>
+                <td>Walk, 502-A, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹32.0 <small>(Ref: ₹35.0)</small></td>
+                <td>230.0m <small>(Ref: 70m)</small></td>
+                <td>325.64 ms</td>
+                <td><small>Observed: 226-N -> 500-D</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_007</code></td>
+                <td><strong>Yeshwanthpur to Koramangala</strong><br><small>Yeshwanthpur TTMC → Koramangala 5th Block</small></td>
+                <td>off_peak / 10:30</td>
+                <td>Walk, 258, 171-G, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹41.0 <small>(Ref: ₹N/A)</small></td>
+                <td>44.0m <small>(Ref: N/Am)</small></td>
+                <td>1771.67 ms</td>
+                <td><small>Observed: 252</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_008</code></td>
+                <td><strong>Hosakerehalli to Tin Factory</strong><br><small>Hosakerehalli Bus Stop → Tin Factory</small></td>
+                <td>morning_peak / 09:15</td>
+                <td>Walk, 43-B, MKT-12HK, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹47.0 <small>(Ref: ₹N/A)</small></td>
+                <td>97.0m <small>(Ref: N/Am)</small></td>
+                <td>262.65 ms</td>
+                <td><small>Observed: 210-N -> 500-D</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_009</code></td>
+                <td><strong>Marathahalli Bridge to Majestic</strong><br><small>Marathahalli Bridge → Kempegowda Bus Station</small></td>
+                <td>morning_peak / 08:15</td>
+                <td>Walk, 326-D KBS-HSK, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹28.0 <small>(Ref: ₹35.0)</small></td>
+                <td>98.0m <small>(Ref: 48m)</small></td>
+                <td>293.68 ms</td>
+                <td><small>Observed: 335-E</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_010</code></td>
+                <td><strong>Shivajinagar to Jayanagar 4th Block</strong><br><small>Shivajinagar Bus Station → Jayanagar 4th Block</small></td>
+                <td>off_peak / 12:00</td>
+                <td>Walk, 13-B, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹23.0 <small>(Ref: ₹N/A)</small></td>
+                <td>45.0m <small>(Ref: N/Am)</small></td>
+                <td>1907.68 ms</td>
+                <td><small>Observed: 13</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_011</code></td>
+                <td><strong>Domlur to Hebbal Night Service</strong><br><small>Domlur TTMC → Hebbal</small></td>
+                <td>night / 21:30</td>
+                <td>Walk, 285-MC PTH-SBS-HAL, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹24.0 <small>(Ref: ₹N/A)</small></td>
+                <td>43.0m <small>(Ref: N/Am)</small></td>
+                <td>1900.96 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_012</code></td>
+                <td><strong>Yelahanka NES to Central Silk Board</strong><br><small>Yelahanka NES → Central Silk Board</small></td>
+                <td>morning_peak / 07:30</td>
+                <td>Walk, 402-B, KIA-8, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹286.0 <small>(Ref: ₹N/A)</small></td>
+                <td>95.0m <small>(Ref: N/Am)</small></td>
+                <td>1481.77 ms</td>
+                <td><small>Observed: 500-A</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_013</code></td>
+                <td><strong>KR Puram Railway Station to Banashankari</strong><br><small>KR Puram Railway Station → Banashankari Bus Station</small></td>
+                <td>evening_peak / 16:30</td>
+                <td>Walk, 500-L BSK-TNF-KRPGH, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹30.0 <small>(Ref: ₹35.0)</small></td>
+                <td>70.0m <small>(Ref: 48m)</small></td>
+                <td>842.73 ms</td>
+                <td><small>Observed: 500-D</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_014</code></td>
+                <td><strong>Malleshwaram 18th Cross to Koramangala</strong><br><small>Malleshwaram 18th Cross → Koramangala Bus Stand</small></td>
+                <td>off_peak / 11:15</td>
+                <td>Walk, 258, 171-G, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹41.0 <small>(Ref: ₹N/A)</small></td>
+                <td>52.0m <small>(Ref: N/Am)</small></td>
+                <td>271.64 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_015</code></td>
+                <td><strong>BTM Layout 16th Main to Majestic</strong><br><small>BTM Layout 16th Main → Kempegowda Bus Station</small></td>
+                <td>morning_peak / 08:00</td>
+                <td>Walk, 25-A, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹24.0 <small>(Ref: ₹22)</small></td>
+                <td>56.0m <small>(Ref: 29m)</small></td>
+                <td>278.52 ms</td>
+                <td><small>Observed: 201-J</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_016</code></td>
+                <td><strong>HSR Layout BDA Complex to Indiranagar</strong><br><small>HSR Layout BDA Complex → Indiranagar 100ft Road</small></td>
+                <td>evening_peak / 19:00</td>
+                <td>Walk, MF-500L, MF-5, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹29.0 <small>(Ref: ₹N/A)</small></td>
+                <td>71.0m <small>(Ref: N/Am)</small></td>
+                <td>1282.58 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_017</code></td>
+                <td><strong>Shantinagar TTMC to Hebbal</strong><br><small>Shantinagar TTMC → Hebbal</small></td>
+                <td>off_peak / 15:30</td>
+                <td>Walk, KIA-7, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹200.0 <small>(Ref: ₹N/A)</small></td>
+                <td>54.0m <small>(Ref: N/Am)</small></td>
+                <td>1682.91 ms</td>
+                <td><small>Observed: 280</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_018</code></td>
+                <td><strong>Vijayanagar TTMC to Whitefield TTMC</strong><br><small>Vijayanagar TTMC → Whitefield TTMC</small></td>
+                <td>morning_peak / 08:10</td>
+                <td>Walk, 238-V, KBS-1K, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹48.0 <small>(Ref: ₹N/A)</small></td>
+                <td>123.0m <small>(Ref: N/Am)</small></td>
+                <td>1579.34 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_019</code></td>
+                <td><strong>Rajajinagar 1st Block to Central Silk Board</strong><br><small>Rajajinagar 1st Block → Central Silk Board</small></td>
+                <td>evening_peak / 17:15</td>
+                <td>Walk, 348-E, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹24.0 <small>(Ref: ₹N/A)</small></td>
+                <td>81.0m <small>(Ref: N/Am)</small></td>
+                <td>205.5 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_020</code></td>
+                <td><strong>MG Road Metro Station to Electronic City</strong><br><small>MG Road Metro Station → Electronic City Wipro Gate</small></td>
+                <td>morning_peak / 09:30</td>
+                <td>Walk, 349-K, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹28.0 <small>(Ref: ₹N/A)</small></td>
+                <td>135.0m <small>(Ref: N/Am)</small></td>
+                <td>308.01 ms</td>
+                <td><small>Observed: 356-N</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_021</code></td>
+                <td><strong>GPS Coordinate Origin Majestic to Silk Board</strong><br><small>12.978,77.573 → Central Silk Board</small></td>
+                <td>morning_peak / 08:30</td>
+                <td>Walk, KBS-3F, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹23.0 <small>(Ref: ₹N/A)</small></td>
+                <td>61.0m <small>(Ref: N/Am)</small></td>
+                <td>257.84 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_022</code></td>
+                <td><strong>GPS Coordinate Destination Majestic to Silk Board</strong><br><small>Kempegowda Bus Station → 12.917,77.623</small></td>
+                <td>evening_peak / 18:00</td>
+                <td>Walk, V-360B, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹35.0 <small>(Ref: ₹N/A)</small></td>
+                <td>57.0m <small>(Ref: N/Am)</small></td>
+                <td>108.99 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_023</code></td>
+                <td><strong>Bellandur EcoSpace to Banashankari</strong><br><small>Bellandur EcoSpace → Banashankari Bus Station</small></td>
+                <td>evening_peak / 18:30</td>
+                <td>Walk, 500-L BSK-TNF-KRPGH, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹24.0 <small>(Ref: ₹N/A)</small></td>
+                <td>76.0m <small>(Ref: N/Am)</small></td>
+                <td>1785.03 ms</td>
+                <td><small>Observed: 500-D</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_024</code></td>
+                <td><strong>ITPL Main Gate to Majestic</strong><br><small>ITPL Main Gate → Kempegowda Bus Station</small></td>
+                <td>morning_peak / 09:10</td>
+                <td>Walk, 306-F KBS-BRH, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹30.0 <small>(Ref: ₹N/A)</small></td>
+                <td>124.0m <small>(Ref: N/Am)</small></td>
+                <td>1513.05 ms</td>
+                <td><small>Observed: 335-E</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_025</code></td>
+                <td><strong>Jayanagar 4th Block to Hebbal</strong><br><small>Jayanagar 4th Block → Hebbal</small></td>
+                <td>off_peak / 14:30</td>
+                <td>Walk, 25, 298-M, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹46.0 <small>(Ref: ₹N/A)</small></td>
+                <td>53.0m <small>(Ref: N/Am)</small></td>
+                <td>1335.54 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_026</code></td>
+                <td><strong>Hebbal to Electronic City Direct</strong><br><small>Hebbal → Electronic City Wipro Gate</small></td>
+                <td>morning_peak / 08:00</td>
+                <td>Walk, 298-M, V-360B Flyover, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹90.0 <small>(Ref: ₹N/A)</small></td>
+                <td>106.0m <small>(Ref: N/Am)</small></td>
+                <td>299.08 ms</td>
+                <td><small>Observed: 500-EB</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_027</code></td>
+                <td><strong>Koramangala Sony World to Majestic Night</strong><br><small>Koramangala Sony World Signal → Kempegowda Bus Station</small></td>
+                <td>night / 22:15</td>
+                <td>Walk, 171-G, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹23.0 <small>(Ref: ₹N/A)</small></td>
+                <td>18.0m <small>(Ref: N/Am)</small></td>
+                <td>1312.67 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_028</code></td>
+                <td><strong>Majestic to Indiranagar 100ft Road</strong><br><small>Kempegowda Bus Station → Indiranagar 100ft Road</small></td>
+                <td>off_peak / 10:00</td>
+                <td>Walk, 314-H, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹23.0 <small>(Ref: ₹N/A)</small></td>
+                <td>25.0m <small>(Ref: N/Am)</small></td>
+                <td>444.88 ms</td>
+                <td><small>Observed: 138</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_029</code></td>
+                <td><strong>Banashankari to Whitefield TTMC Transfer</strong><br><small>Banashankari Bus Station → Whitefield TTMC</small></td>
+                <td>morning_peak / 07:45</td>
+                <td>Walk, 600-KB CLO-ELCW, 500-FB, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹46.0 <small>(Ref: ₹N/A)</small></td>
+                <td>136.0m <small>(Ref: N/Am)</small></td>
+                <td>243.57 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_030</code></td>
+                <td><strong>Kengeri Satellite Town to Majestic</strong><br><small>Kengeri Satellite Town → Kempegowda Bus Station</small></td>
+                <td>morning_peak / 08:20</td>
+                <td>Walk, 222-F, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹28.0 <small>(Ref: ₹30)</small></td>
+                <td>86.0m <small>(Ref: 38m)</small></td>
+                <td>412.05 ms</td>
+                <td><small>Observed: 226-N</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_031</code></td>
+                <td><strong>Yeshwanthpur to Electronic City Transfer</strong><br><small>Yeshwanthpur TTMC → Electronic City Wipro Gate</small></td>
+                <td>morning_peak / 08:15</td>
+                <td>Walk, 258-C, KBS-3A KBS-SRN, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹48.0 <small>(Ref: ₹N/A)</small></td>
+                <td>126.0m <small>(Ref: N/Am)</small></td>
+                <td>222.1 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_032</code></td>
+                <td><strong>Tin Factory to Silk Board Evening Peak</strong><br><small>Tin Factory → Central Silk Board</small></td>
+                <td>evening_peak / 18:00</td>
+                <td>Walk, MF-500L, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹28.0 <small>(Ref: ₹27)</small></td>
+                <td>52.0m <small>(Ref: 35m)</small></td>
+                <td>597.1 ms</td>
+                <td><small>Observed: 500-D</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_033</code></td>
+                <td><strong>Indiranagar to Koramangala Direct</strong><br><small>Indiranagar 100ft Road → Koramangala 5th Block</small></td>
+                <td>off_peak / 13:30</td>
+                <td>Walk, 201-R CSB-BEMLF, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹18.0 <small>(Ref: ₹N/A)</small></td>
+                <td>24.0m <small>(Ref: N/Am)</small></td>
+                <td>1742.19 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_034</code></td>
+                <td><strong>BTM Layout to Hebbal Morning Peak</strong><br><small>BTM Layout 16th Main → Hebbal</small></td>
+                <td>morning_peak / 08:40</td>
+                <td>Walk, V-500A, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹80.0 <small>(Ref: ₹35.0)</small></td>
+                <td>102.0m <small>(Ref: 48m)</small></td>
+                <td>325.62 ms</td>
+                <td><small>Observed: 500-D</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_035</code></td>
+                <td><strong>Marathahalli to Electronic City</strong><br><small>Marathahalli Bridge → Electronic City Wipro Gate</small></td>
+                <td>morning_peak / 09:20</td>
+                <td>Walk, V-500CK, KBS-3A KBS-SRN, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹58.0 <small>(Ref: ₹N/A)</small></td>
+                <td>61.0m <small>(Ref: N/Am)</small></td>
+                <td>430.68 ms</td>
+                <td><small>Observed: 500-EB</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_036</code></td>
+                <td><strong>Shivajinagar to Whitefield TTMC</strong><br><small>Shivajinagar Bus Station → Whitefield TTMC</small></td>
+                <td>evening_peak / 16:00</td>
+                <td>Walk, 320, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹28.0 <small>(Ref: ₹N/A)</small></td>
+                <td>86.0m <small>(Ref: N/Am)</small></td>
+                <td>257.66 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_037</code></td>
+                <td><strong>Hosakerehalli Cross to Majestic</strong><br><small>Hosakerehalli Cross → Kempegowda Bus Station</small></td>
+                <td>morning_peak / 08:10</td>
+                <td>Walk, 43-J, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹23.0 <small>(Ref: ₹18)</small></td>
+                <td>55.0m <small>(Ref: 22m)</small></td>
+                <td>168.45 ms</td>
+                <td><small>Observed: 210-N</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_038</code></td>
+                <td><strong>Yelahanka to Majestic Morning Peak</strong><br><small>Yelahanka NES → Kempegowda Bus Station</small></td>
+                <td>morning_peak / 07:50</td>
+                <td>Walk, 285-R, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹24.0 <small>(Ref: ₹N/A)</small></td>
+                <td>84.0m <small>(Ref: N/Am)</small></td>
+                <td>1599.82 ms</td>
+                <td><small>Observed: 280</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_039</code></td>
+                <td><strong>KR Puram to Silk Board Off-Peak</strong><br><small>KR Puram Railway Station → Central Silk Board</small></td>
+                <td>off_peak / 12:30</td>
+                <td>Walk, 500-DP, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹28.0 <small>(Ref: ₹29)</small></td>
+                <td>51.0m <small>(Ref: 37m)</small></td>
+                <td>1192.47 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_040</code></td>
+                <td><strong>Rajajinagar to Banashankari Direct</strong><br><small>Rajajinagar 1st Block → Banashankari Bus Station</small></td>
+                <td>off_peak / 15:00</td>
+                <td>Walk, 401-N YTTMC-MBS-BSK, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹28.0 <small>(Ref: ₹N/A)</small></td>
+                <td>89.0m <small>(Ref: N/Am)</small></td>
+                <td>349.96 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_041</code></td>
+                <td><strong>HSR Layout to Majestic Morning Peak</strong><br><small>HSR Layout BDA Complex → Kempegowda Bus Station</small></td>
+                <td>morning_peak / 08:25</td>
+                <td>Walk, V-342F D25G-KBS, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹40.0 <small>(Ref: ₹N/A)</small></td>
+                <td>85.0m <small>(Ref: N/Am)</small></td>
+                <td>1390.22 ms</td>
+                <td><small>Observed: 342-F</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_042</code></td>
+                <td><strong>Domlur to Whitefield TTMC</strong><br><small>Domlur TTMC → Whitefield TTMC</small></td>
+                <td>evening_peak / 17:30</td>
+                <td>Walk, 333-K, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹24.0 <small>(Ref: ₹N/A)</small></td>
+                <td>58.0m <small>(Ref: N/Am)</small></td>
+                <td>1572.69 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_043</code></td>
+                <td><strong>Shantinagar to Silk Board</strong><br><small>Shantinagar TTMC → Central Silk Board</small></td>
+                <td>evening_peak / 19:15</td>
+                <td>Walk, 361-C, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹18.0 <small>(Ref: ₹N/A)</small></td>
+                <td>43.0m <small>(Ref: N/Am)</small></td>
+                <td>1455.97 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_044</code></td>
+                <td><strong>Vijayanagar to Banashankari</strong><br><small>Vijayanagar TTMC → Banashankari Bus Station</small></td>
+                <td>off_peak / 11:45</td>
+                <td>Walk, MF-12, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹23.0 <small>(Ref: ₹N/A)</small></td>
+                <td>40.0m <small>(Ref: N/Am)</small></td>
+                <td>1582.91 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_045</code></td>
+                <td><strong>Malleshwaram to Hebbal Direct</strong><br><small>Malleshwaram 18th Cross → Hebbal</small></td>
+                <td>morning_peak / 08:35</td>
+                <td>Walk, 401-NY, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹18.0 <small>(Ref: ₹15)</small></td>
+                <td>50.0m <small>(Ref: 19m)</small></td>
+                <td>324.54 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_046</code></td>
+                <td><strong>MG Road to Whitefield TTMC</strong><br><small>MG Road Metro Station → Whitefield TTMC</small></td>
+                <td>morning_peak / 09:05</td>
+                <td>Walk, KBS-1K, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹28.0 <small>(Ref: ₹N/A)</small></td>
+                <td>119.0m <small>(Ref: N/Am)</small></td>
+                <td>559.94 ms</td>
+                <td><small>Observed: 335-E</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_047</code></td>
+                <td><strong>Coordinate to Coordinate Inter-suburb</strong><br><small>12.935,77.624 → 12.991,77.571</small></td>
+                <td>off_peak / 14:15</td>
+                <td>Walk, 171, 89-C, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹29.0 <small>(Ref: ₹N/A)</small></td>
+                <td>45.0m <small>(Ref: N/Am)</small></td>
+                <td>214.46 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_048</code></td>
+                <td><strong>Kengeri to Electronic City Long Distance Transfer</strong><br><small>Kengeri Bus Station → Electronic City Wipro Gate</small></td>
+                <td>morning_peak / 07:15</td>
+                <td>Walk, 218 KBS-STBTS, 360, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹52.0 <small>(Ref: ₹N/A)</small></td>
+                <td>150.0m <small>(Ref: N/Am)</small></td>
+                <td>211.26 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_049</code></td>
+                <td><strong>Bellandur to Majestic Evening Peak</strong><br><small>Bellandur EcoSpace → Kempegowda Bus Station</small></td>
+                <td>evening_peak / 18:45</td>
+                <td>Walk, 500-CH, KBS-1K, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹40.0 <small>(Ref: ₹N/A)</small></td>
+                <td>85.0m <small>(Ref: N/Am)</small></td>
+                <td>1416.1 ms</td>
+                <td><small>Observed: 500-D</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_050</code></td>
+                <td><strong>ITPL to Hebbal Evening Peak</strong><br><small>ITPL Main Gate → Hebbal</small></td>
+                <td>evening_peak / 17:50</td>
+                <td>Walk, 502-G D45G-ITPL, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹28.0 <small>(Ref: ₹N/A)</small></td>
+                <td>116.0m <small>(Ref: N/Am)</small></td>
+                <td>1365.13 ms</td>
+                <td><small>Observed: 500-D</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_051</code></td>
+                <td><strong>Jayanagar 4th Block to Silk Board</strong><br><small>Jayanagar 4th Block → Central Silk Board</small></td>
+                <td>morning_peak / 09:40</td>
+                <td>Walk, 60-L, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹12.0 <small>(Ref: ₹N/A)</small></td>
+                <td>59.0m <small>(Ref: N/Am)</small></td>
+                <td>1780.72 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+            <tr>
+                <td><code>BMTC_BENCH_052</code></td>
+                <td><strong>Yelahanka to Electronic City Transfer</strong><br><small>Yelahanka NES → Electronic City Wipro Gate</small></td>
+                <td>morning_peak / 07:00</td>
+                <td>Walk, 402-B, 360-K, Walk</td>
+                <td><span class="badge badge-failed">FAILED_VALIDATION</span></td>
+                <td>₹58.0 <small>(Ref: ₹N/A)</small></td>
+                <td>138.0m <small>(Ref: N/Am)</small></td>
+                <td>1587.46 ms</td>
+                <td><small>No Field Log</small></td>
+            </tr>
+            
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

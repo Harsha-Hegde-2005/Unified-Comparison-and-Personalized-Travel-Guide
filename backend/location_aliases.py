@@ -1,4 +1,4 @@
-﻿"""
+"""
 location_aliases.py
 ====================
 Common Bengaluru location nicknames, misspellings, and shorthand -> canonical
@@ -58,6 +58,13 @@ ALIASES = {
     "rvce": "rv college of engineering",
     "bmsce": "bms college of engineering",
     "nit": "national institute of technology",
+    "bannerughatta": "bannerghatta biological park",
+    "bannerughatta national park": "bannerghatta biological park",
+    "bannerughatta zoo": "bannerghatta biological park",
+    "bannerghatta national park": "bannerghatta biological park",
+    "bannerghatta zoo": "bannerghatta biological park",
+    "bannerghatta park": "bannerghatta biological park",
+    "bannerghatta": "bannerghatta biological park",
     # City-name misspellings/shorthand
     "banglore": "bangalore",
     "bengalooru": "bengaluru",
@@ -94,6 +101,12 @@ ALIASES = {
     "hbr layout": "hbr layout",
     "vv puram": "vishveshwarapuram",
     "malleswaram 8th cross": "malleswaram",
+    "hosakerehalli": "hosakerehalli",
+    "hoskerehalli": "hosakerehalli",
+    "hosakerehalli cross": "hosakerehalli cross",
+    "hoskerehalli cross": "hosakerehalli cross",
+    "hosakerehalli junction": "hosakerehalli junction",
+    "hoskerehalli junction": "hosakerehalli junction",
 }
 
 

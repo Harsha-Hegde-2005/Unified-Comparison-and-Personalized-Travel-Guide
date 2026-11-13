@@ -1,4 +1,7 @@
+import '../utils/voice_navigation_engine.dart';
+import '../utils/tts_helper.dart';
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
@@ -387,30 +390,86 @@ class _FareCalculatorModalState extends State<FareCalculatorModal> {
 // 2. WEATHER REPORT MODAL
 // ─────────────────────────────────────────────────────────────
 class WeatherReportModal extends StatefulWidget {
-  const WeatherReportModal({super.key});
+  final String? initialSource;
+  final String? initialDestination;
+
+  const WeatherReportModal({
+    super.key,
+    this.initialSource,
+    this.initialDestination,
+  });
 
   @override
   State<WeatherReportModal> createState() => _WeatherReportModalState();
 }
 
 class _WeatherReportModalState extends State<WeatherReportModal> {
-  Map<String, dynamic>? _weather;
-  bool _loading = true;
+  Map<String, dynamic>? _cityWeather;
+  Map<String, dynamic>? _srcWeather;
+  Map<String, dynamic>? _dstWeather;
+  bool _loadingCity = true;
+  bool _loadingRoute = false;
+
+  late TextEditingController _srcController;
+  late TextEditingController _dstController;
 
   @override
   void initState() {
     super.initState();
-    _fetchWeather();
+    _srcController = TextEditingController(text: widget.initialSource ?? 'Majestic');
+    _dstController = TextEditingController(text: widget.initialDestination ?? 'Whitefield');
+    _fetchCityWeather();
+    _fetchRouteWeather();
   }
 
-  Future<void> _fetchWeather() async {
+  @override
+  void dispose() {
+    _srcController.dispose();
+    _dstController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchCityWeather() async {
     final res = await ApiService.fetchWeatherReport(12.9716, 77.5946, 'Bengaluru');
     if (mounted) {
       setState(() {
-        _weather = res;
-        _loading = false;
+        _cityWeather = res;
+        _loadingCity = false;
       });
     }
+  }
+
+  Future<void> _fetchRouteWeather() async {
+    final src = _srcController.text.trim();
+    final dst = _dstController.text.trim();
+    if (src.isEmpty || dst.isEmpty) return;
+
+    setState(() => _loadingRoute = true);
+
+    try {
+      final sW = await ApiService.fetchWeatherReport(12.9767, 77.5713, src);
+      final dW = await ApiService.fetchWeatherReport(12.9698, 77.7500, dst);
+      if (mounted) {
+        setState(() {
+          _srcWeather = sW;
+          _dstWeather = dW;
+          _loadingRoute = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingRoute = false);
+    }
+  }
+
+  String _getWeatherEmoji(String? status) {
+    if (status == null) return '🌤️';
+    final s = status.toLowerCase();
+    if (s.contains('thunder')) return '⛈️';
+    if (s.contains('rain') || s.contains('drizzle')) return '🌧️';
+    if (s.contains('cloud') || s.contains('overcast')) return '⛅';
+    if (s.contains('fog') || s.contains('mist')) return '🌫️';
+    if (s.contains('clear') || s.contains('sun')) return '☀️';
+    return '🌤️';
   }
 
   @override
@@ -418,9 +477,15 @@ class _WeatherReportModalState extends State<WeatherReportModal> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = AppTheme.getCard(isDark);
     final textColor = AppTheme.getText(isDark);
+    final mutedColor = AppTheme.getMuted(isDark);
+    final borderCol = AppTheme.getBorder(isDark);
+
+    final status = _cityWeather?['status']?.toString() ?? 'Partly Cloudy';
+    final isRainy = status.toLowerCase().contains('rain') || status.toLowerCase().contains('thunder');
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -429,16 +494,33 @@ class _WeatherReportModalState extends State<WeatherReportModal> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header Bar
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.wb_sunny_rounded, color: Colors.amber, size: 22),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Bengaluru Transit Weather',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.wb_sunny_rounded, color: Colors.amber, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bengaluru Transit Weather',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: textColor),
+                      ),
+                      Text(
+                        'Live Location & Route Precipitation',
+                        style: TextStyle(fontSize: 10, color: mutedColor, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -448,75 +530,292 @@ class _WeatherReportModalState extends State<WeatherReportModal> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          if (_loading)
-            const Center(child: Padding(padding: EdgeInsets.all(30), child: CircularProgressIndicator()))
-          else ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.cloud_queue_rounded, size: 48, color: Colors.white),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${_weather?['temperature'] ?? 26}°C · ${_weather?['condition'] ?? 'Partly Cloudy'}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  // SECTION 1: CITY / LOCATION REPORT
+                  Text(
+                    'CITY LOCATION REPORT',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: mutedColor, letterSpacing: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+
+                  if (_loadingCity)
+                    const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()))
+                  else ...[
+                    // Main Temp Banner
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isRainy
+                              ? [const Color(0xFF1E3A8A), const Color(0xFF1D4ED8)]
+                              : [const Color(0xFF3B82F6), const Color(0xFF2563EB)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Humidity: ${_weather?['humidity'] ?? 65}% · Wind: ${_weather?['wind_speed'] ?? 12} km/h',
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Text(_getWeatherEmoji(status), style: const TextStyle(fontSize: 42)),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _cityWeather?['location']?.toString() ?? 'Bengaluru Central',
+                                  style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  '${_cityWeather?['temp'] ?? 26}°C',
+                                  style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    status.toUpperCase(),
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // 4-Grid Metrics (Min/Max, Rain %, Humidity %, Wind km/h)
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      childAspectRatio: 2.2,
+                      children: [
+                        _buildMetricBox('MIN / MAX TEMP', '${_cityWeather?['temp_min'] ?? 21}°C - ${_cityWeather?['temp_max'] ?? 29}°C', isDark, textColor, mutedColor, borderCol),
+                        _buildMetricBox('RAIN PROBABILITY', '${_cityWeather?['rain_probability'] ?? 15}%', isDark, textColor, mutedColor, borderCol),
+                        _buildMetricBox('RELATIVE HUMIDITY', '${_cityWeather?['humidity'] ?? 62}%', isDark, textColor, mutedColor, borderCol),
+                        _buildMetricBox('WIND SPEED', '${_cityWeather?['wind_speed'] ?? 11} km/h', isDark, textColor, mutedColor, borderCol),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+
+                  // SECTION 2: ROUTE TRANSIT WEATHER
+                  Text(
+                    'ROUTE TRANSIT WEATHER',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: mutedColor, letterSpacing: 0.5),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Route inputs row
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF161822) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: borderCol),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _srcController,
+                                decoration: const InputDecoration(
+                                  labelText: 'ROUTE SOURCE',
+                                  isDense: true,
+                                  prefixIcon: Icon(Icons.trip_origin_rounded, size: 14, color: AppTheme.green),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                ),
+                                onSubmitted: (_) => _fetchRouteWeather(),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: _dstController,
+                                decoration: const InputDecoration(
+                                  labelText: 'ROUTE DESTINATION',
+                                  isDense: true,
+                                  prefixIcon: Icon(Icons.location_on_rounded, size: 14, color: AppTheme.red),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                ),
+                                onSubmitted: (_) => _fetchRouteWeather(),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: _loadingRoute ? null : _fetchRouteWeather,
+                            icon: const Icon(Icons.cloud_sync_rounded, size: 16),
+                            label: const Text('CHECK ROUTE WEATHER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
-            // Advisory box
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppTheme.blue.withValues(alpha: isDark ? 0.15 : 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.blue.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.info_outline_rounded, color: AppTheme.blue, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _weather?['advisory'] ??
-                          'Pleasant weather in Bengaluru. Namma Metro and AC Vajra buses are operating normally with standard headway.',
-                      style: TextStyle(fontSize: 13, color: textColor, height: 1.4),
+                  if (_loadingRoute)
+                    const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+                  else if (_srcWeather != null && _dstWeather != null) ...[
+                    // Origin and Destination Weather Cards
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildRouteEndpointCard(
+                            'START POINT',
+                            _srcController.text.trim(),
+                            _srcWeather?['temp']?.toString() ?? '25',
+                            _srcWeather?['status']?.toString() ?? 'Clear Sky',
+                            AppTheme.green,
+                            isDark,
+                            textColor,
+                            borderCol,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildRouteEndpointCard(
+                            'DESTINATION',
+                            _dstController.text.trim(),
+                            _dstWeather?['temp']?.toString() ?? '26',
+                            _dstWeather?['status']?.toString() ?? 'Partly Cloudy',
+                            AppTheme.red,
+                            isDark,
+                            textColor,
+                            borderCol,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 12),
+
+                    // Commute Advisory Card (Matches Website)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isRainy
+                            ? const Color(0xFFF59E0B).withValues(alpha: 0.12)
+                            : const Color(0xFF10B981).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isRainy
+                              ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
+                              : const Color(0xFF10B981).withValues(alpha: 0.4),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(isRainy ? '🌧️' : '☀️', style: const TextStyle(fontSize: 16)),
+                              const SizedBox(width: 8),
+                              Text(
+                                isRainy ? 'PRECIPITATION ADVISORY' : 'OPTIMAL COMMUTE CONDITIONS',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  color: isRainy ? const Color(0xFFD97706) : const Color(0xFF059669),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            isRainy
+                                ? 'Rain alert along corridor: Road traffic may face 25–40% slowdown. AC BMTC Vajra buses and Namma Metro are highly recommended for guaranteed on-time transit.'
+                                : 'Dry and favorable weather across Bengaluru routes. All transit modes (BMTC buses, Metro, Personal Vehicles, and Cabs) operating with optimal speed and zero weather delays.',
+                            style: TextStyle(fontSize: 12, height: 1.45, color: textColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-          ],
-          const SizedBox(height: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricBox(String title, String value, bool isDark, Color textColor, Color mutedColor, Color borderCol) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF161822) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderCol),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(title, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: mutedColor, letterSpacing: 0.4)),
+          const SizedBox(height: 2),
+          Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: textColor)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRouteEndpointCard(String label, String loc, String temp, String cond, Color accentColor, bool isDark, Color textColor, Color borderCol) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF161822) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderCol),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: accentColor)),
+          const SizedBox(height: 2),
+          Text(loc, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textColor)),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Text(_getWeatherEmoji(cond), style: const TextStyle(fontSize: 14)),
+              const SizedBox(width: 4),
+              Text('$temp°C · $cond', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor)),
+            ],
+          ),
         ],
       ),
     );
@@ -1129,6 +1428,8 @@ class WalkNavigationModal extends StatefulWidget {
   final String instruction;
   final String? fromLocation;
   final String? toLocation;
+  final ll.LatLng? fromCoord;
+  final ll.LatLng? toCoord;
   final String? duration;
 
   const WalkNavigationModal({
@@ -1136,6 +1437,8 @@ class WalkNavigationModal extends StatefulWidget {
     required this.instruction,
     this.fromLocation,
     this.toLocation,
+    this.fromCoord,
+    this.toCoord,
     this.duration,
   });
 
@@ -1148,6 +1451,14 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
   List<ll.LatLng> _walkPoints = [];
   ll.LatLng? _liveUserGps;
   StreamSubscription<ll.LatLng>? _gpsSubscription;
+
+  double _progressRatio = 0.0; // 0.0 to 1.0 based on real GPS
+  Timer? _flowTimer;
+  double _flowPhase = 0.0;
+  ll.LatLng? _animatedArrowPos;
+  double _animatedArrowBearing = 0.0;
+  int _activeStepIndex = 0;
+  double _totalRouteMeters = 120.0;
 
   static const Map<String, ll.LatLng> _knownCoords = {
     'majestic': ll.LatLng(12.9767, 77.5713),
@@ -1202,29 +1513,147 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
     super.initState();
     _loadWalkCoords();
     _startGpsTracking();
+    _startFlowAnimation();
   }
 
   @override
   void dispose() {
+    _flowTimer?.cancel();
     _gpsSubscription?.cancel();
     super.dispose();
   }
 
+  void _startFlowAnimation() {
+    _flowTimer?.cancel();
+    _flowTimer = Timer.periodic(const Duration(milliseconds: 60), (timer) {
+      if (mounted && _walkPoints.length >= 2) {
+        setState(() {
+          _flowPhase = (_flowPhase + 0.015) % 1.0;
+        });
+      }
+    });
+  }
+
   void _startGpsTracking() {
+    _gpsSubscription?.cancel();
     _gpsSubscription = GeolocationHelper.watchPositionStream().listen((pos) {
       if (mounted) {
-        setState(() {
-          _liveUserGps = pos;
-        });
+        _onUserLocationUpdated(pos);
       }
     });
     GeolocationHelper.getCurrentPosition().then((pos) {
       if (pos != null && mounted) {
-        setState(() {
-          _liveUserGps = pos;
-        });
+        _onUserLocationUpdated(pos);
       }
     });
+  }
+
+  void _onUserLocationUpdated(ll.LatLng pos) {
+    if (mounted) {
+      setState(() {
+        _liveUserGps = pos;
+        if (_walkPoints.length >= 2) {
+          final info = _getTraversedInfoAlongPolyline(_walkPoints, pos);
+          final totalM = _totalRouteMeters > 0 ? _totalRouteMeters : 120.0;
+          _progressRatio = (info.traversedMeters / totalM).clamp(0.0, 1.0);
+
+          _animatedArrowPos = info.projectedPoint;
+          _animatedArrowBearing = info.bearing;
+
+          if (_realWalkSteps.isNotEmpty) {
+            _activeStepIndex = (_progressRatio * _realWalkSteps.length).floor().clamp(0, _realWalkSteps.length - 1);
+          }
+        } else {
+          _animatedArrowPos = pos;
+        }
+      });
+    }
+  }
+
+  ({double traversedMeters, ll.LatLng projectedPoint, double bearing}) _getTraversedInfoAlongPolyline(List<ll.LatLng> points, ll.LatLng userPos) {
+    if (points.length < 2) {
+      return (traversedMeters: 0.0, projectedPoint: points.isNotEmpty ? points.first : userPos, bearing: 0.0);
+    }
+
+    double minDistanceToPolyline = double.infinity;
+    double traversedDistance = 0.0;
+    double bestTraversedDistance = 0.0;
+    ll.LatLng bestProjectedPoint = points.first;
+    double bestBearing = 0.0;
+
+    for (int i = 0; i < points.length - 1; i++) {
+      final p1 = points[i];
+      final p2 = points[i + 1];
+      final segLen = _calculateDirectDistanceKm(p1, p2) * 1000.0;
+
+      final proj = _projectPointOnSegment(p1, p2, userPos);
+      final distToSeg = _calculateDirectDistanceKm(userPos, proj.point) * 1000.0;
+
+      if (distToSeg < minDistanceToPolyline) {
+        minDistanceToPolyline = distToSeg;
+        bestTraversedDistance = traversedDistance + (proj.fraction * segLen);
+        bestProjectedPoint = proj.point;
+        bestBearing = _calculateBearing(p1, p2);
+      }
+
+      traversedDistance += segLen;
+    }
+
+    return (
+      traversedMeters: bestTraversedDistance,
+      projectedPoint: bestProjectedPoint,
+      bearing: bestBearing,
+    );
+  }
+
+  ({ll.LatLng point, double fraction}) _projectPointOnSegment(ll.LatLng p1, ll.LatLng p2, ll.LatLng p) {
+    final dLat = p2.latitude - p1.latitude;
+    final dLng = p2.longitude - p1.longitude;
+    final lenSq = dLat * dLat + dLng * dLng;
+
+    if (lenSq < 0.000000001) {
+      return (point: p1, fraction: 0.0);
+    }
+
+    final uLat = p.latitude - p1.latitude;
+    final uLng = p.longitude - p1.longitude;
+
+    final t = ((uLat * dLat + uLng * dLng) / lenSq).clamp(0.0, 1.0);
+    final projPoint = ll.LatLng(p1.latitude + t * dLat, p1.longitude + t * dLng);
+    return (point: projPoint, fraction: t);
+  }
+
+  List<fm.Marker> _buildFlowingPathDots() {
+    if (_walkPoints.length < 2) return [];
+    final List<fm.Marker> markers = [];
+    const int numDots = 7;
+
+    for (int i = 0; i < numDots; i++) {
+      final t = (_flowPhase + (i / numDots)) % 1.0;
+      final pos = _interpolatePointAlongPolyline(_walkPoints, t);
+      markers.add(
+        fm.Marker(
+          point: pos,
+          width: 12,
+          height: 12,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppTheme.walkColor,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.walkColor.withValues(alpha: 0.7),
+                  blurRadius: 6,
+                  spreadRadius: 1,
+                ),
+              ],
+              border: Border.all(color: Colors.white, width: 1.5),
+            ),
+          ),
+        ),
+      );
+    }
+    return markers;
   }
 
   ll.LatLng? _lookup(String text) {
@@ -1235,95 +1664,165 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
     return null;
   }
 
+  ll.LatLng? _extractCoordFromString(String text) {
+    final match = RegExp(r'(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)').firstMatch(text);
+    if (match != null) {
+      final lat = double.tryParse(match.group(1) ?? '');
+      final lng = double.tryParse(match.group(2) ?? '');
+      if (lat != null && lng != null) {
+        return ll.LatLng(lat, lng);
+      }
+    }
+    return null;
+  }
+
+  String _cleanPlaceName(String text) {
+    const cleanPrefixRegex = r'^(Walk\s+(to|from)|Get\s+down\s+at|Disembark\s+at|Board\s+(the\s+)?|Head\s+out\s+(towards|from)|Change\s+lines\s+at)\s+';
+    final cleaned = text
+        .replaceAll(RegExp(cleanPrefixRegex, caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\([^)]*\)'), '')
+        .trim();
+    return cleaned.isNotEmpty ? cleaned : text.trim();
+  }
+
+  double _calculateDirectDistanceKm(ll.LatLng p1, ll.LatLng p2) {
+    const d2r = 0.017453292519943295;
+    final lat1 = p1.latitude * d2r;
+    final lat2 = p2.latitude * d2r;
+    final dLat = (p2.latitude - p1.latitude) * d2r;
+    final dLng = (p2.longitude - p1.longitude) * d2r;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) + math.cos(lat1) * math.cos(lat2) * math.sin(dLng / 2) * math.sin(dLng / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return 6371 * c;
+  }
+
+  double _computeTotalDistance(List<ll.LatLng> points) {
+    double total = 0.0;
+    for (int i = 0; i < points.length - 1; i++) {
+      total += _calculateDirectDistanceKm(points[i], points[i + 1]) * 1000.0;
+    }
+    return total > 0 ? total : 120.0;
+  }
+
+  double _calculateBearing(ll.LatLng start, ll.LatLng end) {
+    const d2r = math.pi / 180;
+    const r2d = 180 / math.pi;
+    final lat1 = start.latitude * d2r;
+    final lat2 = end.latitude * d2r;
+    final dLng = (end.longitude - start.longitude) * d2r;
+    final y = math.sin(dLng) * math.cos(lat2);
+    final x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dLng);
+    final brng = math.atan2(y, x) * r2d;
+    return (brng + 360) % 360;
+  }
+
+  ll.LatLng _interpolatePointAlongPolyline(List<ll.LatLng> points, double progressRatio) {
+    if (points.isEmpty) return const ll.LatLng(12.9716, 77.5946);
+    if (points.length == 1 || progressRatio <= 0) {
+      if (points.length >= 2) {
+        _animatedArrowBearing = _calculateBearing(points[0], points[1]);
+      }
+      return points.first;
+    }
+    if (progressRatio >= 1.0) {
+      if (points.length >= 2) {
+        _animatedArrowBearing = _calculateBearing(points[points.length - 2], points.last);
+      }
+      return points.last;
+    }
+
+    final totalM = _totalRouteMeters;
+    final targetM = totalM * progressRatio;
+
+    double accumulatedM = 0.0;
+    for (int i = 0; i < points.length - 1; i++) {
+      final segM = _calculateDirectDistanceKm(points[i], points[i + 1]) * 1000.0;
+      if (accumulatedM + segM >= targetM) {
+        final remainingInSeg = targetM - accumulatedM;
+        final t = segM > 0 ? (remainingInSeg / segM).clamp(0.0, 1.0) : 0.0;
+        final lat = points[i].latitude + (points[i + 1].latitude - points[i].latitude) * t;
+        final lng = points[i].longitude + (points[i + 1].longitude - points[i].longitude) * t;
+        _animatedArrowBearing = _calculateBearing(points[i], points[i + 1]);
+        return ll.LatLng(lat, lng);
+      }
+      accumulatedM += segM;
+    }
+    return points.last;
+  }
+
   List<Map<String, dynamic>> _realWalkSteps = [];
 
-  List<ll.LatLng> _generateCurvedStreetPolyline(ll.LatLng start, ll.LatLng end) {
+  List<ll.LatLng> _generateDirectPedestrianPath(ll.LatLng start, ll.LatLng end) {
     final List<ll.LatLng> points = [start];
     final dLat = end.latitude - start.latitude;
     final dLng = end.longitude - start.longitude;
 
-    if (dLat.abs() < 0.0001 && dLng.abs() < 0.0001) {
-      return [
-        start,
-        ll.LatLng(start.latitude + 0.001, start.longitude + 0.001),
-        ll.LatLng(start.latitude + 0.002, start.longitude + 0.003),
-      ];
+    if (dLat.abs() < 0.00001 && dLng.abs() < 0.00001) {
+      return [start, end];
     }
 
-    final corner1 = ll.LatLng(start.latitude + (dLat * 0.1), start.longitude + (dLng * 0.65));
-    final corner2 = ll.LatLng(start.latitude + (dLat * 0.85), start.longitude + (dLng * 0.65));
+    final mid = ll.LatLng(
+      start.latitude + dLat * 0.5,
+      start.longitude + dLng * 0.5,
+    );
 
-    for (int i = 1; i <= 3; i++) {
-      final t = i / 3.0;
-      points.add(ll.LatLng(
-        start.latitude + (corner1.latitude - start.latitude) * t,
-        start.longitude + (corner1.longitude - start.longitude) * t,
-      ));
-    }
-
-    for (int i = 1; i <= 3; i++) {
-      final t = i / 3.0;
-      points.add(ll.LatLng(
-        corner1.latitude + (corner2.latitude - corner1.latitude) * t,
-        corner1.longitude + (corner2.longitude - corner1.longitude) * t,
-      ));
-    }
-
-    for (int i = 1; i <= 2; i++) {
-      final t = i / 2.0;
-      points.add(ll.LatLng(
-        corner2.latitude + (end.latitude - corner2.latitude) * t,
-        corner2.longitude + (end.longitude - corner2.longitude) * t,
-      ));
-    }
-
+    points.add(mid);
     points.add(end);
     return points;
+  }
+
+  List<Map<String, dynamic>> _generateDirectWalkSteps(String src, String dst, int totalMeters) {
+    final m = totalMeters > 10 ? totalMeters : 120;
+    final leg1 = (m * 0.6).round();
+    final leg2 = m - leg1;
+    final displayDst = dst.isNotEmpty ? dst : 'destination';
+
+    return [
+      {'instruction': 'Head out on pedestrian footpath towards $displayDst', 'distance': '$leg1 m'},
+      {'instruction': 'Walk along pedestrian walkway directly to entrance', 'distance': '$leg2 m'},
+      {'instruction': 'Arrive at $displayDst Entrance', 'distance': '0 m'},
+    ];
   }
 
   Future<void> _loadWalkCoords() async {
     final rawTarget = widget.toLocation ?? widget.instruction;
     final rawOrigin = widget.fromLocation ?? widget.instruction;
 
-    final String cleanPrefixRegex = r'^(Walk\s+(to|from)|Get\s+down\s+at|Disembark\s+at|Board\s+(the\s+)?|Head\s+out\s+(towards|from)|Change\s+lines\s+at)\s+';
-    String targetName = rawTarget
-        .replaceAll(RegExp(cleanPrefixRegex, caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*\([^)]*\)'), '')
-        .trim();
-    String originName = rawOrigin
-        .replaceAll(RegExp(cleanPrefixRegex, caseSensitive: false), '')
-        .replaceAll(RegExp(r'\s*\([^)]*\)'), '')
-        .trim();
+    ll.LatLng? startCoord = widget.fromCoord ?? _extractCoordFromString(rawOrigin);
+    ll.LatLng? targetCoord = widget.toCoord ?? _extractCoordFromString(rawTarget);
 
-    // Live GPS position for user tracking overlay
+    final String originName = _cleanPlaceName(rawOrigin);
+    final String targetName = _cleanPlaceName(rawTarget);
+
     final liveGps = _liveUserGps ?? await GeolocationHelper.getCurrentPosition();
 
-    ll.LatLng? startCoord;
-    ll.LatLng? targetCoord;
-
-    // Resolve leg origin coordinate: ONLY use liveGps if originName explicitly contains "current" or "my location"!
-    if (originName.toLowerCase().contains('current') || originName.toLowerCase().contains('my location')) {
-      startCoord = liveGps;
-    } else if (originName.isNotEmpty) {
-      startCoord = await ApiService.geocodeHighPrecision(originName) ?? _lookup(originName);
+    if (startCoord == null) {
+      if (originName.toLowerCase().contains('current') || originName.toLowerCase().contains('my location')) {
+        startCoord = liveGps;
+      } else if (originName.isNotEmpty) {
+        startCoord = await ApiService.geocodeHighPrecision(originName) ?? _lookup(originName);
+      }
     }
 
-    // Resolve leg destination coordinate
-    if (targetName.isNotEmpty) {
-      targetCoord = await ApiService.geocodeHighPrecision(targetName) ?? _lookup(targetName);
+    if (targetCoord == null) {
+      if (targetName.isNotEmpty) {
+        targetCoord = await ApiService.geocodeHighPrecision(targetName) ?? _lookup(targetName);
+      }
     }
 
-    // Fallbacks
     startCoord ??= liveGps ?? const ll.LatLng(12.9767, 77.5713);
-    targetCoord ??= ll.LatLng(startCoord.latitude + 0.003, startCoord.longitude + 0.003);
+    targetCoord ??= ll.LatLng(startCoord.latitude + 0.001, startCoord.longitude + 0.001);
 
-    // Guarantee distinct coordinates so bounds distance > 0
-    if ((startCoord.latitude - targetCoord.latitude).abs() < 0.0001 &&
-        (startCoord.longitude - targetCoord.longitude).abs() < 0.0001) {
-      targetCoord = ll.LatLng(startCoord.latitude + 0.003, startCoord.longitude + 0.003);
+    if ((startCoord.latitude - targetCoord.latitude).abs() < 0.00005 &&
+        (startCoord.longitude - targetCoord.longitude).abs() < 0.00005) {
+      targetCoord = ll.LatLng(startCoord.latitude + 0.001, startCoord.longitude + 0.001);
     }
 
-    // Fetch actual road-following street walking polyline via OSRM Foot API
+    final directDistanceKm = _calculateDirectDistanceKm(startCoord, targetCoord);
+
+    List<ll.LatLng> points = [];
+    List<Map<String, dynamic>> steps = [];
+
     final resWalk = await ApiService.fetchWalkingRoute(
       startCoord.latitude,
       startCoord.longitude,
@@ -1331,49 +1830,65 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
       targetCoord.longitude,
     );
 
-    List<ll.LatLng> points = [];
-    List<Map<String, dynamic>> steps = [];
-
     if (resWalk != null && resWalk['points'] is List && (resWalk['points'] as List).isNotEmpty) {
-      points = List<ll.LatLng>.from(resWalk['points']);
+      final fetchedPoints = List<ll.LatLng>.from(resWalk['points']);
       if (resWalk['steps'] is List) {
         steps = List<Map<String, dynamic>>.from(resWalk['steps']);
       }
+
+      double pathDistanceKm = 0.0;
+      for (int i = 0; i < fetchedPoints.length - 1; i++) {
+        pathDistanceKm += _calculateDirectDistanceKm(fetchedPoints[i], fetchedPoints[i + 1]);
+      }
+
+      if (directDistanceKm < 0.4 && pathDistanceKm > directDistanceKm * 2.2 && pathDistanceKm > 0.3) {
+        points = _generateDirectPedestrianPath(startCoord, targetCoord);
+        steps = _generateDirectWalkSteps(originName, targetName, (directDistanceKm * 1000).round());
+      } else {
+        points = fetchedPoints;
+      }
     }
 
-    if (points.isEmpty || points.length < 5) {
-      points = _generateCurvedStreetPolyline(startCoord, targetCoord);
+    if (points.isEmpty || points.length < 2) {
+      points = _generateDirectPedestrianPath(startCoord, targetCoord);
     }
 
     if (steps.isEmpty) {
-      steps = [
-        {'instruction': 'Head out on pedestrian footpath towards $targetName', 'distance': '120 m'},
-        {'instruction': 'Walk along main road towards station platform entrance', 'distance': '850 m'},
-        {'instruction': 'Cross zebra pedestrian walkway', 'distance': '50 m'},
-        {'instruction': 'Arrive at $targetName Entrance Gate', 'distance': '30 m'},
-      ];
+      steps = _generateDirectWalkSteps(originName, targetName, (directDistanceKm * 1000).round());
     }
 
     if (mounted) {
+      final totalM = _computeTotalDistance(points);
+      final initialPos = points.isNotEmpty ? points.first : null;
+      double initialBearing = 0.0;
+      if (points.length >= 2) {
+        initialBearing = _calculateBearing(points[0], points[1]);
+      }
+
       setState(() {
         _walkPoints = points;
         _realWalkSteps = steps;
+        _totalRouteMeters = totalM;
+        _animatedArrowPos = initialPos;
+        _animatedArrowBearing = initialBearing;
+        _progressRatio = 0.0;
+        _activeStepIndex = 0;
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         try {
           if (_walkPoints.length >= 2) {
-            final f = _walkPoints.first;
-            final l = _walkPoints.last;
-            if ((f.latitude - l.latitude).abs() > 0.0001 || (f.longitude - l.longitude).abs() > 0.0001) {
-              final bounds = fm.LatLngBounds.fromPoints(_walkPoints);
-              _mapController.fitCamera(
-                fm.CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
-              );
-            }
+            final bounds = fm.LatLngBounds.fromPoints(_walkPoints);
+            _mapController.fitCamera(
+              fm.CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
+            );
           }
         } catch (_) {}
       });
+
+      if (_liveUserGps != null) {
+        _onUserLocationUpdated(_liveUserGps!);
+      }
     }
   }
 
@@ -1384,10 +1899,14 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
     final textColor = AppTheme.getText(isDark);
     final mutedColor = AppTheme.getMuted(isDark);
 
-    final targetName = widget.toLocation ?? (widget.instruction.contains('to ') ? widget.instruction.split('to ').last : widget.instruction);
+    final rawTarget = widget.toLocation ?? (widget.instruction.contains('to ') ? widget.instruction.split('to ').last : widget.instruction);
+    final targetName = _cleanPlaceName(rawTarget);
+    final cleanInstruction = widget.instruction.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+    final remainingMeters = ((1.0 - _progressRatio) * _totalRouteMeters).round().clamp(0, 10000);
+    final etaMins = math.max(1, (remainingMeters / 80).round());
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.82,
+      height: MediaQuery.of(context).size.height * 0.84,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: cardBg,
@@ -1416,29 +1935,145 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
             ],
           ),
           const SizedBox(height: 8),
+
+          // Live Navigation Header & Progress Bar Banner
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.walkColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                    : [AppTheme.walkColor.withValues(alpha: 0.12), AppTheme.walkColor.withValues(alpha: 0.05)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.walkColor.withValues(alpha: 0.3)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.navigation_rounded, color: AppTheme.walkColor, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.instruction,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: AppTheme.walkColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 16),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  cleanInstruction,
+                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: textColor),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'Live GPS location tracking · Walk towards $targetName',
+                                  style: TextStyle(fontSize: 11, color: mutedColor),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        'Live walking path to $targetName',
-                        style: TextStyle(fontSize: 10, color: mutedColor),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.blue.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.blue.withValues(alpha: 0.3)),
                       ),
-                    ],
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.satellite_alt_rounded, size: 14, color: AppTheme.blue),
+                          SizedBox(width: 4),
+                          Text('REAL GPS TRACKING', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppTheme.blue)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Dual Progress Bars Requirement
+                // BAR 1: Overall Journey Progress
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.flag_rounded, size: 13, color: AppTheme.bmtcColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          'JOURNEY COMPLETED: ${((0.5 + _progressRatio * 0.5) * 100).round()}%',
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10, color: AppTheme.bmtcColor, letterSpacing: 0.3),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Overall Route',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: mutedColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (0.5 + _progressRatio * 0.5).clamp(0.0, 1.0),
+                    minHeight: 5,
+                    backgroundColor: AppTheme.bmtcColor.withValues(alpha: 0.15),
+                    color: AppTheme.bmtcColor,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // BAR 2: Walk Leg Progress
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.directions_walk_rounded,
+                          size: 13,
+                          color: AppTheme.walkColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'WALK LEG COMPLETED: ${(_progressRatio * 100).round()}%',
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10, color: AppTheme.walkColor, letterSpacing: 0.3),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '${remainingMeters}m remaining · ETA $etaMins min',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: mutedColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: _progressRatio.clamp(0.0, 1.0),
+                    minHeight: 5,
+                    backgroundColor: AppTheme.walkColor.withValues(alpha: 0.15),
+                    color: AppTheme.walkColor,
                   ),
                 ),
               ],
@@ -1446,7 +2081,7 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
           ),
           const SizedBox(height: 12),
 
-          // Map view of walking path
+          // Map view of walking path with Moving Flowing Dots and Navigation Marker
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -1454,7 +2089,10 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                 mapController: _mapController,
                 options: fm.MapOptions(
                   initialCenter: _walkPoints.isNotEmpty ? _walkPoints.first : const ll.LatLng(12.9716, 77.5946),
-                  initialZoom: 15.5,
+                  initialZoom: 16.5,
+                  onTap: (tapPosition, latLng) {
+                    _onUserLocationUpdated(latLng);
+                  },
                 ),
                 children: [
                   fm.TileLayer(
@@ -1466,7 +2104,7 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                       polylines: [
                         fm.Polyline(
                           points: _walkPoints,
-                          strokeWidth: 5.0,
+                          strokeWidth: 5.5,
                           color: AppTheme.walkColor,
                           isDotted: true,
                         ),
@@ -1474,6 +2112,9 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                     ),
                   fm.MarkerLayer(
                     markers: [
+                      // Animated Flowing Dots moving along the path towards destination
+                      ..._buildFlowingPathDots(),
+
                       if (_walkPoints.isNotEmpty)
                         fm.Marker(
                           point: _walkPoints.first,
@@ -1494,21 +2135,59 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
                             child: Icon(Icons.location_on_rounded, size: 16, color: Colors.white),
                           ),
                         ),
-                      if (_liveUserGps != null)
-                        fm.Marker(
-                          point: _liveUserGps!,
-                          width: 34,
-                          height: 34,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: AppTheme.blue,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6)],
+
+                      // Primary Directional Walking Navigation Arrow Marker (Rotates with Bearing & Heading)
+                      fm.Marker(
+                        point: _animatedArrowPos ?? _liveUserGps ?? (_walkPoints.isNotEmpty ? _walkPoints.first : const ll.LatLng(12.9716, 77.5946)),
+                        width: 52,
+                        height: 52,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Soft animated radar aura
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF0284C7).withValues(alpha: 0.18),
+                              ),
                             ),
-                            child: const Icon(Icons.my_location_rounded, size: 16, color: Colors.white),
-                          ),
+                            // Directional Rotating Arrow
+                            Transform.rotate(
+                              angle: _animatedArrowBearing * (math.pi / 180),
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF0284C7).withValues(alpha: 0.5),
+                                      blurRadius: 10,
+                                      spreadRadius: 2,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.navigation_rounded,
+                                    size: 22,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                 ],
@@ -1517,12 +2196,12 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
           ),
           const SizedBox(height: 12),
 
-          // Dynamic Turn-by-Turn Steps
+          // Dynamic Turn-by-Turn Steps with Active Step Highlight
           Text('TURN-BY-TURN WALKING STEPS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: mutedColor)),
           const SizedBox(height: 6),
           Container(
             height: 120,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF161822) : const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(12),
@@ -1531,13 +2210,15 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: _realWalkSteps.length,
-              separatorBuilder: (context, index) => const Divider(height: 10),
+              separatorBuilder: (context, index) => const Divider(height: 6),
               itemBuilder: (context, index) {
                 final s = _realWalkSteps[index];
+                final isActive = index == _activeStepIndex;
                 return _buildWalkStep(
                   '${index + 1}. ${s['instruction'] ?? ''}',
                   s['distance']?.toString() ?? '',
                   isDark,
+                  isActive: isActive,
                 );
               },
             ),
@@ -1547,16 +2228,52 @@ class _WalkNavigationModalState extends State<WalkNavigationModal> {
     );
   }
 
-  Widget _buildWalkStep(String title, String dist, bool isDark) {
-    return Row(
-      children: [
-        const Icon(Icons.subdirectory_arrow_right_rounded, size: 16, color: AppTheme.walkColor),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.getText(isDark))),
-        ),
-        Text(dist, style: TextStyle(fontSize: 10, color: AppTheme.getMuted(isDark), fontWeight: FontWeight.bold)),
-      ],
+  Widget _buildWalkStep(String title, String dist, bool isDark, {bool isActive = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: isActive ? AppTheme.walkColor.withValues(alpha: 0.15) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        border: isActive ? Border.all(color: AppTheme.walkColor.withValues(alpha: 0.4)) : null,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isActive ? Icons.navigation_rounded : Icons.subdirectory_arrow_right_rounded,
+            size: 16,
+            color: isActive ? AppTheme.walkColor : AppTheme.getMuted(isDark),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                color: isActive ? AppTheme.walkColor : AppTheme.getText(isDark),
+              ),
+            ),
+          ),
+          if (isActive)
+            Container(
+              margin: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.walkColor,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text('ACTIVE', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
+            ),
+          Text(
+            dist,
+            style: TextStyle(
+              fontSize: 10,
+              color: isActive ? AppTheme.walkColor : AppTheme.getMuted(isDark),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1568,12 +2285,14 @@ class AllBusesModal extends StatefulWidget {
   final String source;
   final String destination;
   final String? time;
+  final ValueChanged<String>? onSelectBus;
 
   const AllBusesModal({
     super.key,
     required this.source,
     required this.destination,
     this.time,
+    this.onSelectBus,
   });
 
   @override
@@ -1707,7 +2426,7 @@ class _AllBusesModalState extends State<AllBusesModal> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'POSSIBLE BUS NUMBERS CONNECTING YOUR STOPS',
+                    'POSSIBLE BUS NUMBERS (TAP TO SELECT)',
                     style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5),
                   ),
                   const SizedBox(height: 6),
@@ -1716,19 +2435,33 @@ class _AllBusesModalState extends State<AllBusesModal> {
                     runSpacing: 6,
                     children: uniqueBusNums.take(16).map((rn) {
                       final isV = _isVajra(rn);
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          rn,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: isV ? AppTheme.blue : AppTheme.bmtcColor,
+                      return InkWell(
+                        onTap: () {
+                          widget.onSelectBus?.call(rn);
+                          Navigator.pop(context, {'bus_number': rn, 'route': rn});
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                rn,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: isV ? AppTheme.blue : AppTheme.bmtcColor,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Icon(Icons.check_rounded, size: 11, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                            ],
                           ),
                         ),
                       );
@@ -1840,19 +2573,33 @@ class _AllBusesModalState extends State<AllBusesModal> {
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      routeNo,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: isV ? AppTheme.blue : AppTheme.bmtcColor,
+                  InkWell(
+                    onTap: () {
+                      widget.onSelectBus?.call(routeNo);
+                      Navigator.pop(context, {'bus_number': routeNo, 'route': routeNo});
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            routeNo,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: isV ? AppTheme.blue : AppTheme.bmtcColor,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.check_circle_rounded, size: 13, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                        ],
                       ),
                     ),
                   ),
@@ -1901,7 +2648,22 @@ class _AllBusesModalState extends State<AllBusesModal> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Direct Bus Journey', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
-                      Text('Fare: ₹$fare', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppTheme.green)),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.check_circle_rounded, size: 13),
+                        label: Text('Select Bus $routeNo', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.bmtcColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        onPressed: () {
+                          widget.onSelectBus?.call(routeNo);
+                          Navigator.pop(context, {'bus_number': routeNo, 'route': routeNo});
+                        },
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -1909,22 +2671,36 @@ class _AllBusesModalState extends State<AllBusesModal> {
 
                   if (altBuses.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    Text('OTHER BUSES RUNNING THIS EXACT ROUTE:', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: mutedColor)),
+                    Text('OTHER BUSES RUNNING THIS EXACT ROUTE (TAP TO SELECT):', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: mutedColor)),
                     const SizedBox(height: 4),
                     Wrap(
                       spacing: 4,
                       runSpacing: 4,
                       children: altBuses.map((ab) {
                         final abStr = ab.toString();
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF2D3142) : const Color(0xFFE2E8F0),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            abStr,
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+                        return InkWell(
+                          onTap: () {
+                            widget.onSelectBus?.call(abStr);
+                            Navigator.pop(context, {'bus_number': abStr, 'route': abStr});
+                          },
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2D3142) : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  abStr,
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+                                ),
+                                const SizedBox(width: 3),
+                                const Icon(Icons.touch_app_rounded, size: 10, color: AppTheme.bmtcColor),
+                              ],
+                            ),
                           ),
                         );
                       }).toList(),
@@ -2000,20 +2776,27 @@ class _AllBusesModalState extends State<AllBusesModal> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Text('Buses: ', style: TextStyle(fontSize: 10, color: mutedColor, fontWeight: FontWeight.bold)),
+                        Text('Buses (Tap to select): ', style: TextStyle(fontSize: 10, color: mutedColor, fontWeight: FontWeight.bold)),
                         Wrap(
                           spacing: 4,
                           children: buses.map((b) {
                             final isV = _isVajra(b);
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                b,
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                            return InkWell(
+                              onTap: () {
+                                widget.onSelectBus?.call(b);
+                                Navigator.pop(context, {'bus_number': b, 'route': b});
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  b,
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                                ),
                               ),
                             );
                           }).toList(),
@@ -2075,15 +2858,29 @@ class _AllBusesModalState extends State<AllBusesModal> {
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        routeName,
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                                    InkWell(
+                                      onTap: () {
+                                        widget.onSelectBus?.call(routeName);
+                                        Navigator.pop(context, {'bus_number': routeName, 'route': routeName});
+                                      },
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              routeName,
+                                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Icon(Icons.check_rounded, size: 12, color: AppTheme.bmtcColor),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -2105,6 +2902,7 @@ class _AllBusesModalState extends State<AllBusesModal> {
                                     Text(fromStop, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor)),
                                   ],
                                 ),
+                                Icon(Icons.arrow_forward_rounded, size: 14, color: mutedColor),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
@@ -2120,22 +2918,36 @@ class _AllBusesModalState extends State<AllBusesModal> {
                             // Alternative Buses List
                             if (altBuses.isNotEmpty) ...[
                               const SizedBox(height: 8),
-                              Text('ALTERNATIVE BUSES FOR THIS LEG:', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: mutedColor)),
+                              Text('ALTERNATIVE BUSES FOR THIS LEG (TAP TO SELECT):', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: mutedColor)),
                               const SizedBox(height: 4),
                               Wrap(
                                 spacing: 4,
                                 runSpacing: 4,
                                 children: altBuses.take(12).map((ab) {
                                   final abStr = ab.toString();
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF2D3142) : const Color(0xFFE2E8F0),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      abStr,
-                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+                                  return InkWell(
+                                    onTap: () {
+                                      widget.onSelectBus?.call(abStr);
+                                      Navigator.pop(context, {'bus_number': abStr, 'route': abStr});
+                                    },
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF2D3142) : const Color(0xFFE2E8F0),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            abStr,
+                                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+                                          ),
+                                          const SizedBox(width: 3),
+                                          const Icon(Icons.touch_app_rounded, size: 10, color: AppTheme.bmtcColor),
+                                        ],
+                                      ),
                                     ),
                                   );
                                 }).toList(),
@@ -2300,6 +3112,1438 @@ class _RouteLookupModalState extends State<RouteLookupModal> {
                         ],
                       ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 8. RIDE MODE COMPANION MODAL (BUS & METRO GPS TRACKING)
+// ─────────────────────────────────────────────────────────────
+class RideModeModal extends StatefulWidget {
+  final Map<String, dynamic>? initialData;
+
+  const RideModeModal({super.key, this.initialData});
+
+  @override
+  State<RideModeModal> createState() => _RideModeModalState();
+}
+
+class _RideModeModalState extends State<RideModeModal> {
+  String _step = 'SETUP'; // 'SETUP' | 'TRACKING' | 'SUMMARY'
+  String _rideType = 'BUS'; // 'BUS' | 'METRO'
+
+  List<String> _popularBusRoutes = ['500C', '335E', '500D', '500A', '201', '365', 'KBS-1', 'V-335E', '356'];
+  String _selectedBusNumber = '500D';
+  List<Map<String, dynamic>> _busStops = [];
+  String _busDestination = '';
+  final TextEditingController _customBusCtrl = TextEditingController();
+
+  Map<String, List<Map<String, dynamic>>> _metroLines = {};
+  String _selectedMetroLine = 'Purple Line';
+  List<Map<String, dynamic>> _metroStations = [];
+  String _metroDestination = '';
+
+  ll.LatLng? _userLocation;
+  bool _gpsLoading = false;
+  int _currentStopIndex = 0;
+  Timer? _trackingTimer;
+
+  // Voice Guidance Engine
+  VoiceNavigationEngine? _voiceEngine;
+  bool _isVoiceMuted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initFromInitialData();
+    _fetchBusStops(_selectedBusNumber);
+    _fetchMetroLines();
+    _requestGps();
+  }
+
+  void _initFromInitialData() {
+    final init = widget.initialData;
+    if (init == null) return;
+
+    // 1. Initial bus number
+    final initBus = init['bus_number']?.toString() ?? init['route']?.toString();
+    if (initBus != null && initBus.trim().isNotEmpty) {
+      final clean = initBus.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+      _selectedBusNumber = clean;
+      _customBusCtrl.text = clean;
+      if (!_popularBusRoutes.contains(clean)) {
+        _popularBusRoutes.insert(0, clean);
+      }
+    }
+
+    // 2. All candidate direct buses
+    final allDirect = init['all_direct'] as List<dynamic>?;
+    if (allDirect != null && allDirect.isNotEmpty) {
+      for (final b in allDirect) {
+        final bStr = b.toString().replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+        if (bStr.isNotEmpty && !_popularBusRoutes.contains(bStr)) {
+          _popularBusRoutes.add(bStr);
+        }
+      }
+    }
+
+    // 3. Destination
+    final initDest = init['destination']?.toString();
+    if (initDest != null && initDest.trim().isNotEmpty) {
+      final cleanDest = initDest.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+      _busDestination = cleanDest;
+      _metroDestination = cleanDest;
+    }
+
+    // 4. Mode
+    final mode = init['mode']?.toString();
+    if (mode == 'metro') {
+      _rideType = 'METRO';
+    } else {
+      _rideType = 'BUS';
+    }
+  }
+
+  @override
+  void dispose() {
+    _trackingTimer?.cancel();
+    _voiceEngine?.resetState();
+    _customBusCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _requestGps() async {
+    setState(() => _gpsLoading = true);
+    final pos = await GeolocationHelper.getCurrentPosition();
+    if (mounted) {
+      setState(() {
+        _gpsLoading = false;
+        if (pos != null) _userLocation = pos;
+      });
+      await _snapCurrentStop();
+    }
+  }
+
+  Future<void> _fetchBusStops(String busNo) async {
+    final res = await ApiService.fetchRouteDetails(busNo);
+    if (res != null && mounted) {
+      final stops = (res['stops'] as List<dynamic>?)?.map((s) => {'stop_name': s.toString()}).toList() ?? [];
+      setState(() {
+        _busStops = stops;
+        if (stops.isNotEmpty) {
+          if (_busDestination.isEmpty || !stops.any((s) => s['stop_name'].toString().toLowerCase().contains(_busDestination.toLowerCase()))) {
+            _busDestination = stops.last['stop_name'].toString();
+          }
+        }
+      });
+      _snapCurrentStop();
+    }
+  }
+
+  Future<void> _fetchMetroLines() async {
+    final res = await ApiService.fetchRideMetroLines();
+    if (res != null && res['lines'] is Map<String, dynamic> && mounted) {
+      final rawLines = res['lines'] as Map<String, dynamic>;
+      final Map<String, List<Map<String, dynamic>>> parsedLines = {};
+      rawLines.forEach((k, v) {
+        if (v is List) {
+          parsedLines[k] = v.map((s) => (s as Map<String, dynamic>)).toList();
+        }
+      });
+      setState(() {
+        _metroLines = parsedLines;
+        if (parsedLines.containsKey(_selectedMetroLine)) {
+          _metroStations = parsedLines[_selectedMetroLine]!;
+          if (_metroStations.isNotEmpty && _metroDestination.isEmpty) {
+            _metroDestination = _metroStations.last['stop_name'].toString();
+          }
+        }
+      });
+      _snapCurrentStop();
+    }
+  }
+
+  Future<void> _snapCurrentStop() async {
+    final list = _rideType == 'BUS' ? _busStops : _metroStations;
+    final dest = _rideType == 'BUS' ? _busDestination : _metroDestination;
+    if (list.isEmpty) return;
+
+    int snappedIdx = _currentStopIndex;
+
+    // Use backend snap-stop API if coordinates are present
+    if (_userLocation != null) {
+      try {
+        final res = await ApiService.snapStop(
+          userLat: _userLocation!.latitude,
+          userLng: _userLocation!.longitude,
+          routeStops: list,
+          destStop: dest,
+          currentIndex: _currentStopIndex,
+        );
+        if (res != null && res['current_stop'] != null && res['current_stop']['index'] != null) {
+          snappedIdx = (res['current_stop']['index'] as num).toInt();
+        }
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+
+    final destIdx = list.indexWhere((s) => s['stop_name'].toString().toLowerCase().contains(dest.toLowerCase()));
+    final targetDestIdx = destIdx >= 0 ? destIdx : list.length - 1;
+    final remaining = math.max(0, targetDestIdx - snappedIdx);
+    final hasPassed = snappedIdx > targetDestIdx;
+    final currentName = snappedIdx < list.length ? list[snappedIdx]['stop_name'].toString() : '';
+    final nextName = (snappedIdx + 1 < list.length) ? list[snappedIdx + 1]['stop_name'].toString() : null;
+
+    setState(() {
+      _currentStopIndex = snappedIdx;
+    });
+
+    // Notify Voice Guidance Engine (Disciplined Stop Cadence - NO 10m SPAM)
+    if (_step == 'TRACKING' && _voiceEngine != null && !_isVoiceMuted) {
+      await _voiceEngine!.onTransitStopUpdated(
+        currentStopIndex: snappedIdx,
+        currentStopName: currentName,
+        nextStopName: nextName,
+        remainingStops: remaining,
+        hasPassedDestination: hasPassed,
+      );
+    }
+  }
+
+  void _startRide() {
+    final list = _rideType == 'BUS' ? _busStops : _metroStations;
+    final dest = _rideType == 'BUS' ? _busDestination : _metroDestination;
+    if (list.isEmpty) return;
+
+    _voiceEngine = VoiceNavigationEngine(
+      mode: _rideType == 'BUS' ? VoiceNavMode.bus : VoiceNavMode.metro,
+      destinationName: dest,
+      isVoiceEnabled: !_isVoiceMuted,
+    );
+    _voiceEngine!.resetState();
+
+    setState(() {
+      _step = 'TRACKING';
+    });
+
+    _snapCurrentStop();
+
+    _trackingTimer?.cancel();
+    _trackingTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      if (!mounted || _step != 'TRACKING') return;
+      _requestGps();
+    });
+  }
+
+  void _manualNextStop() {
+    final list = _rideType == 'BUS' ? _busStops : _metroStations;
+    if (_currentStopIndex < list.length - 1) {
+      setState(() => _currentStopIndex++);
+      _triggerStopVoiceAlert();
+    }
+  }
+
+  void _manualPrevStop() {
+    if (_currentStopIndex > 0) {
+      setState(() => _currentStopIndex--);
+      _triggerStopVoiceAlert();
+    }
+  }
+
+  void _triggerStopVoiceAlert() {
+    final list = _rideType == 'BUS' ? _busStops : _metroStations;
+    final dest = _rideType == 'BUS' ? _busDestination : _metroDestination;
+    final destIdx = list.indexWhere((s) => s['stop_name'].toString().toLowerCase().contains(dest.toLowerCase()));
+    final targetDestIdx = destIdx >= 0 ? destIdx : list.length - 1;
+    final remaining = math.max(0, targetDestIdx - _currentStopIndex);
+    final hasPassed = _currentStopIndex > targetDestIdx;
+    final currentName = _currentStopIndex < list.length ? list[_currentStopIndex]['stop_name'].toString() : '';
+    final nextName = (_currentStopIndex + 1 < list.length) ? list[_currentStopIndex + 1]['stop_name'].toString() : null;
+
+    if (_voiceEngine != null && !_isVoiceMuted) {
+      _voiceEngine!.onTransitStopUpdated(
+        currentStopIndex: _currentStopIndex,
+        currentStopName: currentName,
+        nextStopName: nextName,
+        remainingStops: remaining,
+        hasPassedDestination: hasPassed,
+      );
+    }
+  }
+
+  void _showChangeBusModal() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = AppTheme.getCard(isDark);
+    final textColor = AppTheme.getText(isDark);
+    final searchCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.swap_horiz_rounded, color: AppTheme.bmtcColor, size: 24),
+                      const SizedBox(width: 8),
+                      Text('Onboard Different Bus', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: textColor)),
+                    ],
+                  ),
+                  IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close_rounded)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Boarded a different BMTC bus? Select below to update live stops and voice alerts instantly:',
+                style: TextStyle(fontSize: 12, color: AppTheme.getMuted(isDark)),
+              ),
+              const SizedBox(height: 14),
+
+              // Search any bus number
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: searchCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Type any bus (e.g. 356, V-335E, KIA-8)...',
+                        hintStyle: TextStyle(fontSize: 12, color: AppTheme.getMuted(isDark)),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.bmtcColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      final custom = searchCtrl.text.trim();
+                      if (custom.isNotEmpty) {
+                        Navigator.pop(ctx);
+                        _switchBusRoute(custom);
+                      }
+                    },
+                    child: const Text('Switch'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text('Available Corridor & Direct Buses:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.getMuted(isDark))),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView(
+                  children: _popularBusRoutes.map((busNo) {
+                    final isCurrent = busNo == _selectedBusNumber;
+                    final isV = busNo.toUpperCase().startsWith('V-') || busNo.toUpperCase().startsWith('KIA');
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          busNo,
+                          style: TextStyle(fontWeight: FontWeight.w900, color: isV ? AppTheme.blue : AppTheme.bmtcColor),
+                        ),
+                      ),
+                      title: Text(
+                        isV ? 'Vajra AC Bus $busNo' : 'BMTC Ordinary Bus $busNo',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor),
+                      ),
+                      trailing: isCurrent
+                          ? const Chip(label: Text('ACTIVE'), backgroundColor: AppTheme.green, labelStyle: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold))
+                          : OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppTheme.bmtcColor),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _switchBusRoute(busNo);
+                              },
+                              child: const Text('Board This', style: TextStyle(fontSize: 11, color: AppTheme.bmtcColor, fontWeight: FontWeight.bold)),
+                            ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _switchBusRoute(String newBusNo) {
+    setState(() {
+      _selectedBusNumber = newBusNo;
+      _customBusCtrl.text = newBusNo;
+      if (!_popularBusRoutes.contains(newBusNo)) {
+        _popularBusRoutes.insert(0, newBusNo);
+      }
+    });
+    _fetchBusStops(newBusNo);
+    _voiceEngine?.resetState();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Switched tracking to BMTC bus $newBusNo! Live stops updated.'),
+        backgroundColor: AppTheme.bmtcColor,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = AppTheme.getCard(isDark);
+    final textColor = AppTheme.getText(isDark);
+    final mutedColor = AppTheme.getMuted(isDark);
+
+    final list = _rideType == 'BUS' ? _busStops : _metroStations;
+    final dest = _rideType == 'BUS' ? _busDestination : _metroDestination;
+    final currentStopName = list.isNotEmpty && _currentStopIndex < list.length ? list[_currentStopIndex]['stop_name'].toString() : 'Detecting...';
+    final destIdx = list.indexWhere((s) => s['stop_name'].toString().toLowerCase().contains(dest.toLowerCase()));
+    final targetDestIdx = destIdx >= 0 ? destIdx : list.length - 1;
+    final remainingCount = math.max(0, targetDestIdx - _currentStopIndex);
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.88,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text(_rideType == 'BUS' ? '🚌' : '🚇', style: const TextStyle(fontSize: 24)),
+                  const SizedBox(width: 8),
+                  Text(_step == 'TRACKING' ? 'Live Ride Tracking' : 'Ride Mode Companion', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: textColor)),
+                ],
+              ),
+              Row(
+                children: [
+                  if (_step == 'TRACKING')
+                    IconButton(
+                      icon: Icon(_isVoiceMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded, color: _isVoiceMuted ? AppTheme.red : AppTheme.green),
+                      tooltip: _isVoiceMuted ? 'Unmute Voice Alerts' : 'Mute Voice Alerts',
+                      onPressed: () {
+                        setState(() {
+                          _isVoiceMuted = !_isVoiceMuted;
+                          if (_voiceEngine != null) _voiceEngine!.isVoiceEnabled = !_isVoiceMuted;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(_isVoiceMuted ? '🔇 Voice alerts muted' : '🔊 Voice alerts enabled (Stop & 3-Stop warning)'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (_step == 'SETUP') ...[
+            Row(
+              children: [
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Center(child: Text('🚌 BMTC Bus', style: TextStyle(fontWeight: FontWeight.bold))),
+                    selected: _rideType == 'BUS',
+                    selectedColor: AppTheme.bmtcColor.withValues(alpha: 0.2),
+                    onSelected: (_) => setState(() => _rideType = 'BUS'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ChoiceChip(
+                    label: const Center(child: Text('🚇 Namma Metro', style: TextStyle(fontWeight: FontWeight.bold))),
+                    selected: _rideType == 'METRO',
+                    selectedColor: AppTheme.metroColor.withValues(alpha: 0.2),
+                    onSelected: (_) => setState(() => _rideType = 'METRO'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            if (_rideType == 'BUS') ...[
+              // Custom Bus Input
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _customBusCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Enter bus no (e.g. 356, V-335E, 500D)...',
+                        hintStyle: TextStyle(fontSize: 12, color: mutedColor),
+                        prefixIcon: const Icon(Icons.directions_bus_rounded, size: 18),
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onSubmitted: (val) {
+                        if (val.trim().isNotEmpty) {
+                          _switchBusRoute(val.trim());
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.bmtcColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      if (_customBusCtrl.text.trim().isNotEmpty) {
+                        _switchBusRoute(_customBusCtrl.text.trim());
+                      }
+                    },
+                    child: const Text('Load', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text('Direct & Suggested Bus Numbers:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: mutedColor)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: _popularBusRoutes.take(12).map((r) => ChoiceChip(
+                  label: Text(r, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                  selected: _selectedBusNumber == r,
+                  selectedColor: AppTheme.bmtcColor.withValues(alpha: 0.25),
+                  onSelected: (_) {
+                    setState(() {
+                      _selectedBusNumber = r;
+                      _customBusCtrl.text = r;
+                    });
+                    _fetchBusStops(r);
+                  },
+                )).toList(),
+              ),
+              const SizedBox(height: 14),
+            ] else if (_metroLines.isNotEmpty) ...[
+              Text('Select Metro Line:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: mutedColor)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: _metroLines.keys.map((lineName) => ChoiceChip(
+                  label: Text(lineName),
+                  selected: _selectedMetroLine == lineName,
+                  selectedColor: AppTheme.metroColor.withValues(alpha: 0.3),
+                  onSelected: (_) {
+                    setState(() {
+                      _selectedMetroLine = lineName;
+                      _metroStations = _metroLines[lineName] ?? [];
+                      if (_metroStations.isNotEmpty) {
+                        _metroDestination = _metroStations.last['stop_name'].toString();
+                      }
+                    });
+                  },
+                )).toList(),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Text('📍', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('CURRENT / BOARDING STOP (GPS AUTO-DETECTED)', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981), letterSpacing: 0.5)),
+                        const SizedBox(height: 2),
+                        Text(_gpsLoading ? 'Acquiring GPS location...' : currentStopName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor)),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _requestGps,
+                    child: Text(_gpsLoading ? '...' : 'Refresh', style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            Text('Select Destination Stop:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: mutedColor)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              initialValue: list.any((s) => s['stop_name'] == dest) ? dest : (list.isNotEmpty ? list.last['stop_name'].toString() : null),
+              decoration: InputDecoration(isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              items: list.map((s) {
+                final name = s['stop_name'].toString();
+                return DropdownMenuItem(value: name, child: Text(name, style: TextStyle(color: textColor, fontSize: 13), overflow: TextOverflow.ellipsis));
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    if (_rideType == 'BUS') {
+                      _busDestination = val;
+                    } else {
+                      _metroDestination = val;
+                    }
+                  });
+                }
+              },
+            ),
+            const Spacer(),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: const Icon(Icons.rocket_launch_rounded),
+                label: Text('Start ${_rideType == 'BUS' ? 'Bus' : 'Metro'} Ride Tracking', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                onPressed: _startRide,
+              ),
+            ),
+          ] else ...[
+            // ── TRACKING MODE WITH ON-THE-FLY BUS CHANGE & STOP CONTROLS ──
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: (_rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: (_rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor).withValues(alpha: 0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              _rideType == 'BUS' ? 'BUS $_selectedBusNumber' : _selectedMetroLine,
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          if (_rideType == 'BUS')
+                            InkWell(
+                              onTap: _showChangeBusModal,
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.blue.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: AppTheme.blue.withValues(alpha: 0.4)),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.swap_horiz_rounded, size: 12, color: AppTheme.blue),
+                                    SizedBox(width: 4),
+                                    Text('Change Bus', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.blue)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      Text(
+                        _gpsLoading ? 'Updating GPS...' : 'GPS Live',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _gpsLoading ? Colors.amber : AppTheme.green),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text('CURRENT STOP:', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: mutedColor, letterSpacing: 0.5)),
+                  const SizedBox(height: 2),
+                  Text(currentStopName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: textColor)),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Stops Remaining: $remainingCount', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
+                      Text('ETA to $dest: ~${remainingCount * 3} mins', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.green)),
+                    ],
+                  ),
+                  if (remainingCount <= 3 && remainingCount > 0) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.amber),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              remainingCount == 1 ? 'NEXT STOP IS YOUR DESTINATION!' : '$remainingCount stops left. Prepare to get down.',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.amber),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Manual Step Progression in Bus
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.chevron_left_rounded, size: 18),
+                    label: const Text('Prev Stop', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    onPressed: _currentStopIndex > 0 ? _manualPrevStop : null,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                    label: const Text('Next Stop', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    onPressed: _currentStopIndex < list.length - 1 ? _manualNextStop : null,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            Expanded(
+              child: ListView.builder(
+                itemCount: list.length,
+                itemBuilder: (context, idx) {
+                  final name = list[idx]['stop_name'].toString();
+                  final isCurrent = idx == _currentStopIndex;
+                  final isDest = name.toLowerCase().contains(dest.toLowerCase());
+                  final isPassed = idx < _currentStopIndex;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    decoration: BoxDecoration(
+                      color: isCurrent
+                          ? (_rideType == 'BUS' ? AppTheme.bmtcColor : AppTheme.metroColor).withValues(alpha: 0.12)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ListTile(
+                      dense: true,
+                      leading: CircleAvatar(
+                        radius: 10,
+                        backgroundColor: isCurrent ? AppTheme.green : (isDest ? AppTheme.red : (isPassed ? Colors.grey : mutedColor)),
+                        child: Text('${idx + 1}', style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                      title: Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w600,
+                          color: isCurrent ? AppTheme.green : (isPassed ? mutedColor : textColor),
+                          decoration: isPassed ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      trailing: isCurrent
+                          ? const Chip(label: Text('CURRENT'), backgroundColor: AppTheme.green, labelStyle: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold))
+                          : (isDest ? const Chip(label: Text('TARGET'), backgroundColor: AppTheme.red, labelStyle: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)) : null),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      _trackingTimer?.cancel();
+                      _voiceEngine?.resetState();
+                      setState(() => _step = 'SETUP');
+                    },
+                    child: const Text('Exit Ride Mode'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// 8. TIMETABLE MODAL (BMTC Route & Metro Station Timetables)
+// ─────────────────────────────────────────────────────────────
+class TimetableModal extends StatefulWidget {
+  final String? initialSource;
+  final String? initialDestination;
+
+  const TimetableModal({
+    super.key,
+    this.initialSource,
+    this.initialDestination,
+  });
+
+  @override
+  State<TimetableModal> createState() => _TimetableModalState();
+}
+
+class _TimetableModalState extends State<TimetableModal> {
+  String _activeTab = 'bmtc'; // 'bmtc' | 'metro'
+
+  // BMTC state
+  final TextEditingController _bmtcRouteCtrl = TextEditingController(text: '500D');
+  final TextEditingController _bmtcStopCtrl = TextEditingController();
+  bool _bmtcLoading = false;
+  String? _bmtcError;
+  Map<String, dynamic>? _bmtcResult;
+
+  // Metro state
+  final TextEditingController _metroStationCtrl = TextEditingController();
+  bool _metroLoading = false;
+  String? _metroError;
+  Map<String, dynamic>? _metroResult;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialSource != null && widget.initialSource!.isNotEmpty) {
+      _bmtcStopCtrl.text = widget.initialSource!;
+      _metroStationCtrl.text = widget.initialSource!;
+    } else {
+      _bmtcStopCtrl.text = 'Hebbal';
+      _metroStationCtrl.text = 'Indiranagar';
+    }
+    _searchBmtc();
+  }
+
+  @override
+  void dispose() {
+    _bmtcRouteCtrl.dispose();
+    _bmtcStopCtrl.dispose();
+    _metroStationCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _searchBmtc() async {
+    final route = _bmtcRouteCtrl.text.trim();
+    if (route.isEmpty) return;
+
+    setState(() {
+      _bmtcLoading = true;
+      _bmtcError = null;
+      _bmtcResult = null;
+    });
+
+    try {
+      final res = await ApiService.fetchBmtcRouteTimetable(route, stop: _bmtcStopCtrl.text.trim());
+      if (mounted) {
+        setState(() {
+          _bmtcResult = res;
+          _bmtcLoading = false;
+          if (res == null) _bmtcError = 'Timetable not found for route "$route".';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _bmtcError = 'Failed to load BMTC timetable.';
+          _bmtcLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _searchMetro() async {
+    final station = _metroStationCtrl.text.trim();
+    if (station.isEmpty) return;
+
+    setState(() {
+      _metroLoading = true;
+      _metroError = null;
+      _metroResult = null;
+    });
+
+    try {
+      final res = await ApiService.metroTimetable(source: station);
+      if (mounted) {
+        setState(() {
+          _metroResult = res;
+          _metroLoading = false;
+          if (res == null) _metroError = 'Timetable not found for station "$station".';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _metroError = 'Failed to load Metro timetable.';
+          _metroLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = AppTheme.getCard(isDark);
+    final textColor = AppTheme.getText(isDark);
+    final mutedColor = AppTheme.getMuted(isDark);
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white24 : Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: AppTheme.blue.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.access_time_filled_rounded, color: AppTheme.blue, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Transit Timetable', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                      Text('Official schedules & live departures', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.close_rounded, size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Mode Tabs (BMTC vs Metro)
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E202C) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      setState(() => _activeTab = 'bmtc');
+                      if (_bmtcResult == null) _searchBmtc();
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _activeTab == 'bmtc' ? AppTheme.bmtcColor : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.directions_bus_rounded, size: 16, color: _activeTab == 'bmtc' ? Colors.white : mutedColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            'BMTC Bus',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _activeTab == 'bmtc' ? Colors.white : textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      setState(() => _activeTab = 'metro');
+                      if (_metroResult == null) _searchMetro();
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _activeTab == 'metro' ? AppTheme.metroPurple : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.subway_rounded, size: 16, color: _activeTab == 'metro' ? Colors.white : mutedColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Namma Metro',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _activeTab == 'metro' ? Colors.white : textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Content body
+          Expanded(
+            child: _activeTab == 'bmtc' ? _buildBmtcView(isDark, textColor, mutedColor) : _buildMetroView(isDark, textColor, mutedColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBmtcView(bool isDark, Color textColor, Color mutedColor) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: TextField(
+                controller: _bmtcRouteCtrl,
+                style: TextStyle(fontSize: 13, color: textColor),
+                decoration: InputDecoration(
+                  labelText: 'Route No.',
+                  hintText: 'e.g. 500D, 335E',
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onSubmitted: (_) => _searchBmtc(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 4,
+              child: TextField(
+                controller: _bmtcStopCtrl,
+                style: TextStyle(fontSize: 13, color: textColor),
+                decoration: InputDecoration(
+                  labelText: 'Boarding Stop (Optional)',
+                  hintText: 'e.g. Hebbal',
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onSubmitted: (_) => _searchBmtc(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              style: IconButton.styleFrom(
+                backgroundColor: AppTheme.bmtcColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: _bmtcLoading ? null : _searchBmtc,
+              icon: const Icon(Icons.search_rounded, size: 20),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        if (_bmtcLoading)
+          const Expanded(child: Center(child: CircularProgressIndicator()))
+        else if (_bmtcError != null)
+          Expanded(
+            child: Center(
+              child: Text(_bmtcError!, style: const TextStyle(color: AppTheme.red, fontSize: 13)),
+            ),
+          )
+        else if (_bmtcResult != null)
+          Expanded(child: _buildBmtcScheduleResult(_bmtcResult!, isDark, textColor, mutedColor))
+        else
+          Expanded(
+            child: Center(
+              child: Text('Enter a bus route to look up timings', style: TextStyle(color: mutedColor, fontSize: 13)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBmtcScheduleResult(Map<String, dynamic> data, bool isDark, Color textColor, Color mutedColor) {
+    final route = data['route']?.toString() ?? _bmtcRouteCtrl.text.toUpperCase();
+    final origin = data['origin']?.toString() ?? 'Origin';
+    final destination = data['destination']?.toString() ?? 'Destination';
+    final departures = (data['timetable'] as List<dynamic>?) ?? (data['departures'] as List<dynamic>?) ?? [];
+    final frequency = data['frequency']?.toString() ?? 'Every 10-15 mins';
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF161926) : const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.bmtcColor.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bmtcColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(route, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('$origin ➔ $destination', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor)),
+                      Text('Frequency: $frequency', style: TextStyle(fontSize: 11, color: mutedColor)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          Text('SCHEDULED DEPARTURES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
+          const SizedBox(height: 8),
+
+          if (departures.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              alignment: Alignment.center,
+              child: Text('Operates frequently every 10-15 minutes throughout the day (05:30 to 22:30).', style: TextStyle(fontSize: 12, color: mutedColor)),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: departures.map((dep) {
+                final timeStr = dep is Map ? (dep['departure_time'] ?? dep['time'] ?? '').toString() : dep.toString();
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E2232) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.getBorder(isDark)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.access_time_rounded, size: 12, color: AppTheme.bmtcColor),
+                      const SizedBox(width: 4),
+                      Text(timeStr, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor)),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetroView(bool isDark, Color textColor, Color mutedColor) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _metroStationCtrl,
+                style: TextStyle(fontSize: 13, color: textColor),
+                decoration: InputDecoration(
+                  labelText: 'Metro Station',
+                  hintText: 'e.g. Indiranagar, Majestic, MG Road',
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onSubmitted: (_) => _searchMetro(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              style: IconButton.styleFrom(
+                backgroundColor: AppTheme.metroPurple,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: _metroLoading ? null : _searchMetro,
+              icon: const Icon(Icons.search_rounded, size: 20),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        if (_metroLoading)
+          const Expanded(child: Center(child: CircularProgressIndicator()))
+        else if (_metroError != null)
+          Expanded(
+            child: Center(
+              child: Text(_metroError!, style: const TextStyle(color: AppTheme.red, fontSize: 13)),
+            ),
+          )
+        else if (_metroResult != null)
+          Expanded(child: _buildMetroScheduleResult(_metroResult!, isDark, textColor, mutedColor))
+        else
+          Expanded(
+            child: Center(
+              child: Text('Enter a station name to view train timings', style: TextStyle(color: mutedColor, fontSize: 13)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMetroScheduleResult(Map<String, dynamic> data, bool isDark, Color textColor, Color mutedColor) {
+    final station = data['station']?.toString() ?? _metroStationCtrl.text;
+    final line = data['line']?.toString() ?? 'Purple Line';
+    final directions = (data['directions'] as List<dynamic>?) ?? [];
+    final firstTrain = data['first_train']?.toString() ?? '05:00 AM';
+    final lastTrain = data['last_train']?.toString() ?? '11:00 PM';
+    final peakFreq = data['peak_frequency']?.toString() ?? 'Every 4-5 mins';
+
+    final Color lineClr = line.toLowerCase().contains('green') ? const Color(0xFF10B981) : AppTheme.metroPurple;
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: lineClr.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: lineClr.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: lineClr, borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.subway_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(station, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: textColor)),
+                      Text('$line • Peak: $peakFreq', style: TextStyle(fontSize: 11, color: mutedColor)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1A1C29) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.getBorder(isDark)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('FIRST TRAIN', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: mutedColor)),
+                      const SizedBox(height: 2),
+                      Text(firstTrain, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1A1C29) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.getBorder(isDark)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('LAST TRAIN', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: mutedColor)),
+                      const SizedBox(height: 2),
+                      Text(lastTrain, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textColor)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          Text('UPCOMING TRAINS BY DIRECTION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
+          const SizedBox(height: 8),
+
+          if (directions.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF161926) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.flash_on_rounded, color: AppTheme.metroPurple, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text('Trains depart every 5 minutes during peak hours and every 8-10 minutes during non-peak.', style: TextStyle(fontSize: 11.5, color: textColor)),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...directions.map((dir) {
+              final dest = dir['destination']?.toString() ?? 'Terminal';
+              final nextTrains = (dir['next_trains'] as List<dynamic>?) ?? [];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF161926) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.getBorder(isDark)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Towards $dest', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: textColor)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: nextTrains.map((t) {
+                        return Chip(
+                          label: Text(t.toString(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );

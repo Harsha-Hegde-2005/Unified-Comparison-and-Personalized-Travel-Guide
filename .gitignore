@@ -8,10 +8,18 @@ __pycache__/
 .pytest_cache/
 .pytest_cache-files-*
 
-# Environments
+# Environments & Secret Credentials
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+*.env
+!*.env.example
+*.pem
+*.key
+*.jks
+*.keystore
+*.p12
+local.properties
 venv/
 ENV/
 env/
@@ -46,3 +54,41 @@ __MACOSX/
 .vscode/settings.json
 .vscode/tasks.json
 .vscode/launch.json
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.out
+research.zip
+*.zip
+cloudflared.exe
+scratch/
+
+# Microsoft Office temporary lock files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# Vercel deployment cache and project links
+.vercel/
+.vercel
+
+# Databases, local sessions, and journals
+*.sqlite3-journal
+*.db-journal
+
+# Secrets, API credentials, and tokens
+*credentials*.json
+*service_account*.json
+*.secret
+secrets/
+
+# Dissertation builder scratch & extracted assets
+pes_templates/
+extracted_project_info/
+extracted_template_media/
+report_builder/
+report_images/
+build_pes_capstone_dissertation.py
+test_page_no.docx

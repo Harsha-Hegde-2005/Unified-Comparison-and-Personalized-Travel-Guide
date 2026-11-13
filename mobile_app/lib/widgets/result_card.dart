@@ -17,6 +17,8 @@ class ResultCard extends StatelessWidget {
   final VoidCallback? onSaveJourney;
   final VoidCallback? onNavigate;
   final VoidCallback? onViewTimeline;
+  final ValueChanged<String>? onSelectBus;
+  final String? selectedBusNo;
 
   const ResultCard({
     super.key,
@@ -33,6 +35,8 @@ class ResultCard extends StatelessWidget {
     this.onSaveJourney,
     this.onNavigate,
     this.onViewTimeline,
+    this.onSelectBus,
+    this.selectedBusNo,
   });
 
   @override
@@ -48,6 +52,7 @@ class ResultCard extends StatelessWidget {
 
     var time = data['time'] ?? 0;
     var cost = data['cost'] ?? 0;
+    var costMax = data['cost_max'] as int?;
     var distance = (data['distance'] as num?)?.toDouble() ?? 0.0;
     final transfers = data['transfers'] ?? 0;
     final emissions = (data['emissions'] as num?)?.toDouble() ?? 0.0;
@@ -55,6 +60,7 @@ class ResultCard extends StatelessWidget {
     // Apply cab sub-selection override
     if (modeKey == 'cab' && selectedCabVehicle != null) {
       cost = selectedCabVehicle!['cost'] ?? cost;
+      costMax = selectedCabVehicle!['cost_max'] as int?;
       time = selectedCabVehicle!['time'] ?? time;
       distance = (selectedCabVehicle!['distance'] as num?)?.toDouble() ?? distance;
     }
@@ -62,9 +68,24 @@ class ResultCard extends StatelessWidget {
     // Apply multimodal sub-selection override
     if (modeKey == 'multimodal' && selectedMultimodalOption != null) {
       cost = selectedMultimodalOption!['cost'] ?? cost;
+      costMax = selectedMultimodalOption!['cost_max'] as int?;
       time = selectedMultimodalOption!['time'] ?? time;
       distance = (selectedMultimodalOption!['distance'] as num?)?.toDouble() ?? distance;
     }
+
+    // Apply BMTC bus selection override
+    if (modeKey == 'bmtc' && selectedBusNo != null && selectedBusNo!.isNotEmpty) {
+      data['bus_number'] = selectedBusNo;
+      data['route'] = selectedBusNo;
+    }
+
+    final bool isAvailable = data['available'] != false && data['operational'] != false;
+    final bool isClosed = data['service_status'] == 'closed' ||
+        data['reason'] == 'outside_service_hours' ||
+        data['service_status'] == 'service_ended_today' ||
+        (!isAvailable && (modeKey == 'bmtc' || modeKey == 'metro' || modeKey == 'multimodal'));
+    final String? nextService = data['next_service']?.toString();
+    final String? closeReason = data['error']?.toString() ?? data['message']?.toString();
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -147,10 +168,14 @@ class ResultCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    // Transfers badge
+                    // Status or Transfers badge
                     PillBadge(
-                      text: transfers == 0 ? 'DIRECT' : '$transfers TRANSFERS',
-                      color: transfers == 0 ? AppTheme.green : AppTheme.yellow,
+                      text: isClosed
+                          ? 'CLOSED NOW'
+                          : (transfers == 0 ? 'DIRECT' : '$transfers TRANSFERS'),
+                      color: isClosed
+                          ? AppTheme.red
+                          : (transfers == 0 ? AppTheme.green : AppTheme.yellow),
                       isSmall: true,
                     ),
                   ],
@@ -158,129 +183,206 @@ class ResultCard extends StatelessWidget {
 
                 const SizedBox(height: 14),
 
-                // 2. Metrics Bar (Time, Cost, Distance, Emissions)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF161822) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.getBorder(isDark)),
+                if (isClosed) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.red.withValues(alpha: isDark ? 0.18 : 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppTheme.red.withValues(alpha: 0.35)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.nightlight_round, color: Colors.amber, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Service Closed at Selected Departure Time',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: textColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          closeReason ?? 'Transit services do not operate during late-night hours (operational window: 05:00 AM – 11:30 PM).',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: mutedColor,
+                            height: 1.35,
+                          ),
+                        ),
+                        if (nextService != null && nextService.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              '🌅 Next service resumes at $nextService',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF10B981),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildMetricItem(
-                        icon: Icons.access_time_rounded,
-                        value: '$time min',
-                        label: 'TRAVEL TIME',
-                        color: modeColor,
-                        textColor: textColor,
-                        mutedColor: mutedColor,
-                      ),
-                      Container(width: 1, height: 28, color: AppTheme.getBorder(isDark)),
-                      _buildMetricItem(
-                        icon: Icons.currency_rupee_rounded,
-                        value: cost == 0 ? 'FREE' : '₹$cost',
-                        label: 'EST. FARE',
-                        color: AppTheme.green,
-                        textColor: textColor,
-                        mutedColor: mutedColor,
-                      ),
-                      Container(width: 1, height: 28, color: AppTheme.getBorder(isDark)),
-                      _buildMetricItem(
-                        icon: Icons.directions_walk_rounded,
-                        value: '$distance km',
-                        label: 'DISTANCE',
-                        color: AppTheme.blue,
-                        textColor: textColor,
-                        mutedColor: mutedColor,
-                      ),
-                      if (emissions > 0) ...[
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded, size: 14, color: AppTheme.yellow),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Consider Cab / Auto or Personal Vehicle for 24/7 late-night commute.',
+                            style: TextStyle(fontSize: 11, color: mutedColor, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  // 2. Metrics Bar (Time, Cost, Distance, Emissions)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF161822) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.getBorder(isDark)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildMetricItem(
+                          icon: Icons.access_time_rounded,
+                          value: '$time min',
+                          label: 'TRAVEL TIME',
+                          color: modeColor,
+                          textColor: textColor,
+                          mutedColor: mutedColor,
+                        ),
                         Container(width: 1, height: 28, color: AppTheme.getBorder(isDark)),
                         _buildMetricItem(
-                          icon: Icons.eco_rounded,
-                          value: '${emissions.toInt()}g',
-                          label: 'CO2',
+                          icon: Icons.currency_rupee_rounded,
+                          value: (costMax != null && costMax > cost)
+                              ? '₹$cost – ₹$costMax'
+                              : (cost == 0 ? 'FREE' : '₹$cost'),
+                          label: 'EST. FARE',
                           color: AppTheme.green,
                           textColor: textColor,
                           mutedColor: mutedColor,
                         ),
+                        Container(width: 1, height: 28, color: AppTheme.getBorder(isDark)),
+                        _buildMetricItem(
+                          icon: Icons.directions_walk_rounded,
+                          value: '$distance km',
+                          label: 'DISTANCE',
+                          color: AppTheme.blue,
+                          textColor: textColor,
+                          mutedColor: mutedColor,
+                        ),
+                        if (emissions > 0) ...[
+                          Container(width: 1, height: 28, color: AppTheme.getBorder(isDark)),
+                          _buildMetricItem(
+                            icon: Icons.eco_rounded,
+                            value: '${emissions.toInt()}g',
+                            label: 'CO2',
+                            color: AppTheme.green,
+                            textColor: textColor,
+                            mutedColor: mutedColor,
+                          ),
+                        ],
                       ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // 3. Mode Specific Details
+                  if (modeKey == 'cab' ||
+                      modeKey == 'namma_yatri' ||
+                      modeKey == 'nammayatri' ||
+                      modeKey == 'uber' ||
+                      modeKey == 'ola' ||
+                      modeKey == 'rapido') ...[
+                    _buildCabOptions(context, isDark, textColor, mutedColor),
+                  ] else if (modeKey == 'multimodal') ...[
+                    _buildMultimodalOptions(context, isDark, textColor, mutedColor),
+                  ] else if (modeKey == 'bmtc') ...[
+                    _buildBmtcDetails(context, isDark, textColor, mutedColor),
+                  ] else if (modeKey == 'metro') ...[
+                    _buildMetroDetails(isDark, textColor, mutedColor),
+                  ] else if (modeKey == 'car') ...[
+                    _buildCarDetails(isDark, textColor, mutedColor),
+                  ] else if (modeKey == 'bicycle' || modeKey == 'walk') ...[
+                    _buildEcoDetails(isDark, textColor, mutedColor),
+                  ],
+
+                  const SizedBox(height: 14),
+
+                  // 4. Action Buttons (Timeline, Navigation, Save)
+                  Row(
+                    children: [
+                      if (onViewTimeline != null)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: modeColor,
+                              side: BorderSide(color: modeColor.withValues(alpha: 0.4)),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: onViewTimeline,
+                            icon: const Icon(Icons.linear_scale_rounded, size: 16),
+                            label: const Text('Timeline', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      if (onNavigate != null)
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: modeColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: onNavigate,
+                            icon: const Icon(Icons.navigation_rounded, size: 16),
+                            label: const Text('🚀 Start Nav', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      if (onSaveJourney != null)
+                        IconButton.filledTonal(
+                          style: IconButton.styleFrom(
+                            backgroundColor: modeColor.withValues(alpha: 0.12),
+                            foregroundColor: modeColor,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: onSaveJourney,
+                          icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+                          tooltip: 'Save Route',
+                        ),
                     ],
                   ),
-                ),
-
-                const SizedBox(height: 14),
-
-                // 3. Mode Specific Details
-                if (modeKey == 'cab' ||
-                    modeKey == 'namma_yatri' ||
-                    modeKey == 'nammayatri' ||
-                    modeKey == 'uber' ||
-                    modeKey == 'ola' ||
-                    modeKey == 'rapido') ...[
-                  _buildCabOptions(context, isDark, textColor, mutedColor),
-                ] else if (modeKey == 'multimodal') ...[
-                  _buildMultimodalOptions(context, isDark, textColor, mutedColor),
-                ] else if (modeKey == 'bmtc') ...[
-                  _buildBmtcDetails(context, isDark, textColor, mutedColor),
-                ] else if (modeKey == 'metro') ...[
-                  _buildMetroDetails(isDark, textColor, mutedColor),
-                ] else if (modeKey == 'car') ...[
-                  _buildCarDetails(isDark, textColor, mutedColor),
-                ] else if (modeKey == 'bicycle' || modeKey == 'walk') ...[
-                  _buildEcoDetails(isDark, textColor, mutedColor),
-                ],
-
-                const SizedBox(height: 14),
-
-                // 4. Action Buttons (Timeline, Navigation, Save)
-                Row(
-                  children: [
-                    if (onViewTimeline != null)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: modeColor,
-                            side: BorderSide(color: modeColor.withValues(alpha: 0.4)),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onPressed: onViewTimeline,
-                          icon: const Icon(Icons.linear_scale_rounded, size: 16),
-                          label: const Text('Timeline', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    const SizedBox(width: 8),
-                    if (onNavigate != null)
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: modeColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onPressed: onNavigate,
-                          icon: const Icon(Icons.navigation_rounded, size: 16),
-                          label: const Text('🚀 Start Nav', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
-                        ),
-                      ),
-                    const SizedBox(width: 8),
-                    if (onSaveJourney != null)
-                      IconButton.filledTonal(
-                        style: IconButton.styleFrom(
-                          backgroundColor: modeColor.withValues(alpha: 0.12),
-                          foregroundColor: modeColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: onSaveJourney,
-                        icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-                        tooltip: 'Save Route',
-                      ),
-                  ],
-                ),
+                ]
               ],
             ),
           ),
@@ -333,24 +435,35 @@ class ResultCard extends StatelessWidget {
     switch (mode) {
       case 'bmtc':
         final allDirect = (d['all_direct'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
-        final busNo = d['bus_number'] ?? d['route'] ?? (allDirect.isNotEmpty ? allDirect.take(3).join(' / ') : 'BMTC Bus');
-        return 'Bus Route: $busNo';
+        final busNo = selectedBusNo ?? d['bus_number'] ?? d['route'] ?? (allDirect.isNotEmpty ? allDirect.take(3).join(' / ') : 'BMTC Bus');
+        return 'Bus Route: ${_cleanBusNo(busNo)}';
       case 'metro':
-        return 'Purple Line · Green Line · Yellow Line';
+        final line = d['line'] ?? (d['segments'] is List && (d['segments'] as List).isNotEmpty ? d['segments'][0]['route'] : null);
+        final stns = d['stations_crossed'] ?? (d['segments'] is List && (d['segments'] as List).isNotEmpty && d['segments'][0]['stops'] is List ? (d['segments'][0]['stops'] as List).length - 1 : null);
+        final lineStr = line != null ? line.toString() : 'Purple / Green Line';
+        final stnStr = (stns != null && stns > 0) ? ' · $stns Stations' : '';
+        return '$lineStr$stnStr';
       case 'cab':
-        return 'Namma Yatri · Ola · Uber · Rapido';
+        return 'NammaMove · GoRide · SwiftCab · SwiftGo';
       case 'namma_yatri':
+      case 'nammamove':
         return 'Auto · Auto Priority · AC Cab · Sedan Premium';
       case 'uber':
-        return 'Uber Auto · Uber Moto · Uber Go · Premier · XL';
+      case 'swiftcab':
+        return 'SwiftCab Auto · SwiftCab Moto · SwiftCab Go · Premier · XL';
       case 'ola':
-        return 'Ola Auto · Ola Bike · Ola Mini · Prime Sedan · SUV';
+      case 'goride':
+        return 'GoRide Auto · GoRide Bike · GoRide Mini · Prime Sedan · SUV';
       case 'rapido':
-        return 'Rapido Bike Taxi · Rapido Auto · Rapido Cab';
+      case 'swiftgo':
+        return 'SwiftGo Bike Taxi · SwiftGo Auto · SwiftGo Cab';
       case 'car':
-        return 'Fuel + Estimated Parking';
+        final carRoute = d['route'] ?? (d['segments'] is List && (d['segments'] as List).isNotEmpty ? d['segments'][0]['route'] : null);
+        return carRoute != null ? 'Via $carRoute' : 'Fuel + Estimated Parking';
       case 'multimodal':
-        return 'Auto ➔ Bus ➔ Metro ➔ Walk';
+        final firstOpt = d['all_options'] is List && (d['all_options'] as List).isNotEmpty ? d['all_options'][0] : null;
+        final label = firstOpt?['combination_label'] ?? firstOpt?['route_summary'] ?? 'Auto ➔ Bus ➔ Metro ➔ Walk';
+        return label.toString();
       case 'bicycle':
         return 'Cycle Highway · Shared Docking Station';
       case 'walk':
@@ -397,29 +510,33 @@ class ResultCard extends StatelessWidget {
           runSpacing: 8,
           children: estimates.map((est) {
             if (est is! Map<String, dynamic>) return const SizedBox.shrink();
-            final provider = (est['provider'] ?? est['name'] ?? 'Cab').toString();
-            final vehicleName = (est['vehicle'] ?? est['vehicle_name'] ?? provider).toString();
+            final rawProv = (est['provider'] ?? est['name'] ?? 'Cab').toString();
+            final provider = AppTheme.formatProviderName(rawProv);
+            final rawVehicle = (est['vehicle'] ?? est['vehicle_name'] ?? provider).toString();
+            final vehicleName = AppTheme.sanitizeVehicleName(rawVehicle);
             final cost = est['cost'] ?? 0;
             final costMax = est['cost_max'] as int?;
             final time = est['time'] ?? 0;
-            final isCurrent = (selectedCabVehicle?['provider'] == provider ||
-                selectedCabVehicle?['name'] == vehicleName ||
-                selectedCabVehicle?['vehicle'] == vehicleName);
+            final isCurrent = (selectedCabVehicle?['provider_key'] == est['provider_key'] &&
+                selectedCabVehicle?['vehicle_key'] == est['vehicle_key']) ||
+                (selectedCabVehicle?['provider'] == provider &&
+                 (selectedCabVehicle?['vehicle'] == vehicleName ||
+                  selectedCabVehicle?['vehicle_name'] == vehicleName));
 
             // Provider specific colors matching website
             Color badgeBg = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
             Color badgeText = textColor;
             final provLower = provider.toLowerCase();
-            if (provLower.contains('namma')) {
+            if (provLower.contains('namma') || provLower.contains('move')) {
               badgeBg = const Color(0xFFEAB308);
               badgeText = Colors.black;
-            } else if (provLower.contains('uber')) {
+            } else if (provLower.contains('uber') || provLower.contains('swiftcab')) {
               badgeBg = const Color(0xFF374151);
               badgeText = Colors.white;
-            } else if (provLower.contains('ola')) {
+            } else if (provLower.contains('ola') || provLower.contains('goride')) {
               badgeBg = const Color(0xFF84CC16);
               badgeText = Colors.black;
-            } else if (provLower.contains('rapido')) {
+            } else if (provLower.contains('rapido') || provLower.contains('swiftgo')) {
               badgeBg = const Color(0xFFEA580C);
               badgeText = Colors.white;
             }
@@ -528,11 +645,15 @@ class ResultCard extends StatelessWidget {
         Column(
           children: allOpts.map((opt) {
             if (opt is! Map<String, dynamic>) return const SizedBox.shrink();
-            final summary = opt['route_summary']?.toString() ?? opt['title']?.toString() ?? 'Transit Option';
+            final summary = opt['combination_label']?.toString() ??
+                opt['route_summary']?.toString() ??
+                opt['title']?.toString() ??
+                'Transit Option';
             final c = opt['cost'] ?? 0;
             final t = opt['time'] ?? 0;
             final tr = opt['transfers'] ?? 0;
-            final isCurrent = selectedMultimodalOption?['route_summary'] == summary ||
+            final isCurrent = selectedMultimodalOption?['combination_label'] == summary ||
+                selectedMultimodalOption?['route_summary'] == summary ||
                 selectedMultimodalOption?['title'] == summary;
 
             return InkWell(
@@ -592,10 +713,8 @@ class ResultCard extends StatelessWidget {
   String _cleanBusNo(dynamic raw) {
     if (raw == null) return 'BMTC Bus';
     final s = raw.toString().trim();
-    if (s.contains('(') && s.contains(')')) {
-      return '600-KB / 600-FD';
-    }
-    return s;
+    final clean = s.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+    return clean.isNotEmpty ? clean : 'BMTC Bus';
   }
 
   // ── BMTC Bus details ───────────────────────────────────────────────────────
@@ -604,10 +723,11 @@ class ResultCard extends StatelessWidget {
     final freq = data['frequency'] ?? 'Every 10-15 mins';
     final rawAllDirect = (data['all_direct'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
     final allDirect = rawAllDirect
-        .map((b) => b.contains('(') ? '600-KB' : b)
+        .map((b) => b.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim())
+        .where((b) => b.isNotEmpty)
         .toSet()
         .toList();
-    final rawBus = data['bus_number'] ?? data['route'] ?? (allDirect.isNotEmpty ? allDirect.take(3).join(' / ') : 'BMTC Bus');
+    final rawBus = selectedBusNo ?? data['bus_number'] ?? data['route'] ?? (allDirect.isNotEmpty ? allDirect.take(3).join(' / ') : 'BMTC Bus');
     final busNo = _cleanBusNo(rawBus);
     final cost = data['cost'] ?? 0;
     final isVajra = busNo.toUpperCase().startsWith('V-') ||
@@ -655,22 +775,47 @@ class ResultCard extends StatelessWidget {
                   child: Wrap(
                     spacing: 4,
                     runSpacing: 4,
-                    children: allDirect.take(6).map((b) {
+                    children: allDirect.take(8).map((b) {
                       final bStr = b.toString();
                       final isV = bStr.toUpperCase().startsWith('V-') || bStr.toUpperCase().startsWith('KIA');
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          bStr,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: isV ? AppTheme.blue : AppTheme.bmtcColor,
+                      final isChosen = _cleanBusNo(busNo) == _cleanBusNo(bStr);
+                      return InkWell(
+                        onTap: () {
+                          data['bus_number'] = bStr;
+                          data['route'] = bStr;
+                          onSelectBus?.call(bStr);
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isChosen
+                                ? (isV ? AppTheme.blue : AppTheme.bmtcColor)
+                                : (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: isChosen
+                                  ? (isV ? AppTheme.blue : AppTheme.bmtcColor)
+                                  : (isV ? AppTheme.blue : AppTheme.bmtcColor).withValues(alpha: 0.4),
+                              width: isChosen ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isChosen) ...[
+                                const Icon(Icons.check_circle_rounded, size: 10, color: Colors.white),
+                                const SizedBox(width: 3),
+                              ],
+                              Text(
+                                bStr,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: isChosen ? Colors.white : (isV ? AppTheme.blue : AppTheme.bmtcColor),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       );
@@ -684,12 +829,16 @@ class ResultCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                cost >= 70
-                    ? 'Pass Option: Daily Pass ₹70 (Vajra ₹120)'
-                    : 'Ticket Fare: ₹$cost per passenger',
-                style: TextStyle(fontSize: 11, color: mutedColor, fontWeight: FontWeight.w500),
+              Expanded(
+                child: Text(
+                  cost >= 70
+                      ? 'Pass Option: Daily Pass ₹70 (Vajra ₹120)'
+                      : 'Ticket Fare: ₹$cost per passenger',
+                  style: TextStyle(fontSize: 11, color: mutedColor, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 freq.toString(),
                 style: TextStyle(fontSize: 11, color: mutedColor, fontWeight: FontWeight.w600),
@@ -708,16 +857,27 @@ class ResultCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              onPressed: () {
-                showModalBottomSheet(
+              onPressed: () async {
+                final chosen = await showModalBottomSheet<Map<String, dynamic>>(
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
                   builder: (_) => AllBusesModal(
                     source: source ?? data['source']?.toString() ?? '',
                     destination: destination ?? data['destination']?.toString() ?? '',
+                    onSelectBus: (busNo) {
+                      data['bus_number'] = busNo;
+                      data['route'] = busNo;
+                      onSelectBus?.call(busNo);
+                    },
                   ),
                 );
+                if (chosen != null && chosen['bus_number'] != null) {
+                  final busNo = chosen['bus_number'].toString();
+                  data['bus_number'] = busNo;
+                  data['route'] = busNo;
+                  onSelectBus?.call(busNo);
+                }
               },
             ),
           ),
@@ -729,9 +889,18 @@ class ResultCard extends StatelessWidget {
   // ── Metro details ──────────────────────────────────────────────────────────
   Widget _buildMetroDetails(bool isDark, Color textColor, Color mutedColor) {
     final costToken = data['cost'] ?? 35;
-    final costSmart = data['cost_smart'] ?? ((costToken * 0.85).toInt());
-    final stations = data['stations_crossed'] ?? 8;
+    final costSmart = data['cost_smart'] ?? ((costToken * 0.9).toInt());
+    final stations = data['stations_crossed'] ??
+        (data['segments'] is List && (data['segments'] as List).isNotEmpty && data['segments'][0]['stops'] is List
+            ? (data['segments'][0]['stops'] as List).length - 1
+            : 7);
     final interchanges = data['interchanges'] as List<dynamic>? ?? [];
+    final lineName = (data['line'] ??
+        (data['segments'] is List && (data['segments'] as List).isNotEmpty ? data['segments'][0]['route'] : null) ??
+        'Purple Line').toString();
+    final isGreen = lineName.toLowerCase().contains('green');
+    final isYellow = lineName.toLowerCase().contains('yellow');
+    final lineColor = isGreen ? const Color(0xFF22C55E) : (isYellow ? const Color(0xFFEAB308) : const Color(0xFF8B5CF6));
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -748,7 +917,7 @@ class ResultCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const PillBadge(text: 'NAMMA METRO', color: AppTheme.metroColor, isSmall: true),
+                  PillBadge(text: lineName.toUpperCase(), color: lineColor, isSmall: true),
                   const SizedBox(width: 8),
                   Text(
                     '$stations Stations Crossed',
@@ -758,7 +927,7 @@ class ResultCard extends StatelessWidget {
               ),
               Text(
                 'Freq: 5-8 min',
-                style: TextStyle(fontSize: 11, color: AppTheme.metroColor, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 11, color: lineColor, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -778,11 +947,15 @@ class ResultCard extends StatelessWidget {
                       border: Border.all(color: AppTheme.green.withValues(alpha: 0.3)),
                     ),
                     child: Text(
-                      'Smart Card: ₹$costSmart (15% OFF)',
+                      'Smart Card: ₹$costSmart',
                       style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppTheme.green),
                     ),
                   ),
                 ],
+              ),
+              Text(
+                interchanges.isEmpty ? 'Direct · No Interchange' : '${interchanges.length} Interchange(s)',
+                style: TextStyle(fontSize: 10.5, color: interchanges.isEmpty ? AppTheme.green : AppTheme.yellow, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -802,6 +975,11 @@ class ResultCard extends StatelessWidget {
   Widget _buildCarDetails(bool isDark, Color textColor, Color mutedColor) {
     final fuel = data['fuel_cost'] ?? ((data['cost'] ?? 100) * 0.7).toInt();
     final parking = data['parking_cost'] ?? 30;
+    final vehicleName = data['vehicle']?.toString();
+    final mileage = (data['mileage'] as num?)?.toDouble();
+    final fuelNeeded = (data['fuel_needed'] as num?)?.toDouble() ??
+        (data['fuel_breakdown']?['fuel_needed_litres'] as num?)?.toDouble();
+    final costPerKm = (data['cost_per_km'] as num?)?.toDouble();
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -810,29 +988,72 @@ class ResultCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.getBorder(isDark)),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          if (vehicleName != null && vehicleName.isNotEmpty) ...[
+            Row(
+              children: [
+                const Icon(Icons.directions_car_rounded, size: 15, color: AppTheme.carColor),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    vehicleName,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: textColor),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (mileage != null)
+                  Text(
+                    '${mileage.toStringAsFixed(1)} km/L',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: mutedColor),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            runAlignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
             children: [
-              const Icon(Icons.local_gas_station_rounded, size: 16, color: AppTheme.carColor),
-              const SizedBox(width: 6),
-              Text(
-                'Fuel: ₹$fuel',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textColor),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.local_gas_station_rounded, size: 16, color: AppTheme.carColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Fuel: ₹$fuel',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textColor),
+                  ),
+                  if (fuelNeeded != null) ...[
+                    const SizedBox(width: 6),
+                    Text('(${fuelNeeded.toStringAsFixed(1)}L)', style: TextStyle(fontSize: 11, color: mutedColor)),
+                  ],
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.local_parking_rounded, size: 15, color: AppTheme.blue),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Parking: ~₹$parking',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: mutedColor),
+                  ),
+                ],
               ),
             ],
           ),
-          Row(
-            children: [
-              const Icon(Icons.local_parking_rounded, size: 15, color: AppTheme.blue),
-              const SizedBox(width: 4),
-              Text(
-                'Parking: ~₹$parking',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: mutedColor),
-              ),
-            ],
-          ),
+          if (costPerKm != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Running cost: ~₹${costPerKm.toStringAsFixed(2)} per km',
+              style: TextStyle(fontSize: 10.5, color: mutedColor, fontWeight: FontWeight.w500),
+            ),
+          ],
         ],
       ),
     );

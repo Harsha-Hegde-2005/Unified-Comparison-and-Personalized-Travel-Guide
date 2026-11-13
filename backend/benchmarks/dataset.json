@@ -1,0 +1,1313 @@
+{
+  "benchmark_metadata": {
+    "dataset_name": "BMTC Core Route Benchmark Suite",
+    "version": "1.0",
+    "city": "Bengaluru",
+    "total_test_cases": 52,
+    "created_at": "2026-09-28"
+  },
+  "test_cases": [
+    {
+      "test_id": "BMTC_BENCH_001",
+      "name": "Majestic to Silk Board Morning Peak",
+      "origin": "Kempegowda Bus Station",
+      "destination": "Central Silk Board",
+      "origin_stop_id": "KBS_001",
+      "destination_stop_id": "CSB_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:30",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "201-J",
+        "actual_fare_inr": 25.0,
+        "actual_duration_mins": 45.0,
+        "actual_boarding_stop": "Kempegowda Bus Station",
+        "actual_alighting_stop": "Central Silk Board",
+        "observation_date": "2026-09-21",
+        "notes": "Field observation during Monday morning peak hour"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_002",
+      "name": "Hebbal to Silk Board Direct Outer Ring Road",
+      "origin": "Hebbal",
+      "destination": "Central Silk Board",
+      "origin_stop_id": "HBL_001",
+      "destination_stop_id": "CSB_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "09:00",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "500-D",
+        "actual_fare_inr": 30.0,
+        "actual_duration_mins": 55.0,
+        "actual_boarding_stop": "Hebbal Bridge",
+        "actual_alighting_stop": "Central Silk Board",
+        "observation_date": "2026-09-22",
+        "notes": "ORR Volvo/Vajra 500-D direct trip"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_003",
+      "name": "Banashankari to Indiranagar Peak",
+      "origin": "Banashankari Bus Station",
+      "destination": "Indiranagar 100ft Road",
+      "origin_stop_id": "BSK_001",
+      "destination_stop_id": "IND_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "18:15",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "cheapest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "201",
+        "actual_fare_inr": 20.0,
+        "actual_duration_mins": 50.0,
+        "actual_boarding_stop": "Banashankari TTMC",
+        "actual_alighting_stop": "Indiranagar 6th Block",
+        "observation_date": "2026-09-23",
+        "notes": "Evening peak commuter run"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_004",
+      "name": "Electronic City to Majestic Off-Peak",
+      "origin": "Electronic City Wipro Gate",
+      "destination": "Kempegowda Bus Station",
+      "origin_stop_id": "EC_001",
+      "destination_stop_id": "KBS_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "14:00",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "356-N",
+        "actual_fare_inr": 25.0,
+        "actual_duration_mins": 50.0,
+        "actual_boarding_stop": "Electronic City",
+        "actual_alighting_stop": "Kempegowda Bus Station",
+        "observation_date": "2026-09-24",
+        "notes": "Hosur Road elevated expressway express bus"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_005",
+      "name": "Whitefield TTMC to Majestic Peak",
+      "origin": "Whitefield TTMC",
+      "destination": "Kempegowda Bus Station",
+      "origin_stop_id": "WFD_001",
+      "destination_stop_id": "KBS_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:45",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "335-E",
+        "actual_fare_inr": 30.0,
+        "actual_duration_mins": 75.0,
+        "actual_boarding_stop": "Whitefield TTMC",
+        "actual_alighting_stop": "Kempegowda Bus Station",
+        "observation_date": "2026-09-25",
+        "notes": "ITPL / Varthur Main Road trunk route"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_006",
+      "name": "Kengeri to Tin Factory Transfer Journey",
+      "origin": "Kengeri Bus Station",
+      "destination": "Tin Factory",
+      "origin_stop_id": "KNG_001",
+      "destination_stop_id": "TNF_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "17:45",
+      "departure_period": "evening_peak",
+      "journey_type": "transfer",
+      "preference": "fewest_transfers",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "226-N -> 500-D",
+        "actual_fare_inr": 45.0,
+        "actual_duration_mins": 85.0,
+        "actual_boarding_stop": "Kengeri Bus Station",
+        "actual_alighting_stop": "Tin Factory",
+        "observation_date": "2026-09-18",
+        "notes": "Transfer at Silk Board / Corporation"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_007",
+      "name": "Yeshwanthpur to Koramangala",
+      "origin": "Yeshwanthpur TTMC",
+      "destination": "Koramangala 5th Block",
+      "origin_stop_id": "YPR_001",
+      "destination_stop_id": "KRM_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "10:30",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "252",
+        "actual_fare_inr": 25.0,
+        "actual_duration_mins": 55.0,
+        "actual_boarding_stop": "Yeshwanthpur TTMC",
+        "actual_alighting_stop": "Koramangala Sony World Signal",
+        "observation_date": "2026-09-19",
+        "notes": "Trunk feeder connecting north to south-east"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_008",
+      "name": "Hosakerehalli to Tin Factory",
+      "origin": "Hosakerehalli Bus Stop",
+      "destination": "Tin Factory",
+      "origin_stop_id": "HSK_001",
+      "destination_stop_id": "TNF_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "09:15",
+      "departure_period": "morning_peak",
+      "journey_type": "transfer",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "210-N -> 500-D",
+        "actual_fare_inr": 35.0,
+        "actual_duration_mins": 70.0,
+        "actual_boarding_stop": "Hosakerehalli Bus Stop",
+        "actual_alighting_stop": "Tin Factory",
+        "observation_date": "2026-09-20",
+        "notes": "Transfer at Silk Board / Banashankari"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_009",
+      "name": "Marathahalli Bridge to Majestic",
+      "origin": "Marathahalli Bridge",
+      "destination": "Kempegowda Bus Station",
+      "origin_stop_id": "MHL_001",
+      "destination_stop_id": "KBS_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:15",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "335-E",
+        "actual_fare_inr": 25.0,
+        "actual_duration_mins": 60.0,
+        "actual_boarding_stop": "Marathahalli Bridge",
+        "actual_alighting_stop": "Kempegowda Bus Station",
+        "observation_date": "2026-09-21",
+        "notes": "Old Airport Road trunk line"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_010",
+      "name": "Shivajinagar to Jayanagar 4th Block",
+      "origin": "Shivajinagar Bus Station",
+      "destination": "Jayanagar 4th Block",
+      "origin_stop_id": "SHV_001",
+      "destination_stop_id": "JYN_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "12:00",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "cheapest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "13",
+        "actual_fare_inr": 18.0,
+        "actual_duration_mins": 35.0,
+        "actual_boarding_stop": "Shivajinagar Bus Station",
+        "actual_alighting_stop": "Jayanagar 4th Block",
+        "observation_date": "2026-09-22",
+        "notes": "Classic core city route 13"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_011",
+      "name": "Domlur to Hebbal Night Service",
+      "origin": "Domlur TTMC",
+      "destination": "Hebbal",
+      "origin_stop_id": "DML_001",
+      "destination_stop_id": "HBL_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "21:30",
+      "departure_period": "night",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false,
+        "actual_route_taken": null,
+        "actual_fare_inr": null,
+        "actual_duration_mins": null,
+        "actual_boarding_stop": null,
+        "actual_alighting_stop": null,
+        "observation_date": null,
+        "notes": "No physical field log recorded yet for night run"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_012",
+      "name": "Yelahanka NES to Central Silk Board",
+      "origin": "Yelahanka NES",
+      "destination": "Central Silk Board",
+      "origin_stop_id": "YLH_001",
+      "destination_stop_id": "CSB_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "07:30",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "500-A",
+        "actual_fare_inr": 35.0,
+        "actual_duration_mins": 75.0,
+        "actual_boarding_stop": "Yelahanka NES",
+        "actual_alighting_stop": "Central Silk Board",
+        "observation_date": "2026-09-23",
+        "notes": "Hebbal-ORR express line"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_013",
+      "name": "KR Puram Railway Station to Banashankari",
+      "origin": "KR Puram Railway Station",
+      "destination": "Banashankari Bus Station",
+      "origin_stop_id": "KRP_001",
+      "destination_stop_id": "BSK_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "16:30",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "500-D",
+        "actual_fare_inr": 30.0,
+        "actual_duration_mins": 65.0,
+        "actual_boarding_stop": "KR Puram Railway Station",
+        "actual_alighting_stop": "Banashankari TTMC",
+        "observation_date": "2026-09-24",
+        "notes": "ORR ring route"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_014",
+      "name": "Malleshwaram 18th Cross to Koramangala",
+      "origin": "Malleshwaram 18th Cross",
+      "destination": "Koramangala Bus Stand",
+      "origin_stop_id": "MLS_001",
+      "destination_stop_id": "KRM_002",
+      "travel_date": "2026-09-28",
+      "departure_time": "11:15",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "least_walking",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_015",
+      "name": "BTM Layout 16th Main to Majestic",
+      "origin": "BTM Layout 16th Main",
+      "destination": "Kempegowda Bus Station",
+      "origin_stop_id": "BTM_001",
+      "destination_stop_id": "KBS_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:00",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "201-J",
+        "actual_fare_inr": 20.0,
+        "actual_duration_mins": 40.0,
+        "actual_boarding_stop": "BTM Layout 16th Main",
+        "actual_alighting_stop": "Kempegowda Bus Station",
+        "observation_date": "2026-09-25",
+        "notes": "Morning office commute line"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_016",
+      "name": "HSR Layout BDA Complex to Indiranagar",
+      "origin": "HSR Layout BDA Complex",
+      "destination": "Indiranagar 100ft Road",
+      "origin_stop_id": "HSR_001",
+      "destination_stop_id": "IND_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "19:00",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "cheapest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_017",
+      "name": "Shantinagar TTMC to Hebbal",
+      "origin": "Shantinagar TTMC",
+      "destination": "Hebbal",
+      "origin_stop_id": "SNT_001",
+      "destination_stop_id": "HBL_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "15:30",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "280",
+        "actual_fare_inr": 22.0,
+        "actual_duration_mins": 45.0,
+        "actual_boarding_stop": "Shantinagar TTMC",
+        "actual_alighting_stop": "Hebbal Bridge",
+        "observation_date": "2026-09-17",
+        "notes": "North-South trunk corridor"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_018",
+      "name": "Vijayanagar TTMC to Whitefield TTMC",
+      "origin": "Vijayanagar TTMC",
+      "destination": "Whitefield TTMC",
+      "origin_stop_id": "VJN_001",
+      "destination_stop_id": "WFD_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:10",
+      "departure_period": "morning_peak",
+      "journey_type": "transfer",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_019",
+      "name": "Rajajinagar 1st Block to Central Silk Board",
+      "origin": "Rajajinagar 1st Block",
+      "destination": "Central Silk Board",
+      "origin_stop_id": "RJN_001",
+      "destination_stop_id": "CSB_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "17:15",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_020",
+      "name": "MG Road Metro Station to Electronic City",
+      "origin": "MG Road Metro Station",
+      "destination": "Electronic City Wipro Gate",
+      "origin_stop_id": "MGR_001",
+      "destination_stop_id": "EC_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "09:30",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "356-N",
+        "actual_fare_inr": 25.0,
+        "actual_duration_mins": 45.0,
+        "actual_boarding_stop": "MG Road Metro Station",
+        "actual_alighting_stop": "Electronic City Wipro Gate",
+        "observation_date": "2026-09-16",
+        "notes": "Direct Volvo route 356-N"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_021",
+      "name": "GPS Coordinate Origin Majestic to Silk Board",
+      "origin": "12.978,77.573",
+      "destination": "Central Silk Board",
+      "origin_stop_id": null,
+      "destination_stop_id": "CSB_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:30",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_022",
+      "name": "GPS Coordinate Destination Majestic to Silk Board",
+      "origin": "Kempegowda Bus Station",
+      "destination": "12.917,77.623",
+      "origin_stop_id": "KBS_001",
+      "destination_stop_id": null,
+      "travel_date": "2026-09-28",
+      "departure_time": "18:00",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_023",
+      "name": "Bellandur EcoSpace to Banashankari",
+      "origin": "Bellandur EcoSpace",
+      "destination": "Banashankari Bus Station",
+      "origin_stop_id": "BLR_001",
+      "destination_stop_id": "BSK_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "18:30",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "500-D",
+        "actual_fare_inr": 25.0,
+        "actual_duration_mins": 50.0,
+        "actual_boarding_stop": "Bellandur",
+        "actual_alighting_stop": "Banashankari TTMC",
+        "observation_date": "2026-09-22",
+        "notes": "ORR tech park evening exit"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_024",
+      "name": "ITPL Main Gate to Majestic",
+      "origin": "ITPL Main Gate",
+      "destination": "Kempegowda Bus Station",
+      "origin_stop_id": "ITP_001",
+      "destination_stop_id": "KBS_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "09:10",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "335-E",
+        "actual_fare_inr": 30.0,
+        "actual_duration_mins": 70.0,
+        "actual_boarding_stop": "ITPL Main Gate",
+        "actual_alighting_stop": "Kempegowda Bus Station",
+        "observation_date": "2026-09-24",
+        "notes": "Direct ITPL commute"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_025",
+      "name": "Jayanagar 4th Block to Hebbal",
+      "origin": "Jayanagar 4th Block",
+      "destination": "Hebbal",
+      "origin_stop_id": "JYN_001",
+      "destination_stop_id": "HBL_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "14:30",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_026",
+      "name": "Hebbal to Electronic City Direct",
+      "origin": "Hebbal",
+      "destination": "Electronic City Wipro Gate",
+      "origin_stop_id": "HBL_001",
+      "destination_stop_id": "EC_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:00",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "500-EB",
+        "actual_fare_inr": 35.0,
+        "actual_duration_mins": 80.0,
+        "actual_boarding_stop": "Hebbal Bridge",
+        "actual_alighting_stop": "Electronic City Wipro Gate",
+        "observation_date": "2026-09-15",
+        "notes": "ORR Express Volvo service"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_027",
+      "name": "Koramangala Sony World to Majestic Night",
+      "origin": "Koramangala Sony World Signal",
+      "destination": "Kempegowda Bus Station",
+      "origin_stop_id": "KRM_003",
+      "destination_stop_id": "KBS_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "22:15",
+      "departure_period": "night",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_028",
+      "name": "Majestic to Indiranagar 100ft Road",
+      "origin": "Kempegowda Bus Station",
+      "destination": "Indiranagar 100ft Road",
+      "origin_stop_id": "KBS_001",
+      "destination_stop_id": "IND_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "10:00",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "cheapest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "138",
+        "actual_fare_inr": 18.0,
+        "actual_duration_mins": 35.0,
+        "actual_boarding_stop": "Kempegowda Bus Station",
+        "actual_alighting_stop": "Indiranagar 100ft Road",
+        "observation_date": "2026-09-14",
+        "notes": "Regular city ordinary route 138"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_029",
+      "name": "Banashankari to Whitefield TTMC Transfer",
+      "origin": "Banashankari Bus Station",
+      "destination": "Whitefield TTMC",
+      "origin_stop_id": "BSK_001",
+      "destination_stop_id": "WFD_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "07:45",
+      "departure_period": "morning_peak",
+      "journey_type": "transfer",
+      "preference": "fewest_transfers",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_030",
+      "name": "Kengeri Satellite Town to Majestic",
+      "origin": "Kengeri Satellite Town",
+      "destination": "Kempegowda Bus Station",
+      "origin_stop_id": "KNG_002",
+      "destination_stop_id": "KBS_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:20",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "226-N",
+        "actual_fare_inr": 25.0,
+        "actual_duration_mins": 50.0,
+        "actual_boarding_stop": "Kengeri Satellite Town",
+        "actual_alighting_stop": "Kempegowda Bus Station",
+        "observation_date": "2026-09-12",
+        "notes": "Mysore Road trunk corridor"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_031",
+      "name": "Yeshwanthpur to Electronic City Transfer",
+      "origin": "Yeshwanthpur TTMC",
+      "destination": "Electronic City Wipro Gate",
+      "origin_stop_id": "YPR_001",
+      "destination_stop_id": "EC_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:15",
+      "departure_period": "morning_peak",
+      "journey_type": "transfer",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_032",
+      "name": "Tin Factory to Silk Board Evening Peak",
+      "origin": "Tin Factory",
+      "destination": "Central Silk Board",
+      "origin_stop_id": "TNF_001",
+      "destination_stop_id": "CSB_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "18:00",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "500-D",
+        "actual_fare_inr": 25.0,
+        "actual_duration_mins": 45.0,
+        "actual_boarding_stop": "Tin Factory",
+        "actual_alighting_stop": "Central Silk Board",
+        "observation_date": "2026-09-11",
+        "notes": "ORR Southbound peak hour run"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_033",
+      "name": "Indiranagar to Koramangala Direct",
+      "origin": "Indiranagar 100ft Road",
+      "destination": "Koramangala 5th Block",
+      "origin_stop_id": "IND_001",
+      "destination_stop_id": "KRM_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "13:30",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "cheapest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_034",
+      "name": "BTM Layout to Hebbal Morning Peak",
+      "origin": "BTM Layout 16th Main",
+      "destination": "Hebbal",
+      "origin_stop_id": "BTM_001",
+      "destination_stop_id": "HBL_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:40",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "500-D",
+        "actual_fare_inr": 30.0,
+        "actual_duration_mins": 55.0,
+        "actual_boarding_stop": "BTM Layout 16th Main",
+        "actual_alighting_stop": "Hebbal Bridge",
+        "observation_date": "2026-09-10",
+        "notes": "ORR Northbound express"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_035",
+      "name": "Marathahalli to Electronic City",
+      "origin": "Marathahalli Bridge",
+      "destination": "Electronic City Wipro Gate",
+      "origin_stop_id": "MHL_001",
+      "destination_stop_id": "EC_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "09:20",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "500-EB",
+        "actual_fare_inr": 30.0,
+        "actual_duration_mins": 45.0,
+        "actual_boarding_stop": "Marathahalli Bridge",
+        "actual_alighting_stop": "Electronic City Wipro Gate",
+        "observation_date": "2026-09-09",
+        "notes": "Tech corridor express"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_036",
+      "name": "Shivajinagar to Whitefield TTMC",
+      "origin": "Shivajinagar Bus Station",
+      "destination": "Whitefield TTMC",
+      "origin_stop_id": "SHV_001",
+      "destination_stop_id": "WFD_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "16:00",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_037",
+      "name": "Hosakerehalli Cross to Majestic",
+      "origin": "Hosakerehalli Cross",
+      "destination": "Kempegowda Bus Station",
+      "origin_stop_id": "HSK_002",
+      "destination_stop_id": "KBS_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:10",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "cheapest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "210-N",
+        "actual_fare_inr": 20.0,
+        "actual_duration_mins": 45.0,
+        "actual_boarding_stop": "Hosakerehalli Cross",
+        "actual_alighting_stop": "Kempegowda Bus Station",
+        "observation_date": "2026-09-08",
+        "notes": "Suburban route 210-N"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_038",
+      "name": "Yelahanka to Majestic Morning Peak",
+      "origin": "Yelahanka NES",
+      "destination": "Kempegowda Bus Station",
+      "origin_stop_id": "YLH_001",
+      "destination_stop_id": "KBS_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "07:50",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "280",
+        "actual_fare_inr": 25.0,
+        "actual_duration_mins": 50.0,
+        "actual_boarding_stop": "Yelahanka NES",
+        "actual_alighting_stop": "Kempegowda Bus Station",
+        "observation_date": "2026-09-07",
+        "notes": "Bellary Road express route"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_039",
+      "name": "KR Puram to Silk Board Off-Peak",
+      "origin": "KR Puram Railway Station",
+      "destination": "Central Silk Board",
+      "origin_stop_id": "KRP_001",
+      "destination_stop_id": "CSB_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "12:30",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_040",
+      "name": "Rajajinagar to Banashankari Direct",
+      "origin": "Rajajinagar 1st Block",
+      "destination": "Banashankari Bus Station",
+      "origin_stop_id": "RJN_001",
+      "destination_stop_id": "BSK_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "15:00",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "cheapest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_041",
+      "name": "HSR Layout to Majestic Morning Peak",
+      "origin": "HSR Layout BDA Complex",
+      "destination": "Kempegowda Bus Station",
+      "origin_stop_id": "HSR_001",
+      "destination_stop_id": "KBS_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:25",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "342-F",
+        "actual_fare_inr": 22.0,
+        "actual_duration_mins": 45.0,
+        "actual_boarding_stop": "HSR Layout BDA Complex",
+        "actual_alighting_stop": "Kempegowda Bus Station",
+        "observation_date": "2026-09-05",
+        "notes": "Direct HSR commuter feeder"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_042",
+      "name": "Domlur to Whitefield TTMC",
+      "origin": "Domlur TTMC",
+      "destination": "Whitefield TTMC",
+      "origin_stop_id": "DML_001",
+      "destination_stop_id": "WFD_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "17:30",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_043",
+      "name": "Shantinagar to Silk Board",
+      "origin": "Shantinagar TTMC",
+      "destination": "Central Silk Board",
+      "origin_stop_id": "SNT_001",
+      "destination_stop_id": "CSB_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "19:15",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "cheapest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_044",
+      "name": "Vijayanagar to Banashankari",
+      "origin": "Vijayanagar TTMC",
+      "destination": "Banashankari Bus Station",
+      "origin_stop_id": "VJN_001",
+      "destination_stop_id": "BSK_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "11:45",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_045",
+      "name": "Malleshwaram to Hebbal Direct",
+      "origin": "Malleshwaram 18th Cross",
+      "destination": "Hebbal",
+      "origin_stop_id": "MLS_001",
+      "destination_stop_id": "HBL_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "08:35",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_046",
+      "name": "MG Road to Whitefield TTMC",
+      "origin": "MG Road Metro Station",
+      "destination": "Whitefield TTMC",
+      "origin_stop_id": "MGR_001",
+      "destination_stop_id": "WFD_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "09:05",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "335-E",
+        "actual_fare_inr": 28.0,
+        "actual_duration_mins": 55.0,
+        "actual_boarding_stop": "MG Road",
+        "actual_alighting_stop": "Whitefield TTMC",
+        "observation_date": "2026-09-04",
+        "notes": "Vajra AC line"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_047",
+      "name": "Coordinate to Coordinate Inter-suburb",
+      "origin": "12.935,77.624",
+      "destination": "12.991,77.571",
+      "origin_stop_id": null,
+      "destination_stop_id": null,
+      "travel_date": "2026-09-28",
+      "departure_time": "14:15",
+      "departure_period": "off_peak",
+      "journey_type": "direct",
+      "preference": "least_walking",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_048",
+      "name": "Kengeri to Electronic City Long Distance Transfer",
+      "origin": "Kengeri Bus Station",
+      "destination": "Electronic City Wipro Gate",
+      "origin_stop_id": "KNG_001",
+      "destination_stop_id": "EC_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "07:15",
+      "departure_period": "morning_peak",
+      "journey_type": "transfer",
+      "preference": "fewest_transfers",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_049",
+      "name": "Bellandur to Majestic Evening Peak",
+      "origin": "Bellandur EcoSpace",
+      "destination": "Kempegowda Bus Station",
+      "origin_stop_id": "BLR_001",
+      "destination_stop_id": "KBS_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "18:45",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "500-D",
+        "actual_fare_inr": 28.0,
+        "actual_duration_mins": 60.0,
+        "actual_boarding_stop": "Bellandur",
+        "actual_alighting_stop": "Kempegowda Bus Station",
+        "observation_date": "2026-09-02",
+        "notes": "ORR evening outbound"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_050",
+      "name": "ITPL to Hebbal Evening Peak",
+      "origin": "ITPL Main Gate",
+      "destination": "Hebbal",
+      "origin_stop_id": "ITP_001",
+      "destination_stop_id": "HBL_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "17:50",
+      "departure_period": "evening_peak",
+      "journey_type": "direct",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": true,
+        "actual_route_taken": "500-D",
+        "actual_fare_inr": 30.0,
+        "actual_duration_mins": 65.0,
+        "actual_boarding_stop": "ITPL Main Gate",
+        "actual_alighting_stop": "Hebbal Bridge",
+        "observation_date": "2026-09-01",
+        "notes": "IT Corridor Northbound"
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_051",
+      "name": "Jayanagar 4th Block to Silk Board",
+      "origin": "Jayanagar 4th Block",
+      "destination": "Central Silk Board",
+      "origin_stop_id": "JYN_001",
+      "destination_stop_id": "CSB_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "09:40",
+      "departure_period": "morning_peak",
+      "journey_type": "direct",
+      "preference": "cheapest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 0,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    },
+    {
+      "test_id": "BMTC_BENCH_052",
+      "name": "Yelahanka to Electronic City Transfer",
+      "origin": "Yelahanka NES",
+      "destination": "Electronic City Wipro Gate",
+      "origin_stop_id": "YLH_001",
+      "destination_stop_id": "EC_001",
+      "travel_date": "2026-09-28",
+      "departure_time": "07:00",
+      "departure_period": "morning_peak",
+      "journey_type": "transfer",
+      "preference": "fastest",
+      "expected_test_conditions": {
+        "service_expected": true,
+        "max_transfers": 1,
+        "min_options": 1
+      },
+      "ground_truth": {
+        "has_observation": false
+      }
+    }
+  ]
+}

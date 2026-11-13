@@ -1,3 +1,4 @@
+import '../utils/voice_navigation_engine.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
@@ -37,11 +38,11 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
   int _activeSegmentIndex = 0;
   bool _isLiveNavigating = false;
-  bool _useRealGps = true;
   Timer? _navTimer;
   StreamSubscription<ll.LatLng>? _gpsSubscription;
   double _liveProgress = 0.0;
   ll.LatLng? _liveGpsPoint;
+  VoiceNavigationEngine? _voiceEngine;
 
   static const Map<String, ll.LatLng> _knownCoords = {
     'majestic': ll.LatLng(12.9767, 77.5713),
@@ -105,6 +106,33 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
 
     final cleanSrc = widget.source.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
     final cleanDst = widget.destination.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+
+    final busNo = opt['bus_number']?.toString() ?? opt['route']?.toString();
+    if (optMode == 'bmtc' && busNo != null && busNo.isNotEmpty) {
+      try {
+        final rDetails = await ApiService.fetchRouteDetails(busNo);
+        if (rDetails != null && rDetails['stops'] is List) {
+          final bStops = (rDetails['stops'] as List).map((e) => e.toString()).toList();
+          if (bStops.isNotEmpty) {
+            int sIdx = -1, dIdx = -1;
+            for (int i = 0; i < bStops.length; i++) {
+              final st = bStops[i].toLowerCase();
+              if (sIdx == -1 && (st.contains(cleanSrc.toLowerCase()) || cleanSrc.toLowerCase().contains(st))) {
+                sIdx = i;
+              }
+              if (dIdx == -1 && (st.contains(cleanDst.toLowerCase()) || cleanDst.toLowerCase().contains(st))) {
+                dIdx = i;
+              }
+            }
+            if (sIdx != -1 && dIdx != -1 && sIdx < dIdx) {
+              stops.addAll(bStops.sublist(sIdx, dIdx + 1));
+            } else {
+              stops.addAll(bStops);
+            }
+          }
+        }
+      } catch (_) {}
+    }
 
     stops.insert(0, cleanSrc);
     stops.add(cleanDst);
@@ -186,11 +214,21 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
             }
           }
 
+          // Fallback for personal vehicle & cab where intermediate stops array is empty
+          if (segPts.isEmpty && (optMode == 'car' || optMode == 'two_wheeler' || segType == 'car' || optMode == 'cab')) {
+            if (widget.srcCoord != null) segPts.add(widget.srcCoord!);
+            if (widget.dstCoord != null && widget.dstCoord != widget.srcCoord) segPts.add(widget.dstCoord!);
+          }
+
           if (segPts.length >= 2) {
-            final profile = isWalk ? 'foot' : 'driving';
-            final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: profile);
+            List<ll.LatLng> finalPts = segPts;
+            if (!isMetro) {
+              final profile = isWalk ? 'foot' : 'driving';
+              final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: profile);
+              if (roadPts.isNotEmpty) finalPts = roadPts;
+            }
             segPolylines.add({
-              'points': roadPts.isNotEmpty ? roadPts : segPts,
+              'points': finalPts,
               'color': segColor,
               'isWalk': isWalk,
               'isMetro': isMetro,
@@ -199,6 +237,17 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
           }
         }
       }
+    }
+
+    if ((optMode == 'car' || optMode == 'two_wheeler') && segPolylines.isEmpty && points.length >= 2) {
+      final carRoad = await ApiService.fetchRoadPolyline(points, profile: 'driving');
+      segPolylines.add({
+        'points': carRoad.isNotEmpty ? carRoad : points,
+        'color': AppTheme.carColor,
+        'isWalk': false,
+        'isMetro': false,
+        'routeName': 'Drive (${widget.option['vehicle'] ?? "Personal Vehicle"})',
+      });
     }
 
     if (mounted) {
@@ -237,45 +286,25 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         const SnackBar(content: Text('⏹ Live GPS Navigation stopped')),
       );
     } else {
-      if (_useRealGps) {
-        setState(() {
-          _isLiveNavigating = true;
-          _liveProgress = 0.0;
-          _liveGpsPoint = widget.srcCoord ?? (_routePoints.isNotEmpty ? _routePoints.first : null);
-        });
+      final navMode = widget.option['mode'] == 'car'
+          ? VoiceNavMode.personalVehicle
+          : (widget.option['mode'] == 'walk' ? VoiceNavMode.walking : VoiceNavMode.bus);
+      _voiceEngine = VoiceNavigationEngine(
+        mode: navMode,
+        destinationName: widget.option['destination']?.toString() ?? 'Destination',
+      );
+      _voiceEngine!.resetState();
 
-        _gpsSubscription = GeolocationHelper.watchPositionStream().listen((pos) {
-          if (!mounted) return;
-          _updateRealGpsPosition(pos);
-        });
-      } else {
-        setState(() {
-          _isLiveNavigating = true;
-          _liveProgress = 0.0;
-          _liveGpsPoint = widget.srcCoord ?? (_routePoints.isNotEmpty ? _routePoints.first : null);
-        });
+      setState(() {
+        _isLiveNavigating = true;
+        _liveProgress = 0.0;
+        _liveGpsPoint = widget.srcCoord ?? (_routePoints.isNotEmpty ? _routePoints.first : null);
+      });
 
-        _navTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-          if (!mounted) return;
-          setState(() {
-            _liveProgress += 3.0;
-            if (_liveProgress >= 100.0) {
-              _liveProgress = 100.0;
-              t.cancel();
-              _isLiveNavigating = false;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('🎉 Destination Reached! Navigation Complete.'),
-                  backgroundColor: AppTheme.green,
-                ),
-              );
-            } else {
-              final idx = ((_liveProgress / 100.0) * (_routePoints.length - 1)).floor();
-              _liveGpsPoint = _routePoints[idx.clamp(0, _routePoints.length - 1)];
-            }
-          });
-        });
-      }
+      _gpsSubscription = GeolocationHelper.watchPositionStream().listen((pos) {
+        if (!mounted) return;
+        _updateRealGpsPosition(pos);
+      });
     }
   }
 
@@ -303,6 +332,21 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
       _liveProgress = prog;
       _activeSegmentIndex = stepIdx;
     });
+
+    final mode = widget.option['mode']?.toString() ?? 'bmtc';
+    if (_voiceEngine != null && (mode == 'car' || mode == 'walk' || mode == 'bicycle')) {
+      final remMeters = (1.0 - (prog / 100.0)) * totalDistance;
+      final stepInstruction = (guide != null && stepIdx < guide.length) ? guide[stepIdx].toString() : 'Continue on route';
+      final stepFraction = guide != null && guide.isNotEmpty ? totalDistance / guide.length : 200.0;
+      final distToStep = ((1.0 - ((prog / 100.0) * (guide?.length ?? 1) - stepIdx)).clamp(0.0, 1.0)) * stepFraction;
+
+      _voiceEngine!.onRoadDistanceUpdated(
+        distanceToManeuverMeters: distToStep,
+        maneuverInstruction: stepInstruction,
+        stepIndex: stepIdx,
+        totalRemainingMeters: remMeters,
+      );
+    }
   }
 
   @override
@@ -347,32 +391,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment<bool>(
-                        value: true,
-                        label: Text('📡 Real GPS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        icon: Icon(Icons.my_location_rounded, size: 14),
-                      ),
-                      ButtonSegment<bool>(
-                        value: false,
-                        label: Text('▶️ Demo Simulator', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        icon: Icon(Icons.play_arrow_rounded, size: 14),
-                      ),
-                    ],
-                    selected: {_useRealGps},
-                    onSelectionChanged: (setVal) {
-                      if (_isLiveNavigating) _toggleLiveNav();
-                      setState(() => _useRealGps = setVal.first);
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
+            // Real GPS Navigation Action Button
 
             SizedBox(
               width: double.infinity,
@@ -428,9 +447,9 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                           children: [
                             const Icon(Icons.navigation_rounded, color: Colors.white, size: 20),
                             const SizedBox(width: 8),
-                            Text(
-                              _useRealGps ? 'REAL-TIME GPS TRACKING' : 'DEMO SIMULATION ACTIVE',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            const Text(
+                              'REAL-TIME GPS TRACKING',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                             ),
                           ],
                         ),
@@ -490,6 +509,7 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
                         Text(
                           '⏱️ $time min  ·  ₹$cost  ·  🚶 ${dist}km',
                           style: TextStyle(fontSize: 12, color: mutedColor, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -531,6 +551,8 @@ class _RouteDetailsScreenState extends State<RouteDetailsScreen> {
               onStepTapped: (idx) {
                 setState(() => _activeSegmentIndex = idx);
               },
+              srcCoord: widget.srcCoord,
+              dstCoord: widget.dstCoord,
             ),
             const SizedBox(height: 20),
           ],

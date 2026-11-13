@@ -23,7 +23,12 @@ def _load_route_trips() -> dict[str, int]:
         trips_df = pd.read_csv(GTFS_TRIPS, dtype={"route_id": str, "trip_id": str})
         routes_df = pd.read_csv(GTFS_ROUTES, dtype={"route_id": str, "route_short_name": str})
         merged = trips_df.merge(routes_df[["route_id", "route_short_name"]], on="route_id", how="left")
-        return merged.groupby("route_short_name").size().to_dict()
+        res = merged.groupby("route_short_name").size().to_dict()
+        for k, v in list(res.items()):
+            if isinstance(k, str):
+                res[k.upper()] = v
+                res[k.replace("-", "").upper()] = v
+        return res
     except Exception:
         return {}
 
@@ -60,37 +65,66 @@ def _bus_speed_kmh(dt: datetime) -> float:
 
 
 _combined_routes_df = pd.concat([stops_df, _rev_df], ignore_index=True) if not _rev_df.empty else stops_df
+_sorted_routes_df = _combined_routes_df.sort_values(["route_no", "stop_sequence"])
 _direct_route_index: list[dict] = []
 _direct_route_index_map: dict[str, dict] = {}
 _routes_by_stop: dict[str, list[dict]] = {}
 
-for _route_no, _group in _combined_routes_df.groupby("route_no"):
-    _ordered = _group.sort_values("stop_sequence")
-    _norms = list(_ordered["stop_norm"])
+_r_nos = _sorted_routes_df["route_no"].astype(str).values
+_s_norms = _sorted_routes_df["stop_norm"].values
+_lats = _sorted_routes_df["latitude"].values
+_lngs = _sorted_routes_df["longitude"].values
+
+_n_rows = len(_sorted_routes_df)
+_curr_i = 0
+while _curr_i < _n_rows:
+    _r = _r_nos[_curr_i]
+    _start_i = _curr_i
+    while _curr_i < _n_rows and _r_nos[_curr_i] == _r:
+        _curr_i += 1
+    _end_i = _curr_i
+
+    _norms = _s_norms[_start_i:_end_i].tolist()
+    _sub_lats = _lats[_start_i:_end_i]
+    _sub_lngs = _lngs[_start_i:_end_i]
+
     _cumulative_km = [0.0]
-    _rows = list(_ordered.itertuples(index=False))
-    for _idx in range(len(_rows) - 1):
-        _a = _rows[_idx]
-        _b = _rows[_idx + 1]
+    for _j in range(len(_norms) - 1):
         _cumulative_km.append(
-            _cumulative_km[-1] + _haversine(_a.latitude, _a.longitude, _b.latitude, _b.longitude)
+            _cumulative_km[-1] + _haversine(_sub_lats[_j], _sub_lngs[_j], _sub_lats[_j + 1], _sub_lngs[_j + 1])
         )
+
     _positions: dict[str, list[int]] = {}
     for _idx, _stop_norm in enumerate(_norms):
         _positions.setdefault(_stop_norm, []).append(_idx)
+        if "hoskerehalli" in _stop_norm:
+            _positions.setdefault(_stop_norm.replace("hoskerehalli", "hosakerehalli"), []).append(_idx)
+        elif "hosakerehalli" in _stop_norm:
+            _positions.setdefault(_stop_norm.replace("hosakerehalli", "hoskerehalli"), []).append(_idx)
+
     _route_info = {
-        "route_no": str(_route_no),
-        "base_route": str(_route_no).replace("_REV", ""),
+        "route_no": _r,
+        "base_route": _r.replace("_REV", ""),
         "norms": _norms,
         "positions": _positions,
         "stop_set": set(_norms),
         "cumulative_km": _cumulative_km,
-        "coords": [(row.latitude, row.longitude) for row in _rows],
+        "coords": list(zip(_sub_lats, _sub_lngs)),
     }
     _direct_route_index.append(_route_info)
-    _direct_route_index_map[_route_info["route_no"]] = _route_info
+    _direct_route_index_map[_r] = _route_info
     for _stop_norm in _positions:
         _routes_by_stop.setdefault(_stop_norm, []).append(_route_info)
+        if "hoskerehalli" in _stop_norm:
+            alt_norm = _stop_norm.replace("hoskerehalli", "hosakerehalli")
+            _routes_by_stop.setdefault(alt_norm, []).append(_route_info)
+        elif "hosakerehalli" in _stop_norm:
+            alt_norm = _stop_norm.replace("hosakerehalli", "hoskerehalli")
+            _routes_by_stop.setdefault(alt_norm, []).append(_route_info)
+
+import gc as _gc
+del _combined_routes_df, _sorted_routes_df, _r_nos, _s_norms, _lats, _lngs
+_gc.collect()
 
 
 _other_buses_cache: dict[tuple[str, str], list[str]] = {}
@@ -192,17 +226,9 @@ def _estimate_segment_fast(
     except Exception as e:
         pass
 
-    # ── 2. Frequency-based headway estimate (fallback) ────────────────────────
-    OPERATIONAL_MINUTES = 18 * 60  # 05:00–23:00 (1080 mins)
-    if trips_per_day and trips_per_day > 0:
-        headway_minutes = OPERATIONAL_MINUTES / trips_per_day
-        # Average waiting time for a route with headway H is H / 2.0. Cap at 30.0 mins.
-        wait_minutes = min(30.0, max(3.0, headway_minutes / 2.0))
-    else:
-        # Unknown or unindexed low-frequency route: default wait time capped at 30 mins
-        wait_minutes = 30.0
-
-    departure_dt = now_dt + timedelta(minutes=wait_minutes)
+    # ── 2. Fixed timetable grid fallback ─────────────────────────────────────
+    from features.schedule import get_fixed_route_departure
+    departure_dt, wait_minutes = get_fixed_route_departure(base_route, now_dt, trips_per_day=trips_per_day)
     waiting_time = max(0, int(wait_minutes))
     duration     = int((segment_distance / _bus_speed_kmh(departure_dt)) * 60)
     arrival_dt   = departure_dt + timedelta(minutes=duration)
@@ -308,11 +334,19 @@ def _route_priority(route_no: str, src_norm: str = "", dst_norm: str = "", prefe
             
     if "NICE" in base:
         score += 20
+    if ("hoskerehalli" in src_norm.lower() or "hosakerehalli" in src_norm.lower()) and "43-B" in base:
+        score -= 100  # Contextual preference boost for 43-B when origin is Hosakerehalli
     return (score, -_route_trips.get(route_no.replace("_REV", ""), 0), base)
 
 
 def _route_stop_positions(route_info: dict, stop_norm: str) -> list[int]:
-    return route_info["positions"].get(stop_norm, [])
+    res = route_info["positions"].get(stop_norm, [])
+    if not res:
+        if "hosakerehalli" in stop_norm:
+            res = route_info["positions"].get(stop_norm.replace("hosakerehalli", "hoskerehalli"), [])
+        elif "hoskerehalli" in stop_norm:
+            res = route_info["positions"].get(stop_norm.replace("hoskerehalli", "hosakerehalli"), [])
+    return res
 
 
 def get_all_direct_buses(
@@ -555,18 +589,31 @@ def _fast_transfer_options(
     if not src_route_pairs or not dst_route_pairs:
         return tuple()
 
-    # Sort source and destination route pairs by frequency (trips_per_day) descending
-    # checking route_no, stripped _REV, and base_route so 600-F_REV gets full 133 trips priority
+    def _clean_route_base(rno: str) -> str:
+        if not rno:
+            return ""
+        clean = str(rno).replace("_REV", "").strip()
+        return clean.split()[0] if clean else clean
+
     def _get_trips(route_dict):
         rno = route_dict.get("route_no", "")
         base = route_dict.get("base_route", "")
-        return _route_trips.get(rno, _route_trips.get(rno.replace("_REV", ""), _route_trips.get(base, 0)))
+        crno = _clean_route_base(rno)
+        cbase = _clean_route_base(base)
+        return max(
+            _route_trips.get(rno, 0),
+            _route_trips.get(rno.replace("_REV", ""), 0),
+            _route_trips.get(base, 0),
+            _route_trips.get(crno, 0),
+            _route_trips.get(cbase, 0),
+            _route_trips.get(crno.replace("-", ""), 0),
+        )
 
-    src_route_pairs.sort(key=lambda pair: _get_trips(pair[0]), reverse=True)
-    dst_route_pairs.sort(key=lambda pair: _get_trips(pair[0]), reverse=True)
+    src_route_pairs.sort(key=lambda pair: (0 if pair[1] == src_norm else 1, -_get_trips(pair[0])))
+    dst_route_pairs.sort(key=lambda pair: (0 if pair[1] == dst_norm else 1, -_get_trips(pair[0])))
 
-    src_route_pairs = src_route_pairs[:80]
-    dst_route_pairs = dst_route_pairs[:80]
+    src_route_pairs = src_route_pairs[:25]
+    dst_route_pairs = dst_route_pairs[:25]
 
     now = datetime.now()
     h = request_minute // 60

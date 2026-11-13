@@ -12,6 +12,8 @@ void showAppSettingsModal(
 
   final activeStyleNotifier = mapStyleNotifier ?? MapThemeService.mapStyleNotifier;
   final activeProviderNotifier = mapProviderNotifier ?? MapThemeService.mapProviderNotifier;
+  String? pingStatus;
+  bool isPinging = false;
 
   showModalBottomSheet(
     context: context,
@@ -315,6 +317,40 @@ void showAppSettingsModal(
                     ),
                   ),
                   const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ActionChip(
+                        avatar: const Icon(Icons.cloud_done_rounded, size: 14, color: Color(0xFF10B981)),
+                        label: const Text('Render Cloud 24/7', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                        backgroundColor: const Color(0xFF064E3B),
+                        side: const BorderSide(color: Color(0xFF10B981)),
+                        onPressed: () {
+                          urlCtrl.text = 'https://personalized-travel-guide-api.onrender.com';
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.public_rounded, size: 14, color: Color(0xFFA855F7)),
+                        label: const Text('Global HTTPS (Cloudflare)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                        backgroundColor: const Color(0xFF22163B),
+                        side: const BorderSide(color: Color(0xFFA855F7)),
+                        onPressed: () {
+                          urlCtrl.text = 'https://grant-applying-draft-strings.trycloudflare.com';
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.wifi_rounded, size: 14, color: Color(0xFF94A3B8)),
+                        label: const Text('Local Wi-Fi (192.168.1.4)', style: TextStyle(fontSize: 11, color: Color(0xFFCBD5E1))),
+                        backgroundColor: const Color(0xFF161824),
+                        side: const BorderSide(color: Color(0xFF2A2D40)),
+                        onPressed: () {
+                          urlCtrl.text = 'http://192.168.1.4:8000';
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                     decoration: BoxDecoration(
@@ -327,36 +363,122 @@ void showAppSettingsModal(
                       style: const TextStyle(color: Colors.white, fontSize: 13),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'http://localhost:8000',
+                        hintText: 'https://...',
                         hintStyle: TextStyle(color: Color(0xFF64748B)),
                         prefixIcon: Icon(Icons.dns_rounded, color: Color(0xFFA855F7), size: 20),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      'https://personalized-travel-guide-api.onrender.com',
+                      'http://localhost:8000',
+                      'http://10.0.2.2:8000',
+                    ].map((preset) {
+                      return InkWell(
+                        onTap: () {
+                          urlCtrl.text = preset;
+                          setModalState(() {});
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E2235),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: urlCtrl.text.trim() == preset
+                                  ? const Color(0xFFA855F7)
+                                  : const Color(0xFF2A2D40),
+                            ),
+                          ),
+                          child: Text(
+                            preset.replaceFirst('http://', ''),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: urlCtrl.text.trim() == preset
+                                  ? const Color(0xFFA855F7)
+                                  : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final val = urlCtrl.text.trim();
-                        if (val.isNotEmpty) {
-                          ApiService.baseUrl = val;
-                        }
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFA855F7),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        elevation: 4,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: isPinging
+                              ? null
+                              : () async {
+                                  setModalState(() {
+                                    isPinging = true;
+                                    pingStatus = null;
+                                  });
+                                  final ok = await ApiService.testConnection(urlCtrl.text.trim());
+                                  setModalState(() {
+                                    isPinging = false;
+                                    pingStatus = ok ? 'Connected: Server is Live 🎉' : 'Failed to reach server ❌';
+                                  });
+                                },
+                          icon: isPinging
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA855F7)))
+                              : const Icon(Icons.bolt_rounded, size: 16),
+                          label: Text(isPinging ? 'Testing...' : 'Test Ping'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFA855F7),
+                            side: const BorderSide(color: Color(0xFFA855F7)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
                       ),
-                      child: const Text(
-                        'Save Configuration',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final val = urlCtrl.text.trim();
+                            if (val.isNotEmpty) {
+                              await ApiService.setBaseUrl(val);
+                            }
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFA855F7),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            elevation: 4,
+                          ),
+                          child: const Text(
+                            'Save',
+                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (pingStatus != null) ...[
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Text(
+                        pingStatus!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: pingStatus!.contains('Live') ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

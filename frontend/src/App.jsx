@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
 import heroImg from "./assets/hero.jpg";
+import RideModeModal from "./RideModeModal";
+
+import { API_BASE_URL } from "./config";
 
 /* ─────────────────────────────────────────────────────────────
    CONFIG
 ───────────────────────────────────────────────────────────── */
-const API_BASE = "http://localhost:8000";
+const API_BASE = API_BASE_URL;
 const getGoogleMapsKey = () => {
   return localStorage.getItem("gmaps_api_key") || window._backendGmapsKey || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY";
 };
@@ -72,7 +75,7 @@ const C = {
 const MC = {
   bmtc: { label: "BMTC Bus", short: "BUS", color: "#f97316", bg: "#1a0f06", icon: "bus", line: "Ordinary · Vajra · AC" },
   metro: { label: "Namma Metro", short: "METRO", color: "#8b5cf6", bg: "#100c1a", icon: "metro", line: "Green · Purple · Yellow" },
-  cab: { label: "Cab / Auto", short: "CAB", color: "#f59e0b", bg: "#1a1200", icon: "cab", line: "Namma Yatri · Ola · Uber · Rapido" },
+  cab: { label: "Cab / Auto", short: "CAB", color: "#f59e0b", bg: "#1a1200", icon: "cab", line: "NammaMove · GoRide · SwiftCab · SwiftGo" },
   car: { label: "Own Vehicle", short: "CAR", color: "#10b981", bg: "#051510", icon: "car", line: "Fuel + Parking est." },
   multimodal: { label: "Multimodal Transit", short: "MULTI", color: "#ec4899", bg: "#1c0d18", icon: "transfer", line: "Bus + Metro + Auto combos" },
   bicycle: { label: "Cycling", short: "CYCLE", color: "#06b6d4", bg: "#022329", icon: "bicycle", line: "Eco-friendly & healthy" },
@@ -326,6 +329,7 @@ const P = {
   youtube: "M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 00-1.95 1.96A29 29 0 001 11.54a29 29 0 00.46 5.12 2.78 2.78 0 001.95 1.96C5.12 19.08 12 19.08 12 19.08s6.88 0 8.59 0a2.78 2.78 0 001.95-1.96 29 29 0 00.46-5.12 29 29 0 00-.46-5.12z M9.54 15.08V8l6 3.54-6 3.54z",
   bicycle: "M18.5 17.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zm-13 0a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z M12 15h3.5l1.5-4.5H12M12 15l-3-6H5M12 9V6M9.5 6.5h5",
   settings: "M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.63-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z",
+  menu: "M3 12h18M3 6h18M3 18h18",
 };
 
 
@@ -377,6 +381,34 @@ async function apiAllBuses(src, dst, time) {
   });
   if (!res.ok) throw new Error(`API ${res.status}`);
   return res.json();
+}
+
+function calculateLiveCountdown(depStr, currentStr) {
+  if (!depStr) return null;
+  try {
+    const parts = depStr.split(":");
+    if (parts.length < 2) return null;
+    const dh = parseInt(parts[0], 10);
+    const dm = parseInt(parts[1], 10);
+    if (isNaN(dh) || isNaN(dm)) return null;
+
+    let now;
+    if (currentStr && currentStr.includes(":")) {
+      const cparts = currentStr.split(":");
+      now = parseInt(cparts[0], 10) * 60 + parseInt(cparts[1], 10);
+    } else {
+      const d = new Date();
+      now = d.getHours() * 60 + d.getMinutes();
+    }
+    let dep = dh * 60 + dm;
+    if (dep < now && (now - dep) > 720) {
+      dep += 24 * 60; // Midnight rollover
+    }
+    const diff = dep - now;
+    return diff >= 0 ? diff : 0;
+  } catch (e) {
+    return null;
+  }
 }
 
 async function apiRouteSearch(route) {
@@ -789,6 +821,46 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
   const coordsCacheRef = useRef({});
   const [userCoords, setUserCoords] = useState(null);
 
+  const handleRecenter = () => {
+    if (currentGpsCoords && !isNaN(Number(currentGpsCoords.lat)) && !isNaN(Number(currentGpsCoords.lng))) {
+      const lat = Number(currentGpsCoords.lat);
+      const lng = Number(currentGpsCoords.lng);
+      if (mapRef.current && window.google) {
+        mapRef.current.panTo(new window.google.maps.LatLng(lat, lng));
+        mapRef.current.setZoom(16.5);
+      }
+      if (osmMapRef.current && window.L) {
+        osmMapRef.current.setView([lat, lng], 16);
+      }
+      return;
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setUserCoords({ lat, lng });
+          if (mapRef.current && window.google) {
+            mapRef.current.panTo(new window.google.maps.LatLng(lat, lng));
+            mapRef.current.setZoom(16.5);
+          }
+          if (osmMapRef.current && window.L) {
+            osmMapRef.current.setView([lat, lng], 16);
+          }
+        },
+        (err) => {
+          if (err.code === err.PERMISSION_DENIED) {
+            alert("Location access was denied. Please turn on location access in your browser or device settings to center the map.");
+          } else {
+            alert("Could not access your location. Please check your device GPS / location settings.");
+          }
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  };
+
   useEffect(() => {
     const handleFallback = () => {
       setUseOsm(true);
@@ -1032,7 +1104,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
     const osmMap = osmMapRef.current;
     if (!osmMap || !window.L) return;
 
-    const darkTiles = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+    const darkTiles = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}";
     const lightTiles = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
     const satTiles = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
     const terrainTiles = "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png";
@@ -1050,7 +1122,7 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
       attribution = 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)';
     } else {
       tileUrl = darkTiles;
-      attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+      attribution = 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ &copy; OpenStreetMap contributors';
     }
 
     osmMap.eachLayer((layer) => {
@@ -1198,9 +1270,8 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
         osmMapRef.current = osmMap;
         window.osmMapInstance = osmMap;
 
-        window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; OpenStreetMap &copy; CartoDB',
-          subdomains: 'abcd',
+        window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ &copy; OpenStreetMap contributors',
           maxZoom: 20
         }).addTo(osmMap);
 
@@ -1620,8 +1691,8 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
   const currentLeg = currentLegIdx !== -1 ? navLegs[currentLegIdx] : null;
 
   return (
-    <div style={{ position: "relative", height: "100%", minHeight: 340, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.border}` }}>
-      <div ref={ref} style={{ width: "100%", height: "100%", minHeight: 340 }} />
+    <div style={{ position: "relative", height: "100%", minHeight: 180, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.border}` }}>
+      <div ref={ref} style={{ width: "100%", height: "100%", minHeight: 180 }} />
       {!(useOsm ? osmLoaded : loaded) && (
         <div style={{
           position: "absolute", inset: 0, background: C.surface,
@@ -1645,6 +1716,38 @@ function GoogleMap({ src, dst, segments, activeMode, guide = null, activeSegment
       {src && activeSegmentIndex === null && <div style={{ position: "absolute", bottom: 46, left: 12, background: C.green + "ee", borderRadius: 7, padding: "3px 9px", fontSize: 11, color: "white", fontWeight: 700, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🟢 {src}</div>}
       {dst && activeSegmentIndex === null && <div style={{ position: "absolute", bottom: 12, left: 12, background: C.red + "ee", borderRadius: 7, padding: "3px 9px", fontSize: 11, color: "white", fontWeight: 700, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🔴 {dst}</div>}
       {activeMode && activeSegmentIndex === null && <div style={{ position: "absolute", top: 12, right: 12, background: MC[activeMode]?.color + "dd", borderRadius: 8, padding: "4px 10px", fontSize: 11, color: "white", fontWeight: 700 }}>{MC[activeMode]?.short} Route</div>}
+
+      {/* Floating Recenter Map Button */}
+      <button
+        onClick={handleRecenter}
+        title="Recenter to current GPS location"
+        style={{
+          position: "absolute",
+          top: 12,
+          right: (activeMode && activeSegmentIndex === null) ? 110 : 12,
+          background: "rgba(15, 17, 32, 0.9)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          border: `1.5px solid ${C.border2}`,
+          borderRadius: 10,
+          padding: "6px 12px",
+          color: currentGpsCoords ? C.accent : "#ffffff",
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: "pointer",
+          zIndex: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+          transition: "all 0.15s ease"
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.transform = "scale(1.04)"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.transform = "scale(1)"; }}
+      >
+        <span style={{ fontSize: 13 }}>🎯</span>
+        <span>Recenter</span>
+      </button>
 
       {/* Floating Navigation Card Overlay */}
       {activeSegmentIndex !== null && currentLeg && (
@@ -1886,7 +1989,15 @@ function StopInput({ value, onChange, placeholder, dot, options, showGps }) {
       },
       (error) => {
         setLocLoading(false);
-        alert(`Location permission denied or failed: ${error.message}`);
+        if (error.code === error.PERMISSION_DENIED) {
+          alert("Location access was denied. Please enable location permissions in your browser or device settings to use your current location.");
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          alert("Location information is unavailable. Please check that your device GPS / location services are turned on.");
+        } else if (error.code === error.TIMEOUT) {
+          alert("Location request timed out. Please check your network and GPS connection, then try again.");
+        } else {
+          alert(`Location failed: ${error.message}. Please verify your device location settings.`);
+        }
       }
     );
   };
@@ -2095,10 +2206,13 @@ function StopInput({ value, onChange, placeholder, dot, options, showGps }) {
           top: "calc(100% + 4px)",
           left: 0,
           right: 0,
+          minWidth: "100%",
+          width: "100%",
+          boxSizing: "border-box",
           background: C.card,
           border: `1px solid ${C.border2}`,
           borderRadius: 12,
-          zIndex: 200,
+          zIndex: 500,
           maxHeight: 280,
           overflowY: "auto",
           boxShadow: "0 16px 48px #00000090"
@@ -2274,7 +2388,7 @@ function StopTimeline({ stops, color }) {
 /* ─────────────────────────────────────────────────────────────
    FARE CALCULATOR MODAL
 ───────────────────────────────────────────────────────────── */
-function FareCalculatorModal({ results, src, dst, stops, onClose, triggerSearch, loading }) {
+function FareCalculatorModal({ results, src, dst, stops, onClose, triggerSearch, loading, isMobile = false }) {
   const [localSrc, setLocalSrc] = useState(src || "");
   const [localDst, setLocalDst] = useState(dst || "");
 
@@ -2434,24 +2548,31 @@ function FareCalculatorModal({ results, src, dst, stops, onClose, triggerSearch,
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
       background: "rgba(8, 9, 15, 0.8)", backdropFilter: "blur(10px)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 99999
+      zIndex: 99999,
+      padding: isMobile ? 10 : 20,
+      boxSizing: "border-box"
     }} onClick={onClose}>
       <div style={{
         background: C.surface, border: `1px solid ${C.border}`,
-        borderRadius: 24, width: 660, maxHeight: "85vh", padding: 26,
+        borderRadius: isMobile ? 20 : 24,
+        width: isMobile ? "100%" : 660,
+        maxWidth: 660,
+        maxHeight: isMobile ? "90vh" : "85vh",
+        padding: isMobile ? "18px 14px" : 26,
         boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
-        display: "flex", flexDirection: "column", gap: 18
+        display: "flex", flexDirection: "column", gap: 18,
+        boxSizing: "border-box"
       }} onClick={(e) => e.stopPropagation()}>
         
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: C.text, margin: 0 }}>Multi-Modal Fare & Stops Calculator</h2>
+            <h2 style={{ fontSize: isMobile ? 16 : 18, fontWeight: 900, color: C.text, margin: 0 }}>Multi-Modal Fare & Stops Calculator</h2>
             <p style={{ fontSize: 11.5, color: C.muted, margin: "2px 0 0 0" }}>Calculate detailed stop-by-stop fares and station lists side-by-side</p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 18 }}>✕</button>
         </div>
 
-        <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 14, padding: 14, display: "flex", gap: 12, alignItems: "flex-end", position: "relative", zIndex: 10 }}>
+        <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 14, padding: isMobile ? 12 : 14, display: "flex", flexDirection: isMobile ? "column" : "row", gap: 12, alignItems: isMobile ? "stretch" : "flex-end", position: "relative", zIndex: 10 }}>
           <div style={{ flex: 1, position: "relative" }}>
             <label style={{ fontSize: 10, fontWeight: 800, color: C.muted, textTransform: "uppercase" }}>From</label>
             <StopInput
@@ -2510,7 +2631,7 @@ function FareCalculatorModal({ results, src, dst, stops, onClose, triggerSearch,
 /* ─────────────────────────────────────────────────────────────
    STOPS & STATIONS EXPLORER MODAL
 ───────────────────────────────────────────────────────────── */
-function StopsInfoModal({ stops, onClose }) {
+function StopsInfoModal({ stops, onClose, isMobile = false }) {
   const [searchValue, setSearchValue] = useState("");
   const [nearbyStops, setNearbyStops] = useState([]);
   const [loadingNearby, setLoadingNearby] = useState(false);
@@ -2525,7 +2646,7 @@ function StopsInfoModal({ stops, onClose }) {
     setSelectedStop(null);
     setStopDetails(null);
     try {
-      const res = await fetch(`http://localhost:8000/api/stops/nearby?lat=${lat}&lng=${lng}&radius_m=1200&limit=30`);
+      const res = await fetch(`${API_BASE}/api/stops/nearby?lat=${lat}&lng=${lng}&radius_m=1200&limit=30`);
       const data = await res.json();
       let stopsList = data.stops || [];
       if (filterType === "bmtc") {
@@ -2577,11 +2698,11 @@ function StopsInfoModal({ stops, onClose }) {
     setStopDetails(null);
     try {
       if (stop.type === "metro") {
-        const res = await fetch(`http://localhost:8000/api/metro/line-info?station=${encodeURIComponent(stop.name)}`);
+        const res = await fetch(`${API_BASE}/api/metro/line-info?station=${encodeURIComponent(stop.name)}`);
         const data = await res.json();
         setStopDetails({ type: "metro", info: data });
       } else {
-        const res = await fetch(`http://localhost:8000/api/bmtc/stop-arrivals?stop=${encodeURIComponent(stop.name)}`);
+        const res = await fetch(`${API_BASE}/api/bmtc/stop-arrivals?stop=${encodeURIComponent(stop.name)}`);
         const data = await res.json();
         setStopDetails({ type: "bmtc", info: data });
       }
@@ -2597,13 +2718,20 @@ function StopsInfoModal({ stops, onClose }) {
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
       background: "rgba(8, 9, 15, 0.8)", backdropFilter: "blur(10px)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 99999
+      zIndex: 99999,
+      padding: isMobile ? 10 : 20,
+      boxSizing: "border-box"
     }} onClick={onClose}>
       <div style={{
         background: C.surface, border: `1px solid ${C.border}`,
-        borderRadius: 24, width: 780, height: "80vh", padding: 26,
+        borderRadius: isMobile ? 20 : 24,
+        width: isMobile ? "100%" : 780,
+        maxWidth: 780,
+        height: isMobile ? "90vh" : "80vh",
+        padding: isMobile ? "18px 14px" : 26,
         boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
-        display: "flex", flexDirection: "column", gap: 16
+        display: "flex", flexDirection: "column", gap: 16,
+        boxSizing: "border-box"
       }} onClick={(e) => e.stopPropagation()}>
         
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -2796,9 +2924,207 @@ function StopsInfoModal({ stops, onClose }) {
 
 
 /* ─────────────────────────────────────────────────────────────
+   FEATURES BOTTOM SHEET / MODAL
+───────────────────────────────────────────────────────────── */
+function FeaturesModal({ isOpen, onClose, onOpenTimetable, onOpenRouteLookup, onOpenStopsInfo, onOpenFareCalc, onOpenWeather, isMobile = false }) {
+  if (!isOpen) return null;
+
+  const features = [
+    {
+      id: "timetable",
+      title: "Timetable & Schedules",
+      badge: "BUS & METRO",
+      badgeColor: "#06b6d4",
+      desc: "Live departure times, next bus timings, and metro station frequency",
+      icon: "clock",
+      iconColor: "#06b6d4",
+      iconBg: "rgba(6, 182, 212, 0.12)",
+      onClick: () => { onClose(); onOpenTimetable(); }
+    },
+    {
+      id: "route_lookup",
+      title: "Route Lookup",
+      badge: "BUS & METRO",
+      badgeColor: "#7c3aed",
+      desc: "Full sequence of stops for any BMTC bus route or Namma Metro line",
+      icon: "route",
+      iconColor: "#a855f7",
+      iconBg: "rgba(168, 85, 247, 0.12)",
+      onClick: () => { onClose(); onOpenRouteLookup(); }
+    },
+    {
+      id: "stops_info",
+      title: "Stops & Stations Info",
+      badge: "FACILITIES",
+      badgeColor: "#10b981",
+      desc: "Nearby bus stops & metro stations with platforms, parking & live arrivals",
+      icon: "mappin",
+      iconColor: "#10b981",
+      iconBg: "rgba(16, 185, 129, 0.12)",
+      onClick: () => { onClose(); onOpenStopsInfo(); }
+    },
+    {
+      id: "fare_calc",
+      title: "Fare Calculator",
+      badge: "MULTI-MODAL",
+      badgeColor: "#f59e0b",
+      desc: "Compare ticket prices and travel costs across Bus, Metro, Auto, and Cabs",
+      icon: "tag",
+      iconColor: "#f59e0b",
+      iconBg: "rgba(245, 158, 11, 0.12)",
+      onClick: () => { onClose(); onOpenFareCalc(); }
+    },
+    {
+      id: "weather_alerts",
+      title: "Weather Alerts",
+      badge: "RAIN & ADVICE",
+      badgeColor: "#3b82f6",
+      desc: "Precipitation along your route with tailored wet weather transit guidance",
+      icon: "sparkles",
+      iconColor: "#3b82f6",
+      iconBg: "rgba(59, 130, 246, 0.12)",
+      onClick: () => { onClose(); onOpenWeather(); }
+    }
+  ];
+
+  return (
+    <div 
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(8, 9, 15, 0.75)",
+        backdropFilter: "blur(8px)",
+        zIndex: 99998,
+        display: "flex",
+        alignItems: isMobile ? "flex-end" : "center",
+        justifyContent: "center",
+        padding: isMobile ? 0 : 20,
+        boxSizing: "border-box"
+      }}
+    >
+      <div 
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: C.surface,
+          border: `1px solid ${C.border2}`,
+          borderRadius: isMobile ? "24px 24px 0 0" : 24,
+          width: isMobile ? "100%" : 480,
+          maxHeight: isMobile ? "85vh" : "85vh",
+          padding: isMobile ? "20px 18px calc(24px + env(safe-area-inset-bottom, 0px))" : 28,
+          boxShadow: "0 24px 60px rgba(0, 0, 0, 0.6)",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box"
+        }}
+      >
+        {isMobile && (
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: C.border2, margin: "0 auto 16px" }} />
+        )}
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: C.text, letterSpacing: "-0.03em" }}>
+              Transit Features & Services
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 2, fontWeight: 600 }}>
+              Timetables, stops, routes & fare tools
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            style={{
+              background: C.dim,
+              border: `1px solid ${C.border}`,
+              color: C.muted,
+              borderRadius: "50%",
+              width: 32,
+              height: 32,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              fontSize: 14
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, overflowY: "auto", maxHeight: "60vh", paddingRight: 2 }}>
+          {features.map(f => (
+            <div
+              key={f.id}
+              onClick={f.onClick}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                padding: "14px 16px",
+                borderRadius: 16,
+                background: C.card,
+                border: `1px solid ${C.border}`,
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = C.dim;
+                e.currentTarget.style.borderColor = C.accent + "44";
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = C.card;
+                e.currentTarget.style.borderColor = C.border;
+                e.currentTarget.style.transform = "none";
+              }}
+            >
+              <div style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                background: f.iconBg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0
+              }}>
+                <Ic n={f.icon} s={19} c={f.iconColor} sw={2.2} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{f.title}</span>
+                  <span style={{
+                    fontSize: 9,
+                    fontWeight: 800,
+                    padding: "2px 6px",
+                    borderRadius: 6,
+                    background: f.badgeColor + "18",
+                    color: f.badgeColor,
+                    letterSpacing: "0.04em"
+                  }}>
+                    {f.badge}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: C.muted, marginTop: 3, fontWeight: 500, lineHeight: 1.3 }}>
+                  {f.desc}
+                </div>
+              </div>
+              <span style={{ color: C.muted, fontSize: 16, fontWeight: 700 }}>→</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
    WEATHER ALERTS & ROUTE REPORT MODAL
 ───────────────────────────────────────────────────────────── */
-function WeatherReportModal({ stops, sourceName, destName, onClose }) {
+function WeatherReportModal({ stops, sourceName, destName, onClose, isMobile = false }) {
   const [searchValue, setSearchValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [weatherData, setWeatherData] = useState(null);
@@ -2812,7 +3138,7 @@ function WeatherReportModal({ stops, sourceName, destName, onClose }) {
     setLoading(true);
     setWeatherData(null);
     try {
-      const res = await fetch(`http://localhost:8000/api/weather/report?lat=${lat}&lng=${lng}&location_name=${encodeURIComponent(name)}`);
+      const res = await fetch(`${API_BASE}/api/weather/report?lat=${lat}&lng=${lng}&location_name=${encodeURIComponent(name)}`);
       const data = await res.json();
       setWeatherData(data);
     } catch (err) {
@@ -2827,8 +3153,8 @@ function WeatherReportModal({ stops, sourceName, destName, onClose }) {
     setRouteWeather(null);
     try {
       const [srcRes, dstRes] = await Promise.all([
-        fetch(`http://localhost:8000/api/weather/report?lat=${srcLat}&lng=${srcLng}&location_name=${encodeURIComponent(srcName)}`),
-        fetch(`http://localhost:8000/api/weather/report?lat=${dstLat}&lng=${dstLng}&location_name=${encodeURIComponent(dstName)}`)
+        fetch(`${API_BASE}/api/weather/report?lat=${srcLat}&lng=${srcLng}&location_name=${encodeURIComponent(srcName)}`),
+        fetch(`${API_BASE}/api/weather/report?lat=${dstLat}&lng=${dstLng}&location_name=${encodeURIComponent(dstName)}`)
       ]);
       const srcData = await srcRes.json();
       const dstData = await dstRes.json();
@@ -2930,24 +3256,31 @@ function WeatherReportModal({ stops, sourceName, destName, onClose }) {
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
       background: "rgba(8, 9, 15, 0.8)", backdropFilter: "blur(10px)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      zIndex: 99999
+      zIndex: 99999,
+      padding: isMobile ? 10 : 20,
+      boxSizing: "border-box"
     }} onClick={onClose}>
       <div style={{
         background: C.surface, border: `1px solid ${C.border}`,
-        borderRadius: 24, width: 780, height: "80vh", padding: 26,
+        borderRadius: isMobile ? 20 : 24,
+        width: isMobile ? "100%" : 780,
+        maxWidth: 780,
+        height: isMobile ? "90vh" : "80vh",
+        padding: isMobile ? "18px 14px" : 26,
         boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
-        display: "flex", flexDirection: "column", gap: 16
+        display: "flex", flexDirection: "column", gap: 16,
+        boxSizing: "border-box"
       }} onClick={(e) => e.stopPropagation()}>
         
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: C.text, margin: 0 }}>Weather Alerts & Route Forecaster</h2>
+            <h2 style={{ fontSize: isMobile ? 16 : 18, fontWeight: 900, color: C.text, margin: 0 }}>Weather Alerts & Route Forecaster</h2>
             <p style={{ fontSize: 11.5, color: C.muted, margin: "2px 0 0 0" }}>Check real-time weather details for any location or view warnings along your active journey path</p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 18 }}>✕</button>
         </div>
 
-        <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 16, padding: isMobile ? "12px 14px" : 16, display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ position: "relative", zIndex: 10 }}>
             <label style={{ fontSize: 10, fontWeight: 800, color: C.muted, textTransform: "uppercase" }}>Check Weather for a Location</label>
             <StopInput
@@ -2960,9 +3293,9 @@ function WeatherReportModal({ stops, sourceName, destName, onClose }) {
           </div>
         </div>
 
-        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 18, minHeight: 0 }}>
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1.2fr", gap: isMobile ? 16 : 18, minHeight: 0, overflowY: isMobile ? "auto" : "visible" }}>
           
-          <div style={{ display: "flex", flexDirection: "column", borderRight: `1px solid ${C.border2}`, paddingRight: 16, minHeight: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", borderRight: isMobile ? "none" : `1px solid ${C.border2}`, borderBottom: isMobile ? `1px solid ${C.border2}` : "none", paddingRight: isMobile ? 0 : 16, paddingBottom: isMobile ? 16 : 0, minHeight: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, textTransform: "uppercase", marginBottom: 12, letterSpacing: "0.05em" }}>
               LOCATION REPORT
             </div>
@@ -3016,14 +3349,14 @@ function WeatherReportModal({ stops, sourceName, destName, onClose }) {
               ROUTE TRANSIT WEATHER
             </div>
             
-            <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10, position: "relative", zIndex: 9, marginBottom: 14 }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <div style={{ flex: 1, position: "relative" }}>
-                  <label style={{ fontSize: 9, fontWeight: 800, color: C.muted }}>ROUTE SOURCE</label>
+            <div style={{ background: C.bg, border: `1px solid ${C.border2}`, borderRadius: 14, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10, position: "relative", zIndex: 30, marginBottom: 14 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ position: "relative", zIndex: 20 }}>
+                  <label style={{ fontSize: 9.5, fontWeight: 800, color: C.muted, marginBottom: 4, display: "block" }}>ROUTE SOURCE</label>
                   <StopInput value={srcSearch} onChange={setSrcSearch} placeholder="Start point..." dot={C.green} options={stops?.all || []} />
                 </div>
-                <div style={{ flex: 1, position: "relative" }}>
-                  <label style={{ fontSize: 9, fontWeight: 800, color: C.muted }}>ROUTE DESTINATION</label>
+                <div style={{ position: "relative", zIndex: 10 }}>
+                  <label style={{ fontSize: 9.5, fontWeight: 800, color: C.muted, marginBottom: 4, display: "block" }}>ROUTE DESTINATION</label>
                   <StopInput value={dstSearch} onChange={setDstSearch} placeholder="End point..." dot={C.red} options={stops?.all || []} />
                 </div>
               </div>
@@ -3745,7 +4078,7 @@ function isVajraBus(routeName) {
   return r.includes("AC") || r.startsWith("V-") || r.includes("VAJRA") || r.includes("VOLVO");
 }
 
-function AllBusesPanel({ src, dst, time, onClose }) {
+function AllBusesPanel({ src, dst, time, onClose, onSelectBus }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all"); // all | direct | transfer | vajra
@@ -3802,15 +4135,19 @@ function AllBusesPanel({ src, dst, time, onClose }) {
           background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10,
           padding: "10px 12px", marginBottom: 14,
         }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.06em", marginBottom: 8 }}>POSSIBLE BUS NUMBERS</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, letterSpacing: "0.06em", marginBottom: 8 }}>POSSIBLE BUS NUMBERS (CLICK TO SELECT)</div>
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
             {uniqueBusNums.map(rn => (
-              <span key={rn} style={{
-                background: isVajraBus(rn) ? C.accent + "22" : MC.bmtc.color + "18",
-                color: isVajraBus(rn) ? C.accent : MC.bmtc.color,
-                border: `1px solid ${isVajraBus(rn) ? C.accent : MC.bmtc.color}44`,
-                borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700,
-              }}>{rn}</span>
+              <span key={rn}
+                onClick={() => onSelectBus?.(rn)}
+                title={`Select bus ${rn}`}
+                style={{
+                  background: isVajraBus(rn) ? C.accent + "22" : MC.bmtc.color + "18",
+                  color: isVajraBus(rn) ? C.accent : MC.bmtc.color,
+                  border: `1px solid ${isVajraBus(rn) ? C.accent : MC.bmtc.color}44`,
+                  borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 700,
+                  cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3,
+                }}>{rn} <span style={{ fontSize: 9 }}>✓</span></span>
             ))}
           </div>
         </div>
@@ -3892,30 +4229,43 @@ function AllBusesPanel({ src, dst, time, onClose }) {
                   overflow: "hidden", transition: "border-color 0.15s",
                 }}>
                   {/* Summary row */}
-                  <button onClick={() => toggleExpand(expId)} style={{
-                    display: "flex", alignItems: "center", gap: 10, background: "none",
-                    border: "none", padding: "11px 14px", width: "100%",
-                    cursor: "pointer", textAlign: "left", fontFamily: "inherit",
-                  }}>
-                    <Pill color={isVajra ? C.accent : MC.bmtc.color}>{b.route}</Pill>
-                    <div style={{ flex: 1, fontSize: 12, color: C.muted }}>{b.stop_count} stops</div>
-                    <div style={{ fontSize: 11, color: MC.bmtc.color, fontWeight: 700, marginRight: 4 }}>{b.trips}/day</div>
-                    {b.fare !== undefined && <div style={{ fontSize: 13, color: C.text, fontWeight: 700 }}>₹{b.fare}</div>}
-                    {b.departure && (
-                      <div style={{ fontSize: 11, color: C.muted, marginLeft: 6, display: "flex", alignItems: "center", gap: 4 }}>
-                        <span>{b.departure}</span>
-                        {b.waiting_time !== undefined && b.waiting_time !== null && (
-                          <span style={{ background: C.yellow + "22", color: C.yellow, border: `1px solid ${C.yellow}33`, borderRadius: 4, padding: "1px 4px", fontSize: 9, fontWeight: 700 }}>
-                            {b.waiting_time}m wait
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <div style={{
-                      transform: isExp ? "rotate(180deg)" : "none",
-                      transition: "transform 0.2s", color: C.muted, marginLeft: 6, flexShrink: 0,
-                    }}><Ic n="chevron" s={14} /></div>
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                    <button onClick={() => toggleExpand(expId)} style={{
+                      display: "flex", alignItems: "center", gap: 10, background: "none",
+                      border: "none", padding: "11px 14px", flex: 1,
+                      cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                    }}>
+                      <Pill color={isVajra ? C.accent : MC.bmtc.color}>{b.route}</Pill>
+                      <div style={{ flex: 1, fontSize: 12, color: C.muted }}>{b.stop_count} stops</div>
+                      <div style={{ fontSize: 11, color: MC.bmtc.color, fontWeight: 700, marginRight: 4 }}>{b.trips}/day</div>
+                      {b.fare !== undefined && <div style={{ fontSize: 13, color: C.text, fontWeight: 700 }}>₹{b.fare}</div>}
+                      {b.departure && (
+                        <div style={{ fontSize: 11, color: C.muted, marginLeft: 6, display: "flex", alignItems: "center", gap: 4 }}>
+                          <span>{b.departure}</span>
+                          {b.waiting_time !== undefined && b.waiting_time !== null && (
+                            <span style={{ background: C.yellow + "22", color: C.yellow, border: `1px solid ${C.yellow}33`, borderRadius: 4, padding: "1px 4px", fontSize: 9, fontWeight: 700 }}>
+                              {calculateLiveCountdown(b.departure, time) ?? b.waiting_time}m wait
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div style={{
+                        transform: isExp ? "rotate(180deg)" : "none",
+                        transition: "transform 0.2s", color: C.muted, marginLeft: 6, flexShrink: 0,
+                      }}><Ic n="chevron" s={14} /></div>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onSelectBus?.(b.route, b); }}
+                      title={`Select Bus ${b.route}`}
+                      style={{
+                        background: MC.bmtc.color, color: "#fff", border: "none",
+                        borderRadius: 6, padding: "6px 12px", fontSize: 11, fontWeight: 700,
+                        cursor: "pointer", fontFamily: "inherit", marginRight: 12,
+                        display: "flex", alignItems: "center", gap: 4, flexShrink: 0,
+                      }}>
+                      ✓ Select
+                    </button>
+                  </div>
 
                   {/* Expanded detail */}
                   {isExp && (
@@ -3960,13 +4310,16 @@ function AllBusesPanel({ src, dst, time, onClose }) {
                       {/* Alternative bus numbers */}
                       {b.other_buses?.length > 0 && (
                         <div style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, marginBottom: 5, letterSpacing: "0.04em" }}>ALSO RUNS THIS ROUTE</div>
+                          <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, marginBottom: 5, letterSpacing: "0.04em" }}>ALSO RUNS THIS ROUTE (CLICK TO SELECT)</div>
                           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                             {b.other_buses.map(ob => (
-                              <span key={ob} style={{
-                                background: C.dim, color: C.text,
-                                padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600,
-                              }}>{ob}</span>
+                              <span key={ob}
+                                onClick={() => onSelectBus?.(ob)}
+                                style={{
+                                  background: C.dim, color: C.text,
+                                  padding: "2px 7px", borderRadius: 5, fontSize: 10, fontWeight: 600,
+                                  cursor: "pointer", border: `1px solid ${C.border}`,
+                                }}>{ob} ✓</span>
                             ))}
                           </div>
                         </div>
@@ -4004,42 +4357,54 @@ function AllBusesPanel({ src, dst, time, onClose }) {
                   overflow: "hidden", transition: "border-color 0.15s",
                 }}>
                   {/* Summary row */}
-                  <button onClick={() => toggleExpand(expId)} style={{
-                    display: "flex", flexDirection: "column", background: "none", border: "none",
-                    padding: "11px 14px", width: "100%", cursor: "pointer",
-                    textAlign: "left", fontFamily: "inherit",
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", width: "100%" }}>
-                      {opt.buses.map((b, j) => (
-                        <span key={j} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <Pill color={isVajraBus(b) ? C.accent : MC.bmtc.color} small>{b}</Pill>
-                          {j < opt.buses.length - 1 && <span style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>→</span>}
-                        </span>
-                      ))}
-                      {containsVajra && (
-                        <span style={{
-                          fontSize: 9, background: C.accent + "22", color: C.accent,
-                          border: `1px solid ${C.accent}44`, borderRadius: 4,
-                          padding: "1px 5px", fontWeight: 800,
-                        }}>VAJRA</span>
-                      )}
-                      <div style={{
-                        marginLeft: "auto", transform: isExp ? "rotate(180deg)" : "none",
-                        transition: "transform 0.2s", color: C.muted, flexShrink: 0,
-                      }}><Ic n="chevron" s={14} /></div>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%", marginTop: 5, fontSize: 11, color: C.muted, alignItems: "center" }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        {opt.transfers} transfer{opt.transfers !== 1 ? "s" : ""} · {opt.total_time} min · {opt.distance} km
-                        {opt.waiting_time !== undefined && opt.waiting_time !== null && (
-                          <span style={{ background: C.yellow + "22", color: C.yellow, border: `1px solid ${C.yellow}33`, borderRadius: 4, padding: "1px 4px", fontSize: 9, fontWeight: 700 }}>
-                            {opt.waiting_time}m wait
+                  <div style={{ display: "flex", alignItems: "center", width: "100%", paddingRight: 10 }}>
+                    <button onClick={() => toggleExpand(expId)} style={{
+                      display: "flex", flexDirection: "column", background: "none", border: "none",
+                      padding: "11px 14px", flex: 1, cursor: "pointer",
+                      textAlign: "left", fontFamily: "inherit",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", width: "100%" }}>
+                        {opt.buses.map((b, j) => (
+                          <span key={j} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <Pill color={isVajraBus(b) ? C.accent : MC.bmtc.color} small>{b}</Pill>
+                            {j < opt.buses.length - 1 && <span style={{ color: C.muted, fontSize: 11, fontWeight: 700 }}>→</span>}
                           </span>
+                        ))}
+                        {containsVajra && (
+                          <span style={{
+                            fontSize: 9, background: C.accent + "22", color: C.accent,
+                            border: `1px solid ${C.accent}44`, borderRadius: 4,
+                            padding: "1px 5px", fontWeight: 800,
+                          }}>VAJRA</span>
                         )}
-                      </span>
-                      <strong style={{ color: C.text, fontSize: 12 }}>₹{opt.total_fare}</strong>
-                    </div>
-                  </button>
+                        <div style={{
+                          marginLeft: "auto", transform: isExp ? "rotate(180deg)" : "none",
+                          transition: "transform 0.2s", color: C.muted, flexShrink: 0,
+                        }}><Ic n="chevron" s={14} /></div>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", width: "100%", marginTop: 5, fontSize: 11, color: C.muted, alignItems: "center" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          {opt.transfers} transfer{opt.transfers !== 1 ? "s" : ""} · {opt.total_time} min · {opt.distance} km
+                          {opt.waiting_time !== undefined && opt.waiting_time !== null && (
+                            <span style={{ background: C.yellow + "22", color: C.yellow, border: `1px solid ${C.yellow}33`, borderRadius: 4, padding: "1px 4px", fontSize: 9, fontWeight: 700 }}>
+                              {opt.waiting_time}m wait
+                            </span>
+                          )}
+                        </span>
+                        <strong style={{ color: C.text, fontSize: 12 }}>₹{opt.total_fare}</strong>
+                      </div>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onSelectBus?.(opt.buses[0], opt); }}
+                      title={`Select Bus ${opt.buses.join(" ➔ ")}`}
+                      style={{
+                        background: MC.bmtc.color, color: "#fff", border: "none",
+                        borderRadius: 6, padding: "6px 12px", fontSize: 11, fontWeight: 700,
+                        cursor: "pointer", fontFamily: "inherit", flexShrink: 0,
+                      }}>
+                      ✓ Select
+                    </button>
+                  </div>
 
                   {/* Expanded legs */}
                   {isExp && (
@@ -5183,7 +5548,7 @@ function StopsInfoPanel({ onClose, stops }) {
 /* ─────────────────────────────────────────────────────────────
    RESULT CARD
 ───────────────────────────────────────────────────────────── */
-function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, setSelectedCabVehicle, selectedMultimodalOption, setSelectedMultimodalOption }) {
+function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, setSelectedCabVehicle, selectedMultimodalOption, setSelectedMultimodalOption, onOpenRideMode, onStartNavigation }) {
   const [tab, setTab] = useState(null);
   const [cabFilter, setCabFilter] = useState("all");
   const [cabProviderFilter, setCabProviderFilter] = useState("all");
@@ -5229,7 +5594,7 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
       boxShadow: isSelected ? `0 0 0 4px ${m.color}14, 0 12px 40px ${m.color}14` : "none",
       cursor: "pointer", transition: "all 0.18s", overflow: "hidden", position: "relative",
       display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%",
-      gridColumn: modeKey === "multimodal" ? "1 / -1" : "auto"
+      gridColumn: (modeKey === "multimodal" || (modeKey === "cab" && isSelected) || tab) ? "1 / -1" : "auto"
     }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         {data.tag && (
@@ -5239,13 +5604,28 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
       )}
 
       {/* Header */}
-      <div style={{ padding: "18px 18px 12px", display: "flex", gap: 12, alignItems: "center" }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, background: m.bg, border: `1.5px solid ${m.color}44`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Ic n={m.icon} s={22} c={m.color} />
+      <div style={{ padding: "16px 16px 10px", display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ width: 42, height: 42, borderRadius: 12, background: m.bg, border: `1.5px solid ${m.color}44`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Ic n={m.icon} s={20} c={m.color} />
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{m.label}</div>
-          <div style={{ fontSize: 11, color: C.muted }}>{m.line}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 800, fontSize: 15, color: C.text }}>{m.label}</span>
+            {data.aiRank && (
+              <span style={{
+                background: data.aiRank === 1 ? "#fef08a" : "rgba(124, 58, 237, 0.1)",
+                color: data.aiRank === 1 ? "#854d0e" : "#7c3aed",
+                border: `1px solid ${data.aiRank === 1 ? "#fde047" : "rgba(124, 58, 237, 0.25)"}`,
+                borderRadius: 6,
+                padding: "1px 5px",
+                fontSize: 9.5,
+                fontWeight: 800
+              }}>
+                #{data.aiRank} AI {data.aiScore ? `(${data.aiScore}%)` : ""}
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{m.line}</div>
           {modeKey === "bmtc" && (
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
               {data.all_direct && data.all_direct.length > 0 ? (
@@ -5274,14 +5654,38 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
           )}
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 20, color: m.color }}>
-            {modeKey === "cab" && data.cost_max && data.cost_max > data.cost
-              ? `₹${data.cost} - ₹${data.cost_max}`
+          <div style={{ fontWeight: 800, fontSize: 18, color: m.color }}>
+            {modeKey === "cab"
+              ? data.cost_max && data.cost_max > data.cost
+                ? `Est. ₹${data.cost} – ₹${data.cost_max}`
+                : `Est. ₹${data.cost}`
               : `₹${data.cost}`}
           </div>
           <div style={{ fontSize: 11, color: C.muted }}>{realDuration} min</div>
         </div>
       </div>
+
+      {/* Cab Fare Estimate Advisory Banner */}
+      {modeKey === "cab" && (
+        <div style={{
+          margin: "0 14px 14px",
+          padding: "12px 14px",
+          borderRadius: 12,
+          background: "rgba(245, 158, 11, 0.08)",
+          border: "1.5px solid rgba(245, 158, 11, 0.3)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 6
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#f59e0b", fontWeight: 800, fontSize: 12 }}>
+            <span>⚠️</span>
+            <span>Cab Fare Estimate Advisory</span>
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.4 }}>
+            ℹ️ Fare estimate: Due to the unavailability of official and real-time fare slabs, this fare is an approximate estimate based on our available pricing model. Actual prices may vary. Please check the official cab app for the exact fare before booking.
+          </div>
+        </div>
+      )}
 
       {/* Stats strip */}
       <div style={{ margin: "0 14px 14px", background: C.surface, borderRadius: 10, padding: "10px 14px", display: "flex", flexWrap: "wrap" }}>
@@ -5297,6 +5701,109 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
           </div>
         ))}
       </div>
+
+      {/* Short-Distance BMTC Recommendation Advisory */}
+      {modeKey === "bmtc" && (data.distance < 1.0 || data.short_distance_info) && (() => {
+        const info = data.short_distance_info || {};
+        const distKm = data.distance || info.distance_km || 0.7;
+        const walkMins = info.walking_time_mins || Math.round((distKm / 5.0) * 60.0);
+        const avail = info.availability || (data.all_direct && data.all_direct.length >= 3 ? "HIGH" : (data.all_direct && data.all_direct.length === 2 ? "MEDIUM" : (data.all_direct && data.all_direct.length === 1 ? "LOW" : "NONE")));
+        const recom = info.recommendation || (avail === "HIGH" ? "bmtc" : avail === "MEDIUM" ? "both" : "walk");
+
+        const availBg = avail === "HIGH" ? "rgba(16, 185, 129, 0.15)" : avail === "MEDIUM" ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)";
+        const availColor = avail === "HIGH" ? "#10b981" : avail === "MEDIUM" ? "#f59e0b" : "#ef4444";
+
+        return (
+          <div style={{
+            margin: "0 14px 14px",
+            padding: "14px",
+            borderRadius: 12,
+            background: avail === "HIGH" ? "rgba(16, 185, 129, 0.08)" : avail === "MEDIUM" ? "rgba(245, 158, 11, 0.08)" : "rgba(239, 68, 68, 0.08)",
+            border: `1.5px solid ${availColor}44`,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>
+                {info.title || (avail === "HIGH" ? "🚌 BMTC is available frequently" : avail === "MEDIUM" ? "🚌 BMTC is available" : "🚶 Short-distance trip")}
+              </div>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 800,
+                padding: "3px 8px",
+                borderRadius: 6,
+                background: availBg,
+                color: availColor,
+                border: `1px solid ${availColor}66`,
+                letterSpacing: "0.03em"
+              }}>
+                BUS AVAILABILITY: {avail}
+              </span>
+            </div>
+
+            {/* Walking Time Calculation */}
+            <div style={{ fontSize: 12, color: C.text, display: "flex", alignItems: "center", gap: 6, background: C.card + "aa", padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.border}` }}>
+              <span>🚶</span>
+              <span>Walking may take approximately <strong>{walkMins} minutes</strong> ({distKm} km at 5 km/h).</span>
+            </div>
+
+            {/* Bus Availability Info / Message */}
+            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.4 }}>
+              {info.message || (avail === "HIGH"
+                ? `Although the destination is nearby (${distKm} km), multiple BMTC buses are available from your nearby stop. Taking the bus may be convenient.`
+                : avail === "MEDIUM"
+                ? `The destination is close (${distKm} km) and walking may take approximately ${walkMins} minutes. A BMTC bus is available, but you may need to wait.`
+                : avail === "LOW"
+                ? `The destination is only ${distKm} km away. BMTC availability is low at your nearby stop. You may need to wait longer for a bus.`
+                : `Your destination is only ${distKm} km away. No suitable BMTC service was found near your current location.`
+              )}
+            </div>
+
+            {/* Recommendation Box */}
+            <div style={{
+              padding: "9px 12px",
+              borderRadius: 8,
+              background: recom === "bmtc" ? "rgba(16, 185, 129, 0.15)" : recom === "both" ? "rgba(245, 158, 11, 0.15)" : "rgba(59, 130, 246, 0.15)",
+              color: recom === "bmtc" ? "#10b981" : recom === "both" ? "#f59e0b" : "#3b82f6",
+              fontWeight: 800,
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              border: `1px solid ${recom === "bmtc" ? "#10b98144" : recom === "both" ? "#f59e0b44" : "#3b82f644"}`
+            }}>
+              <span>💡</span>
+              <span>{info.recommendation_text || (recom === "bmtc" ? "BMTC recommended" : recom === "both" ? "Both options available (BMTC or Walk)" : "Walking may be more convenient for this short trip")}</span>
+            </div>
+
+            {/* Data Source Disclaimer */}
+            <div style={{ fontSize: 10, color: C.muted, opacity: 0.7, textAlign: "right", fontStyle: "italic" }}>
+              {info.data_source_note || "Based on available route/service data"}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Cab Short-Distance Warning */}
+      {modeKey === "cab" && (data.distance < 1.0 || data.is_short_distance) && (
+        <div style={{
+          margin: "0 14px 14px",
+          padding: "12px 14px",
+          borderRadius: 10,
+          background: "rgba(245, 158, 11, 0.12)",
+          border: "1.5px solid rgba(245, 158, 11, 0.4)",
+          color: "#f59e0b"
+        }}>
+          <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+            <span>⚠️</span> <span>Short-distance trip</span>
+          </div>
+          <div style={{ fontSize: 12, color: C.text, opacity: 0.9, lineHeight: 1.4 }}>
+            {data.short_distance_warning || "The distance is very short. Some drivers may be less likely to accept the request. Consider offering a tip if appropriate."}
+          </div>
+        </div>
+      )}
 
       {/* Cab options section - only visible when selected and modeKey is cab */}
       {(() => {
@@ -5333,10 +5840,10 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
         };
 
         const PROVIDER_STYLES = {
-          namma_yatri: { bg: "#eab308", text: "#000", label: "Namma Yatri" },
-          uber: { bg: "#374151", text: "#fff", label: "Uber" },
-          ola: { bg: "#84cc16", text: "#000", label: "Ola" },
-          rapido: { bg: "#ea580c", text: "#fff", label: "Rapido" },
+          namma_yatri: { bg: "#eab308", text: "#000", label: "NammaMove" },
+          uber: { bg: "#374151", text: "#fff", label: "SwiftCab" },
+          ola: { bg: "#84cc16", text: "#000", label: "GoRide" },
+          rapido: { bg: "#ea580c", text: "#fff", label: "SwiftGo" },
         };
 
         // Special badge config for all vehicle types
@@ -5370,10 +5877,10 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
 
         const providerOptions = [
           { id: "all", label: "All Providers", icon: "🌐", color: m.color },
-          { id: "namma_yatri", label: "Namma Yatri", icon: "🛺", color: "#eab308" },
-          { id: "ola", label: "Ola", icon: "🚗", color: "#84cc16" },
-          { id: "uber", label: "Uber", icon: "🚗", color: "#e2e8f0" },
-          { id: "rapido", label: "Rapido", icon: "🏍️", color: "#ea580c" },
+          { id: "namma_yatri", label: "NammaMove", icon: "🛺", color: "#eab308" },
+          { id: "ola", label: "GoRide", icon: "🚗", color: "#84cc16" },
+          { id: "uber", label: "SwiftCab", icon: "🚗", color: "#e2e8f0" },
+          { id: "rapido", label: "SwiftGo", icon: "🏍️", color: "#ea580c" },
         ];
 
         const filteredEsts = data.all_estimates.filter(est => {
@@ -5388,9 +5895,13 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
             borderTop: `1px solid ${C.border}`,
             background: C.bg + "55",
           }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 10, letterSpacing: "0.05em" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 6, letterSpacing: "0.05em" }}>
               AVAILABLE VEHICLES & PROVIDERS
             </div>
+            <div style={{ fontSize: 11, color: C.yellow, background: C.yellow + "14", padding: "6px 10px", borderRadius: 8, border: `1px solid ${C.yellow}33`, marginBottom: 10 }}>
+              ℹ️ Estimated fare — Actual pricing may vary based on demand. Check official app for exact fare.
+            </div>
+
 
             {/* Category Filter Pills */}
             <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 8, scrollbarWidth: "none" }}>
@@ -5598,10 +6109,10 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
                           <>
                             <div style={{ fontSize: 15, fontWeight: 900, color: isVehSelected ? m.color : C.text }}>
                               {est.rental
-                                ? `₹${est.cost}/hr`
+                                ? `Est. ₹${est.cost}/hr`
                                 : est.cost_max && est.cost_max > est.cost
-                                  ? `₹${est.cost} - ₹${est.cost_max}`
-                                  : `₹${est.cost}`}
+                                  ? `Est. ₹${est.cost} – ₹${est.cost_max}`
+                                  : `Est. ₹${est.cost}`}
                             </div>
                             <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
                               {est.rental ? "Per package" : `⏱ ${est.time} min`}
@@ -5732,6 +6243,74 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
       </div>
       </div>
 
+      {/* Ride Mode CTA Button for Bus/Metro/Multimodal */}
+      {(modeKey === "bmtc" || modeKey === "metro" || modeKey === "multimodal") && onOpenRideMode && (
+        <div style={{ padding: "0 18px 10px 18px", background: C.card }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              let rideType = modeKey === "metro" ? "METRO" : "BUS";
+              let busNo = data?.all_direct && data.all_direct.length > 0 ? data.all_direct[0] : (data?.segments?.[0]?.route || "500C");
+              let line = modeKey === "metro" ? "Purple Line" : undefined;
+              onOpenRideMode({ type: rideType, busNumber: busNo, line: line });
+            }}
+            style={{
+              width: "100%",
+              padding: "10px",
+              borderRadius: 10,
+              backgroundColor: "#7c3aed",
+              border: "none",
+              color: "#ffffff",
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              boxShadow: "0 4px 12px rgba(124, 58, 237, 0.3)",
+              fontFamily: "inherit"
+            }}
+          >
+            <span>🚀</span>
+            <span>Enter Live Ride Mode for this Trip</span>
+          </button>
+        </div>
+      )}
+
+      {/* Dynamic Live Navigation CTA Button for Personal Vehicle */}
+      {modeKey === "car" && onStartNavigation && (
+        <div style={{ padding: "0 18px 10px 18px", background: C.card }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect("car");
+              onStartNavigation();
+            }}
+            style={{
+              width: "100%",
+              padding: "10px",
+              borderRadius: 10,
+              backgroundColor: "#10b981",
+              border: "none",
+              color: "#ffffff",
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
+              fontFamily: "inherit"
+            }}
+          >
+            <span>🚗</span>
+            <span>Start Live Moving Drive Navigation (Real GPS)</span>
+          </button>
+        </div>
+      )}
+
       {/* Select bar */}
       <div style={{ background: isSelected ? m.color : m.bg, padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.18s" }}>
         {isSelected && <Ic n="check" s={13} c="white" />}
@@ -5747,7 +6326,7 @@ function ResultCard({ modeKey, data, selected, onSelect, selectedCabVehicle, set
    COMPARE TABLE
 ───────────────────────────────────────────────────────────── */
 function CompareTable({ results }) {
-  const modes = Object.keys(results).filter(m => results[m]?.available);
+  const modes = Object.keys(results).filter(m => results[m]?.available && results[m]?.operational !== false && results[m]?.service_status !== "closed");
   const rows = [
     { label: "Duration", key: "time", lower: true, fmt: v => `${v} min` },
     { label: "Cost", key: "cost", lower: true, fmt: v => `₹${v}` },
@@ -5803,7 +6382,7 @@ function CompareTable({ results }) {
 /* ─────────────────────────────────────────────────────────────
    DASHBOARD
 ───────────────────────────────────────────────────────────── */
-function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpen, setGarageOpen, gloveboxOpen, setGloveboxOpen, onRefreshVehicles, mapStyle, setMapStyle, useOsm, setUseOsm, stops, setShowWeatherModal, setShowStopsInfo, setShowSettings }) {
+function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpen, setGarageOpen, gloveboxOpen, setGloveboxOpen, onRefreshVehicles, mapStyle, setMapStyle, useOsm, setUseOsm, stops, setShowWeatherModal, setShowStopsInfo, setShowSettings, isMobile = false }) {
   const [data, setData] = useState({ stats: [], recent: [], saved: [] });
   const [vehicles, setVehicles] = useState([]);
   const [showBicyclePopup, setShowBicyclePopup] = useState(false);
@@ -6042,14 +6621,14 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           : "linear-gradient(135deg, #17122a 0%, #1e102d 100%)",
         border: `1px solid ${C.border}`,
         borderRadius: 24,
-        padding: "36px 40px",
-        marginBottom: 32,
+        padding: isMobile ? "22px 18px" : "36px 40px",
+        marginBottom: isMobile ? 20 : 32,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         position: "relative",
         overflow: "hidden",
-        minHeight: 140
+        minHeight: isMobile ? 110 : 140
       }}>
         {/* Background Vidhana Soudha Cityscape blending on the right */}
         <div style={{
@@ -6057,21 +6636,22 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
           right: 0,
           bottom: 0,
           height: "100%",
-          width: "50%",
+          width: isMobile ? "40%" : "50%",
+          opacity: isMobile ? 0.35 : 1,
           pointerEvents: "none",
           zIndex: 1
         }}>
           <img src={heroImg} alt="Bengaluru Landmarks" style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "right bottom" }} />
         </div>
 
-        <div style={{ zIndex: 2, position: "relative" }}>
-          <h1 style={{ fontSize: 32, fontWeight: 900, color: C.text, margin: "0 0 8px 0", letterSpacing: "-0.03em" }}>Good Morning, {username}! 👋</h1>
-          <p style={{ color: C.muted, fontSize: 14, fontWeight: 600, margin: 0 }}>Let's make your journey easy and efficient.</p>
+        <div style={{ zIndex: 2, position: "relative", maxWidth: isMobile ? "75%" : "60%" }}>
+          <h1 style={{ fontSize: isMobile ? 22 : 32, fontWeight: 900, color: C.text, margin: "0 0 8px 0", letterSpacing: "-0.03em" }}>Good Morning, {username}! 👋</h1>
+          <p style={{ color: C.muted, fontSize: isMobile ? 12 : 14, fontWeight: 600, margin: 0 }}>Let's make your journey easy and efficient.</p>
         </div>
       </div>
 
       {/* Stats Cards Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 32 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 12 : 20, marginBottom: isMobile ? 20 : 32 }}>
         {displayStats.map((s) => (
           <div 
             key={s.label} 
@@ -6079,7 +6659,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               background: C.card, 
               border: `1px solid ${C.border}`, 
               borderRadius: 20, 
-              padding: "20px 24px", 
+              padding: isMobile ? "14px 16px" : "20px 24px", 
               boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
               transition: "all 0.25s ease",
               cursor: "default"
@@ -6093,10 +6673,10 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
               e.currentTarget.style.boxShadow = "rgba(0, 0, 0, 0.01) 0 10px 30px";
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 16 }}>
               <div style={{ 
-                width: 44, 
-                height: 44, 
+                width: isMobile ? 36 : 44, 
+                height: isMobile ? 36 : 44, 
                 borderRadius: "50%", 
                 background: s.bg,
                 display: "flex", 
@@ -6104,12 +6684,12 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                 justifyContent: "center",
                 flexShrink: 0
               }}>
-                <Ic n={s.icon} s={18} c={s.color} sw={2.2} />
+                <Ic n={s.icon} s={isMobile ? 16 : 18} c={s.color} sw={2.2} />
               </div>
               <div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: C.text, lineHeight: "1.2" }}>{s.val}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{s.label}</div>
-                <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 1 }}>{s.sub}</div>
+                <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 900, color: C.text, lineHeight: "1.2" }}>{s.val}</div>
+                <div style={{ fontSize: isMobile ? 11.5 : 13, fontWeight: 700, color: C.text, marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 9.5, color: C.muted, fontWeight: 600, marginTop: 1 }}>{s.sub}</div>
               </div>
             </div>
           </div>
@@ -6117,20 +6697,20 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
       </div>
 
       {/* Row 1: Recent Searches (left) & Saved Places (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 14 : 24, marginBottom: isMobile ? 16 : 24 }}>
         
         {/* Recent Searches */}
         <div style={{ 
           background: C.card, 
           border: `1px solid ${C.border}`, 
-          borderRadius: 24, 
-          padding: "28px 24px",
+          borderRadius: isMobile ? 18 : 24, 
+          padding: isMobile ? "16px 14px" : "28px 24px",
           boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
           display: "flex",
           flexDirection: "column"
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 14 : 20 }}>
+            <h2 style={{ fontSize: isMobile ? 15 : 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
               <Ic n="clock" s={16} c={C.text} sw={2.2} /> Recent Searches
             </h2>
             {data.recent?.length > 0 && (
@@ -6149,9 +6729,9 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                   style={{ 
                     display: "flex", 
                     alignItems: "center", 
-                    gap: 14, 
-                    padding: "12px 14px", 
-                    borderRadius: 16, 
+                    gap: isMobile ? 10 : 14, 
+                    padding: isMobile ? "10px 12px" : "12px 14px", 
+                    borderRadius: isMobile ? 12 : 16, 
                     cursor: "pointer", 
                     background: C.dim,
                     border: `1px solid ${C.border}`,
@@ -6166,7 +6746,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     e.currentTarget.style.borderColor = C.border;
                   }}
                 >
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(124, 58, 237, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(124, 58, 237, 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <Ic n="search" s={14} c={C.accent} sw={2.2} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -6177,9 +6757,9 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                 </div>
               ))
             ) : (
-              <div style={{ textAlign: "center", padding: "40px 0", color: C.muted, fontSize: 13, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
-                <div style={{ width: 44, height: 44, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Ic n="search" s={18} c={C.muted} sw={2.2} />
+              <div style={{ textAlign: "center", padding: isMobile ? "20px 0" : "40px 0", color: C.muted, fontSize: 13, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.dim, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Ic n="search" s={16} c={C.muted} sw={2.2} />
                 </div>
                 No recent searches. Start planning to view routes!
               </div>
@@ -6191,14 +6771,14 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
         <div id="saved-places-card" style={{ 
           background: C.card, 
           border: `1px solid ${C.border}`, 
-          borderRadius: 24, 
-          padding: "28px 24px",
+          borderRadius: isMobile ? 18 : 24, 
+          padding: isMobile ? "16px 14px" : "28px 24px",
           boxShadow: "rgba(0, 0, 0, 0.01) 0 10px 30px",
           display: "flex",
           flexDirection: "column"
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 14 : 20 }}>
+            <h2 style={{ fontSize: isMobile ? 15 : 16, fontWeight: 900, color: C.text, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
               <Ic n="star" s={16} c="#f59e0b" sw={2.2} /> Saved Places
             </h2>
             <button 
@@ -6221,9 +6801,9 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                     style={{ 
                       display: "flex", 
                       alignItems: "center", 
-                      gap: 14, 
-                      padding: "12px 14px", 
-                      borderRadius: 16, 
+                      gap: isMobile ? 10 : 14, 
+                      padding: isMobile ? "10px 12px" : "12px 14px", 
+                      borderRadius: isMobile ? 12 : 16, 
                       cursor: "pointer", 
                       background: C.dim,
                       border: `1px solid ${C.border}`,
@@ -6238,7 +6818,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
                       e.currentTarget.style.borderColor = C.border;
                     }}
                   >
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: modeBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: modeBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <Ic n={MC[r.mode]?.icon || "mappin"} s={15} c={modeColor} sw={2} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -6307,7 +6887,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
       </div>
 
       {/* Row 2: My Garage (left) & Digital Glovebox (center) & Quick Actions (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.1fr", gap: 24, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1.1fr", gap: isMobile ? 16 : 24, marginBottom: isMobile ? 16 : 24 }}>
         
         {/* My Garage */}
         <div id="my-garage-card" style={{ 
@@ -6795,7 +7375,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
       </div>
 
       {/* Row 3: Commute Suggestions (left) & Travel Alerts (right) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 16 : 24 }}>
         
         {/* Commute Suggestions */}
         <div style={{ 
@@ -7029,7 +7609,7 @@ function Dashboard({ token, username, onPlan, onSelectRoute, onLogout, garageOpe
   );
 }
 
-function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
+function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login", isMobile = false }) {
   const [isLogin, setIsLogin] = useState(initialMode !== "signup");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -7065,7 +7645,8 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      padding: 20,
+      padding: isMobile ? "20px 14px" : 20,
+      boxSizing: "border-box",
       fontFamily: "'Plus Jakarta Sans', 'Outfit', 'Segoe UI', sans-serif"
     }}>
       {onBackToHome && (
@@ -7096,9 +7677,11 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
       <div style={{
         background: C.surface,
         border: `1px solid ${C.border2}`,
-        borderRadius: 24,
-        width: 420,
-        padding: 36,
+        borderRadius: isMobile ? 20 : 24,
+        width: "100%",
+        maxWidth: 400,
+        boxSizing: "border-box",
+        padding: isMobile ? "24px 20px" : 36,
         boxShadow: "0 20px 50px rgba(26, 22, 37, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02)",
         position: "relative"
       }}>
@@ -7127,8 +7710,8 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
           {isLogin ? "Sign In to your Account" : "Create your Account"}
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14, width: "100%", boxSizing: "border-box" }}>
+          <div style={{ width: "100%", boxSizing: "border-box" }}>
             <input
               type="text"
               placeholder="Username"
@@ -7139,6 +7722,7 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
               required
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 background: C.surface,
                 border: `1.5px solid ${userFocused ? C.accent : C.border2}`,
                 borderRadius: 12,
@@ -7152,7 +7736,7 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
               }}
             />
           </div>
-          <div>
+          <div style={{ width: "100%", boxSizing: "border-box" }}>
             <input
               type="password"
               placeholder="Password"
@@ -7163,6 +7747,7 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
               required
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 background: C.surface,
                 border: `1.5px solid ${passFocused ? C.accent : C.border2}`,
                 borderRadius: 12,
@@ -7199,6 +7784,7 @@ function AuthScreen({ onLoginSuccess, onBackToHome, initialMode = "login" }) {
             disabled={loading}
             style={{
               width: "100%",
+              boxSizing: "border-box",
               background: `linear-gradient(135deg, ${C.accent}, #a855f7)`,
               border: "none",
               color: "white",
@@ -7278,10 +7864,10 @@ function ComparisonDashboard({ data, onSelectRoute }) {
     bmtc: "BMTC Bus",
     metro: "Namma Metro",
     multimodal: "Bus + Metro",
-    ola: "Ola Cab",
-    uber: "Uber Cab",
-    rapido: "Rapido Ride",
-    namma_yatri: "Namma Yatri",
+    ola: "GoRide Cab",
+    uber: "SwiftCab Cab",
+    rapido: "SwiftGo Ride",
+    namma_yatri: "NammaMove",
     car: "Personal Car",
     bike: "Personal Bike"
   };
@@ -7608,17 +8194,23 @@ function NearbyPlacesDashboard({ data, onSelectPlace }) {
   );
 }
 
-function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
+function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src, isMobile = false }) {
   const [open, setOpen] = useState(false);
+  const [sessionId, setSessionId] = useState(() => localStorage.getItem("bmtc_chatbot_session") || "session_" + Date.now());
   const [messages, setMessages] = useState([
     {
       sender: "bot",
-      text: "Hello! I am your Commuter Assistant. I can help you plan your journey, find options matching your budget, check rain forecast impact, or compare transit vs. driving. Try asking: 'How long does it take from Majestic to Silk Board?' or 'Will it rain at 4 PM?'",
+      text: "Hello! I am your Intelligent Travel Assistant. I can help you plan journeys across BMTC, Namma Metro, Cabs (Ola/Uber/Rapido/Yatri), and personal vehicles. Ask me routes, fares, next bus timings, nearby restaurants/hospitals, or multi-stop day trips!",
+      suggested_followups: ["Cheapest route to Majestic", "Next bus from Hosakerehalli", "Restaurants near Majestic", "Plan 3-stop day trip"]
     }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem("bmtc_chatbot_session", sessionId);
+  }, [sessionId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -7661,22 +8253,31 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          session_id: sessionId,
           message: text,
           history: messages.map(m => ({ sender: m.sender, text: m.text })),
           latitude,
-          longitude
+          longitude,
+          user_id: 1
         }),
       });
 
       if (!response.ok) throw new Error("Server error");
       const data = await response.json();
 
+      if (data.session_id) {
+        setSessionId(data.session_id);
+      }
+
       setMessages(prev => [...prev, {
         sender: "bot",
-        text: data.text,
+        text: data.text || data.answer || data.response,
         intent: data.intent,
         parameters: data.parameters,
-        embedded_data: data.embedded_data
+        embedded_data: data.embedded_data,
+        suggested_followups: data.suggested_followups || [],
+        rag_grounded: data.rag_grounded,
+        sources: data.grounded_sources || []
       }]);
     } catch (err) {
       setMessages(prev => [...prev, {
@@ -7730,7 +8331,10 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
   };
 
   const chips = [
-    { text: "Ola fare from Majestic to Indiranagar" },
+    { text: "What time does the metro open on Sunday?" },
+    { text: "When does my driving license expire?" },
+    { text: "Give me the schedule for route 356" },
+    { text: "GoRide fare from Majestic to Indiranagar" },
     { text: "Nearest bus stop to Bangalore Palace" },
     { text: "Fuel cost: Whitefield to Electronic City by car" },
     { text: "Will it rain at 5 PM today?" },
@@ -7739,14 +8343,20 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
   ];
 
   return (
-    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, fontFamily: "inherit" }}>
+    <div style={{
+      position: "fixed",
+      bottom: isMobile ? "calc(74px + env(safe-area-inset-bottom, 0px))" : 24,
+      right: isMobile ? 16 : 24,
+      zIndex: 9999,
+      fontFamily: "inherit"
+    }}>
       {/* Floating Button */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
           style={{
-            width: 60,
-            height: 60,
+            width: isMobile ? 52 : 60,
+            height: isMobile ? 52 : 60,
             borderRadius: "50%",
             background: "linear-gradient(135deg, #f97316, #8b5cf6)",
             border: "none",
@@ -7767,7 +8377,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
             e.currentTarget.style.boxShadow = "0 8px 32px rgba(249, 115, 22, 0.4)";
           }}
         >
-          <Ic n="chat" s={28} c="white" sw={2} />
+          <Ic n="chat" s={isMobile ? 24 : 28} c="white" sw={2} />
           <span style={{ position: "absolute", top: 2, right: 2, width: 12, height: 12, borderRadius: "50%", background: C.green, border: "2px solid #08090f" }} />
         </button>
       )}
@@ -7775,8 +8385,20 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
       {/* Chat Window */}
       {open && (
         <div style={{
-          width: 400,
-          height: 580,
+          position: isMobile ? "fixed" : "relative",
+          ...(isMobile ? {
+            top: 60,
+            bottom: "calc(72px + env(safe-area-inset-bottom, 0px))",
+            left: 10,
+            right: 10,
+            width: "auto",
+            height: "auto",
+            maxWidth: 480,
+            margin: "0 auto",
+          } : {
+            width: 400,
+            height: 580,
+          }),
           background: C.surface,
           border: `1px solid ${C.border2}`,
           borderRadius: 20,
@@ -7785,6 +8407,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
           flexDirection: "column",
           overflow: "hidden",
           backdropFilter: "blur(20px)",
+          zIndex: 10000,
           animation: "fadeIn 0.25s ease-out"
         }}>
           {/* Header */}
@@ -7855,6 +8478,23 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
                   <div style={{ fontSize: 16, marginBottom: 4 }}>🤖</div>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: "80%" }}>
+                  {m.sender === "bot" && (m.rag_grounded || (m.sources && m.sources.length > 0)) && (
+                    <div style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      alignSelf: "flex-start",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: "#10b981",
+                      background: "rgba(16, 185, 129, 0.12)",
+                      border: "1px solid rgba(16, 185, 129, 0.25)",
+                      padding: "2px 8px",
+                      borderRadius: 12
+                    }}>
+                      <span>⚡ RAG Grounded Fact</span>
+                    </div>
+                  )}
                   <div style={{
                     padding: "12px 16px",
                     borderRadius: m.sender === "user" ? "18px 18px 2px 18px" : "18px 18px 18px 2px",
@@ -7990,7 +8630,7 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
                         {m.parameters?.source} → {m.parameters?.destination}
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-                        {[["ola", "Ola", "#f5c518"], ["uber", "Uber", "#e0e0e0"], ["namma_yatri", "Namma Yatri", "#22c55e"], ["rapido", "Rapido", "#3b82f6"]].map(([pkey, label, clr]) =>
+                        {[["ola", "GoRide", "#84cc16"], ["uber", "SwiftCab", "#e0e0e0"], ["namma_yatri", "NammaMove", "#eab308"], ["rapido", "SwiftGo", "#ea580c"]].map(([pkey, label, clr]) =>
                           m.embedded_data.providers?.[pkey] && (
                             <div key={pkey} style={{ background: clr + "18", borderRadius: 8, padding: "6px 8px", border: `1px solid ${clr}33` }}>
                               <div style={{ fontSize: 10, fontWeight: 800, color: clr }}>{label}</div>
@@ -8203,7 +8843,181 @@ function ChatbotWidget({ triggerSearch, setSelected, setSrc, setDst, src }) {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   MAIN APP
+   JOURNEY CONTEXT BANNER (Location, Traffic & Weather ETA)
+───────────────────────────────────────────────────────────── */
+function JourneyContextBanner({ journey, traffic, weather }) {
+  const [showWeatherDetails, setShowWeatherDetails] = useState(false);
+  if (!journey && !traffic && !weather) return null;
+
+  const levelColors = {
+    SEVERE: { bg: "rgba(239, 68, 68, 0.12)", text: "#ef4444", border: "rgba(239, 68, 68, 0.3)", label: "Severe Traffic" },
+    HIGH: { bg: "rgba(239, 68, 68, 0.12)", text: "#ef4444", border: "rgba(239, 68, 68, 0.3)", label: "Heavy Traffic" },
+    MODERATE: { bg: "rgba(245, 158, 11, 0.12)", text: "#f59e0b", border: "rgba(245, 158, 11, 0.3)", label: "Moderate Traffic" },
+    LOW: { bg: "rgba(16, 185, 129, 0.12)", text: "#10b981", border: "rgba(16, 185, 129, 0.3)", label: "Low Traffic" }
+  };
+
+  const tLevel = traffic?.level || "LOW";
+  const tStyle = levelColors[tLevel] || levelColors.LOW;
+
+  const origW = weather?.origin;
+  const destW = weather?.destination;
+  const checkpoints = weather?.checkpoints || [];
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)",
+      border: "1.5px solid #ede9fe",
+      borderRadius: 16,
+      padding: "10px 16px",
+      marginBottom: 16,
+      boxShadow: "rgba(124, 58, 237, 0.04) 0 6px 18px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 10,
+      animation: "fadeIn 0.3s ease-out both"
+    }}>
+      {/* Sleek Context Summary Row */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {/* Traffic Pill */}
+          {traffic && (
+            <div style={{
+              background: tStyle.bg, color: tStyle.text, border: `1px solid ${tStyle.border}`,
+              padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", gap: 5
+            }}>
+              <span>🚦</span>
+              <span>{tStyle.label} {traffic.delay_min > 0 ? `(+${traffic.delay_min}m delay)` : ""}</span>
+            </div>
+          )}
+
+          {/* Weather summary pill */}
+          {weather && destW && (
+            <div style={{
+              background: "rgba(59, 130, 246, 0.08)", color: "#1d4ed8", border: "1px solid rgba(59, 130, 246, 0.25)",
+              padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 5
+            }}>
+              <span>🌦️</span>
+              <span>{destW.temperature}°C • {destW.rain_probability}% rain ({destW.condition || "Clear"})</span>
+            </div>
+          )}
+
+          {/* Departure & Arrival ETA */}
+          {journey && (
+            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+              <span>⏱️ Departs {journey.departure_time || "Now"} • ETA ~{journey.estimated_arrival_time || "ETA"} ({journey.estimated_duration_min} min travel)</span>
+            </div>
+          )}
+        </div>
+
+        {/* Expand/Collapse Weather Route Details */}
+        {weather && (
+          <button
+            onClick={() => setShowWeatherDetails(!showWeatherDetails)}
+            style={{
+              background: showWeatherDetails ? "rgba(124, 58, 237, 0.1)" : "transparent",
+              border: `1px solid ${showWeatherDetails ? "#7c3aed" : "#e5e7eb"}`,
+              borderRadius: 8,
+              padding: "4px 10px",
+              fontSize: 11,
+              fontWeight: 700,
+              color: showWeatherDetails ? "#7c3aed" : "#6b7280",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontFamily: "inherit",
+              transition: "all 0.2s"
+            }}
+          >
+            <span>{showWeatherDetails ? "Hide Route Weather ▲" : "Weather Along Route ▼"}</span>
+          </button>
+        )}
+      </div>
+
+      {/* Expandable Corridor Checkpoints & Advisory */}
+      {showWeatherDetails && weather && (
+        <div style={{ background: "#ffffff", border: "1px solid #f3f4f6", borderRadius: 12, padding: "12px 14px", marginTop: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#374151", letterSpacing: "0.03em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+              <span>🌦️</span> Weather Along Route (Location & ETA Aware)
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#3b82f6", background: "#eff6ff", padding: "3px 10px", borderRadius: 8, border: "1px solid #dbeafe" }}>
+              {weather.type === "forecast" ? `Forecast for ${weather.estimated_arrival_time}` : "Live Weather"}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", fontSize: 11.5 }}>
+            {/* Origin */}
+            {origW && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#f9fafb", padding: "6px 10px", borderRadius: 8, border: "1px solid #f3f4f6" }}>
+                <span style={{ fontSize: 9.5, color: "#6b7280", fontWeight: 700 }}>Starting Point ({weather.departure_time})</span>
+                <span style={{ fontWeight: 800, color: "#111827" }}>
+                  {origW.temperature}°C • {origW.rain_probability}% rain ({origW.condition})
+                </span>
+              </div>
+            )}
+
+            {/* Checkpoints */}
+            {checkpoints.map((cp, idx) => (
+              <Fragment key={idx}>
+                <span style={{ color: "#9ca3af", fontWeight: 800 }}>→</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#f9fafb", padding: "6px 10px", borderRadius: 8, border: "1px solid #f3f4f6" }}>
+                  <span style={{ fontSize: 9.5, color: "#6b7280", fontWeight: 700 }}>{cp.name} ({cp.eta})</span>
+                  <span style={{ fontWeight: 800, color: "#111827" }}>
+                    {cp.weather.temperature}°C • {cp.weather.rain_probability}% rain
+                  </span>
+                </div>
+              </Fragment>
+            ))}
+
+            {/* Destination */}
+            {destW && (
+              <>
+                <span style={{ color: "#9ca3af", fontWeight: 800 }}>→</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, background: "#eff6ff", padding: "6px 10px", borderRadius: 8, border: "1px solid #dbeafe" }}>
+                  <span style={{ fontSize: 9.5, color: "#2563eb", fontWeight: 700 }}>Destination ETA ({weather.estimated_arrival_time})</span>
+                  <span style={{ fontWeight: 800, color: "#1e40af" }}>
+                    {destW.temperature}°C • {destW.rain_probability}% rain ({destW.condition})
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Advisory Banner */}
+          {weather?.advisory && (
+            <div style={{
+              marginTop: 10,
+              background: weather.weather_change_detected ? "rgba(245, 158, 11, 0.08)" : "rgba(59, 130, 246, 0.08)",
+              border: `1px solid ${weather.weather_change_detected ? "rgba(245, 158, 11, 0.3)" : "rgba(59, 130, 246, 0.3)"}`,
+              borderRadius: 8,
+              padding: "8px 12px",
+              fontSize: 11,
+              fontWeight: 600,
+              color: weather.weather_change_detected ? "#92400e" : "#1e40af",
+              lineHeight: "1.4",
+              display: "flex",
+              alignItems: "center",
+              gap: 8
+            }}>
+              {weather.advisory}
+            </div>
+          )}
+
+          {/* Outdoor Comfort Note */}
+          {weather?.outdoor_comfort_note && (
+            <div style={{ marginTop: 6, fontSize: 10.5, color: "#d97706", fontWeight: 700, display: "flex", alignItems: "center", gap: 6, background: "#fffbeb", padding: "6px 10px", borderRadius: 8, border: "1px solid #fef3c7" }}>
+              <span>🌡️</span> {weather.outdoor_comfort_note}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   EXPLAINABLE AI (XAI) & SMART RANKER PANEL
 ───────────────────────────────────────────────────────────── */
 function AIRecommendationsPanel({
   recommendations,
@@ -8216,9 +9030,7 @@ function AIRecommendationsPanel({
   selectedMultimodalOption,
   setSelectedMultimodalOption
 }) {
-  const [expandedIndex, setExpandedIndex] = useState(null);
-  const [cabFilter, setCabFilter] = useState("all");
-  const [cabProviderFilter, setCabProviderFilter] = useState("all");
+  const [showAllExplanations, setShowAllExplanations] = useState(false);
 
   if (!recommendations || recommendations.length === 0) return null;
 
@@ -8230,553 +9042,204 @@ function AIRecommendationsPanel({
     multimodal: { color: "#ec4899", bg: "rgba(236, 72, 153, 0.08)", icon: "transfer", label: "Multimodal Transit" }
   };
 
-  const getVehicleCategory = (est) => {
-    const key = (est.vehicle_key || "").toLowerCase();
-    const name = (est.vehicle_name || "").toLowerCase();
-    if (est.parcel || est.vtype === "parcel" || key.includes("parcel")) return "parcel";
-    if (est.rental || est.vtype === "rental" || key.includes("hourly") || key.includes("rental")) return "rental";
-    if (est.pet || est.vtype === "pet") return "pet";
-    if (est.book_any || est.vtype === "book_any" || name === "book any") return "book_any";
-    if (key.includes("auto") || name.includes("auto")) return "auto";
-    if (est.vtype === "scooty" || key.includes("scooty") || name.includes("scooty")) return "scooty";
-    if (est.saver || est.vtype === "saver" || key.includes("saver")) return "saver";
-    if (key.includes("bike") || name.includes("bike") || key.includes("moto") || name.includes("moto")) return "bike";
-    if (est.vtype === "priority" || key.includes("priority")) return "priority";
-    if (est.black || est.vtype === "black") return "black";
-    if (
-      key.includes("ac_cab") || name.includes("cab (ac)") ||
-      key.includes("premier") || name.includes("premier") ||
-      key.includes("prime") || name.includes("prime") ||
-      key.includes("prime_plus") || name.includes("prime plus") ||
-      key.includes("green") || name.includes("green") ||
-      key.includes("lux") || name.includes("lux") ||
-      key.includes("sedan") || name.includes("sedan") ||
-      key.includes("go_ac") || name.includes("go ac") ||
-      name.includes("ac cab") || name.includes("ac,")
-    ) return "ac_cab";
-    if (key.includes("xl") || name.includes("xl") || key.includes("suv") || name.includes("suv")) return "other";
-    return "cab";
-  };
-
-  const PROVIDER_STYLES = {
-    namma_yatri: { bg: "#eab308", text: "#000", label: "Namma Yatri" },
-    uber: { bg: "#374151", text: "#fff", label: "Uber" },
-    ola: { bg: "#84cc16", text: "#000", label: "Ola" },
-    rapido: { bg: "#ea580c", text: "#fff", label: "Rapido" },
-  };
-
-  const SPECIAL_BADGES = {
-    parcel: { label: "PARCEL", color: "#f59e0b", icon: "📦" },
-    rental: { label: "HOURLY", color: "#8b5cf6", icon: "⏱️" },
-    priority: { label: "PRIORITY", color: "#06b6d4", icon: "⚡" },
-    pet: { label: "PET", color: "#f472b6", icon: "🐾" },
-    saver: { label: "SAVER", color: "#22c55e", icon: "💰" },
-    black: { label: "BLACK", color: "#a3a3a3", icon: "💎" },
-    scooty: { label: "SCOOTY", color: "#fb923c", icon: "🛵" },
-    book_any: { label: "BOOK ANY", color: "#eab308", icon: "⚡🚗" },
-  };
-
-  const categories = [
-    { id: "all", label: "All Types", icon: "🌐" },
-    { id: "auto", label: "Auto", icon: "🛺" },
-    { id: "book_any", label: "Book Any", icon: "⚡🚗" },
-    { id: "cab", label: "Cab", icon: "🚗" },
-    { id: "ac_cab", label: "AC Cab", icon: "❄️" },
-    { id: "bike", label: "Bike", icon: "🏍️" },
-    { id: "scooty", label: "Scooty", icon: "🛵" },
-    { id: "priority", label: "Priority", icon: "⚡" },
-    { id: "black", label: "Black", icon: "💎" },
-    { id: "pet", label: "Pet", icon: "🐾" },
-    { id: "saver", label: "Saver", icon: "💰" },
-    { id: "rental", label: "Hourly", icon: "⏱️" },
-    { id: "parcel", label: "Parcel", icon: "📦" },
-    { id: "other", label: "Other", icon: "🚙" },
-  ];
+  // Find recommendation corresponding to the currently selected mode, or default to top #1
+  const activeRec = recommendations.find(r => r.mode === selected) || recommendations[0];
+  const activeConfig = modeColors[activeRec?.mode] || { color: C.accent, bg: "rgba(124, 58, 237, 0.08)", icon: "bus", label: activeRec?.mode };
+  const activeData = results[activeRec?.mode] || {};
+  const activeRank = recommendations.findIndex(r => r.mode === activeRec?.mode) + 1;
 
   return (
     <div style={{
       background: "#ffffff",
       border: `1.5px solid #ede9fe`,
-      borderRadius: 24,
-      padding: 24,
-      marginBottom: 24,
-      boxShadow: "rgba(124, 58, 237, 0.04) 0 10px 30px",
-      animation: "fadeIn 0.5s ease-out both"
+      borderRadius: 18,
+      padding: "16px 18px",
+      marginTop: 0,
+      marginBottom: 14,
+      boxShadow: "rgba(124, 58, 237, 0.04) 0 8px 24px",
+      animation: "fadeIn 0.4s ease-out both"
     }}>
-      {/* Title */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+      {/* Title & Badge */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
-            width: 38, height: 38, borderRadius: 10,
+            width: 32, height: 32, borderRadius: 8,
             background: "linear-gradient(135deg, #7c3aed, #ec4899)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "rgba(124, 58, 237, 0.2) 0 4px 10px"
+            boxShadow: "rgba(124, 58, 237, 0.2) 0 3px 8px"
           }}>
-            <span style={{ fontSize: 18 }}>🤖</span>
+            <span style={{ fontSize: 16 }}>🤖</span>
           </div>
           <div>
-            <div style={{ fontWeight: 900, fontSize: 16, color: "#1e1b24", letterSpacing: "-0.02em", lineHeight: "1.1" }}>U-Transit AI Smart Ranker</div>
-            <div style={{ fontSize: 10, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, marginTop: 3 }}>Explainable AI & Top-K Routing</div>
+            <div style={{ fontWeight: 900, fontSize: 14, color: "#1e1b24", letterSpacing: "-0.01em", lineHeight: "1.1" }}>
+              U-Transit AI Smart Ranker
+            </div>
+            <div style={{ fontSize: 9.5, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, marginTop: 2 }}>
+              Explainable AI (XAI) & Top-K Routing
+            </div>
           </div>
         </div>
-        <div style={{ background: "rgba(124, 58, 237, 0.08)", color: "#7c3aed", padding: "6px 12px", borderRadius: 10, fontSize: 11, fontWeight: 700 }}>
-          ✨ Gemini Powered
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ background: "rgba(124, 58, 237, 0.08)", color: "#7c3aed", padding: "4px 10px", borderRadius: 8, fontSize: 10.5, fontWeight: 700 }}>
+            ✨ Gemini Powered
+          </div>
+          <button
+            onClick={() => setShowAllExplanations(!showAllExplanations)}
+            style={{
+              background: showAllExplanations ? "rgba(124, 58, 237, 0.1)" : "#f9fafb",
+              border: `1px solid ${showAllExplanations ? "#7c3aed" : "#e5e7eb"}`,
+              color: showAllExplanations ? "#7c3aed" : C.muted,
+              fontSize: 10.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              padding: "4px 9px",
+              borderRadius: 6,
+              transition: "all 0.2s"
+            }}
+          >
+            {showAllExplanations ? "Focus View ▲" : "Compare All Modes ▼"}
+          </button>
         </div>
       </div>
 
-      {/* List of recommendations */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Top-K Quick Ranking Pills */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 8, marginBottom: 12 }}>
         {recommendations.slice(0, 4).map((rec, idx) => {
-          const config = modeColors[rec.mode] || { color: C.accent, bg: "rgba(124, 58, 237, 0.08)", icon: "bus", label: rec.mode };
-          const isSelected = selected === rec.mode;
-          const isExpanded = expandedIndex === idx;
-
-          // Find actual time & cost from results
-          const actualData = results[rec.mode] || {};
-          const time = actualData.time || 0;
-          const cost = actualData.cost || 0;
-          const transfers = actualData.transfers || 0;
-
-          const providerOptions = [
-            { id: "all", label: "All Providers", icon: "🌐", color: config.color },
-            { id: "namma_yatri", label: "Namma Yatri", icon: "🛺", color: "#eab308" },
-            { id: "ola", label: "Ola", icon: "🚗", color: "#84cc16" },
-            { id: "uber", label: "Uber", icon: "🚗", color: "#e2e8f0" },
-            { id: "rapido", label: "Rapido", icon: "🏍️", color: "#ea580c" },
-          ];
-
+          const cfg = modeColors[rec.mode] || { color: C.accent, bg: "rgba(124, 58, 237, 0.08)", icon: "bus", label: rec.mode };
+          const isSel = selected === rec.mode;
+          const actual = results[rec.mode] || {};
           return (
             <div
               key={rec.mode}
-              style={{
-                background: "#ffffff",
-                border: `1.5px solid ${isSelected ? "#7c3aed" : "#eef0f6"}`,
-                borderRadius: 20,
-                padding: "16px 20px",
-                transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-                cursor: "pointer",
-                boxShadow: isSelected ? "0 10px 25px -5px rgba(124, 58, 237, 0.08), 0 8px 10px -6px rgba(124, 58, 237, 0.08)" : "none",
-                animation: "fadeIn 0.5s ease-out both",
-                animationDelay: `${idx * 0.08}s`
-              }}
               onClick={() => setSelected(rec.mode)}
-              onMouseEnter={e => {
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.borderColor = isSelected ? "#7c3aed" : "rgba(124, 58, 237, 0.3)";
-                e.currentTarget.style.boxShadow = "0 12px 24px -10px rgba(124, 58, 237, 0.15)";
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.transform = "none";
-                e.currentTarget.style.borderColor = isSelected ? "#7c3aed" : "#eef0f6";
-                e.currentTarget.style.boxShadow = isSelected ? "0 10px 25px -5px rgba(124, 58, 237, 0.08)" : "none";
+              style={{
+                background: isSel ? `${cfg.color}10` : "#f9fafb",
+                border: `1.5px solid ${isSel ? cfg.color : "#eef0f6"}`,
+                borderRadius: 12,
+                padding: "8px 10px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                display: "flex",
+                flexDirection: "column",
+                gap: 3,
+                boxShadow: isSel ? `0 4px 14px ${cfg.color}18` : "none"
               }}
             >
-              {/* Main row */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  {/* Rank badge */}
-                  <div style={{
-                    width: 28, height: 28, borderRadius: "50%",
-                    background: idx === 0 ? "linear-gradient(135deg, #fef08a, #fef9c3)" : "#f3f4f6",
-                    color: idx === 0 ? "#ca8a04" : "#4b5563",
-                    border: `1px solid ${idx === 0 ? "#fde047" : "#e5e7eb"}`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontWeight: 900, fontSize: 12, flexShrink: 0
-                  }}>
-                    #{idx + 1}
-                  </div>
-
-                  {/* Mode Icon Container */}
-                  <div style={{
-                    width: 44, height: 44, borderRadius: 12,
-                    background: config.bg,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    flexShrink: 0
-                  }}>
-                    <Ic n={config.icon} s={22} c={config.color} sw={2} />
-                  </div>
-
-                  {/* Details Block */}
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontWeight: 900, fontSize: 15, color: "#1e1b24" }}>
-                        {config.label}
-                      </span>
-                      <span style={{
-                        background: `${config.color}15`,
-                        color: config.color,
-                        padding: "3px 8px",
-                        borderRadius: 6,
-                        fontSize: 9.5,
-                        fontWeight: 800,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.02em"
-                      }}>
-                        {rec.score}% MATCH
-                      </span>
-                    </div>
-
-                    {/* Stats List */}
-                    <div style={{ display: "flex", gap: 16, color: "#64748b", fontSize: 12, marginTop: 6, fontWeight: 600, alignItems: "center" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>💰 ₹{cost}</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>🕒 {time} mins</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>🎯 {transfers} transfer(s)</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>🌿 {rec.emissions || 0}g CO₂</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExpandedIndex(isExpanded ? null : idx);
-                    }}
-                    style={{
-                      background: "none", border: "none", color: C.muted,
-                      fontSize: 12, fontWeight: 700, cursor: "pointer",
-                      padding: "4px 8px", borderRadius: 6, display: "flex",
-                      alignItems: "center", gap: 4, fontFamily: "inherit",
-                      transition: "color 0.2s"
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.color = "#1e1b24"}
-                    onMouseLeave={e => e.currentTarget.style.color = C.muted}
-                  >
-                    <span>Show Details</span>
-                    <span style={{ 
-                      display: "inline-block", 
-                      transition: "transform 0.2s ease",
-                      transform: isExpanded ? "rotate(180deg)" : "none" 
-                    }}>▾</span>
-                  </button>
-
-                  {/* Circular selection button */}
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelected(rec.mode);
-                    }}
-                    style={{
-                      width: 26, height: 26, borderRadius: "50%",
-                      background: isSelected ? "#7c3aed" : "#ffffff",
-                      border: `2px solid ${isSelected ? "#7c3aed" : "#d1d5db"}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", transition: "all 0.2s"
-                    }}
-                  >
-                    {isSelected ? (
-                      <Ic n="arrow" s={10} c="white" sw={3} />
-                    ) : (
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "transparent" }} />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Explanation Card */}
-              <div style={{
-                marginTop: 12,
-                fontSize: 12.5,
-                lineHeight: "18px",
-                color: "#4b5563",
-                background: "#ffffff",
-                padding: "10px 14px",
-                borderRadius: 12,
-                border: "1px solid #f1f1f5",
-                borderLeft: `4px solid ${config.color || C.accent}`,
-                fontWeight: 500
-              }}>
-                <strong>Why recommended:</strong> {rec.explanation}
-              </div>
-
-              {/* Inline cab option details (rendered inside ranker card if expanded and mode is cab) */}
-              {isExpanded && rec.mode === "cab" && actualData.all_estimates && (
-                <div onClick={e => e.stopPropagation()} style={{
-                  marginTop: 14,
-                  padding: "14px 16px",
-                  borderTop: `1px solid ${C.border}`,
-                  background: C.bg + "33",
-                  borderRadius: 14
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{
+                  fontSize: 9.5, fontWeight: 900,
+                  background: idx === 0 ? "#fef08a" : "#e5e7eb",
+                  color: idx === 0 ? "#854d0e" : "#4b5563",
+                  padding: "1px 6px", borderRadius: 6
                 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, marginBottom: 10, letterSpacing: "0.05em" }}>
-                    AVAILABLE VEHICLES & PROVIDERS
-                  </div>
-
-                  {/* Category Filter Pills */}
-                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 6, marginBottom: 8, scrollbarWidth: "none" }}>
-                    {categories.map(cat => {
-                      const count = actualData.all_estimates.filter(est =>
-                        (cat.id === "all" || getVehicleCategory(est) === cat.id) &&
-                        (cabProviderFilter === "all" || est.provider_key === cabProviderFilter)
-                      ).length;
-
-                      if (count === 0 && cat.id !== "all") return null;
-
-                      const isCatActive = cabFilter === cat.id;
-                      return (
-                        <button
-                          key={cat.id}
-                          onClick={() => setCabFilter(cat.id)}
-                          style={{
-                            background: isCatActive ? config.color + "22" : C.surface,
-                            border: `1.5px solid ${isCatActive ? config.color : C.border2}`,
-                            borderRadius: 20,
-                            padding: "6px 12px",
-                            color: isCatActive ? config.color : C.muted,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            transition: "all 0.15s",
-                            fontFamily: "inherit"
-                          }}
-                        >
-                          <span>{cat.icon}</span>
-                          <span>{cat.label}</span>
-                          <span style={{
-                            fontSize: 9,
-                            background: isCatActive ? config.color + "44" : C.border2,
-                            color: isCatActive ? config.color : C.muted,
-                            borderRadius: 10,
-                            padding: "1px 5px",
-                            marginLeft: 2
-                          }}>{count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Provider Filter Pills */}
-                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 10, marginBottom: 12, scrollbarWidth: "none" }}>
-                    {providerOptions.map(prov => {
-                      const count = actualData.all_estimates.filter(est =>
-                        (prov.id === "all" || est.provider_key === prov.id) &&
-                        (cabFilter === "all" || getVehicleCategory(est) === cabFilter)
-                      ).length;
-
-                      if (count === 0 && prov.id !== "all") return null;
-
-                      const isProvActive = cabProviderFilter === prov.id;
-                      const activeColor = prov.color;
-                      return (
-                        <button
-                          key={prov.id}
-                          onClick={() => setCabProviderFilter(prov.id)}
-                          style={{
-                            background: isProvActive ? activeColor + "22" : C.surface,
-                            border: `1.5px solid ${isProvActive ? activeColor : C.border2}`,
-                            borderRadius: 20,
-                            padding: "6px 12px",
-                            color: isProvActive ? activeColor : C.muted,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            transition: "all 0.15s",
-                            fontFamily: "inherit"
-                          }}
-                        >
-                          <span>{prov.icon}</span>
-                          <span>{prov.label}</span>
-                          <span style={{
-                            fontSize: 9,
-                            background: isProvActive ? activeColor + "44" : C.border2,
-                            color: isProvActive ? activeColor : C.muted,
-                            borderRadius: 10,
-                            padding: "1px 5px",
-                            marginLeft: 2
-                          }}>{count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Vehicle list */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
-                    {actualData.all_estimates.filter(est => {
-                      const matchesType = cabFilter === "all" || getVehicleCategory(est) === cabFilter;
-                      const matchesProvider = cabProviderFilter === "all" || est.provider_key === cabProviderFilter;
-                      return matchesType && matchesProvider;
-                    }).map((est, eIdx) => {
-                      const isVehSelected = selectedCabVehicle &&
-                        selectedCabVehicle.provider_key === est.provider_key &&
-                        selectedCabVehicle.vehicle_key === est.vehicle_key;
-
-                      const pStyle = PROVIDER_STYLES[est.provider_key] || { bg: C.surface, text: C.text, label: est.provider };
-                      const isUnavailable = est.is_vehicle_available === false;
-                      const specialBadge = SPECIAL_BADGES[getVehicleCategory(est)] || null;
-
-                      return (
-                        <button
-                          key={eIdx}
-                          onClick={() => {
-                            if (isUnavailable) return;
-                            setSelectedCabVehicle(est);
-                            setSelected("cab");
-                          }}
-                          style={{
-                            background: isUnavailable ? C.surface + "88" : isVehSelected ? C.surface : C.card,
-                            border: `1.5px solid ${isUnavailable ? C.border : isVehSelected ? config.color : C.border}`,
-                            borderRadius: 12,
-                            padding: "10px 14px",
-                            cursor: isUnavailable ? "not-allowed" : "pointer",
-                            width: "100%",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            transition: "all 0.15s",
-                            opacity: isUnavailable ? 0.55 : 1,
-                            boxShadow: isVehSelected ? `0 4px 16px ${config.color}15` : "none",
-                            fontFamily: "inherit"
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <div style={{ fontSize: 22 }}>{est.icon || "🚗"}</div>
-                            <div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                                <span style={{ fontSize: 13, fontWeight: 800 }}>{est.vehicle_name}</span>
-                                <span style={{
-                                  fontSize: 8,
-                                  background: pStyle.bg,
-                                  color: pStyle.text,
-                                  padding: "1px 5px",
-                                  borderRadius: 4,
-                                  fontWeight: 700
-                                }}>{pStyle.label.toUpperCase()}</span>
-                                {specialBadge && (
-                                  <span style={{
-                                    fontSize: 8,
-                                    background: specialBadge.color + "18",
-                                    color: specialBadge.color,
-                                    padding: "1px 5px",
-                                    borderRadius: 4,
-                                    fontWeight: 700
-                                  }}>{specialBadge.icon} {specialBadge.label}</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: 14, fontWeight: 900, color: isVehSelected ? config.color : C.text }}>
-                              ₹{est.cost}
-                            </div>
-                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                              ⏱ {est.time} min
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Inline multimodal option details (rendered inside ranker card if expanded and mode is multimodal) */}
-              {isExpanded && rec.mode === "multimodal" && actualData.all_options && (
-                <div onClick={e => e.stopPropagation()} style={{
-                  marginTop: 14,
-                  padding: "14px 16px",
-                  borderTop: `1px solid ${C.border}`,
-                  background: C.bg + "33",
-                  borderRadius: 14
-                }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: C.muted, marginBottom: 10, letterSpacing: "0.05em" }}>
-                    SELECT MULTIMODAL COMBINATION
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 220, overflowY: "auto", paddingRight: 4 }}>
-                    {actualData.all_options.map((opt, oidx) => {
-                      const isOptSelected = selectedMultimodalOption && selectedMultimodalOption.combination_type === opt.combination_type;
-                      return (
-                        <button
-                          key={oidx}
-                          onClick={() => {
-                            setSelectedMultimodalOption(opt);
-                            setSelected("multimodal");
-                          }}
-                          style={{
-                            background: isOptSelected ? config.color + "14" : C.surface,
-                            border: `1.5px solid ${isOptSelected ? config.color : C.border2}`,
-                            borderRadius: 10,
-                            padding: "10px 14px",
-                            width: "100%",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            transition: "all 0.15s",
-                            boxShadow: isOptSelected ? `0 4px 16px ${config.color}15` : "none",
-                            fontFamily: "inherit",
-                            cursor: "pointer"
-                          }}
-                        >
-                          <div style={{ textAlign: "left" }}>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: isOptSelected ? config.color : C.text }}>
-                              {opt.combination_label}
-                            </div>
-                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                              {opt.route_summary}
-                            </div>
-                          </div>
-                          <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: 14, fontWeight: 900, color: isOptSelected ? config.color : C.text }}>₹{opt.cost}</div>
-                            <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>⏱ {opt.time} min</div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Collapsible Utility score breakdown */}
-              {isExpanded && (
-                <div style={{
-                  marginTop: 14,
-                  paddingTop: 12,
-                  borderTop: "1px solid #eef0f6",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                  animation: "fadeIn 0.2s ease-out"
-                }} onClick={(e) => e.stopPropagation()}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 4, letterSpacing: "0.05em" }}>RECOMMENDATION CRITERIA BREAKDOWN</div>
-                  {[
-                    { label: "⚡ Speed suitability", score: rec.details?.time_score || 0, color: "#3b82f6" },
-                    { label: "💰 Cost / Economy", score: rec.details?.cost_score || 0, color: "#10b981" },
-                    { label: "🎯 Comfort & Transfers", score: rec.details?.comfort_score || 0, color: "#8b5cf6" },
-                    { label: "🌿 Carbon footprint rating", score: rec.details?.eco_score || 0, color: "#059669" },
-                    { label: "⛈️ Weather resilience", score: rec.details?.weather_score || 0, color: "#ea580c" }
-                  ].map(item => (
-                    <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 150, fontSize: 11, color: "#4b5563", fontWeight: 600 }}>{item.label}</div>
-                      <div style={{ flex: 1, height: 6, background: "#f3f4f6", borderRadius: 3, position: "relative" }}>
-                        <div style={{
-                          width: `${item.score}%`,
-                          height: "100%",
-                          background: item.color,
-                          borderRadius: 3,
-                          transition: "width 0.4s ease-out"
-                        }} />
-                      </div>
-                      <div style={{ width: 30, fontSize: 11, color: "#1e1b24", fontWeight: 700, textAlign: "right" }}>{item.score}%</div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                  #{idx + 1}
+                </span>
+                <span style={{ fontSize: 9.5, fontWeight: 800, color: cfg.color }}>
+                  {rec.score}% MATCH
+                </span>
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 12, color: "#1e1b24", display: "flex", alignItems: "center", gap: 4 }}>
+                <Ic n={cfg.icon} s={13} c={cfg.color} />
+                <span>{cfg.label}</span>
+              </div>
+              <div style={{ fontSize: 10.5, color: "#64748b", fontWeight: 600 }}>
+                ₹{actual.cost || 0} • {actual.time || 0}m
+              </div>
             </div>
           );
         })}
       </div>
+
+      {/* Active Mode XAI Insight Box */}
+      {activeRec && (
+        <div style={{
+          background: "#fafafa",
+          border: `1px solid #f1f1f5`,
+          borderLeft: `4px solid ${activeConfig.color || C.accent}`,
+          borderRadius: 12,
+          padding: "10px 14px",
+          fontSize: 12,
+          color: "#374151"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
+            <span style={{ fontWeight: 800, color: activeConfig.color, fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}>
+              <span>💡</span> Why AI recommends <strong>{activeConfig.label}</strong> (#{activeRank} Ranked Option)
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
+              <span>💰 ₹{activeData.cost || 0}</span>
+              <span>⏱️ {activeData.time || 0}m</span>
+              <span>🌿 {activeRec.emissions || 0}g CO₂</span>
+            </div>
+          </div>
+          <div style={{ lineHeight: "17px", color: "#4b5563", fontSize: 11.5 }}>
+            {activeRec.explanation}
+          </div>
+
+          {/* Criteria Breakdown Progress */}
+          {activeRec.details && (
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #f1f1f5", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 6 }}>
+              {[
+                { label: "⚡ Speed", score: activeRec.details.time_score || 85, color: "#3b82f6" },
+                { label: "💰 Economy", score: activeRec.details.cost_score || 80, color: "#10b981" },
+                { label: "🎯 Comfort", score: activeRec.details.comfort_score || 75, color: "#8b5cf6" },
+                { label: "🌿 Eco Rating", score: activeRec.details.eco_score || 90, color: "#059669" },
+                { label: "⛈️ Weather", score: activeRec.details.weather_score || 85, color: "#ea580c" }
+              ].map(item => (
+                <div key={item.label} style={{ background: "#ffffff", padding: "4px 8px", borderRadius: 6, border: "1px solid #eef0f6" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, fontWeight: 700, color: "#6b7280" }}>
+                    <span>{item.label}</span>
+                    <span style={{ color: item.color }}>{item.score}%</span>
+                  </div>
+                  <div style={{ height: 3, background: "#f3f4f6", borderRadius: 2, marginTop: 3 }}>
+                    <div style={{ width: `${item.score}%`, height: "100%", background: item.color, borderRadius: 2 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeRec.data_sources && (
+            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #f1f1f5", fontSize: 10, color: "#6b7280", display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <span>📊 <strong>Sources:</strong></span>
+              <span>🚦 {activeRec.data_sources.traffic}</span>
+              <span>🌧️ {activeRec.data_sources.weather}</span>
+              <span>🚌 {activeRec.data_sources.bmtc}</span>
+              <span>🚕 {activeRec.data_sources.fare}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Expanded view for all explanations if requested */}
+      {showAllExplanations && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+          {recommendations.slice(0, 4).map((rec, idx) => {
+            const cfg = modeColors[rec.mode] || { color: C.accent, label: rec.mode };
+            return (
+              <div key={rec.mode} style={{
+                background: "#ffffff",
+                border: `1px solid #f1f1f5`,
+                borderLeft: `4px solid ${cfg.color}`,
+                borderRadius: 8,
+                padding: "8px 12px",
+                fontSize: 11.5
+              }}>
+                <div style={{ fontWeight: 800, color: cfg.color, marginBottom: 2, display: "flex", justifyContent: "space-between" }}>
+                  <span>#{idx + 1} {cfg.label}</span>
+                  <span>{rec.score}% Match</span>
+                </div>
+                <div style={{ color: "#4b5563", lineHeight: "16px", fontSize: 11 }}>{rec.explanation}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
-function LandingPage({ onLoginClick, onSignUpClick }) {
+function LandingPage({ onLoginClick, onSignUpClick, isMobile = false }) {
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth" });
@@ -8807,14 +9270,14 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
   ];
 
   return (
-    <div style={{ background: "#f8fafc", color: "#1e293b", fontFamily: "'Plus Jakarta Sans', 'Outfit', sans-serif", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ background: "#f8fafc", color: "#1e293b", fontFamily: "'Plus Jakarta Sans', 'Outfit', sans-serif", minHeight: "100vh", display: "flex", flexDirection: "column", overflowX: "hidden", maxWidth: "100vw" }}>
       
       {/* Header */}
       <header style={{
         background: "#ffffff",
         borderBottom: "1px solid #f1f5f9",
-        padding: "0 40px",
-        height: 76,
+        padding: isMobile ? "0 16px" : "0 40px",
+        height: isMobile ? 64 : 76,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -8824,106 +9287,108 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
         boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
       }}>
         {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => scrollToSection("home")}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => scrollToSection("home")}>
           <div style={{
-            width: 44,
-            height: 44,
-            borderRadius: 14,
+            width: isMobile ? 38 : 44,
+            height: isMobile ? 38 : 44,
+            borderRadius: isMobile ? 12 : 14,
             background: "linear-gradient(135deg, #7c3aed, #ec4899)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             boxShadow: "rgba(124, 58, 237, 0.25) 0 8px 16px"
           }}>
-            <Ic n="bus" s={20} c="white" sw={2.2} />
+            <Ic n="bus" s={isMobile ? 18 : 20} c="white" sw={2.2} />
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: "#1e1b24", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Bengaluru</div>
-            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Transport Navigator</div>
+            <div style={{ fontWeight: 800, fontSize: isMobile ? 14 : 16, color: "#1e1b24", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Bengaluru</div>
+            <div style={{ fontSize: isMobile ? 10 : 11, color: "#64748b", fontWeight: 600 }}>Transport Navigator</div>
             <div style={{ fontSize: 9, color: "#7c3aed", fontWeight: 700, letterSpacing: "0.05em", marginTop: 2 }}>SMART. CONNECTED.</div>
           </div>
         </div>
 
-        {/* Navigation Links */}
-        <nav style={{ display: "flex", alignItems: "center", gap: 28, marginLeft: "auto", marginRight: 40 }}>
-          {["Home", "Features", "Routes", "Services", "About Us", "Contact"].map((item) => {
-            const sectionMap = {
-              "Home": "home",
-              "Features": "features",
-              "Routes": "services",
-              "Services": "services",
-              "About Us": "about",
-              "Contact": "footer"
-            };
-            const id = sectionMap[item];
-            return (
-              <button
-                key={item}
-                onClick={() => scrollToSection(id)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: item === "Home" ? "#7c3aed" : "#64748b",
-                  cursor: "pointer",
-                  padding: "8px 4px",
-                  borderBottom: item === "Home" ? "2px solid #7c3aed" : "2px solid transparent",
-                  transition: "all 0.2s"
-                }}
-                onMouseEnter={e => { e.currentTarget.style.color = "#7c3aed"; }}
-                onMouseLeave={e => { if (item !== "Home") e.currentTarget.style.color = "#64748b"; }}
-              >
-                {item}
-              </button>
-            );
-          })}
-        </nav>
+        {/* Navigation Links (Desktop only) */}
+        {!isMobile && (
+          <nav style={{ display: "flex", alignItems: "center", gap: 28, marginLeft: "auto", marginRight: 40 }}>
+            {["Home", "Features", "Routes", "Services", "About Us", "Contact"].map((item) => {
+              const sectionMap = {
+                "Home": "home",
+                "Features": "features",
+                "Routes": "services",
+                "Services": "services",
+                "About Us": "about",
+                "Contact": "footer"
+              };
+              const id = sectionMap[item];
+              return (
+                <button
+                  key={item}
+                  onClick={() => scrollToSection(id)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: item === "Home" ? "#7c3aed" : "#64748b",
+                    cursor: "pointer",
+                    padding: "8px 4px",
+                    borderBottom: item === "Home" ? "2px solid #7c3aed" : "2px solid transparent",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = "#7c3aed"; }}
+                  onMouseLeave={e => { if (item !== "Home") e.currentTarget.style.color = "#64748b"; }}
+                >
+                  {item}
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         {/* Authentication Buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, marginLeft: isMobile ? "auto" : 0 }}>
           <button
             onClick={onLoginClick}
             style={{
               background: "none",
               border: "1.5px solid #e2e8f0",
-              borderRadius: 12,
-              padding: "10px 20px",
+              borderRadius: isMobile ? 10 : 12,
+              padding: isMobile ? "8px 12px" : "10px 20px",
               color: "#1e293b",
               fontWeight: 700,
-              fontSize: 13,
+              fontSize: isMobile ? 12 : 13,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 6,
               transition: "all 0.2s"
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = "#7c3aed"; e.currentTarget.style.color = "#7c3aed"; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#1e293b"; }}
           >
-            <Ic n="user" s={14} c="currentColor" /> Login
+            <Ic n="user" s={13} c="currentColor" /> Login
           </button>
           <button
             onClick={onSignUpClick}
             style={{
               background: "#7c3aed",
               border: "none",
-              borderRadius: 12,
-              padding: "11px 22px",
+              borderRadius: isMobile ? 10 : 12,
+              padding: isMobile ? "8px 14px" : "11px 22px",
               color: "#ffffff",
               fontWeight: 700,
-              fontSize: 13,
+              fontSize: isMobile ? 12 : 13,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 6,
               boxShadow: "rgba(124, 58, 237, 0.25) 0 4px 12px",
               transition: "all 0.2s"
             }}
             onMouseEnter={e => { e.currentTarget.style.opacity = 0.95; e.currentTarget.style.transform = "translateY(-1px)"; }}
             onMouseLeave={e => { e.currentTarget.style.opacity = 1; e.currentTarget.style.transform = "none"; }}
           >
-            <Ic n="users" s={14} c="#ffffff" /> Sign Up
+            <Ic n="users" s={13} c="#ffffff" /> Sign Up
           </button>
         </div>
       </header>
@@ -8931,17 +9396,17 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
       {/* Hero Section */}
       <section id="home" style={{
         background: "linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%)",
-        padding: "60px 40px",
+        padding: isMobile ? "32px 16px" : "60px 40px",
         position: "relative",
         overflow: "hidden",
         borderBottom: "1px solid #f1f5f9"
       }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.2fr", gap: 40, maxWidth: 1300, margin: "0 auto", alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.1fr 1.2fr", gap: isMobile ? 24 : 40, maxWidth: 1300, margin: "0 auto", alignItems: "center" }}>
           
           {/* Left Text and Buttons */}
           <div style={{ zIndex: 2 }}>
             <h1 style={{
-              fontSize: 48,
+              fontSize: isMobile ? 30 : 48,
               fontWeight: 900,
               color: "#1e1b24",
               lineHeight: 1.15,
@@ -8954,15 +9419,15 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
             </h1>
             <p style={{
               color: "#64748b",
-              fontSize: 16,
+              fontSize: isMobile ? 13.5 : 16,
               lineHeight: 1.6,
-              margin: "24px 0 32px 0",
+              margin: isMobile ? "16px 0 20px 0" : "24px 0 32px 0",
               fontWeight: 500
             }}>
               Your all-in-one solution for navigating Bengaluru.<br />
               Find the best routes across bus, metro, cabs and more.
             </p>
-            <div style={{ display: "flex", gap: 16 }}>
+            <div style={{ display: "flex", gap: isMobile ? 10 : 16, flexWrap: "wrap" }}>
               <button
                 onClick={onSignUpClick}
                 style={{
@@ -8970,13 +9435,13 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
                   border: "none",
                   color: "#ffffff",
                   borderRadius: 14,
-                  padding: "16px 28px",
-                  fontSize: 14,
+                  padding: isMobile ? "12px 20px" : "16px 28px",
+                  fontSize: isMobile ? 13 : 14,
                   fontWeight: 700,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
+                  gap: 8,
                   boxShadow: "rgba(124, 58, 237, 0.35) 0 10px 20px",
                   transition: "all 0.2s"
                 }}
@@ -8992,13 +9457,13 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
                   border: "2px solid #7c3aed",
                   color: "#7c3aed",
                   borderRadius: 14,
-                  padding: "14px 28px",
-                  fontSize: 14,
+                  padding: isMobile ? "12px 20px" : "14px 28px",
+                  fontSize: isMobile ? 13 : 14,
                   fontWeight: 700,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
+                  gap: 8,
                   transition: "all 0.2s"
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = "rgba(124, 58, 237, 0.04)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
@@ -9010,7 +9475,7 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
           </div>
 
           {/* Right Image Graphic & Overlay Card */}
-          <div style={{ position: "relative", height: 420, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ position: "relative", height: isMobile ? 220 : 420, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {/* The Cityscape Hero Image */}
             <div style={{
               width: "100%",
@@ -9024,53 +9489,55 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
               <img src={heroImg} alt="Bengaluru Cityscape" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
 
-            {/* Floating Info Card */}
-            <div style={{
-              position: "absolute",
-              right: -30,
-              top: "50%",
-              transform: "translateY(-50%)",
-              background: "#ffffff",
-              borderRadius: 20,
-              width: 240,
-              padding: "24px 20px",
-              boxShadow: "0 20px 50px rgba(26,22,37,0.1), 0 1px 3px rgba(0,0,0,0.02)",
-              border: "1px solid #ede9fe",
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-              zIndex: 3
-            }}>
-              {[
-                { label: "Live Tracking", sub: "Real-time vehicle updates", icon: "gps", color: "#3b82f6", bg: "#eff6ff" },
-                { label: "Best Routes", sub: "Fastest & economical", icon: "route", color: "#8b5cf6", bg: "#f5f3ff" },
-                { label: "Multiple Modes", sub: "All transport in one place", icon: "grid", color: "#ec4899", bg: "#fdf2f8" },
-                { label: "AI Assistant", sub: "24/7 travel support", icon: "chat", color: "#10b981", bg: "#ecfdf5" },
-              ].map(item => (
-                <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Ic n={item.icon} s={15} c={item.color} sw={2.2} />
+            {/* Floating Info Card (Desktop only) */}
+            {!isMobile && (
+              <div style={{
+                position: "absolute",
+                right: -30,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "#ffffff",
+                borderRadius: 20,
+                width: 240,
+                padding: "24px 20px",
+                boxShadow: "0 20px 50px rgba(26,22,37,0.1), 0 1px 3px rgba(0,0,0,0.02)",
+                border: "1px solid #ede9fe",
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+                zIndex: 3
+              }}>
+                {[
+                  { label: "Live Tracking", sub: "Real-time vehicle updates", icon: "gps", color: "#3b82f6", bg: "#eff6ff" },
+                  { label: "Best Routes", sub: "Fastest & economical", icon: "route", color: "#8b5cf6", bg: "#f5f3ff" },
+                  { label: "Multiple Modes", sub: "All transport in one place", icon: "grid", color: "#ec4899", bg: "#fdf2f8" },
+                  { label: "AI Assistant", sub: "24/7 travel support", icon: "chat", color: "#10b981", bg: "#ecfdf5" },
+                ].map(item => (
+                  <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Ic n={item.icon} s={15} c={item.color} sw={2.2} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: "#1e293b" }}>{item.label}</div>
+                      <div style={{ fontSize: 10, color: "#64748b", marginTop: 2, fontWeight: 500 }}>{item.sub}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#1e293b" }}>{item.label}</div>
-                    <div style={{ fontSize: 10, color: "#64748b", marginTop: 2, fontWeight: 500 }}>{item.sub}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
 
       {/* Transit Services Section */}
-      <section id="services" style={{ padding: "80px 40px", background: "#ffffff" }}>
+      <section id="services" style={{ padding: isMobile ? "40px 16px" : "80px 40px", background: "#ffffff" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           
-          <h2 style={{ fontSize: 24, fontWeight: 900, color: "#1e1b24", textAlign: "center", marginBottom: 40, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
+          <h2 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 900, color: "#1e1b24", textAlign: "center", marginBottom: isMobile ? 24 : 40, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
             Explore Transit Options
           </h2>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: isMobile ? 12 : 20 }}>
             {services.map(s => (
               <div
                 key={s.name}
@@ -9138,22 +9605,22 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
 
           {/* Stats Bar Ribbon */}
           <div style={{
-            marginTop: 60,
+            marginTop: isMobile ? 32 : 60,
             background: "linear-gradient(135deg, rgba(124, 58, 237, 0.03) 0%, rgba(236, 72, 153, 0.03) 100%)",
             border: "1px solid rgba(124, 58, 237, 0.08)",
             borderRadius: 24,
-            padding: "24px 40px",
+            padding: isMobile ? "16px 14px" : "24px 40px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            justifyContent: isMobile ? "center" : "space-between",
             flexWrap: "wrap",
-            gap: 20
+            gap: isMobile ? 12 : 20
           }}>
             {stats.map(item => (
-              <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <Ic n={item.icon} s={16} c="#7c3aed" sw={2.2} />
-                <span style={{ fontSize: 14, fontWeight: 500, color: "#475569" }}>
-                  <strong style={{ fontSize: 16, fontWeight: 800, color: "#1e1b24", marginRight: 4 }}>{item.val}</strong> {item.label}
+              <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Ic n={item.icon} s={15} c="#7c3aed" sw={2.2} />
+                <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 500, color: "#475569" }}>
+                  <strong style={{ fontSize: isMobile ? 13.5 : 16, fontWeight: 800, color: "#1e1b24", marginRight: 4 }}>{item.val}</strong> {item.label}
                 </span>
               </div>
             ))}
@@ -9163,14 +9630,14 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
       </section>
 
       {/* Why Choose Us Features Section */}
-      <section id="features" style={{ padding: "80px 40px", background: "#f8fafc", borderTop: "1px solid #f1f5f9" }}>
+      <section id="features" style={{ padding: isMobile ? "40px 16px" : "80px 40px", background: "#f8fafc", borderTop: "1px solid #f1f5f9" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           
-          <h2 style={{ fontSize: 24, fontWeight: 900, color: "#1e1b24", textAlign: "center", marginBottom: 40, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
+          <h2 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 900, color: "#1e1b24", textAlign: "center", marginBottom: isMobile ? 24 : 40, fontFamily: "'Outfit', sans-serif", letterSpacing: "-0.02em" }}>
             Why Choose Us?
           </h2>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: isMobile ? 12 : 20 }}>
             {whyChooseUs.map(f => (
               <div key={f.title} style={{
                 background: "#ffffff",
@@ -9203,23 +9670,23 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
       </section>
 
       {/* About Us & Move Bengaluru Forward Section */}
-      <section id="about" style={{ padding: "80px 40px", background: "#ffffff", borderTop: "1px solid #f1f5f9" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 30 }}>
+      <section id="about" style={{ padding: isMobile ? "40px 16px" : "80px 40px", background: "#ffffff", borderTop: "1px solid #f1f5f9" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.1fr 1fr", gap: isMobile ? 16 : 30 }}>
           
           {/* Card 1: About Us */}
           <div style={{
             background: "#ffffff",
             border: "1px solid #ede9fe",
             borderRadius: 24,
-            padding: "36px",
+            padding: isMobile ? "22px 18px" : "36px",
             boxShadow: "0 10px 30px rgba(0,0,0,0.01)",
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between"
           }}>
             <div>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e1b24", margin: "0 0 16px 0" }}>About Us</h2>
-              <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, fontWeight: 500, margin: 0 }}>
+              <h2 style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: "#1e1b24", margin: "0 0 12px 0" }}>About Us</h2>
+              <p style={{ fontSize: isMobile ? 12 : 13, color: "#64748b", lineHeight: 1.6, fontWeight: 500, margin: 0 }}>
                 Bengaluru Transport Navigator is an initiative to make public transportation simple, smart and accessible for everyone.
                 Our mission is to connect Bengaluru, one journey at a time.
               </p>
@@ -9227,20 +9694,20 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
             <button
               onClick={onSignUpClick}
               style={{
-                marginTop: 28,
+                marginTop: isMobile ? 16 : 28,
                 background: "none",
                 border: "1.5px solid #7c3aed",
                 borderRadius: 12,
-                padding: "10px 20px",
+                padding: "8px 16px",
                 color: "#7c3aed",
                 fontWeight: 700,
-                fontSize: 13,
+                fontSize: 12,
                 cursor: "pointer",
                 fontFamily: "inherit",
                 alignSelf: "start",
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: 6,
                 transition: "all 0.2s"
               }}
               onMouseEnter={e => { e.currentTarget.style.background = "rgba(124, 58, 237, 0.04)"; }}
@@ -9254,15 +9721,16 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
           <div style={{
             background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)",
             borderRadius: 24,
-            padding: "36px",
+            padding: isMobile ? "22px 18px" : "36px",
             color: "#ffffff",
             position: "relative",
             overflow: "hidden",
-            boxShadow: "rgba(124, 58, 237, 0.2) 0 10px 30px"
+            boxShadow: "rgba(124, 58, 237, 0.2) 0 10px 30px",
+            minHeight: isMobile ? 130 : "auto"
           }}>
-            <div style={{ maxWidth: "60%", zIndex: 2, position: "relative" }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: "#ffffff", margin: "0 0 8px 0" }}>Move Bengaluru Forward</h2>
-              <p style={{ fontSize: 12, opacity: 0.9, lineHeight: 1.5, fontWeight: 500, margin: 0 }}>
+            <div style={{ maxWidth: isMobile ? "70%" : "60%", zIndex: 2, position: "relative" }}>
+              <h2 style={{ fontSize: isMobile ? 16 : 18, fontWeight: 800, color: "#ffffff", margin: "0 0 8px 0" }}>Move Bengaluru Forward</h2>
+              <p style={{ fontSize: isMobile ? 11.5 : 12, opacity: 0.9, lineHeight: 1.5, fontWeight: 500, margin: 0 }}>
                 Smart choices. Better cities. Join us in making commutes efficient.
               </p>
             </div>
@@ -9362,10 +9830,29 @@ function LandingPage({ onLoginClick, onSignUpClick }) {
 }
 
 export default function App() {
-  const [token, setToken] = useState(localStorage.getItem("token") || null);
-  const [user, setUser] = useState(localStorage.getItem("username") || null);
+  const [token, setToken] = useState(localStorage.getItem("token") || "demo_token");
+  const [user, setUser] = useState(localStorage.getItem("username") || "Demo User");
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState("login");
+
+  // Mobile responsiveness & drawer state
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 1024 : false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Ride Mode State
+  const [showRideModeModal, setShowRideModeModal] = useState(false);
+  const [rideModeInitialData, setRideModeInitialData] = useState(null);
+
+  const handleOpenRideMode = (initialData = null) => {
+    setRideModeInitialData(initialData);
+    setShowRideModeModal(true);
+  };
 
   const [page, setPage] = useState("dashboard");
   const [showBicycleOffer, setShowBicycleOffer] = useState(false);
@@ -9382,9 +9869,23 @@ export default function App() {
   const [showFareCalc, setShowFareCalc] = useState(false);
   const [showStopsInfo, setShowStopsInfo] = useState(false);
   const [showWeatherModal, setShowWeatherModal] = useState(false);
+  const [showFeaturesModal, setShowFeaturesModal] = useState(false);
   const [showLiveMapModal, setShowLiveMapModal] = useState(false);
   const [showFareGuideModal, setShowFareGuideModal] = useState(false);
   const [showSearchSavedRoutesModal, setShowSearchSavedRoutesModal] = useState(false);
+
+  const handleGoToPlan = () => {
+    setPage("plan");
+    setShowRouteSearch(false);
+    setShowTimetable(false);
+    setShowAllBuses(false);
+    setShowFareCalc(false);
+    setShowStopsInfo(false);
+    setShowWeatherModal(false);
+    setShowFeaturesModal(false);
+    setMobileSidebarOpen(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const [isNavigating, setIsNavigating] = useState(false);
   const [currentGpsCoords, setCurrentGpsCoords] = useState(null);
   const [gpsSpeed, setGpsSpeed] = useState(0);
@@ -9394,6 +9895,9 @@ export default function App() {
   const simTimerRef = useRef(null);
   const [pref, setPref] = useState("cost");
   const [results, setResults] = useState(null);
+  const [journeyMeta, setJourneyMeta] = useState(null);
+  const [trafficMeta, setTrafficMeta] = useState(null);
+  const [weatherMeta, setWeatherMeta] = useState(null);
   const [garageOpen, setGarageOpen] = useState(false);
   const [gloveboxOpen, setGloveboxOpen] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
@@ -9511,7 +10015,13 @@ export default function App() {
 
   useEffect(() => {
     if (token) {
-      apiGetVehicles(token).then(setUserVehicles).catch(e => {
+      apiGetVehicles(token).then(vehs => {
+        setUserVehicles(vehs);
+        if (vehs && vehs.length > 0) {
+          const firstVehVal = `custom: ${vehs[0].name} | ${vehs[0].fuel_type} | ${vehs[0].efficiency}`;
+          setSelectedVehicle(firstVehVal);
+        }
+      }).catch(e => {
         console.error(e);
         if (e.message === "Unauthorized") onLogout();
       });
@@ -9541,6 +10051,9 @@ export default function App() {
       const res = await apiCompare(source, destination, customTime || time || nowTime(), prefOverride || pref, selectedVehicle);
       setResults(res.results);
       setRecommendations(res.recommendations || []);
+      setJourneyMeta(res.journey || null);
+      setTrafficMeta(res.traffic || null);
+      setWeatherMeta(res.weather || null);
 
       const topMode = res.recommendations && res.recommendations.length > 0 ? res.recommendations[0].mode : null;
       setSelected(topMode);
@@ -9592,6 +10105,24 @@ export default function App() {
 
   const search = () => triggerSearch(src, dst);
 
+  const handleSelectBus = (busNo, busData) => {
+    setResults(prev => {
+      if (!prev) return prev;
+      const bmtcObj = prev.bmtc || {};
+      const updatedBmtc = {
+        ...bmtcObj,
+        bus_number: busNo,
+        route: busNo,
+        ...(busData?.fare !== undefined ? { cost: busData.fare } : (busData?.total_fare !== undefined ? { cost: busData.total_fare } : {})),
+        ...(busData?.duration ? { time: busData.duration } : (busData?.total_time ? { time: busData.total_time } : {})),
+        ...(busData?.stops ? { stops: busData.stops } : {}),
+      };
+      return { ...prev, bmtc: updatedBmtc };
+    });
+    setSelected("bmtc");
+    setShowAllBuses(false);
+  };
+
   const handleSaveJourney = async () => {
     if (!token || !selectedData) return;
     const nameInput = prompt("Enter an optional name for this saved route (e.g., Office, Home, College):");
@@ -9641,6 +10172,9 @@ export default function App() {
       if (res && res.results) {
         setResults(res.results);
         setRecommendations(res.recommendations || []);
+        setJourneyMeta(res.journey || null);
+        setTrafficMeta(res.traffic || null);
+        setWeatherMeta(res.weather || null);
 
         if (res.results?.cab?.all_estimates) {
           const prevCabName = selectedCabVehicle?.provider || selectedCabVehicle?.name;
@@ -9667,8 +10201,9 @@ export default function App() {
     if (page !== "results" || !isRealTime) return;
 
     const interval = setInterval(() => {
+      setTime(nowTime());
       refreshSearchResults();
-    }, 30000); // 30 seconds
+    }, 10000); // Update local clock & fetch live recommendations every 10 seconds
 
     return () => clearInterval(interval);
   }, [page, isRealTime, refreshSearchResults]);
@@ -10079,6 +10614,7 @@ export default function App() {
           onLoginSuccess={onLoginSuccess} 
           onBackToHome={() => setShowAuth(false)} 
           initialMode={authMode} 
+          isMobile={isMobile}
         />
       );
     }
@@ -10086,12 +10622,28 @@ export default function App() {
       <LandingPage 
         onLoginClick={() => { setAuthMode("login"); setShowAuth(true); }} 
         onSignUpClick={() => { setAuthMode("signup"); setShowAuth(true); }} 
+        isMobile={isMobile}
       />
     );
   }
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Plus Jakarta Sans', 'Outfit', sans-serif", color: C.text, display: "flex" }}>
+      {/* Mobile Drawer Backdrop */}
+      {isMobile && mobileSidebarOpen && (
+        <div 
+          onClick={() => setMobileSidebarOpen(false)} 
+          style={{ 
+            position: "fixed", 
+            inset: 0, 
+            background: "rgba(0,0,0,0.65)", 
+            backdropFilter: "blur(4px)", 
+            zIndex: 998,
+            transition: "opacity 0.25s ease" 
+          }} 
+        />
+      )}
+
       {/* SIDEBAR */}
       <aside style={{
         width: 280,
@@ -10103,28 +10655,55 @@ export default function App() {
         top: 0,
         bottom: 0,
         left: 0,
-        zIndex: 100,
-        boxShadow: "rgba(0, 0, 0, 0.15) 2px 0 12px 0"
+        zIndex: isMobile ? 999 : 100,
+        transform: isMobile ? (mobileSidebarOpen ? "translateX(0)" : "translateX(-100%)") : "none",
+        transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        boxShadow: "rgba(0, 0, 0, 0.25) 2px 0 16px 0"
       }}>
         {/* Brand/Logo */}
-        <div style={{ padding: "24px 28px 20px", display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 44,
-            height: 44,
-            borderRadius: 14,
-            background: "linear-gradient(135deg, #7c3aed, #ec4899)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "rgba(124, 58, 237, 0.25) 0 8px 16px"
-          }}>
-            <Ic n="bus" s={20} c="white" sw={2.2} />
+        <div style={{ padding: "24px 20px 20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              background: "linear-gradient(135deg, #7c3aed, #ec4899)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "rgba(124, 58, 237, 0.25) 0 8px 16px"
+            }}>
+              <Ic n="bus" s={20} c="white" sw={2.2} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "#ffffff", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Bengaluru</div>
+              <div style={{ fontSize: 11, color: "#8e8a9f", fontWeight: 600 }}>Transport Navigator</div>
+              <div style={{ fontSize: 9, color: "#a855f7", fontWeight: 700, letterSpacing: "0.05em", marginTop: 2 }}>SMART. CONNECTED.</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: "#ffffff", letterSpacing: "-0.02em", lineHeight: "1.2" }}>Bengaluru</div>
-            <div style={{ fontSize: 11, color: "#8e8a9f", fontWeight: 600 }}>Transport Navigator</div>
-            <div style={{ fontSize: 9, color: "#a855f7", fontWeight: 700, letterSpacing: "0.05em", marginTop: 2 }}>SMART. CONNECTED.</div>
-          </div>
+          {isMobile && (
+            <button
+              onClick={() => setMobileSidebarOpen(false)}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "none",
+                borderRadius: 10,
+                width: 34,
+                height: 34,
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                fontSize: 16,
+                fontWeight: "bold",
+                fontFamily: "inherit"
+              }}
+              aria-label="Close sidebar"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Sidebar Nav Categories */}
@@ -10149,8 +10728,9 @@ export default function App() {
                   <button
                     key={n.id}
                     onClick={() => {
+                      if (isMobile) setMobileSidebarOpen(false);
                       if (n.id === "dashboard") { setPage("dashboard"); }
-                      else if (n.id === "plan") { setPage("plan"); setShowRouteSearch(false); setShowTimetable(false); }
+                      else if (n.id === "plan") { handleGoToPlan(); }
                       else if (n.id === "search_routes") { setPage("plan"); setShowRouteSearch(true); setShowAllBuses(false); setShowTimetable(false); }
                       else if (n.id === "timetable") { setPage("plan"); setShowTimetable(true); setShowAllBuses(false); setShowRouteSearch(false); }
                     }}
@@ -10441,13 +11021,22 @@ export default function App() {
       </aside>
 
       {/* MAIN CONTENT CONTAINER */}
-      <div style={{ flex: 1, marginLeft: 280, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div style={{
+        flex: 1,
+        marginLeft: isMobile ? 0 : 280,
+        display: "flex",
+        flexDirection: "column",
+        minWidth: 0,
+        width: isMobile ? "100%" : "calc(100% - 280px)",
+        maxWidth: "100vw",
+        overflowX: "hidden"
+      }}>
         {/* TOP HEADER */}
         <header style={{
-          height: 70,
+          height: isMobile ? 60 : 70,
           background: C.card,
           borderBottom: `1px solid ${C.border}`,
-          padding: "0 40px",
+          padding: isMobile ? "0 14px" : "0 40px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -10455,48 +11044,102 @@ export default function App() {
           top: 0,
           zIndex: 90
         }}>
-          {/* Greeting depending on page */}
-          <div>
-            <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Welcome Back</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, marginTop: 2 }}>{user} 👋</div>
+          {/* Greeting depending on page + Mobile Hamburger Menu */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {isMobile && (
+              <button
+                onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+                style={{
+                  background: C.surface,
+                  border: `1px solid ${C.border2}`,
+                  borderRadius: 10,
+                  width: 38,
+                  height: 38,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: C.text,
+                  padding: 0
+                }}
+                aria-label="Toggle navigation menu"
+              >
+                <Ic n="menu" s={18} c={C.text} sw={2.2} />
+              </button>
+            )}
+            <div>
+              <div style={{ fontSize: isMobile ? 9.5 : 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>Welcome Back</div>
+              <div style={{ fontSize: isMobile ? 14 : 16, fontWeight: 800, color: C.text, marginTop: 1 }}>{user} 👋</div>
+            </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            {/* Weather Card */}
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              gap: 12, 
-              background: C.dim, 
-              border: `1px solid ${C.border}`, 
-              padding: "8px 16px", 
-              borderRadius: 16 
-            }}>
-              <span style={{ fontSize: 18 }}>☀️</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>27°C</div>
-                <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>Partly Cloudy</div>
-              </div>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 16 }}>
+            {/* Ride Mode Header Button */}
+            <button
+              onClick={() => handleOpenRideMode()}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: isMobile ? 5 : 8,
+                background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)",
+                border: "none",
+                padding: isMobile ? "6px 12px" : "8px 16px",
+                borderRadius: isMobile ? 12 : 16,
+                color: "#ffffff",
+                fontWeight: 800,
+                fontSize: isMobile ? 11.5 : 13,
+                cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(124, 58, 237, 0.4)",
+                transition: "transform 0.15s ease",
+                fontFamily: "inherit"
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "none")}
+              title="Enter Live Bus / Metro Tracking Mode"
+            >
+              <span style={{ fontSize: isMobile ? 14 : 16 }}>🚌</span>
+              <span>Ride Mode</span>
+            </button>
 
-            {/* Date/Time Card */}
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              gap: 12, 
-              background: C.dim, 
-              border: `1px solid ${C.border}`, 
-              padding: "8px 16px", 
-              borderRadius: 16 
-            }}>
-              <span style={{ fontSize: 18 }}>🕒</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>{nowTime()}</div>
-                <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>
-                  {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+            {/* Weather Card (desktop only to prevent header clutter on mobile) */}
+            {!isMobile && (
+              <div style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 12, 
+                background: C.dim, 
+                border: `1px solid ${C.border}`, 
+                padding: "8px 16px", 
+                borderRadius: 14 
+              }}>
+                <span style={{ fontSize: 18 }}>☀️</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>27°C</div>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>Partly Cloudy</div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Date/Time Card (desktop only) */}
+            {!isMobile && (
+              <div style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 12, 
+                background: C.dim, 
+                border: `1px solid ${C.border}`, 
+                padding: "8px 16px", 
+                borderRadius: 16 
+              }}>
+                <span style={{ fontSize: 18 }}>🕒</span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>{nowTime()}</div>
+                  <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, marginTop: 2 }}>
+                    {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Logout Button */}
             <button
@@ -10504,9 +11147,9 @@ export default function App() {
               style={{
                 background: "rgba(239, 68, 68, 0.08)",
                 border: "none",
-                borderRadius: 14,
-                width: 42,
-                height: 42,
+                borderRadius: isMobile ? 10 : 14,
+                width: isMobile ? 36 : 42,
+                height: isMobile ? 36 : 42,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -10517,24 +11160,24 @@ export default function App() {
               onMouseLeave={e => { e.currentTarget.style.background = "rgba(239, 68, 68, 0.08)"; e.currentTarget.style.transform = "none"; }}
               title="Logout"
             >
-              <Ic n="logout" s={16} c={C.red} sw={2.2} />
+              <Ic n="logout" s={isMobile ? 15 : 16} c={C.red} sw={2.2} />
             </button>
           </div>
         </header>
 
         {/* MAIN BODY AREA */}
-        <main style={{ padding: "40px", flex: 1, minHeight: "calc(100vh - 70px)", boxSizing: "border-box" }}>
+        <main style={{ padding: isMobile ? "16px 12px 90px" : "40px", flex: 1, minHeight: "calc(100vh - 70px)", boxSizing: "border-box", maxWidth: "100%", overflowX: "hidden" }}>
 
         {/* DASHBOARD */}
         {page === "dashboard" && (
           <Dashboard
             token={token}
             username={user}
-            onPlan={() => setPage("plan")}
+            onPlan={handleGoToPlan}
             onSelectRoute={(from_stop, to_stop) => {
               setSrc(from_stop);
               setDst(to_stop);
-              setPage("plan");
+              handleGoToPlan();
             }}
             onLogout={onLogout}
             garageOpen={garageOpen}
@@ -10550,16 +11193,57 @@ export default function App() {
             setShowWeatherModal={setShowWeatherModal}
             setShowStopsInfo={setShowStopsInfo}
             setShowSettings={setShowSettings}
+            isMobile={isMobile}
           />
         )}
 
         {/* PLAN */}
         {page === "plan" && (
-          <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 20, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "420px 1fr", gap: isMobile ? 16 : 20, alignItems: "start" }}>
             <div>
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.03em" }}>Plan your journey</div>
-                <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>BMTC · Metro · Namma Yatri · Personal Vehicle</div>
+                <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>BMTC · Metro · NammaMove · Personal Vehicle</div>
+              </div>
+
+              {/* Ride Mode Quick Banner CTA */}
+              <div style={{
+                margin: "0 0 16px 0",
+                padding: "16px 20px",
+                borderRadius: 16,
+                background: "linear-gradient(135deg, #1e1b4b 0%, #311b92 100%)",
+                border: "1.5px solid #6d28d9",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                boxShadow: "0 8px 24px rgba(109, 40, 217, 0.25)"
+              }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#ffffff" }}>
+                    🚌 Already inside a Bus or Metro?
+                  </div>
+                  <div style={{ fontSize: 11, color: "#c4b5fd", marginTop: 2 }}>
+                    Live stop snapping & get-down voice alerts.
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleOpenRideMode()}
+                  style={{
+                    padding: "9px 14px",
+                    borderRadius: 12,
+                    backgroundColor: "#7c3aed",
+                    border: "none",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    boxShadow: "0 4px 12px rgba(124, 58, 237, 0.4)",
+                    whiteSpace: "nowrap",
+                    fontFamily: "inherit"
+                  }}
+                >
+                  Ride Mode 🚀
+                </button>
               </div>
 
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 18, padding: 20, marginBottom: 14 }}>
@@ -10643,7 +11327,7 @@ export default function App() {
 
               {/* All Buses Panel */}
               {showAllBuses && src && dst && (
-                <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} />
+                <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} onSelectBus={handleSelectBus} />
               )}
 
               {/* Route Search Panel */}
@@ -10659,7 +11343,7 @@ export default function App() {
               {showStopsInfo && <StopsInfoPanel onClose={() => setShowStopsInfo(false)} stops={stops} />}
             </div>
 
-            <div style={{ height: "calc(100vh - 120px)", position: "sticky", top: 72 }}>
+            <div style={{ height: isMobile ? 280 : "calc(100vh - 120px)", position: isMobile ? "static" : "sticky", top: 72, marginTop: isMobile ? 16 : 0, borderRadius: 16, overflow: "hidden" }}>
               <GoogleMap key="dashboard-map" src={src} dst={dst} segments={null} activeMode={null} activeSegmentIndex={null} setActiveSegmentIndex={() => { }} useOsm={useOsm} setUseOsm={setUseOsm} mapStyle={mapStyle} />
             </div>
           </div>
@@ -10668,9 +11352,9 @@ export default function App() {
         {/* RESULTS */}
         {page === "results" && results && (
           isNavigating ? (
-            <div style={{ display: "grid", gridTemplateColumns: "360px 1fr", gap: 20, alignItems: "start" }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "360px 1fr", gap: 20, alignItems: "start" }}>
               {/* Left Side: Live Copilot HUD */}
-              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", position: "sticky", top: 72 }}>
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 20, boxShadow: "0 10px 30px rgba(0,0,0,0.25)", position: isMobile ? "static" : "sticky", top: 72 }}>
                 {/* HUD Header */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -10695,26 +11379,6 @@ export default function App() {
                     <div style={{ fontSize: 10, fontWeight: 700, color: C.muted, marginTop: 4 }}>COMPLETED</div>
                   </div>
                 </div>
-
-                {/* Active Step Instructions Card */}
-                {selectedData?.guide && selectedData.guide[activeStepIndex] && (
-                  <div style={{ background: (MC[selected]?.color || C.accent) + "12", borderLeft: `5px solid ${MC[selected]?.color || C.accent}`, borderRadius: "4px 12px 12px 4px", padding: 16, marginBottom: 20 }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: MC[selected]?.color || C.accent, letterSpacing: "0.05em", marginBottom: 6 }}>CURRENT INSTRUCTION</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: C.text, lineHeight: 1.4 }}>
-                      {selectedData.guide[activeStepIndex].text}
-                    </div>
-                    {selectedData.guide[activeStepIndex].detail && (
-                      <div style={{ fontSize: 12, color: C.muted, marginTop: 6, fontWeight: 600 }}>
-                        {selectedData.guide[activeStepIndex].detail}
-                      </div>
-                    )}
-                    {selectedData.guide[activeStepIndex].duration && (
-                      <div style={{ display: "inline-block", background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 700, color: C.accent, marginTop: 10 }}>
-                        ⏱️ {selectedData.guide[activeStepIndex].duration}
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Next Step Preview */}
                 {selectedData?.guide && selectedData.guide[activeStepIndex + 1] && (
@@ -10748,7 +11412,7 @@ export default function App() {
               </div>
 
               {/* Right Side: Map */}
-              <div style={{ position: "sticky", top: 72, height: "calc(100vh - 120px)" }}>
+              <div style={{ position: isMobile ? "static" : "sticky", top: 72, height: isMobile ? 300 : "calc(100vh - 120px)", marginTop: isMobile ? 16 : 0, borderRadius: 16, overflow: "hidden" }}>
                 <GoogleMap
                   key="nav-map"
                   src={src}
@@ -10768,41 +11432,48 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 400px", gap: 20, alignItems: "start" }}>
-            <div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) minmax(0, 1fr)", gap: isMobile ? 16 : 24, alignItems: "start" }}>
+            <div style={{ minWidth: 0 }}>
               {/* Header */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
                 <div>
                   <div style={{ fontSize: 13, color: C.muted }}>Best routes for</div>
-                  <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: "-0.02em" }}>{src} → {dst}</div>
+                  <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 900, letterSpacing: "-0.02em" }}>{src} → {dst}</div>
                   <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Departs {time || nowTime()} · Preference: {pref}</div>
                 </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button onClick={() => setPage("plan")} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, color: C.muted, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>← Edit</button>
-                  <button onClick={() => { setShowAllBuses(!showAllBuses); setShowRouteSearch(false); setShowTimetable(false); }} style={{ background: showAllBuses ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showAllBuses ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: showAllBuses ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
-                    <Ic n="list" s={13} c={showAllBuses ? MC.bmtc.color : C.muted} /> See All Buses
-                  </button>
-                  <button onClick={() => { setShowRouteSearch(!showRouteSearch); setShowAllBuses(false); setShowTimetable(false); }} style={{ background: showRouteSearch ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showRouteSearch ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: showRouteSearch ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
-                    <Ic n="route" s={13} c={showRouteSearch ? MC.bmtc.color : C.muted} /> Route Lookup
-                  </button>
-                  <button onClick={() => { setShowTimetable(!showTimetable); setShowAllBuses(false); setShowRouteSearch(false); }} style={{ background: showTimetable ? C.accent + "20" : C.card, border: `1px solid ${showTimetable ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: showTimetable ? C.accent : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
-                    <Ic n="clock" s={13} c={showTimetable ? C.accent : C.muted} /> Timetable
-                  </button>
-                  {[{ v: "cards", icon: "grid", label: "Cards" }, { v: "compare", icon: "table", label: "Compare" }].map(b => (
-                    <button key={b.v} onClick={() => setView(b.v)} style={{ background: view === b.v ? C.accent : C.card, border: `1px solid ${view === b.v ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: view === b.v ? "white" : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
-                      <Ic n={b.icon} s={13} c={view === b.v ? "white" : C.muted} /> {b.label}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "space-between" : "flex-end", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <button onClick={() => setPage("plan")} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 8, color: C.muted, padding: "7px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>← Edit</button>
+                    {[{ v: "cards", icon: "grid", label: "Cards" }, { v: "compare", icon: "table", label: "Compare" }].map(b => (
+                      <button key={b.v} onClick={() => setView(b.v)} style={{ background: view === b.v ? C.accent : C.card, border: `1px solid ${view === b.v ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: view === b.v ? "white" : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, fontWeight: 600 }}>
+                        <Ic n={b.icon} s={13} c={view === b.v ? "white" : C.muted} /> {b.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", overflowX: isMobile ? "auto" : "visible", maxWidth: "100%", paddingBottom: isMobile ? 4 : 0 }}>
+                    <button onClick={() => { setShowAllBuses(!showAllBuses); setShowRouteSearch(false); setShowTimetable(false); }} style={{ background: showAllBuses ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showAllBuses ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 10px", fontSize: 12, color: showAllBuses ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
+                      <Ic n="list" s={13} c={showAllBuses ? MC.bmtc.color : C.muted} /> Buses
                     </button>
-                  ))}
+                    <button onClick={() => { setShowRouteSearch(!showRouteSearch); setShowAllBuses(false); setShowTimetable(false); }} style={{ background: showRouteSearch ? MC.bmtc.color + "20" : C.card, border: `1px solid ${showRouteSearch ? MC.bmtc.color : C.border2}`, borderRadius: 8, padding: "7px 10px", fontSize: 12, color: showRouteSearch ? MC.bmtc.color : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
+                      <Ic n="route" s={13} c={showRouteSearch ? MC.bmtc.color : C.muted} /> Route
+                    </button>
+                    <button onClick={() => { setShowTimetable(!showTimetable); setShowAllBuses(false); setShowRouteSearch(false); }} style={{ background: showTimetable ? C.accent + "20" : C.card, border: `1px solid ${showTimetable ? C.accent : C.border2}`, borderRadius: 8, padding: "7px 10px", fontSize: 12, color: showTimetable ? C.accent : C.muted, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, fontWeight: 600, whiteSpace: "nowrap" }}>
+                      <Ic n="clock" s={13} c={showTimetable ? C.accent : C.muted} /> Timetable
+                    </button>
+                  </div>
                 </div>
               </div>
 
               {/* See All Buses inline */}
-              {showAllBuses && <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} />}
+              {showAllBuses && <AllBusesPanel src={src} dst={dst} time={time} onClose={() => setShowAllBuses(false)} onSelectBus={handleSelectBus} />}
               {showRouteSearch && <div style={{ marginBottom: 16 }}><RouteSearchPanel /></div>}
               {showTimetable && <TimetablePanel results={results} onClose={() => setShowTimetable(false)} stops={stops} src={src} dst={dst} time={time} />}
 
               {view === "cards" ? (
                 <>
+                  <JourneyContextBanner journey={journeyMeta} traffic={trafficMeta} weather={weatherMeta} />
+
+                  {/* Explainable AI (XAI) & Smart Ranker Panel (Top of Result Cards) */}
                   <AIRecommendationsPanel
                     recommendations={recommendations}
                     results={results}
@@ -10814,9 +11485,17 @@ export default function App() {
                     selectedMultimodalOption={selectedMultimodalOption}
                     setSelectedMultimodalOption={setSelectedMultimodalOption}
                   />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 20 }}>
+
+                  {/* Modality Result Cards Grid (BMTC, Metro, Cabs, Own Vehicle) */}
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
+                    gap: 12,
+                    marginBottom: 16
+                  }}>
                     {results && Object.keys(results).map(m => {
-                      const cardData = (m === "cab" && selectedCabVehicle) ? {
+                      const recInfo = recommendations?.find(r => r.mode === m);
+                      const baseData = (m === "cab" && selectedCabVehicle) ? {
                         ...results.cab,
                         ...selectedCabVehicle,
                         segments: selectedCabVehicle.segments,
@@ -10833,6 +11512,13 @@ export default function App() {
                         time: selectedMultimodalOption.time,
                         distance: selectedMultimodalOption.distance,
                       } : results[m];
+
+                      const cardData = {
+                        ...baseData,
+                        aiRank: recInfo ? recommendations.indexOf(recInfo) + 1 : null,
+                        aiScore: recInfo ? recInfo.score : null
+                      };
+
                       return (
                         <ResultCard
                           key={m}
@@ -10844,6 +11530,8 @@ export default function App() {
                           setSelectedCabVehicle={setSelectedCabVehicle}
                           selectedMultimodalOption={selectedMultimodalOption}
                           setSelectedMultimodalOption={setSelectedMultimodalOption}
+                          onOpenRideMode={handleOpenRideMode}
+                          onStartNavigation={handleStartNavigation}
                         />
                       );
                     })}
@@ -10873,8 +11561,40 @@ export default function App() {
                 }} />
               )}
 
+              {/* Closed Transit Notification Banner */}
+              {selectedData && (!selectedData.available || selectedData.operational === false || selectedData.service_status === "closed") && (
+                <div style={{
+                  marginTop: 20,
+                  background: "rgba(239, 68, 68, 0.1)",
+                  border: "1.5px solid rgba(239, 68, 68, 0.35)",
+                  borderRadius: 16,
+                  padding: "18px 22px",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 14
+                }}>
+                  <div style={{ fontSize: 24 }}>🌙</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: "#f87171" }}>
+                      {MC[selected]?.label || selected.toUpperCase()} Closed at Selected Departure Time
+                    </div>
+                    <div style={{ fontSize: 13, color: C.muted, marginTop: 4, lineHeight: 1.4 }}>
+                      {selectedData.error || selectedData.message || "Transit services are non-operational at selected departure hours (05:00 AM – 11:30 PM)."}
+                    </div>
+                    {selectedData.next_service && (
+                      <div style={{ marginTop: 8, display: "inline-block", background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 700, color: "#10b981" }}>
+                        🌅 Next scheduled service resumes at {selectedData.next_service}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>
+                      💡 Tip: Choose <strong>Cab / Auto</strong> (GoRide, SwiftCab, SwiftGo, NammaMove) or <strong>Own Vehicle</strong> for 24/7 late-night commute.
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* CTA */}
-              {selectedData?.available && (
+              {selectedData?.available && selectedData?.operational !== false && (
                 <div style={{ marginTop: 20, background: `linear-gradient(135deg, ${MC[selected].color}18, ${MC[selected].color}06)`, border: `1.5px solid ${MC[selected].color}44`, borderRadius: 16, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                   <div>
                     <div style={{ fontSize: 12, color: C.muted }}>You selected</div>
@@ -10900,29 +11620,62 @@ export default function App() {
               )}
             </div>
 
-            {/* Right: Map + Guide */}
-            <div style={{ position: "sticky", top: 72 }}>
+            {/* Right: Map + Guide (Half Screen on desktop, natural stack on mobile) */}
+            <div style={{
+              position: isMobile ? "static" : "sticky",
+              top: 72,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              height: isMobile ? "auto" : "calc(100vh - 90px)",
+              maxHeight: isMobile ? "none" : "calc(100vh - 90px)",
+              minWidth: 0,
+              width: "100%",
+              marginTop: isMobile ? 16 : 0
+            }}>
               {selectedData?.available && (
-                <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 3, marginBottom: 12, gap: 4 }}>
+                <div style={{
+                  display: "flex",
+                  background: C.surface,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  padding: 3,
+                  gap: 4,
+                  flexShrink: 0
+                }}>
                   <button onClick={() => setMapView("gmap")} style={{
                     flex: 1, background: mapView === "gmap" ? C.card : "transparent",
                     border: "none", borderRadius: 9, color: mapView === "gmap" ? C.accent : C.muted,
                     padding: "7px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                    boxShadow: mapView === "gmap" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
                     transition: "all 0.2s"
                   }}>🗺️ Google Map</button>
                   <button onClick={() => setMapView("linear")} style={{
                     flex: 1, background: mapView === "linear" ? C.card : "transparent",
                     border: "none", borderRadius: 9, color: mapView === "linear" ? C.accent : C.muted,
                     padding: "7px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                    boxShadow: mapView === "linear" ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
                     transition: "all 0.2s"
                   }}>🛤️ Linear Route Map</button>
                 </div>
               )}
 
-              {mapView === "linear" && selectedData ? (
-                <LinearRouteMap segments={selectedData?.segments} activeMode={selected} />
-              ) : (
-                <div style={{ height: "calc(100vh - 180px)" }}>
+              {/* Map View Box (Top half of the screen: 50% split on desktop, 280px on mobile) */}
+              <div style={{
+                flex: isMobile ? "none" : (selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 ? "1 1 50%" : "1"),
+                height: isMobile ? 280 : (selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 ? "calc(50% - 24px)" : "calc(100vh - 150px)"),
+                minHeight: isMobile ? 240 : 0,
+                borderRadius: 16,
+                overflow: "hidden",
+                border: `1px solid ${C.border}`,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+                position: "relative"
+              }}>
+                {mapView === "linear" && selectedData ? (
+                  <div style={{ height: "100%", overflowY: "auto", background: C.card, padding: 14 }}>
+                    <LinearRouteMap segments={selectedData?.segments} activeMode={selected} />
+                  </div>
+                ) : (
                   <GoogleMap
                     key="compare-map"
                     src={src}
@@ -10939,19 +11692,74 @@ export default function App() {
                     gpsHeading={gpsHeading}
                     mapStyle={mapStyle}
                   />
-                </div>
-              )}
-              {selectedData?.available && (
-                <div style={{ marginTop: 14, background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 12, letterSpacing: "0.05em" }}>STEP-BY-STEP GUIDE</div>
-                  <TravelGuide
-                    guide={selectedData.guide}
-                    color={MC[selected].color}
-                    activeSegmentIndex={activeSegmentIndex}
-                    setActiveSegmentIndex={setActiveSegmentIndex}
-                    segments={selectedData?.segments}
-                    setMapView={setMapView}
-                  />
+                )}
+              </div>
+
+              {/* Step-by-Step Guide Box (Bottom half of the screen: 50% split on desktop, scrollable auto on mobile) */}
+              {selectedData?.available && selectedData?.guide && selectedData.guide.length > 0 && (
+                <div style={{
+                  flex: isMobile ? "none" : "1 1 50%",
+                  height: isMobile ? "auto" : "calc(50% - 24px)",
+                  maxHeight: isMobile ? 420 : "none",
+                  minHeight: 0,
+                  background: C.card,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 16,
+                  padding: "14px 18px",
+                  display: "flex",
+                  flexDirection: "column",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+                  overflow: "hidden"
+                }}>
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                    paddingBottom: 8,
+                    borderBottom: `1px solid ${C.border2}`,
+                    flexShrink: 0
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>🧭</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: C.text, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                        Step-by-Step Guide
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        background: `${MC[selected]?.color || C.accent}18`,
+                        color: MC[selected]?.color || C.accent,
+                        padding: "3px 9px",
+                        borderRadius: 8,
+                        border: `1px solid ${MC[selected]?.color || C.accent}30`
+                      }}>
+                        {selectedData.guide.length} Steps
+                      </span>
+                      <span style={{
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        background: C.dim,
+                        color: C.muted,
+                        padding: "3px 8px",
+                        borderRadius: 8
+                      }}>
+                        ⏱️ {selectedData.time} min
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
+                    <TravelGuide
+                      guide={selectedData.guide}
+                      color={MC[selected]?.color || C.accent}
+                      activeSegmentIndex={activeSegmentIndex}
+                      setActiveSegmentIndex={setActiveSegmentIndex}
+                      segments={selectedData?.segments}
+                      setMapView={setMapView}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -11196,6 +12004,7 @@ export default function App() {
           onClose={() => setShowFareCalc(false)}
           triggerSearch={triggerSearch}
           loading={loading}
+          isMobile={isMobile}
         />
       )}
 
@@ -11203,6 +12012,7 @@ export default function App() {
         <StopsInfoModal
           stops={stops}
           onClose={() => setShowStopsInfo(false)}
+          isMobile={isMobile}
         />
       )}
 
@@ -11212,10 +12022,45 @@ export default function App() {
           sourceName={src}
           destName={dst}
           onClose={() => setShowWeatherModal(false)}
+          isMobile={isMobile}
         />
       )}
 
-      <ChatbotWidget triggerSearch={triggerSearch} setSelected={setSelected} setSrc={setSrc} setDst={setDst} src={src} />
+      <FeaturesModal
+        isOpen={showFeaturesModal}
+        onClose={() => setShowFeaturesModal(false)}
+        onOpenTimetable={() => {
+          setPage("plan");
+          setShowTimetable(true);
+          setShowRouteSearch(false);
+          setShowAllBuses(false);
+        }}
+        onOpenRouteLookup={() => {
+          setPage("plan");
+          setShowRouteSearch(true);
+          setShowTimetable(false);
+          setShowAllBuses(false);
+        }}
+        onOpenStopsInfo={() => setShowStopsInfo(true)}
+        onOpenFareCalc={() => setShowFareCalc(true)}
+        onOpenWeather={() => setShowWeatherModal(true)}
+        isMobile={isMobile}
+      />
+
+      <ChatbotWidget
+        triggerSearch={triggerSearch}
+        setSelected={setSelected}
+        setSrc={setSrc}
+        setDst={setDst}
+        src={src}
+        isMobile={isMobile}
+      />
+
+      <RideModeModal
+        isOpen={showRideModeModal}
+        onClose={() => setShowRideModeModal(false)}
+        initialData={rideModeInitialData}
+      />
 
       {/* SETTINGS MODAL */}
       {showSettings && (
@@ -11352,6 +12197,90 @@ export default function App() {
             <StopsInfoPanel onClose={() => setShowStopsInfo(false)} stops={stops} />
           </div>
         </div>
+      )}
+
+      {/* Mobile Bottom Navigation Bar */}
+      {isMobile && (
+        <nav style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          minHeight: 64,
+          height: "calc(62px + env(safe-area-inset-bottom, 0px))",
+          background: C.card,
+          borderTop: `1px solid ${C.border}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-around",
+          zIndex: 900,
+          padding: "4px 8px env(safe-area-inset-bottom, 6px)",
+          boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.12)"
+        }}>
+          {[
+            { id: "dashboard", label: "Home", icon: "home", action: () => setPage("dashboard") },
+            { id: "plan", label: "Plan", icon: "mappin", action: handleGoToPlan },
+            { id: "ride_mode", label: "Ride Mode", icon: "bus", special: true, action: () => handleOpenRideMode() },
+            { id: "features", label: "Features", icon: "grid", action: () => setShowFeaturesModal(true) },
+            { id: "menu", label: "Menu", icon: "menu", action: () => setMobileSidebarOpen(true) },
+          ].map(tab => {
+            const isTabActive = (tab.id === "dashboard" && page === "dashboard") || 
+                                (tab.id === "plan" && page === "plan" && !showRouteSearch && !showTimetable) ||
+                                (tab.id === "features" && showFeaturesModal);
+            
+            if (tab.special) {
+              return (
+                <button
+                  key={tab.id}
+                  onClick={tab.action}
+                  style={{
+                    background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)",
+                    border: "none",
+                    borderRadius: 16,
+                    padding: "6px 14px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    color: "#ffffff",
+                    transform: "translateY(-6px)",
+                    boxShadow: "0 6px 16px rgba(124, 58, 237, 0.4)",
+                    fontFamily: "inherit"
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>🚌</span>
+                  <span style={{ fontSize: 9.5, fontWeight: 800, marginTop: 1 }}>Ride Mode</span>
+                </button>
+              );
+            }
+
+            return (
+              <button
+                key={tab.id}
+                onClick={tab.action}
+                style={{
+                  background: "none",
+                  border: "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: isTabActive ? C.accent : C.muted,
+                  padding: "4px 10px",
+                  fontFamily: "inherit",
+                  transition: "all 0.15s ease"
+                }}
+              >
+                <Ic n={tab.icon} s={18} c={isTabActive ? C.accent : C.muted} sw={2.2} />
+                <span style={{ fontSize: 10, fontWeight: isTabActive ? 800 : 600, marginTop: 3 }}>
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
       )}
 
       <style>{`

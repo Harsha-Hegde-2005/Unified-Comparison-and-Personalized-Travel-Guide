@@ -4,7 +4,7 @@ A unified transit planning system combining **BMTC** (buses), **Namma Metro** (t
 
 ---
 
-## 📂 Repository Structure
+## 📂 Repository  Structure
 
 The project has been restructured into four clean, descriptive top-level folders:
 

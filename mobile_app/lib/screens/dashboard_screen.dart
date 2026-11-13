@@ -2,8 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-// ignore: avoid_web_libraries_in_flutter, deprecated_member_use
-import 'dart:html' as html;
+import '../utils/web_helper/web_helper.dart';
 import '../services/api_service.dart';
 import '../services/recent_searches_store.dart';
 import '../theme.dart';
@@ -360,9 +359,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               onPressed: () {
                 if (kIsWeb) {
-                  try {
-                    html.window.open(fileUrl, '_blank');
-                  } catch (_) {}
+                  WebHelper.openUrl(fileUrl);
                 }
               },
               icon: const Icon(Icons.open_in_new_rounded, size: 16),
@@ -415,8 +412,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bengaluru Commuter', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        title: const Text('Bengaluru Commuter', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
         actions: [
+          // Ride Mode Companion Button (matches website header)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                elevation: 0,
+              ),
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => const RideModeModal(),
+                );
+              },
+              icon: const Icon(Icons.rocket_launch_rounded, size: 14),
+              label: const Text('Ride Mode', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.wb_sunny_rounded, color: Colors.amber),
+            tooltip: 'Live Bengaluru Weather',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const WeatherReportModal(),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded),
             tooltip: 'Toggle Theme',
@@ -564,7 +596,149 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
+
+            // 1.5 Prominent Feature Action Cards: Ride Mode & AI Chatbot
+            Row(
+              children: [
+                // Ride Mode Action Card
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => const RideModeModal(),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF059669), Color(0xFF10B981)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.rocket_launch_rounded, color: Colors.white, size: 18),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text('LIVE GPS', style: TextStyle(color: Color(0xFF059669), fontSize: 9, fontWeight: FontWeight.w900)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Ride Mode 🚀',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'In bus or metro? Live stop alarms & tracker',
+                            style: TextStyle(color: Colors.white70, fontSize: 10.5),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // AI Transit Assistant Card
+                Expanded(
+                  child: InkWell(
+                    onTap: widget.onNavigateToChat,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 18),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text('GEMINI AI', style: TextStyle(color: Color(0xFF7C3AED), fontSize: 9, fontWeight: FontWeight.w900)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'AI Assistant 💬',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Ask routes, fares, stops & delays',
+                            style: TextStyle(color: Colors.white70, fontSize: 10.5),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
 
             // 2. Eco Impact & Carbon Savings Card
             Container(
@@ -601,13 +775,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 3. Quick Transit Tools Grid
+            // 3. Quick Transit Tools Grid (Expanded with Ride Mode & AI Chatbot)
             Text('QUICK TRANSIT TOOLS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: mutedColor, letterSpacing: 0.5)),
             const SizedBox(height: 10),
             GridView.count(
-              crossAxisCount: 3,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
+              crossAxisCount: 4,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.95,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               children: [
@@ -624,6 +799,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   } else {
                     widget.onNavigateToTransit();
                   }
+                }),
+                _buildToolTile('Ride Mode', Icons.rocket_launch_rounded, AppTheme.green, isDark, () {
+                  showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent, builder: (context) => const RideModeModal());
+                }),
+                _buildToolTile('AI Chat', Icons.smart_toy_rounded, const Color(0xFF7C3AED), isDark, () {
+                  widget.onNavigateToChat();
                 }),
                 _buildToolTile('Stops Info', Icons.pin_drop_rounded, AppTheme.blue, isDark, () {
                   if (widget.onNavigateToTransitWithTab != null) {
@@ -982,7 +1163,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         decoration: BoxDecoration(
           color: color.withValues(alpha: isDark ? 0.12 : 0.08),
           borderRadius: BorderRadius.circular(14),
@@ -991,12 +1172,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 6),
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 4),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: color),
             ),
           ],
         ),
@@ -1061,28 +1244,13 @@ class _AddDocumentDialogState extends State<_AddDocumentDialog> {
 
   void _pickDocumentFile() {
     if (kIsWeb) {
-      try {
-        final uploadInput = html.FileUploadInputElement()..accept = '.pdf,.png,.jpg,.jpeg,.doc,.docx';
-        uploadInput.click();
-        uploadInput.onChange.listen((e) {
-          final files = uploadInput.files;
-          if (files != null && files.isNotEmpty) {
-            final file = files[0];
-            final reader = html.FileReader();
-            reader.readAsArrayBuffer(file);
-            reader.onLoadEnd.listen((e) {
-              final result = reader.result;
-              if (result is Uint8List) {
-                setState(() {
-                  _attachedFileName = file.name;
-                  _attachedBytes = result.toList();
-                });
-              }
-            });
-          }
+      WebHelper.triggerFileUpload((filename, bytes) {
+        setState(() {
+          _attachedFileName = filename;
+          _attachedBytes = bytes;
         });
-        return;
-      } catch (_) {}
+      });
+      return;
     }
 
     final cleanType = (_docType == 'Other' ? (_customDocTypeCtrl.text.trim().isNotEmpty ? _customDocTypeCtrl.text.trim() : 'Document') : _docType)

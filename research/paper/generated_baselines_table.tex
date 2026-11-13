@@ -1,0 +1,18 @@
+\begin{table}[h]
+\centering
+\caption{Baseline Experimental Comparison ($B_1$--$B_5$).}
+\label{tab:baselines}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{llccc}
+\toprule
+\textbf{Baseline ID} & \textbf{Model Description} & \textbf{Latency (ms)} & \textbf{Top Recommended Mode} & \textbf{Utility Score} \\
+\midrule
+B1 & Shortest-Time-Only & 371.66 & Personal Vehicle & 100.0 \\
+B2 & Lowest-Cost-Only & 305.61 & Namma Metro & 100.0 \\
+B3 & Static Weighted Sum & 370.93 & Namma Metro & 98.9 \\
+B4 & Monolithic Context-Aware & 325.69 & Namma Metro & 98.7 \\
+B5 & Coordinated Parallel MAS (Proposed) & 66.45 & Namma Metro & 84.0 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
@@ -79,6 +80,15 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     if (widget.dstPoint != null) allPoints.add(widget.dstPoint!);
     if (widget.liveGpsPoint != null) allPoints.add(widget.liveGpsPoint!);
 
+    if (widget.liveGpsPoint != null && widget.liveGpsPoint != oldWidget.liveGpsPoint) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          _mapController.move(widget.liveGpsPoint!, _mapController.camera.zoom < 14 ? 16.0 : _mapController.camera.zoom);
+        } catch (_) {}
+      });
+      return;
+    }
+
     if (allPoints.length >= 2) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         try {
@@ -105,7 +115,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
 
     if (provider == 'osm') {
       if (effectiveStyle == 'dark') {
-        return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+        return 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
       } else if (effectiveStyle == 'satellite') {
         return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
       } else if (effectiveStyle == 'terrain') {
@@ -116,13 +126,13 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     }
 
     if (effectiveStyle == 'dark') {
-      return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      return 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
     } else if (effectiveStyle == 'satellite') {
-      return 'https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}';
+      return 'https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}&scale=2&hl=en';
     } else if (effectiveStyle == 'terrain') {
-      return 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}';
+      return 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}&scale=2&hl=en';
     } else {
-      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&scale=2&hl=en';
     }
   }
 
@@ -131,6 +141,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = AppTheme.getCard(isDark);
     final borderCol = AppTheme.getBorder(isDark);
+    final textColor = AppTheme.getText(isDark);
 
     ll.LatLng initialCenter = const ll.LatLng(12.9716, 77.5946);
     if (widget.liveGpsPoint != null) {
@@ -221,27 +232,58 @@ class _GoogleMapViewState extends State<GoogleMapView> {
       );
     }
 
-    // Live GPS Marker (Blue pulsing)
+    // Live GPS Marker (Directional Navigation Arrow)
     if (widget.liveGpsPoint != null) {
+      double arrowBearing = 0.0;
+      if (widget.points.length >= 2) {
+        final p1 = widget.liveGpsPoint!;
+        final p2 = widget.dstPoint ?? widget.points.last;
+        final dLng = (p2.longitude - p1.longitude) * 0.017453292519943295;
+        final lat1 = p1.latitude * 0.017453292519943295;
+        final lat2 = p2.latitude * 0.017453292519943295;
+        final y = math.sin(dLng) * math.cos(lat2);
+        final x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dLng);
+        arrowBearing = (math.atan2(y, x) * 57.29577951308232 + 360) % 360;
+      }
       markers.add(
         fm.Marker(
           point: widget.liveGpsPoint!,
-          width: 36,
-          height: 36,
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppTheme.blue,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2.5),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.blue.withValues(alpha: 0.5),
-                  blurRadius: 10,
-                  spreadRadius: 3,
-                )
-              ],
-            ),
-            child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 18),
+          width: 44,
+          height: 44,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.blue.withValues(alpha: 0.2),
+                ),
+              ),
+              Transform.rotate(
+                angle: arrowBearing * (3.141592653589793 / 180),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: AppTheme.blue,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.blue.withValues(alpha: 0.5),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      )
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.navigation_rounded, color: Colors.white, size: 18),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -270,9 +312,10 @@ class _GoogleMapViewState extends State<GoogleMapView> {
                 fm.TileLayer(
                   urlTemplate: _getTileUrl(isDark),
                   userAgentPackageName: 'com.google.maps.bmtc',
-                  maxZoom: 19,
+                  maxZoom: 20,
                   minZoom: 3,
-                  maxNativeZoom: 18,
+                  maxNativeZoom: 19,
+                  retinaMode: fm.RetinaMode.isHighDensity(context),
                 ),
                 if (mapPolylines.isNotEmpty)
                   fm.PolylineLayer(
@@ -405,21 +448,30 @@ class _GoogleMapViewState extends State<GoogleMapView> {
                     const SizedBox(height: 6),
                     InkWell(
                       onTap: () {
-                        if (widget.srcPoint != null) {
-                          _mapController.move(widget.srcPoint!, 15.0);
+                        if (widget.liveGpsPoint != null) {
+                          _mapController.move(widget.liveGpsPoint!, 16.5);
+                        } else if (widget.srcPoint != null) {
+                          _mapController.move(widget.srcPoint!, 15.5);
                         } else if (widget.points.isNotEmpty) {
-                          _mapController.move(widget.points.first, 15.0);
+                          _mapController.move(widget.points.first, 15.5);
                         }
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(7),
                         decoration: BoxDecoration(
                           color: cardBg.withValues(alpha: 0.95),
                           shape: BoxShape.circle,
-                          border: Border.all(color: borderCol),
+                          border: Border.all(
+                            color: widget.liveGpsPoint != null ? AppTheme.blue : borderCol,
+                            width: widget.liveGpsPoint != null ? 1.5 : 1.0,
+                          ),
                           boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
                         ),
-                        child: const Icon(Icons.my_location_rounded, size: 16, color: AppTheme.blue),
+                        child: Icon(
+                          Icons.my_location_rounded,
+                          size: 18,
+                          color: widget.liveGpsPoint != null ? AppTheme.blue : textColor,
+                        ),
                       ),
                     ),
                   ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/app_settings_modal.dart';
 import '../theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -41,10 +42,16 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  bool _isCheckingBackend = false;
+
   Future<void> _checkBackend() async {
+    setState(() => _isCheckingBackend = true);
     final ok = await ApiService.checkHealth();
     if (mounted) {
-      setState(() => _isBackendConnected = ok);
+      setState(() {
+        _isBackendConnected = ok;
+        _isCheckingBackend = false;
+      });
     }
   }
 
@@ -157,34 +164,76 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 10),
 
-              // Backend Database Sync Status Pill
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: (_isBackendConnected ? AppTheme.green : Colors.amber).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: (_isBackendConnected ? AppTheme.green : Colors.amber).withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircleAvatar(
-                      radius: 4,
-                      backgroundColor: _isBackendConnected ? AppTheme.green : Colors.amber,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _isBackendConnected ? 'Connected to Transit DB' : 'Checking Backend DB...',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: _isBackendConnected ? AppTheme.green : Colors.amber.shade800,
+              // Backend Database Sync Status Pill & Server Settings Gear
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  InkWell(
+                    onTap: _isCheckingBackend ? null : _checkBackend,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: (_isBackendConnected ? AppTheme.green : (_isCheckingBackend ? Colors.amber : Colors.red)).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: (_isBackendConnected ? AppTheme.green : (_isCheckingBackend ? Colors.amber : Colors.red)).withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircleAvatar(
+                            radius: 4,
+                            backgroundColor: _isBackendConnected
+                                ? AppTheme.green
+                                : (_isCheckingBackend ? Colors.amber : Colors.red),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _isCheckingBackend
+                                ? 'Connecting...'
+                                : (_isBackendConnected
+                                    ? 'Connected (${ApiService.baseUrl.replaceFirst(RegExp(r'https?://'), '')})'
+                                    : 'Offline · Tap to Retry'),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: _isBackendConnected
+                                  ? AppTheme.green
+                                  : (_isCheckingBackend ? Colors.amber.shade800 : Colors.red.shade400),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.refresh_rounded,
+                            size: 12,
+                            color: _isBackendConnected
+                                ? AppTheme.green
+                                : (_isCheckingBackend ? Colors.amber.shade800 : Colors.red.shade400),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () {
+                      showAppSettingsModal(context);
+                      _checkBackend();
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.getBorder(isDark)),
+                      ),
+                      child: Icon(Icons.settings_rounded, size: 14, color: mutedColor),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 24),

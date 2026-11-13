@@ -1,0 +1,375 @@
+{
+  "total_test_cases": 52,
+  "passed_count": 52,
+  "failed_validation_count": 0,
+  "incomplete_reference_count": 0,
+  "no_route_found_count": 0,
+  "error_count": 0,
+  "valid_route_rate_pct": 100.0,
+  "route_coverage_pct": 100.0,
+  "stop_sequence_correctness_pct": 100.0,
+  "transfer_validity_rate_pct": 100.0,
+  "avg_fare_error_inr": 25.42,
+  "avg_gt_fare_error_inr": 38.69,
+  "mean_abs_travel_time_error_min": 50.33,
+  "mean_abs_gt_travel_time_error_min": 41.0,
+  "median_latency_ms": 905.69,
+  "p95_latency_ms": 3465.22,
+  "timeout_error_rate_pct": 0.0,
+  "missing_route_cases_count": 0,
+  "false_positive_recommendations_count": 0,
+  "breakdown": {
+    "by_journey_type": {
+      "direct": {
+        "total_cases": 45,
+        "passed_count": 45,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2163.07
+      },
+      "transfer": {
+        "total_cases": 7,
+        "passed_count": 7,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 945.25
+      }
+    },
+    "by_departure_period": {
+      "morning_peak": {
+        "total_cases": 25,
+        "passed_count": 25,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2000.37
+      },
+      "evening_peak": {
+        "total_cases": 13,
+        "passed_count": 13,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2180.93
+      },
+      "off_peak": {
+        "total_cases": 12,
+        "passed_count": 12,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 1757.34
+      },
+      "night": {
+        "total_cases": 2,
+        "passed_count": 2,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2252.84
+      }
+    },
+    "by_preference": {
+      "fastest": {
+        "total_cases": 38,
+        "passed_count": 38,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 1986.25
+      },
+      "cheapest": {
+        "total_cases": 9,
+        "passed_count": 9,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 2856.59
+      },
+      "fewest_transfers": {
+        "total_cases": 3,
+        "passed_count": 3,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 387.38
+      },
+      "least_walking": {
+        "total_cases": 2,
+        "passed_count": 2,
+        "valid_rate_pct": 100.0,
+        "coverage_pct": 100.0,
+        "avg_latency_ms": 803.0
+      }
+    }
+  },
+  "regression_comparison": {
+    "status": "NO_REGRESSION",
+    "previous_file": "backend/benchmarks/results/benchmark_summary_latest.json",
+    "previous_valid_rate_pct": 100.0,
+    "current_valid_rate_pct": 100.0,
+    "valid_rate_shift_pct": 0.0,
+    "previous_median_latency_ms": 1014.97,
+    "current_median_latency_ms": 905.69,
+    "median_latency_shift_ms": -109.28,
+    "fare_error_shift_inr": 0.84,
+    "new_failures": [],
+    "fixed_failures": [
+      {
+        "test_id": "BMTC_BENCH_001",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_002",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_003",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_004",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_005",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_006",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_007",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_008",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_009",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_010",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_011",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_012",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_013",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_014",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_015",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_016",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_017",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_018",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_019",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_020",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_021",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_022",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_023",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_024",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_025",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_026",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_027",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_028",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_029",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_030",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_031",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_032",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_033",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_034",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_035",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_036",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_037",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_038",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_039",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_040",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_041",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_042",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_043",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_044",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_045",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_046",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_047",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_048",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_049",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_050",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_051",
+        "previous_status": null,
+        "current_status": "PASSED"
+      },
+      {
+        "test_id": "BMTC_BENCH_052",
+        "previous_status": null,
+        "current_status": "PASSED"
+      }
+    ],
+    "new_failures_count": 0,
+    "fixed_failures_count": 52
+  }
+}

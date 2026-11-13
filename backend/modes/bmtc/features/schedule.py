@@ -41,27 +41,41 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def _register_route_cache(df) -> None:
-    for route_no, group in df.groupby("route_no"):
-        ordered = group.sort_values("stop_sequence").reset_index(drop=True)
-        norms = ordered["stop_norm"].tolist()
+    if df is None or df.empty:
+        return
+    sorted_df = df.sort_values(["route_no", "stop_sequence"])
+    route_nos = sorted_df["route_no"].astype(str).values
+    stop_norms = sorted_df["stop_norm"].values
+    lats = sorted_df["latitude"].values
+    lngs = sorted_df["longitude"].values
+
+    n = len(sorted_df)
+    i = 0
+    while i < n:
+        r = route_nos[i]
+        start_i = i
+        while i < n and route_nos[i] == r:
+            i += 1
+        end_i = i
+
+        norms = stop_norms[start_i:end_i].tolist()
+        r_lats = lats[start_i:end_i]
+        r_lngs = lngs[start_i:end_i]
+
         cumulative_km = [0.0]
-        for i in range(len(ordered) - 1):
+        for j in range(len(norms) - 1):
             cumulative_km.append(
-                cumulative_km[-1] + haversine(
-                    ordered.iloc[i].latitude,
-                    ordered.iloc[i].longitude,
-                    ordered.iloc[i + 1].latitude,
-                    ordered.iloc[i + 1].longitude,
-                )
+                cumulative_km[-1] + haversine(r_lats[j], r_lngs[j], r_lats[j + 1], r_lngs[j + 1])
             )
+
         stop_index: dict[str, int] = {}
-        for idx, stop_norm in enumerate(norms):
-            stop_index.setdefault(stop_norm, idx)
-        _route_cache[str(route_no)] = {
+        for idx, sn in enumerate(norms):
+            stop_index.setdefault(sn, idx)
+
+        _route_cache[r] = {
             "norms": norms,
             "stop_index": stop_index,
             "cumulative_km": cumulative_km,
-            "ordered": ordered,
         }
 
 
@@ -72,8 +86,9 @@ if not _rev_df.empty:
 _stop_coords_dict = {}
 for _df in [stops_df, _rev_df]:
     if _df is not None and not _df.empty:
-        for _row in _df.itertuples(index=False):
-            _stop_coords_dict[_row.stop_norm] = (float(_row.latitude), float(_row.longitude))
+        _stop_coords_dict.update(
+            dict(zip(_df["stop_norm"], zip(_df["latitude"].astype(float), _df["longitude"].astype(float))))
+        )
 
 
 # ── BMTC operational window ────────────────────────────────────────────────────
@@ -215,6 +230,71 @@ def calculate_segment_times(
       2. Google Maps Distance Matrix (traffic-aware) ETA
       3. Speed-model fallback
     """
+def get_fixed_route_departure(route_no: str, query_dt: datetime, trips_per_day: int = 0) -> tuple[datetime, int]:
+    """
+    Returns (departure_dt, waiting_minutes) for route_no starting after query_dt.
+    Anchored to a deterministic daily timetable grid (05:00 to 23:30) so that
+    advancing query_dt minute-by-minute does NOT change the scheduled departure time slot.
+    """
+    import hashlib, math
+    route_clean = str(route_no).replace("_REV", "").strip().upper()
+    route_hash = int(hashlib.md5(route_clean.encode()).hexdigest()[:4], 16)
+
+    # Determine headway based on trips or route hash
+    if trips_per_day > 0:
+        OPERATIONAL_MINUTES = 18 * 60
+        headway = max(10, min(60, int(OPERATIONAL_MINUTES / trips_per_day)))
+    else:
+        headway = 15 + (route_hash % 4) * 5  # 15, 20, 25, or 30 mins
+
+    offset = route_hash % headway
+
+    # Daily service window: 05:00 to 23:30
+    service_start = query_dt.replace(hour=5, minute=0, second=0, microsecond=0)
+    if query_dt < service_start:
+        dep_dt = service_start + timedelta(minutes=offset)
+        wait_mins = max(0, int((dep_dt - query_dt).total_seconds() / 60))
+        return dep_dt, wait_mins
+
+    service_end = query_dt.replace(hour=23, minute=30, second=0, microsecond=0)
+    if query_dt > service_end:
+        next_day_start = service_start + timedelta(days=1)
+        dep_dt = next_day_start + timedelta(minutes=offset)
+        wait_mins = max(0, int((dep_dt - query_dt).total_seconds() / 60))
+        return dep_dt, wait_mins
+
+    # Minutes since service start
+    mins_since_start = (query_dt - service_start).total_seconds() / 60.0
+    
+    k = math.ceil((mins_since_start - offset) / headway)
+    if k < 0:
+        k = 0
+    slot_mins = offset + k * headway
+    dep_dt = service_start + timedelta(minutes=slot_mins)
+    
+    if dep_dt < query_dt:
+        k += 1
+        slot_mins = offset + k * headway
+        dep_dt = service_start + timedelta(minutes=slot_mins)
+
+    wait_mins = max(0, int((dep_dt - query_dt).total_seconds() / 60))
+    return dep_dt, wait_mins
+
+
+def calculate_segment_times(
+    segments: list[tuple],
+    start_time: datetime | None = None,
+) -> list[dict]:
+    """
+    Return a list of timing dicts, one per segment.
+
+    Each dict: route_no, departure, arrival, duration,
+               distance, fare, base_fare, toll, fare_category, time_source.
+
+    Time resolution priority:
+      1. Real GTFS stop_times.txt schedule
+      2. Fixed timetable grid fallback
+    """
     current_time  = start_time or datetime.now()
     segment_times = []
     arrival_at_stop_dt = current_time
@@ -243,23 +323,15 @@ def calculate_segment_times(
 
         sub_norms = seg_stops or [start, end]
 
-        # Calculate headway-based wait time fallback
-        import hashlib
         from features.routing import _route_trips
-        route_base = route_no.replace("_REV", "").upper()
-        trips = _route_trips.get(route_base, 0)
-        if trips > 0:
-            OPERATIONAL_MINUTES = 18 * 60
-            headway_minutes = OPERATIONAL_MINUTES / trips
-            seed_val = int(hashlib.md5(route_base.encode()).hexdigest()[:4], 16)
-            seed_frac = seed_val / 65535.0
-            wait_mins = max(2.0, min(headway_minutes * seed_frac, headway_minutes))
-            if i > 0:
-                wait_mins = max(TRANSFER_TIME, wait_mins)
-        else:
-            wait_mins = WAITING_TIME if i == 0 else TRANSFER_TIME
-
-        current_time += timedelta(minutes=wait_mins)
+        r_clean = str(route_no).replace("_REV", "").strip()
+        r_prefix = r_clean.split()[0] if r_clean else r_clean
+        trips = max(
+            _route_trips.get(route_no, 0),
+            _route_trips.get(r_clean, 0),
+            _route_trips.get(r_prefix, 0),
+            _route_trips.get(r_prefix.replace("-", ""), 0),
+        )
 
         departure_dt = current_time
         arrival_dt   = None
@@ -273,8 +345,9 @@ def calculate_segment_times(
             travel_mins = (arrival_dt - departure_dt).total_seconds() / 60
             time_source = "schedule"
 
-        # ── 3. Speed-model fallback ────────────────────────────────────────
+        # ── 2. Fixed timetable grid fallback ────────────────────────────────
         if arrival_dt is None:
+            departure_dt, _ = get_fixed_route_departure(route_no, current_time, trips_per_day=trips)
             travel_mins = calculate_travel_time(segment_distance, departure_dt)
             arrival_dt  = departure_dt + timedelta(minutes=travel_mins)
             time_source = "estimate"
@@ -313,10 +386,7 @@ def estimate_segment_fast(
 ) -> dict | None:
     """
     Fast distance/time/fare estimate for result cards.
-
-    This intentionally skips GTFS schedule lookups. Listing many candidate buses
-    should stay sub-second; detailed route views can still call
-    calculate_segment_times() when the user expands a specific option.
+    Uses fixed timetable grid for fallback bus departures.
     """
     current_time = start_time or datetime.now()
     route_data = _route_cache.get(route_no) or _route_cache.get(route_no.replace("_REV", ""))
@@ -345,11 +415,13 @@ def estimate_segment_fast(
             segment_distance = 5.0
 
     # 1. Try real GTFS schedule lookup first
-    gtfs_result = _gtfs_segment_times(route_no, start, end, current_time)
+    r_clean = str(route_no).replace("_REV", "").strip()
+    r_prefix = r_clean.split()[0] if r_clean else r_clean
+    gtfs_result = _gtfs_segment_times(r_prefix, start, end, current_time) or _gtfs_segment_times(route_no, start, end, current_time)
     if gtfs_result:
         dep_dt, arr_dt = gtfs_result
         travel_mins = max(2, int((arr_dt - dep_dt).total_seconds() / 60))
-        wait_mins = max(1, int((dep_dt - current_time).total_seconds() / 60))
+        wait_mins = max(0, int((dep_dt - current_time).total_seconds() / 60))
         fare_info = segment_fare_breakdown(route_no, segment_distance, sub_norms)
         return {
             "duration": travel_mins,
@@ -360,16 +432,15 @@ def estimate_segment_fast(
             "waiting_time": wait_mins,
         }
 
-    # 2. Distinct route-based schedule generation per bus route
-    import hashlib
-    route_clean = route_no.replace("_REV", "").upper()
-    route_hash = int(hashlib.md5(route_clean.encode()).hexdigest()[:4], 16)
+    # 2. Fixed timetable grid fallback per bus route
+    from features.routing import _route_trips
+    trips = max(
+        _route_trips.get(route_no, 0),
+        _route_trips.get(r_clean, 0),
+        _route_trips.get(r_prefix, 0),
+    )
+    departure_dt, wait_mins = get_fixed_route_departure(route_no, current_time, trips_per_day=trips)
 
-    # Route-specific departure offset (e.g. 500D departs +3m, 201 departs +9m, V-335E departs +2m)
-    dep_offset_min = (route_hash % 13) + 2
-    departure_dt = current_time + timedelta(minutes=dep_offset_min)
-
-    # Speed factor based on route category (KIA / Vajra AC buses travel faster)
     from features.fare import is_kia_route, is_vajra_route
     speed_mult = 1.25 if is_kia_route(route_no) else (1.15 if is_vajra_route(route_no) else 1.0)
     travel_mins = max(3, int(calculate_travel_time(segment_distance, departure_dt) / speed_mult))
@@ -382,5 +453,5 @@ def estimate_segment_fast(
         "distance": round(segment_distance, 2),
         "departure": format_time(departure_dt),
         "arrival": format_time(arrival_dt),
-        "waiting_time": int(dep_offset_min),
+        "waiting_time": int(wait_mins),
     }

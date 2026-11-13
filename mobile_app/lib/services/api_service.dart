@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Central API service that mirrors every endpoint used by the website frontend.
 /// All methods are static. The [baseUrl] can be updated at runtime from the
@@ -10,12 +11,41 @@ class ApiService {
   // ── Base URL ──────────────────────────────────────────────────────────────
 
   static String get defaultBaseUrl {
-    if (kIsWeb) return 'http://localhost:8000';
-    if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:8000';
-    return 'http://127.0.0.1:8000';
+    const envUrl = String.fromEnvironment('API_BASE_URL');
+    if (envUrl.isNotEmpty) return envUrl;
+    if (kIsWeb) {
+      if (kDebugMode) return 'http://localhost:8000';
+      return 'https://personalized-travel-guide-api.onrender.com';
+    }
+    return 'https://personalized-travel-guide-api.onrender.com';
   }
 
   static String baseUrl = defaultBaseUrl;
+
+  // In-memory latency optimization caches
+  static final Map<String, dynamic> _stopCoordsCache = {};
+  static final Map<String, ll.LatLng> _geocodeCache = {};
+  static final Map<String, List<ll.LatLng>> _roadPolylineCache = {};
+
+  static String sanitizeUrl(String raw) {
+    var u = raw.trim();
+    if (u.isEmpty) return u;
+    if (!u.startsWith('http://') && !u.startsWith('https://')) {
+      u = 'https://$u';
+    }
+    while (u.endsWith('/')) {
+      u = u.substring(0, u.length - 1);
+    }
+    return u;
+  }
+
+  static Future<void> setBaseUrl(String newUrl) async {
+    baseUrl = sanitizeUrl(newUrl);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('api_custom_base_url', baseUrl);
+    } catch (_) {}
+  }
 
   // ── Auth state ────────────────────────────────────────────────────────────
 
@@ -24,33 +54,96 @@ class ApiService {
 
   static Map<String, String> get authHeaders => {
         'Content-Type': 'application/json',
+        'Bypass-Tunnel-Reminder': 'true',
+        'bypass-tunnel-reminder': 'true',
+        if (!kIsWeb) 'User-Agent': 'BMTC_Mobile_App',
         if (token != null) 'Authorization': 'Bearer $token',
       };
+
+  static Future<void> saveSession(String userToken, String username) async {
+    token = userToken;
+    loggedInUsername = username;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_token', userToken);
+      await prefs.setString('logged_in_username', username);
+      await prefs.setBool('is_logged_in', true);
+    } catch (_) {}
+  }
+
+  static Future<String?> loadSavedSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedUrl = prefs.getString('api_custom_base_url');
+      if (savedUrl != null && savedUrl.isNotEmpty) {
+        final isDead = savedUrl.contains('trycloudflare.com') ||
+            savedUrl.contains('localhost') ||
+            savedUrl.contains('10.0.2.2') ||
+            savedUrl.contains('127.0.0.1') ||
+            savedUrl.contains('unified-comparison-and-personalized');
+        if (isDead) {
+          await prefs.remove('api_custom_base_url');
+          baseUrl = defaultBaseUrl;
+        } else {
+          baseUrl = sanitizeUrl(savedUrl);
+        }
+      } else {
+        baseUrl = defaultBaseUrl;
+      }
+      final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+      if (isLoggedIn) {
+        token = prefs.getString('user_token');
+        loggedInUsername = prefs.getString('logged_in_username') ?? 'Commuter';
+        return loggedInUsername;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  static Future<void> logoutSession() async {
+    token = null;
+    loggedInUsername = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_token');
+      await prefs.remove('logged_in_username');
+      await prefs.setBool('is_logged_in', false);
+    } catch (_) {}
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>?> _get(String path) async {
     try {
       final res = await http
-          .get(Uri.parse('$baseUrl$path'))
-          .timeout(const Duration(seconds: 12));
+          .get(Uri.parse('$baseUrl$path'), headers: authHeaders)
+          .timeout(const Duration(seconds: 35));
       if (res.statusCode == 200) {
         return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ApiService] GET $path error on $baseUrl: $e');
+      if (baseUrl != defaultBaseUrl) {
+        try {
+          final res = await http
+              .get(Uri.parse('$defaultBaseUrl$path'), headers: authHeaders)
+              .timeout(const Duration(seconds: 25));
+          if (res.statusCode == 200) {
+            baseUrl = defaultBaseUrl;
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('api_custom_base_url', defaultBaseUrl);
+            } catch (_) {}
+            return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+          }
+        } catch (_) {}
+      }
+    }
     return null;
   }
 
   static Future<Map<String, dynamic>?> _getAuth(String path) async {
-    try {
-      final res = await http
-          .get(Uri.parse('$baseUrl$path'), headers: authHeaders)
-          .timeout(const Duration(seconds: 12));
-      if (res.statusCode == 200) {
-        return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-      }
-    } catch (_) {}
-    return null;
+    return _get(path);
   }
 
   static Future<Map<String, dynamic>?> _post(String path, Map<String, dynamic> body) async {
@@ -58,31 +151,42 @@ class ApiService {
       final res = await http
           .post(
             Uri.parse('$baseUrl$path'),
-            headers: {'Content-Type': 'application/json'},
+            headers: authHeaders,
             body: json.encode(body),
           )
-          .timeout(const Duration(seconds: 45));
+          .timeout(const Duration(seconds: 50));
       if (res.statusCode == 200) {
         return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+      } else {
+        debugPrint('[ApiService] POST $path status: ${res.statusCode}');
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ApiService] POST $path error on $baseUrl: $e');
+      if (baseUrl != defaultBaseUrl) {
+        try {
+          final res = await http
+              .post(
+                Uri.parse('$defaultBaseUrl$path'),
+                headers: authHeaders,
+                body: json.encode(body),
+              )
+              .timeout(const Duration(seconds: 40));
+          if (res.statusCode == 200) {
+            baseUrl = defaultBaseUrl;
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('api_custom_base_url', defaultBaseUrl);
+            } catch (_) {}
+            return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+          }
+        } catch (_) {}
+      }
+    }
     return null;
   }
 
   static Future<Map<String, dynamic>?> _postAuth(String path, Map<String, dynamic> body) async {
-    try {
-      final res = await http
-          .post(
-            Uri.parse('$baseUrl$path'),
-            headers: authHeaders,
-            body: json.encode(body),
-          )
-          .timeout(const Duration(seconds: 15));
-      if (res.statusCode == 200) {
-        return json.decode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-      }
-    } catch (_) {}
-    return null;
+    return _post(path, body);
   }
 
   static Future<bool> _deleteAuth(String path) async {
@@ -103,56 +207,86 @@ class ApiService {
   static Future<Map<String, dynamic>> login({
     required String username,
     required String password,
+    bool isRetry = false,
   }) async {
     final url = Uri.parse('$baseUrl/api/auth/login');
     try {
       final res = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: authHeaders,
             body: json.encode({'username': username, 'password': password}),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 60));
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
-        token = data['access_token'];
-        loggedInUsername = data['username'];
+        final userToken = data['access_token'] as String;
+        final uName = data['username'] as String;
+        await saveSession(userToken, uName);
         return {'success': true, 'username': loggedInUsername};
       } else {
-        final err = json.decode(res.body);
-        return {'success': false, 'error': err['detail'] ?? 'Invalid credentials'};
+        try {
+          final err = json.decode(res.body);
+          return {'success': false, 'error': err['detail'] ?? 'Invalid credentials'};
+        } catch (_) {
+          return {
+            'success': false,
+            'error': 'Server is warming up (Status ${res.statusCode}). Please tap Sign In again in a few seconds.'
+          };
+        }
       }
     } catch (e) {
-      return {'success': false, 'error': 'Cannot connect to backend'};
+      if (!isRetry) {
+        final reconnected = await checkHealth();
+        if (reconnected) {
+          return login(username: username, password: password, isRetry: true);
+        }
+      }
+      return {'success': false, 'error': 'Server waking up from sleep. Please tap Sign In again in 10 seconds.'};
     }
   }
 
   static Future<Map<String, dynamic>> signup({
     required String username,
     required String password,
+    bool isRetry = false,
   }) async {
     final url = Uri.parse('$baseUrl/api/auth/signup');
     try {
       final res = await http
           .post(
             url,
-            headers: {'Content-Type': 'application/json'},
+            headers: authHeaders,
             body: json.encode({'username': username, 'password': password}),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 60));
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
-        token = data['access_token'];
-        loggedInUsername = data['username'];
+        final userToken = data['access_token'] as String;
+        final uName = data['username'] as String;
+        await saveSession(userToken, uName);
         return {'success': true, 'username': loggedInUsername};
       } else {
-        final err = json.decode(res.body);
-        return {'success': false, 'error': err['detail'] ?? 'Registration failed'};
+        try {
+          final err = json.decode(res.body);
+          return {'success': false, 'error': err['detail'] ?? 'Registration failed'};
+        } catch (_) {
+          return {
+            'success': false,
+            'error': 'Server is warming up (Status ${res.statusCode}). Please tap Create Account again.'
+          };
+        }
       }
     } catch (e) {
-      return {'success': false, 'error': 'Cannot connect to backend'};
+      if (!isRetry) {
+        final reconnected = await checkHealth();
+        if (reconnected) {
+          return signup(username: username, password: password, isRetry: true);
+        }
+      }
+      return {'success': false, 'error': 'Server waking up from sleep. Please tap Create Account again.'};
     }
   }
 
@@ -163,6 +297,7 @@ class ApiService {
   static Future<Map<String, dynamic>?> queryChatbot({
     required String message,
     required List<Map<String, dynamic>> history,
+    String? sessionId,
     double? latitude,
     double? longitude,
     String? timeStr,
@@ -171,7 +306,9 @@ class ApiService {
     final Map<String, dynamic> body = {
       'message': message,
       'history': history,
+      'user_id': 1,
     };
+    if (sessionId != null && sessionId.isNotEmpty) body['session_id'] = sessionId;
     if (latitude != null) body['latitude'] = latitude;
     if (longitude != null) body['longitude'] = longitude;
     if (timeStr != null) body['time'] = timeStr;
@@ -197,7 +334,14 @@ class ApiService {
     };
     if (time != null && time.isNotEmpty) body['time'] = time;
     if (vehicle != null && vehicle.isNotEmpty) body['vehicle'] = vehicle;
-    return _post('/api/compare', body);
+
+    var res = await _post('/api/compare', body);
+    if (res == null) {
+      // Backend may be waking up from cold sleep on Render. Retry once.
+      await Future.delayed(const Duration(seconds: 2));
+      res = await _post('/api/compare', body);
+    }
+    return res;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -236,6 +380,12 @@ class ApiService {
     return _post('/api/bmtc/all-buses', body);
   }
 
+  static Future<Map<String, dynamic>?> fetchBmtcRouteTimetable(String route, {String? stop}) async {
+    final params = ['route=${Uri.encodeComponent(route)}'];
+    if (stop != null && stop.isNotEmpty) params.add('stop=${Uri.encodeComponent(stop)}');
+    return _get('/api/bmtc/route-timetable?${params.join('&')}');
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // METRO  (/api/metro/*)
   // ═══════════════════════════════════════════════════════════════════════════
@@ -268,6 +418,28 @@ class ApiService {
     };
     if (time != null) body['time'] = time;
     return _post('/api/metro/plan', body);
+  }
+  static Future<Map<String, dynamic>?> fetchRideMetroLines() async =>
+      _get('/api/ride/metro/lines');
+
+  static Future<Map<String, dynamic>?> fetchRideBusRoutes() async =>
+      _get('/api/ride/bus/routes');
+
+  static Future<Map<String, dynamic>?> snapStop({
+    required double userLat,
+    required double userLng,
+    required List<Map<String, dynamic>> routeStops,
+    String? destStop,
+    int currentIndex = 0,
+  }) async {
+    final body = {
+      'user_lat': userLat,
+      'user_lng': userLng,
+      'route_stops': routeStops,
+      'destination_stop_name': destStop ?? '',
+      'current_stop_index': currentIndex,
+    };
+    return _post('/api/ride/snap-stop', body);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -313,26 +485,61 @@ class ApiService {
   // STOPS / COORDINATES  (/api/stops/*)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  static Future<Map<String, dynamic>>? _stopsFuture;
+  static Map<String, dynamic>? _cachedStops;
+
   /// Returns combined BMTC + Metro stop list (mirrors apiStops() in frontend)
   static Future<Map<String, dynamic>> fetchAllStops() async {
-    try {
-      final futures = await Future.wait([
-        _get('/api/bmtc/stops'),
-        _get('/api/metro/stations'),
-      ]);
-      final bmtcStops = (futures[0]?['stops'] as List<dynamic>?)?.cast<String>() ?? [];
-      final rawMetro = (futures[1]?['stations'] as List<dynamic>?)?.cast<String>() ?? [];
-      final metroStations = rawMetro.map((s) =>
-          s.endsWith(' Metro Station') ? s : '$s Metro Station').toList();
-      final all = {...bmtcStops, ...metroStations}.toList()..sort();
-      return {'all': all, 'bmtc': bmtcStops, 'metro': metroStations};
-    } catch (_) {
-      return {'all': [], 'bmtc': [], 'metro': []};
+    if (_cachedStops != null && (_cachedStops!['all'] as List).isNotEmpty) {
+      return _cachedStops!;
     }
+    _stopsFuture ??= (() async {
+      try {
+        final futures = await Future.wait([
+          _get('/api/bmtc/stops'),
+          _get('/api/metro/stations'),
+        ]);
+        final bmtcStops = (futures[0]?['stops'] as List<dynamic>?)?.cast<String>() ?? [];
+        final rawMetro = (futures[1]?['stations'] as List<dynamic>?)?.cast<String>() ?? [];
+        final metroStations = rawMetro.map((s) =>
+            s.endsWith(' Metro Station') ? s : '$s Metro Station').toList();
+        final all = {...bmtcStops, ...metroStations}.toList()..sort();
+        _cachedStops = {'all': all, 'bmtc': bmtcStops, 'metro': metroStations};
+        return _cachedStops!;
+      } catch (_) {
+        return {'all': [], 'bmtc': [], 'metro': []};
+      }
+    })();
+    return _stopsFuture!;
   }
 
   static Future<Map<String, dynamic>?> fetchStopCoords(List<String> stops) async {
-    return _post('/api/stops/coords', {'stops': stops});
+    if (stops.isEmpty) return {'coordinates': {}};
+    final missing = <String>[];
+    final Map<String, dynamic> resolved = {};
+
+    for (final s in stops) {
+      if (_stopCoordsCache.containsKey(s)) {
+        resolved[s] = _stopCoordsCache[s];
+      } else {
+        missing.add(s);
+      }
+    }
+
+    if (missing.isEmpty) {
+      return {'coordinates': resolved};
+    }
+
+    try {
+      final res = await _post('/api/stops/coords', {'stops': missing});
+      final fetched = res?['coordinates'] as Map<String, dynamic>? ?? {};
+      for (final entry in fetched.entries) {
+        _stopCoordsCache[entry.key] = entry.value;
+        resolved[entry.key] = entry.value;
+      }
+    } catch (_) {}
+
+    return {'coordinates': resolved};
   }
 
   static Future<Map<String, dynamic>?> fetchNearbyStops(double lat, double lng) async =>
@@ -477,11 +684,16 @@ class ApiService {
     String profile = 'driving',
   }) async {
     if (waypoints.length < 2) return waypoints;
+    final mode = (profile == 'walk' || profile == 'foot') ? 'foot' : 'driving';
+    final cacheKey = '$mode:${waypoints.map((w) => "${w.latitude.toStringAsFixed(4)},${w.longitude.toStringAsFixed(4)}").join(";")}';
+    if (_roadPolylineCache.containsKey(cacheKey)) {
+      return _roadPolylineCache[cacheKey]!;
+    }
+
     try {
       final waypointStr = waypoints
           .map((pt) => '${pt.longitude},${pt.latitude}')
           .join(';');
-      final mode = (profile == 'walk' || profile == 'foot') ? 'foot' : 'driving';
       final url = Uri.parse(
         'https://router.project-osrm.org/route/v1/$mode/$waypointStr?overview=full&geometries=geojson',
       );
@@ -505,6 +717,7 @@ class ApiService {
             }
           }
           if (roadPoints.length >= 2) {
+            _roadPolylineCache[cacheKey] = roadPoints;
             return roadPoints;
           }
         }
@@ -521,13 +734,20 @@ class ApiService {
     final query = locationName.trim();
     if (query.isEmpty) return null;
 
+    final cacheKey = query.toLowerCase();
+    if (_geocodeCache.containsKey(cacheKey)) {
+      return _geocodeCache[cacheKey];
+    }
+
     // 0. High-precision direct coordinate parsing (e.g. "12.9716, 77.5946" or "Location (12.9716, 77.5946)")
     final coordMatch = RegExp(r'(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)').firstMatch(query);
     if (coordMatch != null) {
       final lat = double.tryParse(coordMatch.group(1)!);
       final lng = double.tryParse(coordMatch.group(2)!);
       if (lat != null && lng != null) {
-        return ll.LatLng(lat, lng);
+        final pt = ll.LatLng(lat, lng);
+        _geocodeCache[cacheKey] = pt;
+        return pt;
       }
     }
 
@@ -540,7 +760,9 @@ class ApiService {
         final lat = (c['lat'] as num?)?.toDouble();
         final lng = (c['lng'] as num?)?.toDouble();
         if (lat != null && lng != null) {
-          return ll.LatLng(lat, lng);
+          final pt = ll.LatLng(lat, lng);
+          _geocodeCache[cacheKey] = pt;
+          return pt;
         }
       }
     } catch (_) {}
@@ -565,7 +787,9 @@ class ApiService {
           final lat = double.tryParse(item['lat']?.toString() ?? '');
           final lng = double.tryParse(item['lon']?.toString() ?? '');
           if (lat != null && lng != null) {
-            return ll.LatLng(lat, lng);
+            final pt = ll.LatLng(lat, lng);
+            _geocodeCache[cacheKey] = pt;
+            return pt;
           }
         }
       }
@@ -729,17 +953,74 @@ class ApiService {
       _deleteAuth('/api/user/documents/$docId');
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // HEALTH CHECK
+  // HEALTH CHECK & AUTO FAILOVER
   // ═══════════════════════════════════════════════════════════════════════════
 
-  static Future<bool> checkHealth() async {
+  static final List<String> candidateUrls = [
+    'https://personalized-travel-guide-api.onrender.com',
+    'https://unified-comparison-and-personalized.onrender.com',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://10.0.2.2:8000',
+    'http://192.168.1.4:8000',
+  ];
+
+  static Future<bool> _quickPing(String targetUrl) async {
+    final cleanUrl = sanitizeUrl(targetUrl);
+    final isRemote = cleanUrl.startsWith('https://') ||
+        (!cleanUrl.contains('localhost') &&
+            !cleanUrl.contains('127.0.0.1') &&
+            !cleanUrl.contains('192.168.') &&
+            !cleanUrl.contains('10.0.2.2'));
+    final timeoutDuration = isRemote
+        ? const Duration(seconds: 15)
+        : const Duration(milliseconds: 2000);
+
     try {
-      final res = await http
-          .get(Uri.parse('$baseUrl/api/health'))
-          .timeout(const Duration(seconds: 5));
+      final res = await http.get(
+        Uri.parse('$cleanUrl/healthz'),
+        headers: authHeaders,
+      ).timeout(timeoutDuration);
+      if (res.statusCode == 200) return true;
+    } catch (e) {
+      debugPrint("Healthz ping failed for $cleanUrl: $e");
+    }
+
+    try {
+      final res = await http.get(
+        Uri.parse('$cleanUrl/api/cab/providers'),
+        headers: authHeaders,
+      ).timeout(timeoutDuration);
       return res.statusCode == 200;
-    } catch (_) {
+    } catch (e) {
+      debugPrint("Fallback providers ping failed for $cleanUrl: $e");
       return false;
     }
+  }
+
+  static Future<bool> testConnection([String? targetUrl]) async {
+    return await _quickPing(targetUrl ?? baseUrl);
+  }
+
+  static Future<bool> checkHealth() async {
+    // 1. Fast check current baseUrl
+    if (await _quickPing(baseUrl)) return true;
+
+    // 2. Parallel check all candidate URLs for instant auto-discovery
+    final candidatesToTest = candidateUrls.where((c) => c != baseUrl).toList();
+    final futures = candidatesToTest.map((c) async {
+      final ok = await _quickPing(c);
+      return ok ? c : null;
+    });
+
+    final results = await Future.wait(futures);
+    for (final winner in results) {
+      if (winner != null) {
+        await setBaseUrl(winner);
+        debugPrint("ApiService auto-connected to active baseUrl: $baseUrl");
+        return true;
+      }
+    }
+    return false;
   }
 }

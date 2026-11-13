@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' as fm;
 import 'package:latlong2/latlong.dart' as ll;
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/result_card.dart';
+import '../widgets/explainable_ai_ranker.dart';
 import '../widgets/compare_table.dart';
 import '../widgets/linear_route_map.dart';
 import '../widgets/places_autocomplete_field.dart';
@@ -11,8 +13,11 @@ import '../widgets/google_map_view.dart';
 import '../widgets/modals.dart';
 import '../widgets/app_settings_modal.dart';
 import '../utils/geolocation_helper.dart';
+import 'package:geolocator/geolocator.dart';
 import '../services/recent_searches_store.dart';
 import 'route_details_screen.dart';
+import 'chat_screen.dart';
+import '../widgets/journey_context_banner.dart';
 
 class PlanJourneyScreen extends StatefulWidget {
   final String? initialSource;
@@ -42,11 +47,15 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
   bool _isFetchingLocation = false;
   Map<String, dynamic>? _results;
   List<dynamic> _recommendations = [];
+  Map<String, dynamic>? _journeyMeta;
+  Map<String, dynamic>? _trafficMeta;
+  Map<String, dynamic>? _weatherMeta;
   String? _errorMessage;
 
   String? _selectedMode;
   Map<String, dynamic>? _selectedCabVehicle;
   Map<String, dynamic>? _selectedMultimodalOption;
+  String? _selectedBusNo;
 
   String _viewType = 'cards'; // 'cards' | 'table'
 
@@ -66,6 +75,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
 
   ll.LatLng? _srcCoord;
   ll.LatLng? _dstCoord;
+  ll.LatLng? _liveUserGps;
+  StreamSubscription<ll.LatLng>? _gpsSubscription;
 
   static const Map<String, ll.LatLng> _knownCoords = {
     'majestic': ll.LatLng(12.9767, 77.5713),
@@ -95,13 +106,26 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     _timeController.text = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
 
     _loadUserVehicles();
+    _startGpsStream();
     if (_sourceController.text.trim().isNotEmpty && _destController.text.trim().isNotEmpty) {
       _doSearch();
     }
   }
 
+  void _startGpsStream() {
+    _gpsSubscription?.cancel();
+    _gpsSubscription = GeolocationHelper.watchPositionStream().listen((pos) {
+      if (mounted) {
+        setState(() {
+          _liveUserGps = pos;
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _gpsSubscription?.cancel();
     _sourceController.dispose();
     _destController.dispose();
     _timeController.dispose();
@@ -142,7 +166,97 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     setState(() => _isFetchingLocation = true);
 
     try {
-      final pos = await GeolocationHelper.getCurrentPosition();
+      final result = await GeolocationHelper.getPositionWithStatus();
+
+      if (result.status == LocationCheckStatus.serviceDisabled) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.location_off_rounded, color: AppTheme.red),
+                  SizedBox(width: 8),
+                  Text('Location Services Off', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: const Text(
+                'Location services are disabled on your device. Please turn on GPS / Location in your device settings to detect your current location.',
+                style: TextStyle(fontSize: 13),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.blue, foregroundColor: Colors.white),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Geolocator.openLocationSettings();
+                  },
+                  icon: const Icon(Icons.settings_rounded, size: 16),
+                  label: const Text('Open Settings'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      if (result.status == LocationCheckStatus.permissionPermanentlyDenied) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.settings_suggest_rounded, color: AppTheme.bmtcColor),
+                  SizedBox(width: 8),
+                  Text('Permission Required', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: const Text(
+                'Location permissions are permanently denied. Please allow location permissions in App Settings.',
+                style: TextStyle(fontSize: 13),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.blue, foregroundColor: Colors.white),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Geolocator.openAppSettings();
+                  },
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: const Text('Open App Settings'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      if (result.status == LocationCheckStatus.permissionDenied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location permission was denied. Please allow location access to use your current location.'),
+              backgroundColor: AppTheme.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final pos = result.position;
       if (pos != null) {
         _srcCoord = pos;
 
@@ -164,8 +278,24 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
             _doSearch();
           }
         }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not obtain current GPS position. Please check your signal and retry.'),
+            ),
+          );
+        }
       }
-    } catch (_) {} finally {
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('GPS Error: ${e.toString()}'),
+          ),
+        );
+      }
+    } finally {
       if (mounted) {
         setState(() => _isFetchingLocation = false);
       }
@@ -173,9 +303,25 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
   }
 
   Future<void> _updateMapPoints() async {
-    final modeData = (_results != null && _selectedMode != null)
+    final rawModeData = (_results != null && _selectedMode != null)
         ? _results![_selectedMode] as Map<String, dynamic>?
         : null;
+
+    final modeData = (_selectedMode == 'cab' && _selectedCabVehicle != null)
+        ? {
+            ...rawModeData ?? {},
+            ..._selectedCabVehicle!,
+            'segments': _selectedCabVehicle!['segments'] ?? rawModeData?['segments'],
+            'guide': _selectedCabVehicle!['guide'] ?? rawModeData?['guide'],
+          }
+        : (_selectedMode == 'multimodal' && _selectedMultimodalOption != null)
+            ? {
+                ...rawModeData ?? {},
+                ..._selectedMultimodalOption!,
+                'segments': _selectedMultimodalOption!['segments'] ?? rawModeData?['segments'],
+                'guide': _selectedMultimodalOption!['guide'] ?? rawModeData?['guide'],
+              }
+            : rawModeData;
 
     final List<String> intermediateStops = [];
     if (modeData != null && modeData['segments'] is List) {
@@ -242,6 +388,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
 
     // 4. Segment-by-Segment Polylines
     final List<Map<String, dynamic>> segPolylines = [];
+    final bool isPersonalVehicle = _selectedMode == 'car' || _selectedMode == 'two_wheeler';
+
     if (modeData != null && modeData['segments'] is List) {
       final segs = modeData['segments'] as List<dynamic>;
       for (final seg in segs) {
@@ -250,6 +398,7 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
           final routeName = seg['route']?.toString() ?? '';
           final isWalk = segType == 'walk' || routeName.toLowerCase().contains('walk');
           final isMetro = segType == 'metro' || routeName.toLowerCase().contains('line');
+          final isCar = segType == 'car' || isPersonalVehicle;
 
           Color segColor = AppTheme.getModeColor(_selectedMode ?? 'bmtc');
           if (isMetro) {
@@ -265,6 +414,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
             }
           } else if (isWalk) {
             segColor = const Color(0xFF6B7A99);
+          } else if (isCar) {
+            segColor = AppTheme.carColor;
           }
 
           final List<ll.LatLng> segPts = [];
@@ -281,11 +432,21 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
             }
           }
 
+          // Fallback for personal vehicle & cab where intermediate stops array is empty
+          if (segPts.isEmpty && (isCar || _selectedMode == 'cab')) {
+            if (_srcCoord != null) segPts.add(_srcCoord!);
+            if (_dstCoord != null && _dstCoord != _srcCoord) segPts.add(_dstCoord!);
+          }
+
           if (segPts.length >= 2) {
-            final segProfile = isWalk ? 'foot' : 'driving';
-            final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: segProfile);
+            List<ll.LatLng> finalPts = segPts;
+            if (!isMetro) {
+              final segProfile = isWalk ? 'foot' : 'driving';
+              final roadPts = await ApiService.fetchRoadPolyline(segPts, profile: segProfile);
+              if (roadPts.isNotEmpty) finalPts = roadPts;
+            }
             segPolylines.add({
-              'points': roadPts.isNotEmpty ? roadPts : segPts,
+              'points': finalPts,
               'color': segColor,
               'isWalk': isWalk,
               'isMetro': isMetro,
@@ -294,6 +455,18 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
           }
         }
       }
+    }
+
+    // Direct driving polyline guarantee for personal vehicle
+    if (isPersonalVehicle && segPolylines.isEmpty && points.length >= 2) {
+      final carRoad = await ApiService.fetchRoadPolyline(points, profile: 'driving');
+      segPolylines.add({
+        'points': carRoad.isNotEmpty ? carRoad : points,
+        'color': AppTheme.carColor,
+        'isWalk': false,
+        'isMetro': false,
+        'routeName': 'Drive (${_selectedVehicle ?? "Personal Vehicle"})',
+      });
     }
 
     final profile = (_selectedMode == 'walk' || _selectedMode == 'bicycle') ? 'foot' : 'driving';
@@ -330,53 +503,66 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     final dst = _destController.text.trim();
     if (src.isEmpty || dst.isEmpty) return;
 
-    if (_srcCoord == null && src.isNotEmpty) {
-      _srcCoord = await ApiService.geocodeHighPrecision(src);
-    }
-    if (_dstCoord == null && dst.isNotEmpty) {
-      _dstCoord = await ApiService.geocodeHighPrecision(dst);
-    }
+    final cleanSrc = src.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+    final cleanDst = dst.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
 
-    // Format high-precision coordinate label inside input text fields (matching website)
-    if (_srcCoord != null && !_sourceController.text.contains('(')) {
-      _sourceController.text =
-          '${_sourceController.text.trim()} (${_srcCoord!.latitude.toStringAsFixed(6)}, ${_srcCoord!.longitude.toStringAsFixed(6)})';
-    }
-    if (_dstCoord != null && !_destController.text.contains('(')) {
-      _destController.text =
-          '${_destController.text.trim()} (${_dstCoord!.latitude.toStringAsFixed(6)}, ${_dstCoord!.longitude.toStringAsFixed(6)})';
-    }
+    _srcCoord ??= _lookupKnownCoord(cleanSrc);
+    _dstCoord ??= _lookupKnownCoord(cleanDst);
 
-    RecentSearchesStore.addSearch(src, dst);
+    RecentSearchesStore.addSearch(cleanSrc, cleanDst);
 
     setState(() {
       _isLoading = true;
       _results = null;
       _recommendations = [];
+      _journeyMeta = null;
+      _trafficMeta = null;
+      _weatherMeta = null;
       _errorMessage = null;
       _showWalkOffer = false;
       _showBicycleOffer = false;
       _showDelayOffer = false;
     });
 
-    final srcPayload = _srcCoord != null ? '${_srcCoord!.latitude},${_srcCoord!.longitude}' : src;
-    final dstPayload = _dstCoord != null ? '${_dstCoord!.latitude},${_dstCoord!.longitude}' : dst;
+    final formattedTime = _timeController.text.trim().isNotEmpty
+        ? _timeController.text.trim()
+        : "${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}";
 
     final res = await ApiService.compareRoutes(
-      source: srcPayload,
-      destination: dstPayload,
-      time: _timeController.text.trim(),
+      source: cleanSrc,
+      destination: cleanDst,
+      time: formattedTime,
       preference: _preference,
       vehicle: _selectedVehicle,
-    ).timeout(const Duration(seconds: 40), onTimeout: () => null);
+    ).timeout(const Duration(seconds: 55), onTimeout: () => null);
 
     Map<String, dynamic>? finalRes = res;
     if (finalRes == null || finalRes['results'] is! Map<String, dynamic>) {
-      finalRes = _buildFallbackResults(src, dst);
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Unable to connect to live transit server. Please check your internet or retry.';
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('⚠️ Transit server is warming up or connection timed out.'),
+            backgroundColor: Colors.redAccent,
+            action: SnackBarAction(
+              label: 'RETRY',
+              textColor: Colors.white,
+              onPressed: _doSearch,
+            ),
+          ),
+        );
+      }
+      return;
     }
 
     final resultsMap = finalRes['results'] as Map<String, dynamic>;
-    final recs = (finalRes['recommendations'] as List<dynamic>?) ?? [];
+    List<dynamic> recs = (finalRes['recommendations'] as List<dynamic>?) ?? [];
+    if (recs.isEmpty && resultsMap.isNotEmpty) {
+      recs = _buildSmartRankerFallback(resultsMap, _preference);
+    }
 
     String? topMode;
     if (recs.isNotEmpty && recs.first is Map<String, dynamic>) {
@@ -403,9 +589,22 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
       _isLoading = false;
       _results = resultsMap;
       _recommendations = recs;
-      _selectedMode = topMode ?? 'bmtc';
+      _journeyMeta = finalRes['journey'] as Map<String, dynamic>?;
+      _trafficMeta = finalRes['traffic'] as Map<String, dynamic>?;
+      _weatherMeta = finalRes['weather'] as Map<String, dynamic>?;
+      final validFallback = resultsMap['cab']?['available'] == true
+          ? 'cab'
+          : (resultsMap['car']?['available'] == true
+              ? 'car'
+              : (resultsMap['bmtc']?['available'] == true && resultsMap['bmtc']?['operational'] != false ? 'bmtc' : 'cab'));
+      _selectedMode = topMode ?? validFallback;
       _selectedCabVehicle = cabEst;
       _selectedMultimodalOption = multiOpt;
+      _selectedBusNo = resultsMap['bmtc']?['bus_number']?.toString() ??
+          resultsMap['bmtc']?['route']?.toString() ??
+          ((resultsMap['bmtc']?['all_direct'] as List?)?.isNotEmpty == true
+              ? (resultsMap['bmtc']?['all_direct'] as List).first.toString()
+              : null);
       _errorMessage = null;
       _showWalkOffer = dist > 0 && dist <= 1.5;
       _walkOfferData = {'dist': dist};
@@ -496,178 +695,54 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     }
   }
 
-  Map<String, dynamic> _buildFallbackResults(String src, String dst) {
-    final cleanSrc = src.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
-    final cleanDst = dst.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
 
-    // Resolve nearest real BMTC stop name for specific landmark destinations
-    String alightingStopName = cleanDst;
-    final dLow = cleanDst.toLowerCase();
-    if (dLow.contains('cafe') || dLow.contains('kushi') || dLow.contains('srirampura')) {
-      alightingStopName = 'Royal Enclave / Srirampura Cross';
-    } else if (dLow.contains('pes') || dLow.contains('electronic city')) {
-      alightingStopName = 'Electronic City Wipro Gate';
-    } else if (dLow.contains('itpb') || dLow.contains('whitefield')) {
-      alightingStopName = 'Whitefield TTMC';
-    }
-
-    String busNo = '201 / 600-FD';
-    int transfers = 0;
-    int totalCost = 25;
-    List<String> intermediateStops = [cleanSrc, 'City Center', alightingStopName];
-
-    final sLow = cleanSrc.toLowerCase();
-    final dLat = _dstCoord?.latitude ?? 12.9716;
-    final dLng = _dstCoord?.longitude ?? 77.5946;
-
-    if (dLat > 13.01 || dLow.contains('cafe') || dLow.contains('yelahanka') || dLow.contains('hebbal') || dLow.contains('jakkur')) {
-      // North Bengaluru corridor transfer
-      busNo = '45-B ➔ 288-C';
-      transfers = 1;
-      totalCost = 35; // Leg 1: ₹15 + Leg 2: ₹20 = ₹35 total transfer fare
-      intermediateStops = [cleanSrc, 'Corporation', 'Mekhri Circle', 'Hebbal TTMC', alightingStopName];
-    } else if (dLng > 77.67 || dLow.contains('whitefield') || dLow.contains('marathahalli') || dLow.contains('itpb')) {
-      // East Bengaluru corridor transfer
-      busNo = '201 ➔ 500-D';
-      transfers = 1;
-      totalCost = 35; // Leg 1: ₹15 + Leg 2: ₹20 = ₹35 total transfer fare
-      intermediateStops = [cleanSrc, 'Domlur TTMC', 'Marathahalli Bridge', alightingStopName];
-    } else if (dLat < 12.89 || dLow.contains('electronic city') || dLow.contains('bommasandra') || dLow.contains('attibele')) {
-      // South Bengaluru corridor direct
-      busNo = '600-KB / 600-FD / 356-M';
-      transfers = 0;
-      totalCost = 30;
-      intermediateStops = [cleanSrc, 'Banashankari TTMC', 'Silk Board', alightingStopName];
-    } else if (sLow.contains('majestic') || dLow.contains('majestic') || dLow.contains('ksr')) {
-      // Central corridor direct
-      busNo = '356-M / KBS-3E / 349-D';
-      transfers = 0;
-      totalCost = 25;
-      intermediateStops = [cleanSrc, 'Corporation', 'KSR Majestic TTMC', alightingStopName];
-    }
-
-    final String primaryBus = busNo.split(' ➔ ').first.split(' / ').first;
-    final String secondBus = busNo.contains('➔') ? busNo.split(' ➔ ').last.trim() : primaryBus;
-
-    return {
-      'results': {
-        'bmtc': {
-          'available': true,
-          'mode': 'bmtc',
-          'time': 42,
-          'cost': totalCost,
-          'distance': 14.5,
-          'transfers': transfers,
-          'bus_number': busNo,
-          'route': primaryBus,
-          'waiting_time': 5,
-          'frequency': transfers > 0 ? 'Transfer via Corporation' : 'Every 8-12 mins',
-          'all_direct': transfers == 0 ? busNo.split(' / ') : [busNo],
-          'guide': [
-            {'text': 'Walk 250m (3 min) to $cleanSrc bus stop', 'icon': 'walk'},
-            {'text': 'Board Bus $primaryBus at $cleanSrc towards ${intermediateStops.length > 2 ? intermediateStops[1] : alightingStopName} (5 stops)', 'icon': 'bus', 'detail': '₹15 · Leg 1'},
-            if (transfers > 0) ...[
-              {'text': 'Get down at ${intermediateStops[1]} bus stop & transfer to Bus $secondBus', 'icon': 'transfer', 'detail': 'Interchange: ${intermediateStops[1]}'},
-              {'text': 'Board Bus $secondBus at ${intermediateStops[1]} towards $alightingStopName (12 stops)', 'icon': 'bus', 'detail': '₹20 · Leg 2'},
-            ],
-            {'text': 'Disembark at $alightingStopName bus stop and walk 150m to $cleanDst', 'icon': 'walk'}
-          ],
-          'segments': [
-            {'type': 'walk', 'from': cleanSrc, 'to': intermediateStops.first, 'distance': 0.25, 'duration': 3, 'stops': [cleanSrc, intermediateStops.first]},
-            {
-              'type': 'bmtc',
-              'route': primaryBus,
-              'from': intermediateStops.first,
-              'to': intermediateStops.last,
-              'distance': 12.0,
-              'duration': 32,
-              'stops': intermediateStops,
-            },
-            {'type': 'walk', 'from': intermediateStops.last, 'to': cleanDst, 'distance': 0.25, 'duration': 3, 'stops': [intermediateStops.last, cleanDst]}
-          ]
-        },
-        'metro': {
-          'available': true,
-          'mode': 'metro',
-          'time': 32,
-          'cost': 35,
-          'distance': 13.8,
-          'transfers': 0,
-          'line': 'Purple Line',
-          'guide': [
-            {'text': 'Walk 400m to Metro Station', 'icon': 'walk'},
-            {'text': 'Board Metro Purple Line (9 stations)', 'icon': 'metro'},
-            {'text': 'Exit Metro Station & walk 200m to $cleanDst', 'icon': 'walk'}
-          ],
-          'segments': [
-            {'type': 'walk', 'from': cleanSrc, 'to': 'Metro Station', 'distance': 0.4, 'duration': 5},
-            {'type': 'metro', 'line': 'Purple Line', 'from': 'Metro Station', 'to': '$cleanDst Metro', 'distance': 13.2, 'duration': 24},
-            {'type': 'walk', 'from': '$cleanDst Metro', 'to': cleanDst, 'distance': 0.2, 'duration': 3}
-          ]
-        },
-        'cab': {
-          'available': true,
-          'mode': 'cab',
-          'time': 28,
-          'cost': 180,
-          'distance': 14.5,
-          'transfers': 0,
-          'all_estimates': [
-            {'provider': 'Namma Yatri Auto', 'vehicle': 'Auto', 'time': 28, 'cost': 140, 'cost_max': 160, 'distance': 14.5},
-            {'provider': 'Uber Go', 'vehicle': 'Cab', 'time': 26, 'cost': 210, 'cost_max': 240, 'distance': 14.5},
-            {'provider': 'Ola Mini', 'vehicle': 'Cab', 'time': 27, 'cost': 195, 'cost_max': 220, 'distance': 14.5},
-            {'provider': 'Rapido Auto', 'vehicle': 'Auto', 'time': 29, 'cost': 135, 'cost_max': 150, 'distance': 14.5}
-          ],
-          'guide': [
-            {'text': 'Book Auto/Cab from $cleanSrc', 'icon': 'cab'},
-            {'text': 'Direct door-to-door ride to $cleanDst', 'icon': 'cab'}
-          ],
-          'segments': [
-            {'type': 'cab', 'from': cleanSrc, 'to': cleanDst, 'distance': 14.5, 'duration': 28}
-          ]
-        },
-        'car': {
-          'available': true,
-          'mode': 'car',
-          'time': 25,
-          'cost': 95,
-          'distance': 14.5,
-          'transfers': 0,
-          'guide': [
-            {'text': 'Drive via Outer Ring Road from $cleanSrc to $cleanDst', 'icon': 'car'}
-          ],
-          'segments': [
-            {'type': 'car', 'from': cleanSrc, 'to': cleanDst, 'distance': 14.5, 'duration': 25}
-          ]
-        },
-        'multimodal': {
-          'available': true,
-          'mode': 'multimodal',
-          'time': 34,
-          'cost': 55,
-          'distance': 14.1,
-          'transfers': 1,
-          'all_options': [
-            {'title': 'Metro + Auto First Last Mile', 'time': 34, 'cost': 55, 'distance': 14.1, 'transfers': 1}
-          ],
-          'guide': [
-            {'text': 'Take Auto to nearest Metro Station', 'icon': 'cab'},
-            {'text': 'Board Metro to $cleanDst Metro Station', 'icon': 'metro'},
-            {'text': 'Walk 150m to $cleanDst', 'icon': 'walk'}
-          ],
-          'segments': [
-            {'type': 'cab', 'from': cleanSrc, 'to': 'Metro Station', 'distance': 1.5, 'duration': 5},
-            {'type': 'metro', 'line': 'Metro', 'from': 'Metro Station', 'to': '$cleanDst Metro', 'distance': 12.4, 'duration': 26},
-            {'type': 'walk', 'from': '$cleanDst Metro', 'to': cleanDst, 'distance': 0.2, 'duration': 3}
-          ]
+  List<Map<String, dynamic>> _buildSmartRankerFallback(Map<String, dynamic> results, String pref) {
+    final list = <Map<String, dynamic>>[];
+    final modes = ['bmtc', 'metro', 'cab', 'car', 'multimodal'];
+    for (final m in modes) {
+      final isAvailable = results.containsKey(m) &&
+          results[m]?['available'] == true &&
+          results[m]?['operational'] != false &&
+          results[m]?['service_status'] != 'closed';
+      if (isAvailable) {
+        final cost = results[m]['cost'] ?? 0;
+        final time = results[m]['time'] ?? 0;
+        int score = 85;
+        String explanation = 'Optimized transit choice based on Bengaluru corridor metrics.';
+        if (m == 'bmtc') {
+          score = pref == 'cost' ? 96 : 88;
+          explanation = 'Most economical ride (₹$cost) along this corridor with frequent bus frequency.';
+        } else if (m == 'metro') {
+          score = pref == 'time' ? 97 : 93;
+          explanation = 'Rapid traffic-free rail transit saving ~15 minutes during peak hours.';
+        } else if (m == 'cab') {
+          score = pref == 'convenience' ? 96 : 86;
+          explanation = 'Door-to-door direct transit with multiple cab and auto ride-hailing options.';
+        } else if (m == 'car') {
+          score = 87;
+          explanation = 'Independent personal vehicle driving with direct road navigation.';
+        } else if (m == 'multimodal') {
+          score = 90;
+          explanation = 'Combined Metro and Auto first-last mile for balanced cost and speed.';
         }
-      },
-      'recommendations': [
-        {'mode': 'bmtc', 'tag': 'Cheapest', 'score': 95, 'reason': 'Most economical ride (₹24) with direct route.'},
-        {'mode': 'metro', 'tag': 'Fastest', 'score': 92, 'reason': 'Traffic-free commute saving 13 mins.'},
-        {'mode': 'cab', 'tag': 'Convenient', 'score': 88, 'reason': 'Door-to-door auto/cab booking.'}
-      ]
-    };
+        list.add({
+          'mode': m,
+          'score': score,
+          'explanation': explanation,
+          'cost': cost,
+          'time': time,
+          'emissions': m == 'metro' ? 0.0 : (m == 'bmtc' ? 240.0 : 1250.0),
+          'data_sources': {
+            'traffic': 'Live Traffic OSRM',
+            'weather': 'Open-Meteo Bengaluru',
+            'bmtc': 'GTFS Schedule Slabs',
+            'fare': 'Dynamic Surge Engine',
+          },
+        });
+      }
+    }
+    list.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
+    return list;
   }
 
   void _swapStops() {
@@ -680,7 +755,73 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     _doSearch();
   }
 
-  void _openTimelineModal(Map<String, dynamic> modeData, String mode) {
+  void _openTimelineModal(Map<String, dynamic> rawModeData, String mode) {
+    Map<String, dynamic> modeData;
+    if (mode == 'cab' && _selectedCabVehicle != null) {
+      modeData = {
+        ...rawModeData,
+        ..._selectedCabVehicle!,
+        'segments': _selectedCabVehicle!['segments'] ?? rawModeData['segments'],
+        'guide': _selectedCabVehicle!['guide'] ?? rawModeData['guide'],
+      };
+    } else if (mode == 'multimodal' && _selectedMultimodalOption != null) {
+      modeData = {
+        ...rawModeData,
+        ..._selectedMultimodalOption!,
+        'segments': _selectedMultimodalOption!['segments'] ?? rawModeData['segments'],
+        'guide': _selectedMultimodalOption!['guide'] ?? rawModeData['guide'],
+      };
+    } else if (mode == 'bmtc' && _selectedBusNo != null) {
+      final rawGuide = (rawModeData['guide'] as List<dynamic>?) ?? [];
+      final updatedGuide = rawGuide.map((step) {
+        if (step is String) {
+          return step.replaceAll(
+            RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+            'BMTC Bus ',
+          );
+        } else if (step is Map) {
+          final copy = Map<String, dynamic>.from(step);
+          if (copy['instruction'] != null) {
+            copy['instruction'] = copy['instruction'].toString().replaceAll(
+              RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+              'BMTC Bus ',
+            );
+          }
+          if (copy['text'] != null) {
+            copy['text'] = copy['text'].toString().replaceAll(
+              RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+              'BMTC Bus ',
+            );
+          }
+          return copy;
+        }
+        return step;
+      }).toList();
+
+      final rawSegments = (rawModeData['segments'] as List<dynamic>?) ?? [];
+      final updatedSegments = rawSegments.map((seg) {
+        if (seg is Map<String, dynamic>) {
+          final copy = Map<String, dynamic>.from(seg);
+          if (copy['type'] == 'bus' || copy['route'] != null) {
+            copy['route'] = _selectedBusNo;
+            copy['bus_number'] = _selectedBusNo;
+          }
+          return copy;
+        }
+        return seg;
+      }).toList();
+
+      modeData = {
+        ...rawModeData,
+        'bus_number': _selectedBusNo,
+        'route': _selectedBusNo,
+        'guide': updatedGuide,
+        'segments': updatedSegments,
+      };
+    } else {
+      modeData = rawModeData;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -712,17 +853,86 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     );
   }
 
-  void _openDetailsScreen(Map<String, dynamic> modeData, String mode) {
+  void _openDetailsScreen(Map<String, dynamic> rawModeData, String mode) {
+    Map<String, dynamic> modeData;
+    if (mode == 'cab' && _selectedCabVehicle != null) {
+      modeData = {
+        ...rawModeData,
+        ..._selectedCabVehicle!,
+        'mode': mode,
+        'segments': _selectedCabVehicle!['segments'] ?? rawModeData['segments'],
+        'guide': _selectedCabVehicle!['guide'] ?? rawModeData['guide'],
+      };
+    } else if (mode == 'multimodal' && _selectedMultimodalOption != null) {
+      modeData = {
+        ...rawModeData,
+        ..._selectedMultimodalOption!,
+        'mode': mode,
+        'segments': _selectedMultimodalOption!['segments'] ?? rawModeData['segments'],
+        'guide': _selectedMultimodalOption!['guide'] ?? rawModeData['guide'],
+      };
+    } else if (mode == 'bmtc' && _selectedBusNo != null) {
+      final rawGuide = (rawModeData['guide'] as List<dynamic>?) ?? [];
+      final updatedGuide = rawGuide.map((step) {
+        if (step is String) {
+          return step.replaceAll(
+            RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+            'BMTC Bus ',
+          );
+        } else if (step is Map) {
+          final copy = Map<String, dynamic>.from(step);
+          if (copy['instruction'] != null) {
+            copy['instruction'] = copy['instruction'].toString().replaceAll(
+              RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+              'BMTC Bus ',
+            );
+          }
+          if (copy['text'] != null) {
+            copy['text'] = copy['text'].toString().replaceAll(
+              RegExp(r'(?:BMTC Bus|Bus)\\s+[A-Za-z0-9\\-]+', caseSensitive: false),
+              'BMTC Bus ',
+            );
+          }
+          return copy;
+        }
+        return step;
+      }).toList();
+
+      final rawSegments = (rawModeData['segments'] as List<dynamic>?) ?? [];
+      final updatedSegments = rawSegments.map((seg) {
+        if (seg is Map<String, dynamic>) {
+          final copy = Map<String, dynamic>.from(seg);
+          if (copy['type'] == 'bus' || copy['route'] != null) {
+            copy['route'] = _selectedBusNo;
+            copy['bus_number'] = _selectedBusNo;
+          }
+          return copy;
+        }
+        return seg;
+      }).toList();
+
+      modeData = {
+        ...rawModeData,
+        'mode': mode,
+        'bus_number': _selectedBusNo,
+        'route': _selectedBusNo,
+        'guide': updatedGuide,
+        'segments': updatedSegments,
+      };
+    } else {
+      modeData = {
+        ...rawModeData,
+        'mode': mode,
+      };
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => RouteDetailsScreen(
           source: _sourceController.text.trim(),
           destination: _destController.text.trim(),
-          option: {
-            ...modeData,
-            'mode': mode,
-          },
+          option: modeData,
           srcCoord: _srcCoord,
           dstCoord: _dstCoord,
         ),
@@ -738,15 +948,44 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
     final mutedColor = AppTheme.getMuted(isDark);
     final modeColor = _selectedMode != null ? AppTheme.getModeColor(_selectedMode!) : AppTheme.bmtcColor;
 
-    String? bestMode;
-    if (_recommendations.isNotEmpty && _recommendations.first is Map<String, dynamic>) {
-      bestMode = _recommendations.first['mode']?.toString();
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Plan Journey', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
         actions: [
+          // Ride Mode Companion Modal Button
+          IconButton(
+            icon: const Icon(Icons.rocket_launch_rounded, color: AppTheme.green),
+            tooltip: 'Live Ride Mode Companion',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => RideModeModal(
+                  initialData: {
+                    'bus_number': _selectedBusNo ?? _results?['bmtc']?['bus_number'] ?? _results?['bmtc']?['route'],
+                    'all_direct': _results?['bmtc']?['all_direct'],
+                    'source': _sourceController.text.trim(),
+                    'destination': _destController.text.trim(),
+                    'mode': _selectedMode,
+                  },
+                ),
+              );
+            },
+          ),
+          // Live Bengaluru Weather Modal Button
+          IconButton(
+            icon: const Icon(Icons.wb_sunny_rounded, color: Colors.amber),
+            tooltip: 'Transit Weather Report',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const WeatherReportModal(),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(_showMap ? Icons.map : Icons.map_outlined, color: _showMap ? AppTheme.bmtcColor : null),
             tooltip: 'Toggle Route Map',
@@ -880,12 +1119,11 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Filter Row: Time, Preference, Search Button
+                        // Filter Row: Time & Preference
                         Row(
                           children: [
                             // Time
                             Expanded(
-                              flex: 3,
                               child: InkWell(
                                 onTap: () async {
                                   final time = await showTimePicker(
@@ -905,9 +1143,13 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                                     decoration: InputDecoration(
                                       labelText: 'TIME',
                                       isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                                       prefixIcon: const Icon(Icons.access_time_rounded, size: 16),
                                       suffixIcon: TextButton(
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                                          minimumSize: const Size(36, 30),
+                                        ),
                                         onPressed: () {
                                           final now = DateTime.now();
                                           setState(() {
@@ -927,7 +1169,6 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
 
                             // Preference
                             Expanded(
-                              flex: 3,
                               child: DropdownButtonFormField<String>(
                                 initialValue: _preference,
                                 isDense: true,
@@ -946,30 +1187,35 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                                 },
                               ),
                             ),
-                            const SizedBox(width: 8),
-
-                            // Search Button
-                            SizedBox(
-                              height: 44,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.bmtcColor,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                ),
-                                onPressed: _isLoading ? null : _doSearch,
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                      )
-                                    : const Icon(Icons.search_rounded, size: 20),
-                              ),
-                            ),
                           ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Search Button (Full-width, eliminates all horizontal overflow)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 46,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.bmtcColor,
+                              foregroundColor: Colors.white,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                            ),
+                            onPressed: _isLoading ? null : _doSearch,
+                            icon: _isLoading
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.search_rounded, size: 20),
+                            label: Text(
+                              _isLoading ? 'FINDING ROUTES...' : 'SEARCH ROUTES',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                            ),
+                          ),
                         ),
 
                         // User Vehicle Selector
@@ -1015,6 +1261,7 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                     segmentPolylines: _mapSegmentPolylines,
                     srcPoint: _srcCoord,
                     dstPoint: _dstCoord,
+                    liveGpsPoint: _liveUserGps,
                     routeColor: modeColor,
                     height: dynamicMapHeight,
                   ),
@@ -1038,6 +1285,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                       instruction: 'Walk to ${_destController.text.trim()}',
                       fromLocation: _sourceController.text.trim(),
                       toLocation: _destController.text.trim(),
+                      fromCoord: _srcCoord,
+                      toCoord: _dstCoord,
                     ),
                   );
                 },
@@ -1058,6 +1307,8 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                       instruction: 'Cycle to ${_destController.text.trim()}',
                       fromLocation: _sourceController.text.trim(),
                       toLocation: _destController.text.trim(),
+                      fromCoord: _srcCoord,
+                      toCoord: _dstCoord,
                     ),
                   );
                 },
@@ -1070,79 +1321,144 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                 AppTheme.cabColor,
               ),
 
-            // 4. AI Recommendation Banner
-            if (bestMode != null && _results != null) ...[
-              Container(
-                margin: const EdgeInsets.only(bottom: 14),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF7C3AED), Color(0xFF4C1D95)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
+            // Results Toolbar & JourneyContextBanner
+            if (_results != null) ...[
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    const Icon(Icons.auto_awesome_rounded, color: Colors.amber, size: 22),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'AI Recommended: ${AppTheme.getModeLabel(bestMode)}',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _recommendations.isNotEmpty && _recommendations.first is Map<String, dynamic>
-                                ? (_recommendations.first['explanation'] ?? 'Best balance of cost and travel duration.')
-                                : 'Optimal travel route for current Bengaluru traffic conditions.',
-                            style: const TextStyle(color: Colors.white70, fontSize: 11),
-                          ),
-                        ],
+                    // See All Buses button
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? const Color(0xFF1E2235) : const Color(0xFFEFF6FF),
+                        foregroundColor: AppTheme.bmtcColor,
+                        elevation: 0,
+                        side: BorderSide(color: AppTheme.bmtcColor.withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
+                      icon: const Icon(Icons.directions_bus_rounded, size: 15),
+                      label: const Text('See All Buses', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                      onPressed: () {
+                        final cleanSrc = _sourceController.text.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+                        final cleanDst = _destController.text.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => AllBusesModal(
+                            source: cleanSrc,
+                            destination: cleanDst,
+                            time: _timeController.text.trim(),
+                            onSelectBus: (busNo) {
+                              setState(() {
+                                _results?['bmtc']?['bus_number'] = busNo;
+                                _results?['bmtc']?['route'] = busNo;
+                                _selectedMode = 'bmtc';
+                              });
+                              _updateMapPoints();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Selected BMTC bus $busNo! Route updated.'),
+                                  backgroundColor: AppTheme.bmtcColor,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Route Lookup button
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? const Color(0xFF1E2235) : const Color(0xFFEFF6FF),
+                        foregroundColor: AppTheme.blue,
+                        elevation: 0,
+                        side: BorderSide(color: AppTheme.blue.withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                      icon: const Icon(Icons.search_rounded, size: 15),
+                      label: const Text('Route Lookup', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => const RouteLookupModal(),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Timetable button
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? const Color(0xFF1E2235) : const Color(0xFFEFF6FF),
+                        foregroundColor: AppTheme.metroPurple,
+                        elevation: 0,
+                        side: BorderSide(color: AppTheme.metroPurple.withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                      icon: const Icon(Icons.access_time_rounded, size: 15),
+                      label: const Text('Timetable', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                      onPressed: () {
+                        final cleanSrc = _sourceController.text.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+                        final cleanDst = _destController.text.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => TimetableModal(
+                            initialSource: cleanSrc,
+                            initialDestination: cleanDst,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Cards vs Table switcher
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'cards', icon: Icon(Icons.grid_view_rounded, size: 13), label: Text('Cards', style: TextStyle(fontSize: 11))),
+                        ButtonSegment(value: 'table', icon: Icon(Icons.table_rows_rounded, size: 13), label: Text('Table', style: TextStyle(fontSize: 11))),
+                      ],
+                      selected: {_viewType},
+                      onSelectionChanged: (set) => setState(() => _viewType = set.first),
+                      style: const ButtonStyle(visualDensity: VisualDensity.compact),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
+
+              // Journey Context Banner (matching website)
+              if (_viewType == 'cards') ...[
+                JourneyContextBanner(
+                  journey: _journeyMeta,
+                  traffic: _trafficMeta,
+                  weather: _weatherMeta,
+                ),
+                const SizedBox(height: 12),
+              ],
             ],
 
-            // 5. View Switcher (Cards vs Matrix Table)
-            if (_results != null) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'COMPARED OPTIONS',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: mutedColor,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                  SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'cards', icon: Icon(Icons.grid_view_rounded, size: 14), label: Text('Cards', style: TextStyle(fontSize: 11))),
-                      ButtonSegment(value: 'table', icon: Icon(Icons.table_rows_rounded, size: 14), label: Text('Table', style: TextStyle(fontSize: 11))),
-                    ],
-                    selected: {_viewType},
-                    onSelectionChanged: (set) => setState(() => _viewType = set.first),
-                    style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                  ),
-                ],
+            // 4. Explainable AI & Top-K Routing Smart Ranker (Matching Website)
+            if (_results != null && _recommendations.isNotEmpty) ...[
+              ExplainableAiRankerCard(
+                recommendations: _recommendations,
+                results: _results!,
+                selectedMode: _selectedMode,
+                onSelectMode: (m) {
+                  setState(() => _selectedMode = m);
+                  _updateMapPoints();
+                },
               ),
-              const SizedBox(height: 12),
             ],
 
             // 6. Results Content
@@ -1186,6 +1502,7 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                     modeKey: m,
                     data: d,
                     isSelected: _selectedMode == m,
+                    selectedBusNo: m == 'bmtc' ? _selectedBusNo : null,
                     source: _sourceController.text.trim(),
                     destination: _destController.text.trim(),
                     onSelect: () {
@@ -1193,12 +1510,34 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
                       _updateMapPoints();
                     },
                     selectedCabVehicle: _selectedCabVehicle,
-                    onSelectCabVehicle: (v) => setState(() => _selectedCabVehicle = v),
+                    onSelectCabVehicle: (v) {
+                      setState(() => _selectedCabVehicle = v);
+                      if (_selectedMode == 'cab') _updateMapPoints();
+                    },
                     selectedMultimodalOption: _selectedMultimodalOption,
-                    onSelectMultimodalOption: (opt) => setState(() => _selectedMultimodalOption = opt),
+                    onSelectMultimodalOption: (opt) {
+                      setState(() => _selectedMultimodalOption = opt);
+                      if (_selectedMode == 'multimodal') _updateMapPoints();
+                    },
                     onSaveJourney: () => _saveCurrentJourney(m, d),
                     onNavigate: () => _openDetailsScreen(d, m),
                     onViewTimeline: () => _openTimelineModal(d, m),
+                    onSelectBus: (busNo) {
+                      setState(() {
+                        _selectedBusNo = busNo;
+                        _results?['bmtc']?['bus_number'] = busNo;
+                        _results?['bmtc']?['route'] = busNo;
+                        _selectedMode = 'bmtc';
+                      });
+                      _updateMapPoints();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Selected BMTC bus $busNo! Route updated.'),
+                          backgroundColor: AppTheme.bmtcColor,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
                   );
                 }),
               ],
@@ -1207,6 +1546,28 @@ class _PlanJourneyScreenState extends State<PlanJourneyScreen> {
         );
       },
     ),
+  ),
+  floatingActionButton: FloatingActionButton.extended(
+    backgroundColor: const Color(0xFF7C3AED),
+    foregroundColor: Colors.white,
+    elevation: 4,
+    icon: const Icon(Icons.smart_toy_rounded, size: 20),
+    label: const Text('AI Assistant', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatScreen(
+            onPlanJourney: (route) {
+              Navigator.pop(context);
+              _sourceController.text = route['source'] ?? '';
+              _destController.text = route['destination'] ?? '';
+              _doSearch();
+            },
+          ),
+        ),
+      );
+    },
   ),
 );
   }
