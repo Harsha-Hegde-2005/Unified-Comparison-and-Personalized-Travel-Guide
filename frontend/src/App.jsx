@@ -5571,7 +5571,7 @@ function ResultCard({
   const [tab, setTab] = useState(null);
   const [cabFilter, setCabFilter] = useState("all");
   const [cabProviderFilter, setCabProviderFilter] = useState("all");
-  const m = MC[modeKey];
+  const m = MC[modeKey] || { label: modeKey, short: modeKey, color: C.accent, bg: C.surface, icon: "route", line: "" };
   const isSelected = selected === modeKey;
 
   // Compute real duration from segment_times if available
@@ -10223,7 +10223,7 @@ function LandingPage({ onLoginClick, onSignUpClick, isMobile = false }) {
   );
 }
 
-export default function App() {
+function AppContent() {
   const [token, setToken] = useState(localStorage.getItem("token") || "demo_token");
   const [user, setUser] = useState(localStorage.getItem("username") || "Demo User");
   const [showAuth, setShowAuth] = useState(false);
@@ -10290,6 +10290,42 @@ export default function App() {
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const watchIdRef = useRef(null);
   const simTimerRef = useRef(null);
+
+  const handleStartNavigation = () => {
+    setIsNavigating(true);
+    setActiveStepIndex(0);
+    if (navigator.geolocation) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          setCurrentGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          if (pos.coords.speed !== null && pos.coords.speed !== undefined) {
+            setGpsSpeed(Math.round(pos.coords.speed * 3.6));
+          }
+          if (pos.coords.heading !== null && pos.coords.heading !== undefined) {
+            setGpsHeading(pos.coords.heading);
+          }
+        },
+        (err) => console.warn("GPS tracking warning:", err),
+        { enableHighAccuracy: true, maximumAge: 1500, timeout: 10000 }
+      );
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleStopNavigation = () => {
+    setIsNavigating(false);
+    if (watchIdRef.current !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (simTimerRef.current) {
+      clearInterval(simTimerRef.current);
+      simTimerRef.current = null;
+    }
+  };
   const [pref, setPref] = useState("cost");
   const [results, setResults] = useState(null);
   const [journeyMeta, setJourneyMeta] = useState(null);
@@ -10452,7 +10488,9 @@ export default function App() {
       setTrafficMeta(res.traffic || null);
       setWeatherMeta(res.weather || null);
 
-      const topMode = res.recommendations && res.recommendations.length > 0 ? res.recommendations[0].mode : null;
+      const topMode = (res.recommendations && res.recommendations.length > 0)
+        ? res.recommendations[0].mode
+        : (res.results ? Object.keys(res.results)[0] : "bmtc");
       setSelected(topMode);
 
       setSelectedCabVehicle(res.results?.cab?.all_estimates?.[0] || null);
@@ -11639,9 +11677,9 @@ export default function App() {
                         key={mk}
                         onClick={() => { setSelected(mk); setModeDetailPage(mk); }}
                         style={{
-                          background: isCur ? MC[mk].color : C.card,
+                          background: isCur ? (MC[mk]?.color || C.accent) : C.card,
                           color: isCur ? "#ffffff" : C.muted,
-                          border: `1px solid ${isCur ? MC[mk].color : C.border2}`,
+                          border: `1px solid ${isCur ? (MC[mk]?.color || C.accent) : C.border2}`,
                           borderRadius: 10,
                           padding: "7px 14px",
                           fontSize: 12,
@@ -11652,11 +11690,11 @@ export default function App() {
                           gap: 6,
                           whiteSpace: "nowrap",
                           fontFamily: "inherit",
-                          boxShadow: isCur ? `0 4px 12px ${MC[mk].color}33` : "none"
+                          boxShadow: isCur ? `0 4px 12px ${(MC[mk]?.color || C.accent)}33` : "none"
                         }}
                       >
-                        <Ic n={MC[mk].icon} s={14} c={isCur ? "#ffffff" : MC[mk].color} />
-                        {MC[mk].short || MC[mk].label}
+                        <Ic n={MC[mk]?.icon || "route"} s={14} c={isCur ? "#ffffff" : (MC[mk]?.color || C.accent)} />
+                        {MC[mk]?.short || MC[mk]?.label || mk}
                       </button>
                     );
                   })}
@@ -11724,8 +11762,8 @@ export default function App() {
                   {/* Action Bar for Dedicated Mode Page: Ride Mode + Start Navigation + Save */}
                   <div style={{
                     marginTop: 16,
-                    background: `linear-gradient(135deg, ${MC[modeDetailPage]?.color}18, ${MC[modeDetailPage]?.color}08)`,
-                    border: `1.5px solid ${MC[modeDetailPage]?.color}44`,
+                    background: `linear-gradient(135deg, ${(MC[modeDetailPage]?.color || C.accent)}18, ${(MC[modeDetailPage]?.color || C.accent)}08)`,
+                    border: `1.5px solid ${(MC[modeDetailPage]?.color || C.accent)}44`,
                     borderRadius: 16,
                     padding: "16px 20px",
                     display: "flex",
@@ -11736,8 +11774,8 @@ export default function App() {
                   }}>
                     <div>
                       <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase" }}>Selected Mode</div>
-                      <div style={{ fontSize: 16, fontWeight: 900, color: C.text }}>{MC[modeDetailPage]?.label}</div>
-                      <div style={{ fontSize: 12, color: MC[modeDetailPage]?.color, marginTop: 2, fontWeight: 600 }}>
+                      <div style={{ fontSize: 16, fontWeight: 900, color: C.text }}>{MC[modeDetailPage]?.label || modeDetailPage || "Transit"}</div>
+                      <div style={{ fontSize: 12, color: MC[modeDetailPage]?.color || C.accent, marginTop: 2, fontWeight: 600 }}>
                         {selectedData?.time ? `${selectedData.time} min · ₹${selectedData.cost} · ${selectedData.distance} km` : "Ready to travel"}
                       </div>
                     </div>
@@ -11936,7 +11974,7 @@ export default function App() {
                   <div style={{ fontSize: 24 }}>🌙</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 16, fontWeight: 800, color: "#f87171" }}>
-                      {MC[selected]?.label || selected.toUpperCase()} Closed at Selected Departure Time
+                      {MC[selected]?.label || (selected ? selected.toUpperCase() : "TRANSIT")} Closed at Selected Departure Time
                     </div>
                     <div style={{ fontSize: 13, color: C.muted, marginTop: 4, lineHeight: 1.4 }}>
                       {selectedData.error || selectedData.message || "Transit services are non-operational at selected departure hours (05:00 AM – 11:30 PM)."}
@@ -11955,11 +11993,11 @@ export default function App() {
 
               {/* CTA for Cards View */}
               {!modeDetailPage && selectedData?.available && selectedData?.operational !== false && (
-                <div style={{ marginTop: 20, background: `linear-gradient(135deg, ${MC[selected].color}18, ${MC[selected].color}06)`, border: `1.5px solid ${MC[selected].color}44`, borderRadius: 16, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <div style={{ marginTop: 20, background: `linear-gradient(135deg, ${(MC[selected]?.color || C.accent)}18, ${(MC[selected]?.color || C.accent)}06)`, border: `1.5px solid ${(MC[selected]?.color || C.accent)}44`, borderRadius: 16, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                   <div>
                     <div style={{ fontSize: 12, color: C.muted }}>You selected</div>
-                    <div style={{ fontSize: 18, fontWeight: 900 }}>{MC[selected].label}</div>
-                    <div style={{ fontSize: 13, color: MC[selected].color, marginTop: 2 }}>
+                    <div style={{ fontSize: 18, fontWeight: 900 }}>{MC[selected]?.label || selected || "Selected Option"}</div>
+                    <div style={{ fontSize: 13, color: MC[selected]?.color || C.accent, marginTop: 2 }}>
                       {selectedData.time} min · ₹{selectedData.cost} · {selectedData.transfers} transfer(s) · {selectedData.distance} km
                     </div>
                   </div>
@@ -11994,7 +12032,7 @@ export default function App() {
                     >
                       <span>🚀</span> Ride Mode
                     </button>
-                    <button onClick={handleStartNavigation} style={{ background: MC[selected].color, border: "none", borderRadius: 10, padding: "10px 22px", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: `0 4px 20px ${MC[selected].color}44`, display: "flex", alignItems: "center", gap: 6 }}>
+                    <button onClick={handleStartNavigation} style={{ background: MC[selected]?.color || C.accent, border: "none", borderRadius: 10, padding: "10px 22px", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: `0 4px 20px ${(MC[selected]?.color || C.accent)}44`, display: "flex", alignItems: "center", gap: 6 }}>
                       <Ic n="share" s={14} c="white" /> Start Navigation
                     </button>
                     <button onClick={handleSaveJourney} disabled={saving} style={{ background: "none", border: `1px solid ${C.border2}`, borderRadius: 10, padding: "10px 16px", color: C.muted, fontSize: 12, cursor: saving ? "wait" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
@@ -12684,5 +12722,83 @@ export default function App() {
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
       `}</style>
     </div>
+  );
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("BengaluruGo ErrorBoundary caught an error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+          background: "#0c0e14",
+          color: "#f8fafc",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          textAlign: "center"
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🧭</div>
+          <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 8px 0" }}>BengaluruGo Encountered an Issue</h2>
+          <p style={{ fontSize: 13, color: "#94a3b8", maxWidth: 400, margin: "0 0 20px 0", lineHeight: 1.5 }}>
+            {this.state.error?.message || "An unexpected error occurred while rendering the journey view."}
+          </p>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
+              style={{
+                background: "linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)",
+                border: "none",
+                borderRadius: 12,
+                color: "white",
+                padding: "10px 20px",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              Reload Page
+            </button>
+            <button
+              onClick={() => { this.setState({ hasError: false }); window.location.href = "/"; }}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: 12,
+                color: "#cbd5e1",
+                padding: "10px 20px",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              Return to Home
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 }

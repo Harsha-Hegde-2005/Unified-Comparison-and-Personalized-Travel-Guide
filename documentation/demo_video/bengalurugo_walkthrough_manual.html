@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BengaluruGo · Comprehensive Video Demo & Project Manual</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0a1a;
+      --card: #181428;
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #7c3aed;
+      --primary-light: #a855f7;
+      --accent: #ec4899;
+      --text: #f3f0ff;
+      --muted: #948ea5;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --info: #0ea5e9;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+    header {
+      background: rgba(24, 20, 40, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
+    }
+    .brand-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+    .brand-subtitle {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge {
+      background: rgba(124, 58, 237, 0.15);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      color: #c084fc;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-download {
+      background: linear-gradient(135deg, var(--primary), #9333ea);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .btn-download:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(124, 58, 237, 0.4);
+    }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 24px;
+      padding: 24px 28px;
+      max-width: 1700px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    @media (max-width: 1150px) {
+      main { grid-template-columns: 1fr; }
+    }
+    .player-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .screen-stage {
+      background: #141122;
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      position: relative;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+    }
+    .stage-header {
+      background: rgba(26, 22, 42, 0.9);
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    .stage-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--success);
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .stage-body {
+      flex: 1;
+      padding: 24px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: radial-gradient(circle at top right, rgba(124, 58, 237, 0.15), transparent 60%);
+    }
+    .chapter-tag {
+      align-self: flex-start;
+      background: rgba(236, 72, 153, 0.15);
+      color: #f472b6;
+      border: 1px solid rgba(236, 72, 153, 0.3);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .chapter-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 26px;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+    .chapter-desc {
+      font-size: 14px;
+      color: var(--muted);
+      max-width: 90%;
+      line-height: 1.5;
+    }
+    .demo-viewport {
+      margin-top: 14px;
+      flex: 1;
+      background: #0f0d1b;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .demo-graphic-card {
+      background: #19152b;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .demo-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(124, 58, 237, 0.2);
+      color: #c084fc;
+    }
+    .demo-points {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 12.5px;
+    }
+    .demo-pt {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      color: #e2e0ea;
+    }
+    .demo-pt::before {
+      content: '✔';
+      color: #a855f7;
+      font-weight: 800;
+    }
+    .interactive-mockup {
+      background: #151125;
+      border: 1px dashed rgba(168, 85, 247, 0.3);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      gap: 8px;
+    }
+    .mockup-icon {
+      font-size: 32px;
+    }
+    .mockup-label {
+      font-size: 13px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .mockup-sub {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .subtitles-banner {
+      background: rgba(13, 10, 26, 0.85);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 10px 20px;
+      font-size: 13px;
+      color: #fed7aa;
+      font-weight: 600;
+      text-align: center;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.01em;
+    }
+    .controls-bar {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 14px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .scrubber-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .time-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      min-width: 90px;
+    }
+    .scrubber {
+      flex: 1;
+      height: 6px;
+      background: #2a2442;
+      border-radius: 3px;
+      position: relative;
+      cursor: pointer;
+    }
+    .scrubber-progress {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      border-radius: 3px;
+      width: 0%;
+      position: relative;
+    }
+    .scrubber-handle {
+      position: absolute;
+      right: -6px;
+      top: -4px;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(236, 72, 153, 0.8);
+      cursor: grab;
+    }
+    .buttons-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .left-controls, .right-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .ctrl-btn {
+      background: #251f38;
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+    .ctrl-btn:hover {
+      background: #342b4e;
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    .ctrl-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary-light);
+    }
+    .chapters-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 720px;
+      overflow-y: auto;
+    }
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chapter-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .chapter-item {
+      background: #201a33;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s ease;
+    }
+    .chapter-item:hover {
+      background: #2c2445;
+      border-color: rgba(168, 85, 247, 0.3);
+    }
+    .chapter-item.active {
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(236, 72, 153, 0.15));
+      border: 1px solid var(--primary-light);
+    }
+    .ch-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      background: #2d2448;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: #c084fc;
+      flex-shrink: 0;
+    }
+    .chapter-item.active .ch-num {
+      background: var(--primary);
+      color: #fff;
+    }
+    .ch-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .ch-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ch-time {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .manual-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 13px;
+      padding: 6px 12px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: rgba(124, 58, 237, 0.2);
+      color: #c084fc;
+    }
+    .manual-content {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #d1cde0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .code-block {
+      background: #0f0c1a;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      color: #a7f3d0;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🚌</div>
+      <div>
+        <div class="brand-title">BengaluruGo</div>
+        <div class="brand-subtitle">COMPREHENSIVE VIDEO MANUAL & DEMO WALKTHROUGH</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="badge">
+        <span class="pulse-dot"></span>
+        <span>PRODUCTION VERIFIED</span>
+      </div>
+      <a class="btn-download" href="BengaluruGo_Mobile_Demo_Walkthrough.mp4" download="BengaluruGo_Mobile_Demo_Walkthrough.mp4">
+        <span>⬇ Download Mobile Demo MP4</span>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Column: Video Stage & Controls -->
+    <div class="player-container">
+      <div class="screen-stage" id="screenStage">
+        <div class="stage-header">
+          <div class="stage-status">
+            <span class="pulse-dot"></span>
+            <span id="stageStatusText">Interactive Demo Player · Ready</span>
+          </div>
+          <div id="stageChapterIndicator" style="color: var(--muted); font-weight: 700;">
+            Chapter 1 of 12
+          </div>
+        </div>
+
+        <div class="stage-body">
+          <div>
+            <div class="chapter-tag" id="chTag">OVERVIEW</div>
+            <div class="chapter-title" id="chTitle">1. Welcome to BengaluruGo - Project Overview</div>
+            <div class="chapter-desc" id="chDesc">
+              Bengaluru's Unified Multi-Modal Transit Guide & Intelligent Commute Ecosystem.
+            </div>
+          </div>
+
+          <div class="demo-viewport" id="demoViewport">
+            <div class="demo-graphic-card">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span class="demo-pill" id="demoPill">Feature Breakdown</span>
+                <span style="font-size: 11px; color: #a855f7; font-weight: 700;">LIVE DEMO</span>
+              </div>
+              <div class="demo-points" id="demoPointsList">
+                <div class="demo-pt">Unified Multi-Modal Transit Comparison (BMTC, Metro, Auto, Cab, Bike, Walk).</div>
+                <div class="demo-pt">Real-time timetable lookup and bidirectional ride mode navigation.</div>
+                <div class="demo-pt">Non-scrollable 1-page modern home dashboard with dynamic greeting.</div>
+              </div>
+            </div>
+
+            <div class="interactive-mockup" id="demoMockup">
+              <div class="mockup-icon" id="mockupIcon">🗺️</div>
+              <div class="mockup-label" id="mockupLabel">Unified Routing Engine</div>
+              <div class="mockup-sub" id="mockupSub">Simulating real-time GTFS transit queries & multi-modal transfers across Bengaluru.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="subtitles-banner" id="subtitleBox">
+          "Welcome to BengaluruGo! This comprehensive video manual provides an in-depth walkthrough of every feature, algorithm, and user workflow."
+        </div>
+      </div>
+
+      <!-- Video Control Bar -->
+      <div class="controls-bar">
+        <div class="scrubber-row">
+          <span class="time-display" id="currentTime">00:00</span>
+          <div class="scrubber" id="scrubberBar">
+            <div class="scrubber-progress" id="scrubberFill">
+              <div class="scrubber-handle"></div>
+            </div>
+          </div>
+          <span class="time-display" id="totalDuration">02:24</span>
+        </div>
+
+        <div class="buttons-row">
+          <div class="left-controls">
+            <button class="ctrl-btn" id="prevBtn">⏮ Prev</button>
+            <button class="ctrl-btn active" id="playBtn">▶ Play</button>
+            <button class="ctrl-btn" id="nextBtn">Next ⏭</button>
+            <button class="ctrl-btn" id="voiceToggleBtn">🔊 Voiceover: ON</button>
+          </div>
+          <div class="right-controls">
+            <button class="ctrl-btn" id="speedBtn">1.0x</button>
+            <button class="ctrl-btn" id="fullscreenBtn">⛶ Fullscreen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Manual & Chapter Index -->
+    <div class="chapters-card">
+      <div class="card-title">
+        <span>📖 Project Manual & Chapters</span>
+        <span style="font-size: 11px; color: var(--muted); font-weight: 600;">12 Modules</span>
+      </div>
+
+      <div class="manual-tabs">
+        <button class="tab-btn active" id="tabChapters">Chapters</button>
+        <button class="tab-btn" id="tabManual">Technical Manual</button>
+      </div>
+
+      <!-- Chapter Items -->
+      <div class="chapter-list" id="chapterListContainer">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Manual Content Details -->
+      <div class="manual-content" id="manualContentBox" style="display: none;">
+        <div style="font-weight: 800; color: #fff; font-size: 14px;" id="manualHeading">Module Specifications</div>
+        <p id="manualText">Detailed technical specifications, algorithmic flow, API calls, and edge cases handled by this module.</p>
+        <div style="font-weight: 700; color: #a855f7; font-size: 12px;">Endpoint / Method</div>
+        <div class="code-block" id="manualCode">GET /api/routes?src=SilkBoard&dst=Hebbal</div>
+        <div style="font-weight: 700; color: #38bdf8; font-size: 12px;">Operational Instructions</div>
+        <ul style="padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 12px;" id="manualInstructions">
+          <li>1. Enter source and destination in the Plan Journey tab.</li>
+          <li>2. Filter results by Fastest, Cheapest, or Comfortable.</li>
+          <li>3. Launch Ride Mode for real-time stop announcements.</li>
+        </ul>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const CHAPTERS = [
+      {
+        num: 1,
+        title: "Welcome to BengaluruGo - Project Overview",
+        tag: "OVERVIEW",
+        desc: "Bengaluru's Unified Multi-Modal Transit Guide & Intelligent Commute Ecosystem.",
+        time: "00:00",
+        durationSec: 12,
+        icon: "🚀",
+        mockupTitle: "Unified Commute Framework",
+        mockupSub: "Cross-platform integration across BMTC Bus, Namma Metro, Cabs, Auto & Eco modes.",
+        points: [
+          "Seamless multi-modal journey comparison with price & time transparency.",
+          "React 19 + Vite web application with responsive Flutter mobile companion.",
+          "Real-time congestion mitigation and carbon footprint awareness."
+        ],
+        speech: "Welcome to BengaluruGo, Bengaluru's Unified Multi-Modal Transit Guide. This comprehensive video manual walks you through every single feature, design decision, and operational capability.",
+        manualHeading: "Architecture & Framework Foundation",
+        manualText: "The system aggregates static and dynamic transit datasets into a unified Pareto-optimal route scoring graph.",
+        manualCode: "FASTAPI_BACKEND: http://localhost:8000\nFRONTEND_CLIENT: React 19 + Vite + Leaflet Maps\nMOBILE_CLIENT: Flutter (Dart) with Material 3",
+        instructions: [
+          "Supports both guest mode previews and authenticated personalized user accounts.",
+          "Zero external map vendor locks: runs with customizable TileLayer and OSM geometry.",
+          "Automated real-time interval polling every 10 seconds for active journeys."
+        ]
+      },
+      {
+        num: 2,
+        title: "Authentication & Secure Profile Vault",
+        tag: "SECURITY",
+        desc: "Dual-mode Landing Portal, JWT Token Security & Local Storage Session Sync.",
+        time: "00:12",
+        durationSec: 12,
+        icon: "🔐",
+        mockupTitle: "JWT Authorization Core",
+        mockupSub: "Token-based secure endpoints, BCrypt hashed passwords, and auto session restoration.",
+        points: [
+          "Landing page with high-impact hero graphics and call-to-action buttons.",
+          "Dual-mode Auth Modal: instant 1-click switch between Login and Register.",
+          "Stateful persistence storing tokens securely in browser localStorage."
+        ],
+        speech: "Module 2 covers Authentication and Security. Commuters can sign in or register in seconds, while guest commuters can preview routes before logging in.",
+        manualHeading: "Auth Endpoints & Token Management",
+        manualText: "Passes OAuth2 Bearer token in HTTP authorization headers for protected personal vehicle and glovebox queries.",
+        manualCode: "POST /auth/token (username, password)\nPOST /auth/register (username, password, email)\nHeaders: { 'Authorization': 'Bearer <token>' }",
+        instructions: [
+          "Token expiration triggers automated clean logout without throwing unhandled exceptions.",
+          "Passwords hashed via passlib (BCrypt) before database commitment.",
+          "Guest mode gracefully redirects to Auth Screen when accessing saved places."
+        ]
+      },
+      {
+        num: 3,
+        title: "1-Page Non-Scrollable Home Dashboard",
+        tag: "HOME HUB",
+        desc: "Single-Page Zero Overflow Dashboard with Dynamic Greeting & Landmark Skyline.",
+        time: "00:24",
+        durationSec: 12,
+        icon: "🏙️",
+        mockupTitle: "Compact Single-Screen UI",
+        mockupSub: "Vidhana Soudha skyline art with prominent '🚀 Plan Journey' button beside greeting.",
+        points: [
+          "Dynamic clock-aware greeting ('Good Morning', 'Good Afternoon', 'Good Evening').",
+          "Prominent 'Plan Journey' action button placed beside greeting above the hero image.",
+          "Non-scrollable single-viewport presentation optimized for desktop and mobile.",
+          "Feature grid buttons opening dedicated modular views without layout clutter."
+        ],
+        speech: "Module 3 presents the refreshed Home Dashboard. Designed as a crisp single-page view with zero vertical scrolling, featuring a dynamic greeting and a prominent Plan Journey trigger.",
+        manualHeading: "Dashboard Viewport Engineering",
+        manualText: "Calculates viewport height dynamically with CSS flexbox and 100vh constraints to prevent vertical scroll bars.",
+        manualCode: "function getGreeting() {\n  const h = new Date().getHours();\n  return h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';\n}",
+        instructions: [
+          "Clicking '🚀 Plan Journey' immediately opens the origin-destination comparison matrix.",
+          "Feature buttons (Saved Places, Garage, Glovebox) open in dedicated distraction-free drawers.",
+          "Settings modal accessible directly from the home header."
+        ]
+      },
+      {
+        num: 4,
+        title: "Saved Places & Recent Searches Hub",
+        tag: "FAST COMMUTE",
+        desc: "Instant 1-Click Commute Triggering with Cached Origin-Destination Pairs.",
+        time: "00:36",
+        durationSec: 12,
+        icon: "⭐",
+        mockupTitle: "1-Tap Journey Launcher",
+        mockupSub: "Customizable bookmarks (Home, Work, College) with instant comparison queries.",
+        points: [
+          "Bookmarks favorite destinations with custom icons and labels.",
+          "1-Click triggering launches route calculation without re-entering text.",
+          "Recent Searches history logs past queries for instant one-tap replay.",
+          "Offline fallback cache ensures quick retrieval during low connectivity."
+        ],
+        speech: "Module 4: Saved Places and Recent Searches. Commuters can bookmark everyday trips like Home or Work for instant one-click route planning.",
+        manualHeading: "Bookmark Persistence & History Service",
+        manualText: "Stores favorite coordinates and transit preferences in relational SQLite user profiles.",
+        manualCode: "GET /api/user/saved_places\nPOST /api/user/saved_places { name, address, lat, lng }\nGET /api/user/recent_searches",
+        instructions: [
+          "Click the star icon on any result card to add it to Saved Places.",
+          "Saved places appear as quick-launch chips directly under the search bar.",
+          "Recent search history can be cleared in one click via Settings."
+        ]
+      },
+      {
+        num: 5,
+        title: "My Garage & Real-Time Commute Costing",
+        tag: "GARAGE",
+        desc: "Personal Vehicle Registry (Car, Bike, EV) with Accurate Fuel & Carbon Tracking.",
+        time: "00:48",
+        durationSec: 12,
+        icon: "🚗",
+        mockupTitle: "Vehicle Economics Engine",
+        mockupSub: "Live mileage formulas, fuel rate integration, and EV battery range tracking.",
+        points: [
+          "Multi-vehicle support: register petrol cars, motorbikes, CNG, and electric vehicles.",
+          "Calculates accurate fuel costs using live Bengaluru fuel tariffs and custom mileage.",
+          "Electric Vehicle (EV) mode calculates kWh/km and carbon offset vs fossil fuel cars.",
+          "Toggle active vehicle to immediately recalibrate personal drive cost estimates."
+        ],
+        speech: "Module 5 covers My Garage. Register your personal cars, bikes, or EVs. BengaluruGo calculates exact driving costs, parking, and toll fees so you can compare them against buses and metro.",
+        manualHeading: "Vehicle Economics Algorithm",
+        manualText: "Formula: Cost = (Distance / Fuel_Efficiency) * Fuel_Price + Toll_Fees + Parking_Rate.",
+        manualCode: "cost = (distance / mileage) * fuel_price\ncarbon_kg = (distance / mileage) * emission_factor[fuel_type]",
+        instructions: [
+          "Click 'Add Vehicle' to register make, model, year, and fuel efficiency.",
+          "Select the active radio button to apply that vehicle's parameters to trip planner.",
+          "EV savings card illustrates monthly money and CO2 emissions saved."
+        ]
+      },
+      {
+        num: 6,
+        title: "Digital Glovebox & Document Vault",
+        tag: "DOCS VAULT",
+        desc: "Secure Storage & In-App Viewer for Vehicle RC, Insurance, PUC & Driving License.",
+        time: "01:00",
+        durationSec: 12,
+        icon: "📂",
+        mockupTitle: "Cross-Platform Document Viewer",
+        mockupSub: "In-app PDF viewer and high-res image previews for all registered vehicle documents.",
+        points: [
+          "Central repository for Registration (RC), Insurance, Emission (PUC), and Driving License.",
+          "Full in-app PDF and image viewer: preview certificates directly in browser and mobile app.",
+          "Automated renewal warning badges when insurance or PUC validity is near expiry.",
+          "Universal accessibility synchronized across web dashboard and mobile application."
+        ],
+        speech: "Module 6: Digital Glovebox. Never worry about traffic police checks. Store your RC, Insurance, PUC, and Driving License with an integrated in-app PDF and image viewer.",
+        manualHeading: "Secure Document Store & In-App Viewer",
+        manualText: "Handles multipart document uploads with base64/blob streaming and secure preview modals.",
+        manualCode: "POST /api/user/documents (multipart/form-data: file, doc_type, expiry)\nGET /api/user/documents/{id}/preview",
+        instructions: [
+          "Upload documents as PDF, PNG, or JPG files up to 10MB.",
+          "Click 'View Document' to open the built-in non-blocking modal viewer.",
+          "Documents sync automatically to the mobile app for offline display."
+        ]
+      },
+      {
+        num: 7,
+        title: "Multi-Modal Route Planner & Comparison Matrix",
+        tag: "TRIP PLANNER",
+        desc: "Pareto Multi-Criteria Optimization Across BMTC, Metro, Cabs, Auto & Eco Modes.",
+        time: "01:12",
+        durationSec: 12,
+        icon: "⚡",
+        mockupTitle: "Pareto Route Scoring Core",
+        mockupSub: "Simultaneous evaluation of cost, duration, transfers, comfort, and eco-score.",
+        points: [
+          "Autocomplete suggestions querying 500+ bus and metro stations across Bengaluru.",
+          "Sorting filters: Cheapest (Cost-first), Fastest (Time-first), Comfortable (Transfer-minimized).",
+          "Side-by-side comparison cards with fare breakdown, duration, and carbon rating.",
+          "Discovers multimodal combos: Bus + Metro + First/Last-Mile Walk integration."
+        ],
+        speech: "Module 7 is the heart of BengaluruGo: the Multi-Modal Comparison Engine. It queries BMTC buses, Namma Metro, Cabs, and Auto side by side with Pareto multi-criteria optimization.",
+        manualHeading: "Multi-Criteria Decision Analysis (MCDA)",
+        manualText: "Computes Composite Score = (w_cost * CostScore) + (w_time * TimeScore) + (w_comfort * ComfortScore) + (w_eco * EcoScore).",
+        manualCode: "POST /api/compare\n{\n  'source': 'Silk Board',\n  'destination': 'Majestic',\n  'preference': 'fastest',\n  'time': '09:00'\n}",
+        instructions: [
+          "Type in source and destination or pick from popular hubs.",
+          "Select preference chip (Cheapest / Fastest / Comfortable) to re-rank options.",
+          "Click on any mode card to launch its specialized detailed view."
+        ]
+      },
+      {
+        num: 8,
+        title: "Dedicated Mode View & 'See All Buses' Detail",
+        tag: "MODE DETAIL",
+        desc: "Independent Deep-Dive Pages for BMTC Bus, Namma Metro & Cabs.",
+        time: "01:24",
+        durationSec: 12,
+        icon: "🚌",
+        mockupTitle: "Dedicated Transit Sub-Pages",
+        mockupSub: "Complete schedule tables, route guidelines, bus frequency, and 'See All Buses'.",
+        points: [
+          "Dedicated BMTC Page displaying active bus numbers, stage fares, and guidelines.",
+          "'See All Buses' option within BMTC card lists every alternative bus on that corridor.",
+          "Metro Mode page detailing line interchanges (Majestic Purple/Green) and platform numbers.",
+          "Clean cab estimates with transparent breakdown and no cluttering fare advisories."
+        ],
+        speech: "Module 8: Dedicated Mode Pages. Selecting BMTC opens a dedicated bus view with route guidelines, stage fares, and a See All Buses feature listing all servicing buses.",
+        manualHeading: "Dedicated Route Inspector",
+        manualText: "Provides deep-dive transit data including frequency (e.g. every 8 mins) and stage fare boundaries.",
+        manualCode: "GET /api/bmtc/route/{route_no}/buses\nResponse: { 'buses': ['500-D', '500-CA', 'KIA-9'], 'frequency': '5 mins' }",
+        instructions: [
+          "Click 'See All Buses' on the BMTC card to view alternative route numbers.",
+          "Review platform advice (e.g., Platform 2 Eastbound) for Metro journeys.",
+          "Click 'Start Navigation' to transition seamlessly into Ride Mode."
+        ]
+      },
+      {
+        num: 9,
+        title: "Interactive Leaflet GPS Map & Linear Schematic",
+        tag: "MAPPING",
+        desc: "Dual-View Route Visualizer with Real-Time Traffic Layer & Transit Nodes.",
+        time: "01:36",
+        durationSec: 12,
+        icon: "🗺️",
+        mockupTitle: "Dual-Mode Route Geometry",
+        mockupSub: "Switch between geospatial Leaflet GPS map and subway-style linear schematic.",
+        points: [
+          "Interactive Leaflet GPS map displaying route polylines, transfer points, and stop pins.",
+          "Basemap selector: switch between OpenStreetMap, Carto Dark, and Satellite views.",
+          "Linear Route Schematic: clean subway-style sequential stop diagram with wait times.",
+          "Traffic bottleneck visualization highlighting congestion corridors (Silk Board, ORR)."
+        ],
+        speech: "Module 9: Mapping and Visual Route Inspection. Switch effortlessly between a geospatial Leaflet map with traffic highlights and a clean subway-style linear schematic.",
+        manualHeading: "Geospatial Rendering Engine",
+        manualText: "Uses Leaflet.js with SVG vector polylines, custom marker icons, and OpenStreetMap tile layers.",
+        manualCode: "<MapContainer center={[12.9716, 77.5946]} zoom={12}>\n  <Polyline positions={coords} color='#a855f7' weight={5} />\n  <Marker position={stopCoord} icon={customIcon} />\n</MapContainer>",
+        instructions: [
+          "Toggle between 'Map View' and 'Linear Diagram' above the route display.",
+          "Click any marker on the map to inspect stop name and arrival ETA.",
+          "Zoom in on interchange stations to view walking transfer paths."
+        ]
+      },
+      {
+        num: 10,
+        title: "Active Ride Mode & Turn-by-Turn Navigation",
+        tag: "NAVIGATION",
+        desc: "Bidirectional 2-Way Travel, Flexible Intermediate Boarding & Live Stop Tracker.",
+        time: "01:48",
+        durationSec: 12,
+        icon: "🧭",
+        mockupTitle: "2-Way Turn-by-Turn Engine",
+        mockupSub: "Bidirectional A↔B route flip, intermediate stop boarding, and audio stop alerts.",
+        points: [
+          "2-Way Direction Support: instant toggle between Forward (A → B) and Return (B → A).",
+          "Intermediate Boarding: board from any middle stop; route automatically adjusts remaining sequence.",
+          "Live GPS simulator with next-stop announcements, distance countdown, and progress bar.",
+          "Unified action bar combining Ride Mode, Start Navigation, and Save Route into one clean interface."
+        ],
+        speech: "Module 10: Active Ride Mode. Featuring true two-way navigation and flexible intermediate stop boarding, ensuring that boarding midway recalculates the route flawlessly.",
+        manualHeading: "Navigation Engine & Intermediate Slicing",
+        manualText: "Slices the stop sequence array from selected boarding stop index to destination index, reversing order if Return direction is active.",
+        manualCode: "const currentStops = isReturn ? [...allStops].reverse() : allStops;\nconst remainingStops = currentStops.slice(boardingIndex);",
+        instructions: [
+          "Click 'Ride Mode' to open the navigation panel.",
+          "Click '⇄ Switch Direction' to flip route between forward and reverse trips.",
+          "Use the 'Boarding Stop' dropdown if boarding at a middle bus stop or metro station."
+        ]
+      },
+      {
+        num: 11,
+        title: "Transit Intelligence Tools & Weather Advisory",
+        tag: "TRANSIT INTEL",
+        desc: "Timetables, Route Lookup, Nearby Stops, Stage Fare Matrix & Rain Fallbacks.",
+        time: "02:00",
+        durationSec: 12,
+        icon: "📊",
+        mockupTitle: "Intelligent Transit Utilities",
+        mockupSub: "Full BMTC timetable search, route stop inspection, and automated rain alerts.",
+        points: [
+          "Route Lookup & Timetables: search any route (e.g. 500-D, V-335E) for full stop lists and times.",
+          "Nearest Stops Geo-Finder: locates bus stops and metro gates within 500m to 1km radius.",
+          "Stage Fare Matrix: official BMTC distance stage lookup and BMRCL token calculator.",
+          "Smart Weather Delays Alert: detects heavy rains and offers 1-tap fallback to cabs or walk."
+        ],
+        speech: "Module 11: Transit Intelligence Utilities. Check complete bus timetables, inspect route stop sequences, calculate exact stage fares, and receive weather delay advisories.",
+        manualHeading: "Transit Services & Weather Interceptor",
+        manualText: "Monitors OpenWeatherMap precipitation API. When rain triggers delays, it surfaces non-intrusive fallback recommendations.",
+        manualCode: "GET /api/bmtc/timetable?route=500D\nGET /api/stops/nearby?lat=12.91&lng=77.62&radius=1000\nGET /api/weather/alerts?city=bengaluru",
+        instructions: [
+          "Open 'Features' from the bottom navigation to access Timetable & Route Lookup.",
+          "Search route number in the Route Lookup page to view all sequential stops.",
+          "When rain alerts appear, click 'Take a Cab' or 'Walk' for instant rerouting."
+        ]
+      },
+      {
+        num: 12,
+        title: "AI Transit Assistant Chatbot & Summary",
+        tag: "AI & WRAP-UP",
+        desc: "Natural Language Commute Co-Pilot & Production Deployment Wrap-Up.",
+        time: "02:12",
+        durationSec: 12,
+        icon: "🤖",
+        mockupTitle: "Conversational Transit AI",
+        mockupSub: "Floating assistant capable of parsing natural language travel queries and auto-routing.",
+        points: [
+          "Floating AI Transit Bot answering queries: 'Fastest way to Whitefield right now?'.",
+          "Auto-fills source, destination, and mode preferences straight from conversation.",
+          "Fully deployed on Vercel with responsive mobile and desktop viewports.",
+          "BengaluruGo: Making Bengaluru travel predictable, multimodal, and stress-free."
+        ],
+        speech: "Module 12: AI Assistant and Summary. The floating transit chatbot understands natural language prompts and configures trips instantly. BengaluruGo is live, verified, and ready.",
+        manualHeading: "Conversational NLP Intent Parser",
+        manualText: "Extracts origin, destination, and temporal entities to invoke comparator APIs autonomously.",
+        manualCode: "POST /api/chat/assistant\n{ 'query': 'How to go from Indiranagar to Airport by bus?' }\nResponse: { 'src': 'Indiranagar', 'dst': 'KIA Terminal', 'mode': 'bus', 'route': 'KIA-8' }",
+        instructions: [
+          "Click the floating message bubble icon on the bottom right to launch the AI Bot.",
+          "Type in your natural query (e.g. 'Metro from MG Road to Baiyappanahalli').",
+          "Click the generated suggestion pill to automatically trigger the route planner."
+        ]
+      }
+    ];
+
+    let currentChapterIndex = 0;
+    let isPlaying = false;
+    let playTimer = null;
+    let voiceoverEnabled = true;
+    let playbackSpeed = 1.0;
+    let synth = window.speechSynthesis;
+    let currentUtterance = null;
+
+    // Elements
+    const screenStage = document.getElementById("screenStage");
+    const stageStatusText = document.getElementById("stageStatusText");
+    const stageChapterIndicator = document.getElementById("stageChapterIndicator");
+    const chTag = document.getElementById("chTag");
+    const chTitle = document.getElementById("chTitle");
+    const chDesc = document.getElementById("chDesc");
+    const demoPointsList = document.getElementById("demoPointsList");
+    const mockupIcon = document.getElementById("mockupIcon");
+    const mockupLabel = document.getElementById("mockupLabel");
+    const mockupSub = document.getElementById("mockupSub");
+    const subtitleBox = document.getElementById("subtitleBox");
+    const currentTimeDisp = document.getElementById("currentTime");
+    const scrubberFill = document.getElementById("scrubberFill");
+    const scrubberBar = document.getElementById("scrubberBar");
+    const playBtn = document.getElementById("playBtn");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const voiceToggleBtn = document.getElementById("voiceToggleBtn");
+    const speedBtn = document.getElementById("speedBtn");
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
+    const chapterListContainer = document.getElementById("chapterListContainer");
+    const tabChapters = document.getElementById("tabChapters");
+    const tabManual = document.getElementById("tabManual");
+    const manualContentBox = document.getElementById("manualContentBox");
+    const manualHeading = document.getElementById("manualHeading");
+    const manualText = document.getElementById("manualText");
+    const manualCode = document.getElementById("manualCode");
+    const manualInstructions = document.getElementById("manualInstructions");
+
+    // Render Chapter List
+    function renderChapterList() {
+      chapterListContainer.innerHTML = "";
+      CHAPTERS.forEach((c, idx) => {
+        const item = document.createElement("div");
+        item.className = `chapter-item ${idx === currentChapterIndex ? "active" : ""}`;
+        item.onclick = () => selectChapter(idx, true);
+        item.innerHTML = `
+          <div class="ch-num">${c.num}</div>
+          <div class="ch-info">
+            <div class="ch-title">${c.title}</div>
+            <div class="ch-time">${c.time} · ${c.tag}</div>
+          </div>
+        `;
+        chapterListContainer.appendChild(item);
+      });
+    }
+
+    // Select and load chapter
+    function selectChapter(idx, autoPlay = false) {
+      if (idx < 0 || idx >= CHAPTERS.length) return;
+      currentChapterIndex = idx;
+      const c = CHAPTERS[idx];
+
+      // Update Stage UI
+      stageChapterIndicator.innerText = `Chapter ${c.num} of ${CHAPTERS.length}`;
+      chTag.innerText = c.tag;
+      chTitle.innerText = `${c.num}. ${c.title}`;
+      chDesc.innerText = c.desc;
+      mockupIcon.innerText = c.icon;
+      mockupLabel.innerText = c.mockupTitle;
+      mockupSub.innerText = c.mockupSub;
+      subtitleBox.innerText = `"${c.speech}"`;
+      currentTimeDisp.innerText = c.time;
+
+      // Update points
+      demoPointsList.innerHTML = "";
+      c.points.forEach(pt => {
+        const div = document.createElement("div");
+        div.className = "demo-pt";
+        div.innerText = pt;
+        demoPointsList.appendChild(div);
+      });
+
+      // Update Scrubber
+      const pct = (idx / CHAPTERS.length) * 100;
+      scrubberFill.style.width = `${pct}%`;
+
+      // Update Manual Panel
+      manualHeading.innerText = `${c.num}. ${c.title} - ${c.manualHeading}`;
+      manualText.innerText = c.manualText;
+      manualCode.innerText = c.manualCode;
+      manualInstructions.innerHTML = "";
+      c.instructions.forEach(ins => {
+        const li = document.createElement("li");
+        li.innerText = ins;
+        manualInstructions.appendChild(li);
+      });
+
+      renderChapterList();
+
+      // Trigger Voiceover
+      if (voiceoverEnabled) {
+        speakChapter(c.speech);
+      }
+
+      if (autoPlay && !isPlaying) {
+        startPlay();
+      }
+    }
+
+    // Voiceover Synthesis
+    function speakChapter(text) {
+      if (!synth) return;
+      synth.cancel();
+      currentUtterance = new SpeechSynthesisUtterance(text);
+      currentUtterance.rate = playbackSpeed;
+      currentUtterance.pitch = 1.0;
+      currentUtterance.onend = () => {
+        if (isPlaying) {
+          nextChapter();
+        }
+      };
+      synth.speak(currentUtterance);
+    }
+
+    function startPlay() {
+      isPlaying = true;
+      playBtn.innerText = "⏸ Pause";
+      playBtn.classList.add("active");
+      stageStatusText.innerText = "Interactive Demo · Playing";
+      
+      if (!voiceoverEnabled) {
+        // Fallback timer if voiceover is turned off
+        clearInterval(playTimer);
+        const durationMs = (CHAPTERS[currentChapterIndex].durationSec * 1000) / playbackSpeed;
+        playTimer = setTimeout(() => {
+          nextChapter();
+        }, durationMs);
+      } else {
+        speakChapter(CHAPTERS[currentChapterIndex].speech);
+      }
+    }
+
+    function pausePlay() {
+      isPlaying = false;
+      playBtn.innerText = "▶ Play";
+      playBtn.classList.remove("active");
+      stageStatusText.innerText = "Interactive Demo · Paused";
+      if (synth) synth.cancel();
+      if (playTimer) clearTimeout(playTimer);
+    }
+
+    function nextChapter() {
+      if (currentChapterIndex < CHAPTERS.length - 1) {
+        selectChapter(currentChapterIndex + 1);
+        if (isPlaying) startPlay();
+      } else {
+        pausePlay();
+        currentChapterIndex = 0;
+        selectChapter(0, false);
+      }
+    }
+
+    function prevChapter() {
+      if (currentChapterIndex > 0) {
+        selectChapter(currentChapterIndex - 1);
+        if (isPlaying) startPlay();
+      }
+    }
+
+    // Event Listeners
+    playBtn.onclick = () => {
+      if (isPlaying) pausePlay();
+      else startPlay();
+    };
+    prevBtn.onclick = prevChapter;
+    nextBtn.onclick = nextChapter;
+
+    voiceToggleBtn.onclick = () => {
+      voiceoverEnabled = !voiceoverEnabled;
+      voiceToggleBtn.innerText = voiceoverEnabled ? "🔊 Voiceover: ON" : "🔇 Voiceover: OFF";
+      if (!voiceoverEnabled && synth) synth.cancel();
+    };
+
+    speedBtn.onclick = () => {
+      if (playbackSpeed === 1.0) playbackSpeed = 1.25;
+      else if (playbackSpeed === 1.25) playbackSpeed = 1.5;
+      else if (playbackSpeed === 1.5) playbackSpeed = 2.0;
+      else playbackSpeed = 1.0;
+      speedBtn.innerText = `${playbackSpeed}x`;
+      if (isPlaying) {
+        startPlay();
+      }
+    };
+
+    fullscreenBtn.onclick = () => {
+      if (!document.fullscreenElement) {
+        screenStage.requestFullscreen().catch(err => alert(`Fullscreen error: ${err.message}`));
+      } else {
+        document.exitFullscreen();
+      }
+    };
+
+    scrubberBar.onclick = (e) => {
+      const rect = scrubberBar.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const pct = clickX / rect.width;
+      const targetIdx = Math.floor(pct * CHAPTERS.length);
+      selectChapter(Math.min(targetIdx, CHAPTERS.length - 1));
+      if (isPlaying) startPlay();
+    };
+
+    tabChapters.onclick = () => {
+      tabChapters.classList.add("active");
+      tabManual.classList.remove("active");
+      chapterListContainer.style.display = "flex";
+      manualContentBox.style.display = "none";
+    };
+
+    tabManual.onclick = () => {
+      tabManual.classList.add("active");
+      tabChapters.classList.remove("active");
+      chapterListContainer.style.display = "none";
+      manualContentBox.style.display = "flex";
+    };
+
+    // Initialize
+    renderChapterList();
+    selectChapter(0, false);
+  </script>
+</body>
+</html>
